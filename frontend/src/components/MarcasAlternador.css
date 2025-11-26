@@ -1,0 +1,318 @@
+/* Estilos para el componente de Marcas de Alternadores */
+
+/* Animaciones */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.fade-in {
+  animation: fadeIn 0.3s ease-out;
+}
+
+.marcas-container {
+  padding: 2rem;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.marcas-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+  padding-bottom: 1rem;
+  border-bottom: 3px solid var(--mantec-blue);
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.marcas-header h2 {
+  color: var(--mantec-blue);
+  margin: 0;
+  font-size: 1.8rem;
+}
+
+.header-actions {
+  display: flex;
+  gap: 0.75rem;
+}
+
+/* Sección de búsqueda */
+.search-section {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.results-info {
+  color: var(--mantec-gray);
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+/* Alertas */
+.alert {
+  padding: 1rem;
+  border-radius: 8px;
+  margin-bottom: 1rem;
+  font-weight: 500;
+}
+
+.alert-error {
+  background-color: #FEE2E2;
+  color: #991B1B;
+  border-left: 4px solid #DC2626;
+}
+
+/* Formulario */
+.form-card {
+  background: white;
+  padding: 2rem;
+  border-radius: 8px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  margin-bottom: 2rem;
+  border-left: 4px solid var(--mantec-orange);
+}
+
+.form-card h3 {
+  color: var(--mantec-blue);
+  margin-top: 0;
+  margin-bottom: 1.5rem;
+}
+
+.form-group {
+  margin-bottom: 1.5rem;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 0.5rem;
+  color: var(--mantec-gray);
+  font-weight: 600;
+}
+
+.form-input {
+  width: 100%;
+  padding: 0.75rem;
+  border: 2px solid #E2E8F0;
+  border-radius: 6px;
+  font-size: 1rem;
+  transition: border-color 0.3s;
+}
+
+.form-input:focus {
+  outline: none;
+  border-color: var(--mantec-blue);
+}
+
+.form-actions {
+  display: flex;
+  gap: 1rem;
+}
+
+/* Botones */
+.btn-primary,
+.btn-success,
+.btn-secondary,
+.btn-edit,
+.btn-delete,
+.btn-export {
+  padding: 0.75rem 1.5rem;
+  border: none;
+  border-radius: 6px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.btn-primary {
+  background: var(--mantec-blue);
+  color: white;
+}
+
+.btn-primary:hover {
+  background: #1E4A76;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+.btn-success {
+  background: #10B981;
+  color: white;
+}
+
+.btn-success:hover {
+  background: #059669;
+}
+
+.btn-secondary {
+  background: #6B7280;
+  color: white;
+}
+
+.btn-secondary:hover {
+  background: #4B5563;
+}
+
+.btn-export {
+  background: #8B5CF6;
+  color: white;
+}
+
+.btn-export:hover {
+  background: #7C3AED;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(139, 92, 246, 0.3);
+}
+
+.btn-edit {
+  background: #C0C0C0;
+  color: #1A202C;
+  padding: 0.5rem 1rem;
+  font-size: 1.2rem;
+  border: 1px solid #A0A0A0;
+}
+
+.btn-edit:hover {
+  background: #D3D3D3;
+  transform: scale(1.1);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.btn-delete {
+  background: #C0C0C0;
+  color: #1A202C;
+  padding: 0.5rem 1rem;
+  font-size: 1.2rem;
+  border: 1px solid #A0A0A0;
+}
+
+.btn-delete:hover {
+  background: #D3D3D3;
+  transform: scale(1.1);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+/* Loading */
+.loading {
+  text-align: center;
+  padding: 3rem;
+  font-size: 1.2rem;
+  color: var(--mantec-gray);
+}
+
+/* Tabla */
+.table-container {
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+}
+
+.marcas-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.marcas-table thead {
+  background: linear-gradient(135deg, var(--mantec-blue), #1E4A76);
+  color: white;
+}
+
+.marcas-table th {
+  padding: 1rem;
+  text-align: left;
+  font-weight: 600;
+  text-transform: uppercase;
+  font-size: 0.85rem;
+  letter-spacing: 0.5px;
+}
+
+.marcas-table th.sortable {
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.2s;
+}
+
+.marcas-table th.sortable:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.marcas-table tbody tr {
+  border-bottom: 1px solid #E2E8F0;
+  transition: background-color 0.2s;
+}
+
+.marcas-table tbody tr:hover {
+  background-color: #F7FAFC;
+}
+
+.marcas-table td {
+  padding: 1rem;
+  font-size: 0.9rem;
+}
+
+.marca-name {
+  font-weight: 600;
+  color: var(--mantec-blue);
+  font-size: 1rem;
+}
+
+.actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.no-data {
+  text-align: center;
+  padding: 3rem;
+  color: var(--mantec-gray);
+  font-size: 1.1rem;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .marcas-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .header-actions {
+    width: 100%;
+    flex-direction: column;
+  }
+
+  .header-actions button {
+    width: 100%;
+  }
+
+  .search-section {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .form-actions {
+    flex-direction: column;
+  }
+
+  .marcas-table {
+    font-size: 0.85rem;
+  }
+
+  .marcas-table th,
+  .marcas-table td {
+    padding: 0.75rem 0.5rem;
+  }
+}
