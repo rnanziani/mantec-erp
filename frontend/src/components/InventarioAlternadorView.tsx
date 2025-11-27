@@ -1,5 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import './InventarioAlternadorView.css';
+import { useToast } from '../context/ToastContext';
+import SearchBar from './shared/SearchBar';
+import Pagination from './shared/Pagination';
+import { exportToExcel } from '../utils/exportUtils';
 
 interface InventarioAlternador {
     id_inventario_23: number;
@@ -43,6 +47,13 @@ const InventarioAlternadorView: React.FC = () => {
     const [error, setError] = useState<string | null>(null);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingId, setEditingId] = useState<number | null>(null);
+
+    // Pagination and search
+    const [searchTerm, setSearchTerm] = useState<string>('');
+    const [currentPage, setCurrentPage] = useState<number>(1);
+    const [itemsPerPage] = useState<number>(10);
+
+    const { showToast } = useToast();
 
     // Form State
     const [formData, setFormData] = useState({
@@ -166,6 +177,42 @@ const InventarioAlternadorView: React.FC = () => {
         setError(null);
     };
 
+    // Filter and paginate
+    const filteredInventario = useMemo(() => {
+        return inventario.filter(item =>
+            item.cod_alternador_19?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            item.marca_18?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            item.estado_20?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            item.ubicacion_23?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            item.numinterno_11?.toLowerCase().includes(searchTerm.toLowerCase())
+        );
+    }, [inventario, searchTerm]);
+
+    const paginatedInventario = useMemo(() => {
+        const startIndex = (currentPage - 1) * itemsPerPage;
+        return filteredInventario.slice(startIndex, startIndex + itemsPerPage);
+    }, [filteredInventario, currentPage, itemsPerPage]);
+
+    const totalPages = Math.ceil(filteredInventario.length / itemsPerPage);
+
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [searchTerm]);
+
+    const handleExport = () => {
+        const dataToExport = filteredInventario.map(item => ({
+            Alternador: item.cod_alternador_19 || '',
+            Marca: item.marca_18 || '',
+            Estado: item.estado_20 || '',
+            Ubicación: item.ubicacion_23 || '-',
+            'Máquina Asignada': item.numinterno_11 ? `${item.numinterno_11} (${item.ppu_11})` : '-',
+            Fecha: new Date(item.fecha_ultimo_movimiento_23).toLocaleDateString('es-CL'),
+            Reparaciones: item.contador_reparaciones_23
+        }));
+        exportToExcel(dataToExport, 'inventario-alternadores', 'Inventario');
+        showToast('Datos exportados exitosamente', 'success');
+    };
+
     if (loading) return <div className="loading">Cargando...</div>;
 
     return (
@@ -174,12 +221,28 @@ const InventarioAlternadorView: React.FC = () => {
                 <div className="inventario-title">
                     <span>📦</span> Gestión de Inventario
                 </div>
-                <button
-                    className="btn-primary"
-                    onClick={() => { resetForm(); setIsModalOpen(true); }}
-                >
-                    + Nuevo Registro
-                </button>
+                <div className="header-actions">
+                    <button className="btn-export" onClick={handleExport} title="Exportar a Excel">
+                        📊 Exportar
+                    </button>
+                    <button
+                        className="btn-primary"
+                        onClick={() => { resetForm(); setIsModalOpen(true); }}
+                    >
+                        + Nuevo Registro
+                    </button>
+                </div>
+            </div>
+
+            <div className="search-section">
+                <SearchBar
+                    placeholder="Buscar por alternador, marca, estado, ubicación..."
+                    value={searchTerm}
+                    onChange={setSearchTerm}
+                />
+                <div className="results-info">
+                    Mostrando {paginatedInventario.length} de {filteredInventario.length} registros
+                </div>
             </div>
 
             {error && <div className="error-message">{error}</div>}
@@ -199,12 +262,17 @@ const InventarioAlternadorView: React.FC = () => {
                         </tr>
                     </thead>
                     <tbody>
-                        {inventario.length === 0 ? (
+                        {paginatedInventario.length === 0 ? (
                             <tr>
-                                <td colSpan={8} className="empty-state">No hay registros en el inventario</td>
+                                <td colSpan={8} className="empty-state">
+                                    {searchTerm
+                                        ? `No se encontraron registros con "${searchTerm}"`
+                                        : 'No hay registros en el inventario'
+                                    }
+                                </td>
                             </tr>
                         ) : (
-                            inventario.map((item) => (
+                            paginatedInventario.map((item) => (
                                 <tr key={item.id_inventario_23}>
                                     <td>{item.cod_alternador_19}</td>
                                     <td>{item.marca_18}</td>
@@ -241,6 +309,16 @@ const InventarioAlternadorView: React.FC = () => {
                     </tbody>
                 </table>
             </div>
+
+            {filteredInventario.length > 0 && (
+                <Pagination
+                    currentPage={currentPage}
+                    totalPages={totalPages}
+                    totalItems={filteredInventario.length}
+                    itemsPerPage={itemsPerPage}
+                    onPageChange={setCurrentPage}
+                />
+            )}
 
             {isModalOpen && (
                 <div className="modal-overlay">

@@ -11,6 +11,9 @@ import maquinaRoutes from './routes/maquinaRoutes.js';
 import tecnicoRoutes from './routes/tecnicoRoutes.js';
 import cargoRoutes from './routes/cargoRoutes.js';
 import inventarioAlternadorRoutes from './routes/inventarioAlternadorRoutes.js';
+import ordenTrabajoRoutes from './routes/ordenTrabajoRoutes.js';
+
+console.log('🔄 Servidor iniciando - Cargando rutas...');
 
 dotenv.config();
 
@@ -44,6 +47,13 @@ app.get('/api/mantec/info', (req, res) => {
   });
 });
 
+// RUTA DE PRUEBA - Verificar que POST funciona
+app.post('/api/test-post', (req, res) => {
+  console.log('🧪 Test POST recibido');
+  res.json({ success: true, message: 'POST funciona correctamente' });
+});
+console.log('🧪 Ruta de prueba POST registrada en /api/test-post');
+
 // Rutas de la API
 app.use('/api/marcas', marcasRoutes);
 app.use('/api/alternadores', alternadoresRoutes);
@@ -53,6 +63,9 @@ app.use('/api/maquinas', maquinaRoutes);
 app.use('/api/tecnicos', tecnicoRoutes);
 app.use('/api/cargos', cargoRoutes);
 app.use('/api/inventario', inventarioAlternadorRoutes);
+app.use('/api/ordenes-trabajo', ordenTrabajoRoutes);
+
+console.log('✅ Todas las rutas cargadas');
 
 // Iniciar servidor
 const startServer = async () => {
@@ -76,6 +89,7 @@ const startServer = async () => {
 🛠️  API Técnicos: http://localhost:${PORT}/api/tecnicos
 🛠️  API Cargos: http://localhost:${PORT}/api/cargos
 🛠️  API Inventario: http://localhost:${PORT}/api/inventario
+🛠️  API Órdenes Trabajo: http://localhost:${PORT}/api/ordenes-trabajo
 🛠️  DB Status: ${dbConnected ? '✅ Conectado' : '❌ Desconectado'}
 🛠️  ==================================
     `);

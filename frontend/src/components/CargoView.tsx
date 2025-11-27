@@ -1,33 +1,33 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import './MarcasAlternador.css';
+import './CargoView.css';
 import { useToast } from '../context/ToastContext';
 import SearchBar from './shared/SearchBar';
 import Pagination from './shared/Pagination';
 import { exportToExcel } from '../utils/exportUtils';
 
-interface MarcaAlternador {
-  id_marca_18: number;
-  marca_18: string;
+interface Cargo {
+  idcargo_14: number;
+  cargo_14: string;
 }
 
 interface ApiResponse {
   success: boolean;
-  data?: MarcaAlternador[] | MarcaAlternador;
+  data?: Cargo[] | Cargo;
   count?: number;
   message?: string;
   error?: string;
 }
 
 type SortConfig = {
-  key: keyof MarcaAlternador;
+  key: keyof Cargo;
   direction: 'asc' | 'desc';
 };
 
-const MarcasAlternador: React.FC = () => {
-  const [marcas, setMarcas] = useState<MarcaAlternador[]>([]);
+const CargoView: React.FC = () => {
+  const [cargos, setCargos] = useState<Cargo[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string>('');
-  const [marcaName, setMarcaName] = useState<string>('');
+  const [cargoName, setCargoName] = useState<string>('');
   const [editingId, setEditingId] = useState<number | null>(null);
   const [showForm, setShowForm] = useState<boolean>(false);
 
@@ -35,39 +35,54 @@ const MarcasAlternador: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [itemsPerPage] = useState<number>(10);
-  const [sortConfig, setSortConfig] = useState<SortConfig>({ key: 'id_marca_18', direction: 'asc' });
+  const [sortConfig, setSortConfig] = useState<SortConfig>({ key: 'idcargo_14', direction: 'asc' });
 
   const { showToast } = useToast();
-  const API_URL = 'http://localhost:3001/api/marcas';
+  const API_URL = 'http://localhost:3001/api/cargos';
 
+  // Verificar que el componente se monte correctamente
   useEffect(() => {
-    fetchMarcas();
+    console.log('CargoView montado');
+    fetchCargos();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const fetchMarcas = async () => {
+  const fetchCargos = async () => {
     try {
       setLoading(true);
       setError('');
       const response = await fetch(API_URL);
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
       const data: ApiResponse = await response.json();
 
       if (data.success && Array.isArray(data.data)) {
-        setMarcas(data.data);
+        // Normalizar los datos por si vienen con nombrecargo_14 como alias
+        const normalizedData = data.data.map((cargo: any) => ({
+          idcargo_14: cargo.idcargo_14,
+          cargo_14: cargo.cargo_14 || cargo.nombrecargo_14 || ''
+        }));
+        setCargos(normalizedData);
       } else {
-        setError('Error al cargar las marcas');
+        setError(data.error || 'Error al cargar los cargos');
+        setCargos([]);
       }
     } catch (err) {
-      setError('Error de conexión con el servidor');
-      console.error('Error:', err);
+      setError('Error de conexión con el servidor. Verifique que el backend esté ejecutándose.');
+      console.error('Error al cargar cargos:', err);
+      setCargos([]);
     } finally {
       setLoading(false);
     }
   };
 
   // Filtrar y ordenar datos
-  const filteredAndSortedMarcas = useMemo(() => {
-    let filtered = marcas.filter(marca =>
-      marca.marca_18.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredAndSortedCargos = useMemo(() => {
+    let filtered = cargos.filter(cargo =>
+      cargo.cargo_14.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
     // Ordenar
@@ -81,35 +96,35 @@ const MarcasAlternador: React.FC = () => {
     });
 
     return filtered;
-  }, [marcas, searchTerm, sortConfig]);
+  }, [cargos, searchTerm, sortConfig]);
 
   // Paginación
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-  const currentMarcas = filteredAndSortedMarcas.slice(indexOfFirstItem, indexOfLastItem);
-  const totalPages = Math.ceil(filteredAndSortedMarcas.length / itemsPerPage);
+  const currentCargos = filteredAndSortedCargos.slice(indexOfFirstItem, indexOfLastItem);
+  const totalPages = Math.ceil(filteredAndSortedCargos.length / itemsPerPage);
 
   // Resetear página al buscar
   useEffect(() => {
     setCurrentPage(1);
   }, [searchTerm]);
 
-  const handleSort = (key: keyof MarcaAlternador) => {
+  const handleSort = (key: keyof Cargo) => {
     setSortConfig(prev => ({
       key,
       direction: prev.key === key && prev.direction === 'asc' ? 'desc' : 'asc'
     }));
   };
 
-  const getSortIcon = (key: keyof MarcaAlternador) => {
+  const getSortIcon = (key: keyof Cargo) => {
     if (sortConfig.key !== key) return '⇅';
     return sortConfig.direction === 'asc' ? '↑' : '↓';
   };
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!marcaName.trim()) {
-      showToast('El nombre de la marca es requerido', 'error');
+    if (!cargoName.trim()) {
+      showToast('El nombre del cargo es requerido', 'error');
       return;
     }
 
@@ -118,56 +133,82 @@ const MarcasAlternador: React.FC = () => {
       const response = await fetch(API_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ marca_18: marcaName.trim() })
+        body: JSON.stringify({ cargo_14: cargoName.trim() })
       });
+
+      // Verificar si la respuesta es exitosa antes de parsear JSON
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        const errorMessage = errorData.error || errorData.message || `Error HTTP: ${response.status}`;
+        showToast(errorMessage, 'error');
+        setError(errorMessage);
+        return;
+      }
 
       const data: ApiResponse = await response.json();
 
       if (data.success) {
-        await fetchMarcas();
-        setMarcaName('');
+        await fetchCargos();
+        setCargoName('');
         setShowForm(false);
-        showToast('Marca creada exitosamente', 'success');
+        showToast('Cargo creado exitosamente', 'success');
       } else {
-        showToast(data.error || 'Error al crear la marca', 'error');
+        const errorMessage = data.error || data.message || 'Error al crear el cargo';
+        showToast(errorMessage, 'error');
+        setError(errorMessage);
       }
     } catch (err) {
-      showToast('Error al crear la marca', 'error');
-      console.error('Error:', err);
+      const errorMessage = err instanceof Error ? err.message : 'Error de conexión al crear el cargo';
+      showToast(errorMessage, 'error');
+      setError(errorMessage);
+      console.error('Error al crear cargo:', err);
     }
   };
 
   const handleUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!marcaName.trim() || editingId === null) return;
+    if (!cargoName.trim() || editingId === null) return;
 
     try {
       setError('');
       const response = await fetch(`${API_URL}/${editingId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ marca_18: marcaName.trim() })
+        body: JSON.stringify({ cargo_14: cargoName.trim() })
       });
+
+      // Verificar si la respuesta es exitosa antes de parsear JSON
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        const errorMessage = errorData.error || errorData.message || `Error HTTP: ${response.status}`;
+        showToast(errorMessage, 'error');
+        setError(errorMessage);
+        return;
+      }
 
       const data: ApiResponse = await response.json();
 
       if (data.success) {
-        await fetchMarcas();
-        setMarcaName('');
+        await fetchCargos();
+        setCargoName('');
         setEditingId(null);
         setShowForm(false);
-        showToast('Marca actualizada exitosamente', 'success');
+        showToast('Cargo actualizado exitosamente', 'success');
       } else {
-        showToast(data.error || 'Error al actualizar la marca', 'error');
+        const errorMessage = data.error || data.message || 'Error al actualizar el cargo';
+        showToast(errorMessage, 'error');
+        setError(errorMessage);
       }
     } catch (err) {
-      showToast('Error al actualizar la marca', 'error');
-      console.error('Error:', err);
+      const errorMessage = err instanceof Error ? err.message : 'Error de conexión al actualizar el cargo';
+      showToast(errorMessage, 'error');
+      setError(errorMessage);
+      console.error('Error al actualizar cargo:', err);
     }
   };
 
   const handleDelete = async (id: number) => {
-    if (!window.confirm('¿Está seguro de eliminar esta marca?')) return;
+    if (!window.confirm('¿Está seguro de eliminar este cargo?')) return;
 
     try {
       setError('');
@@ -178,51 +219,51 @@ const MarcasAlternador: React.FC = () => {
       const data: ApiResponse = await response.json();
 
       if (data.success) {
-        await fetchMarcas();
-        showToast('Marca eliminada exitosamente', 'success');
+        await fetchCargos();
+        showToast('Cargo eliminado exitosamente', 'success');
       } else {
-        showToast(data.error || 'Error al eliminar la marca', 'error');
+        showToast(data.error || 'Error al eliminar el cargo', 'error');
       }
     } catch (err) {
-      showToast('Error al eliminar la marca', 'error');
+      showToast('Error al eliminar el cargo', 'error');
       console.error('Error:', err);
     }
   };
 
-  const startEdit = (marca: MarcaAlternador) => {
-    setEditingId(marca.id_marca_18);
-    setMarcaName(marca.marca_18);
+  const startEdit = (cargo: Cargo) => {
+    setEditingId(cargo.idcargo_14);
+    setCargoName(cargo.cargo_14);
     setShowForm(true);
     setError('');
   };
 
   const cancelForm = () => {
-    setMarcaName('');
+    setCargoName('');
     setEditingId(null);
     setShowForm(false);
     setError('');
   };
 
   const showCreateForm = () => {
-    setMarcaName('');
+    setCargoName('');
     setEditingId(null);
     setShowForm(true);
     setError('');
   };
 
   const handleExport = () => {
-    const dataToExport = filteredAndSortedMarcas.map(m => ({
-      ID: m.id_marca_18,
-      Marca: m.marca_18
+    const dataToExport = filteredAndSortedCargos.map(c => ({
+      ID: c.idcargo_14,
+      Cargo: c.cargo_14
     }));
-    exportToExcel(dataToExport, 'marcas-alternadores', 'Marcas');
+    exportToExcel(dataToExport, 'cargos', 'Cargos');
     showToast('Datos exportados exitosamente', 'success');
   };
 
   return (
-    <div className="marcas-container fade-in">
-      <div className="marcas-header">
-        <h2>🔧 Gestión de Marcas de Alternadores</h2>
+    <div className="cargo-container fade-in">
+      <div className="cargo-header">
+        <h2>👔 Gestión de Cargos</h2>
         <div className="header-actions">
           {!showForm && (
             <>
@@ -230,7 +271,7 @@ const MarcasAlternador: React.FC = () => {
                 📊 Exportar
               </button>
               <button className="btn-primary" onClick={showCreateForm}>
-                ➕ Nueva Marca
+                ➕ Nuevo Cargo
               </button>
             </>
           )}
@@ -240,12 +281,13 @@ const MarcasAlternador: React.FC = () => {
       {!showForm && (
         <div className="search-section">
           <SearchBar
-            placeholder="Buscar marca..."
+            placeholder="Buscar cargo..."
             value={searchTerm}
             onChange={setSearchTerm}
           />
           <div className="results-info">
-            Mostrando {currentMarcas.length} de {filteredAndSortedMarcas.length} registros
+            {filteredAndSortedCargos.length} resultado{filteredAndSortedCargos.length !== 1 ? 's' : ''}
+            {searchTerm && ` para "${searchTerm}"`}
           </div>
         </div>
       )}
@@ -258,19 +300,20 @@ const MarcasAlternador: React.FC = () => {
 
       {showForm && (
         <div className="form-card fade-in">
-          <h3>{editingId ? '✏️ Editar Marca' : '➕ Nueva Marca'}</h3>
+          <h3>{editingId ? '✏️ Editar Cargo' : '➕ Nuevo Cargo'}</h3>
           <form onSubmit={editingId ? handleUpdate : handleCreate}>
             <div className="form-group">
-              <label htmlFor="marca">Nombre de la Marca:</label>
+              <label htmlFor="cargo">Nombre del Cargo:</label>
               <input
                 type="text"
-                id="marca"
+                id="cargo"
                 className="form-input"
-                value={marcaName}
-                onChange={(e) => setMarcaName(e.target.value)}
-                placeholder="Ej: Scania, Volvo, M Benz..."
+                value={cargoName}
+                onChange={(e) => setCargoName(e.target.value)}
+                placeholder="Ej: Mecánico, Supervisor, Jefe de Taller..."
                 required
                 autoFocus
+                maxLength={100}
               />
             </div>
             <div className="form-actions">
@@ -286,48 +329,48 @@ const MarcasAlternador: React.FC = () => {
       )}
 
       {loading ? (
-        <div className="loading">⏳ Cargando marcas...</div>
+        <div className="loading">⏳ Cargando cargos...</div>
       ) : (
         <>
           <div className="table-container">
-            <table className="marcas-table">
+            <table className="cargo-table">
               <thead>
                 <tr>
-                  <th onClick={() => handleSort('id_marca_18')} className="sortable">
-                    ID {getSortIcon('id_marca_18')}
+                  <th onClick={() => handleSort('idcargo_14')} className="sortable">
+                    ID {getSortIcon('idcargo_14')}
                   </th>
-                  <th onClick={() => handleSort('marca_18')} className="sortable">
-                    Marca {getSortIcon('marca_18')}
+                  <th onClick={() => handleSort('cargo_14')} className="sortable">
+                    Cargo {getSortIcon('cargo_14')}
                   </th>
                   <th>Acciones</th>
                 </tr>
               </thead>
               <tbody>
-                {currentMarcas.length === 0 ? (
+                {currentCargos.length === 0 ? (
                   <tr>
                     <td colSpan={3} className="no-data">
                       {searchTerm
-                        ? `📋 No se encontraron marcas con "${searchTerm}"`
-                        : '📋 No hay marcas registradas'
+                        ? `📋 No se encontraron cargos con "${searchTerm}"`
+                        : '📋 No hay cargos registrados'
                       }
                     </td>
                   </tr>
                 ) : (
-                  currentMarcas.map((marca) => (
-                    <tr key={marca.id_marca_18} className="fade-in">
-                      <td>{marca.id_marca_18}</td>
-                      <td className="marca-name">{marca.marca_18}</td>
+                  currentCargos.map((cargo) => (
+                    <tr key={cargo.idcargo_14} className="fade-in">
+                      <td>{cargo.idcargo_14}</td>
+                      <td className="cargo-name">{cargo.cargo_14}</td>
                       <td className="actions">
                         <button
                           className="btn-edit"
-                          onClick={() => startEdit(marca)}
+                          onClick={() => startEdit(cargo)}
                           title="Editar"
                         >
                           ✏️
                         </button>
                         <button
                           className="btn-delete"
-                          onClick={() => handleDelete(marca.id_marca_18)}
+                          onClick={() => handleDelete(cargo.idcargo_14)}
                           title="Eliminar"
                         >
                           🗑️
@@ -340,11 +383,11 @@ const MarcasAlternador: React.FC = () => {
             </table>
           </div>
 
-          {filteredAndSortedMarcas.length > 0 && (
+          {filteredAndSortedCargos.length > 0 && (
             <Pagination
               currentPage={currentPage}
               totalPages={totalPages}
-              totalItems={filteredAndSortedMarcas.length}
+              totalItems={filteredAndSortedCargos.length}
               itemsPerPage={itemsPerPage}
               onPageChange={setCurrentPage}
             />
@@ -355,4 +398,5 @@ const MarcasAlternador: React.FC = () => {
   );
 };
 
-export default MarcasAlternador;
+export default CargoView;
+

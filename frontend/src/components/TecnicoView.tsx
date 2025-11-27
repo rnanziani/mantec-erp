@@ -474,6 +474,7 @@ const TecnicoView: React.FC = () => {
 
             <Pagination
                 currentPage={currentPage}
+                totalPages={Math.ceil(filteredTecnicos.length / itemsPerPage)}
                 totalItems={filteredTecnicos.length}
                 itemsPerPage={itemsPerPage}
                 onPageChange={setCurrentPage}

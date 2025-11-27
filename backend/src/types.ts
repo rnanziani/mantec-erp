@@ -255,3 +255,270 @@ export interface UpdateInventarioAlternadorDTO {
   contador_reparaciones_23?: number;
   activo_23?: boolean;
 }
+
+/**
+ * Cargo
+ * Tabla: tbl_14_cargo
+ */
+export interface Cargo {
+  idcargo_14: number;
+  cargo_14: string;
+}
+
+/**
+ * DTO para crear un nuevo cargo
+  descripcion_20?: string;
+}
+
+/**
+ * Movimiento de Alternador
+ * Tabla: tbl_22_movimiento_alternador
+ */
+export interface MovimientoAlternador {
+  id_movimiento_22: number;
+  id_alternador_22: number;
+  id_estado_anterior_22?: number;
+  id_estado_actual_22: number;
+  id_maquina_22?: number;
+  fecha_movimiento_22: Date;
+  tipo_movimiento_22: 'ENTRADA' | 'SALIDA' | 'ASIGNACION' | 'REPARACION';
+  observaciones_22?: string;
+  usuario_responsable_22?: string;
+  // Campos JOINed
+  cod_alternador_19?: string;
+  estado_anterior?: string;
+  estado_actual?: string;
+  numinterno_11?: string;
+  ppu_11?: string;
+  descripcion_11?: string;
+}
+
+/**
+ * DTO para crear un nuevo movimiento de alternador
+ */
+export interface CreateMovimientoAlternadorDTO {
+  id_alternador_22: number;
+  id_estado_anterior_22?: number;
+  id_estado_actual_22: number;
+  id_maquina_22?: number;
+  tipo_movimiento_22: 'ENTRADA' | 'SALIDA' | 'ASIGNACION' | 'REPARACION';
+  observaciones_22?: string;
+  usuario_responsable_22?: string;
+}
+
+/**
+ * DTO para actualizar un movimiento de alternador
+ */
+export interface UpdateMovimientoAlternadorDTO {
+  id_alternador_22?: number;
+  id_estado_anterior_22?: number;
+  id_estado_actual_22?: number;
+  id_maquina_22?: number;
+  tipo_movimiento_22?: 'ENTRADA' | 'SALIDA' | 'ASIGNACION' | 'REPARACION';
+  observaciones_22?: string;
+  usuario_responsable_22?: string;
+}
+
+/**
+ * Máquina
+ * Tabla: tbl_11_maquina
+ */
+export interface Maquina {
+  idmaquina_11: number;
+  numinterno_11: string;
+  ppu_11: string;
+  estado_11: boolean;
+  descripcion_11: string;
+  idempresa_11: number;
+  // Campos JOINed
+  nombre_empresa?: string;
+}
+
+/**
+ * DTO para crear una nueva máquina
+ */
+export interface CreateMaquinaDTO {
+  numinterno_11: string;
+  ppu_11: string;
+  descripcion_11: string;
+  idempresa_11: number;
+  estado_11?: boolean;
+}
+
+/**
+ * DTO para actualizar una máquina
+ */
+export interface UpdateMaquinaDTO {
+  numinterno_11?: string;
+  ppu_11?: string;
+  descripcion_11?: string;
+  idempresa_11?: number;
+  estado_11?: boolean;
+}
+
+/**
+ * Técnico
+ * Tabla: tbl_21_tecnico
+ */
+export interface Tecnico {
+  id_tecnico_21: number;
+  rut_21: string;
+  nombres_21: string;
+  a_paterno_21: string;
+  a_materno_21: string;
+  estado_21: boolean;
+  id_cargo_21: number;
+  // Campos JOINed
+  nombre_cargo?: string;
+}
+
+/**
+ * DTO para crear un nuevo técnico
+ */
+export interface CreateTecnicoDTO {
+  rut_21: string;
+  nombres_21: string;
+  a_paterno_21: string;
+  a_materno_21: string;
+  id_cargo_21: number;
+  estado_21?: boolean;
+}
+
+/**
+ * DTO para actualizar un técnico
+ */
+export interface UpdateTecnicoDTO {
+  rut_21?: string;
+  nombres_21?: string;
+  a_paterno_21?: string;
+  a_materno_21?: string;
+  id_cargo_21?: number;
+  estado_21?: boolean;
+}
+
+/**
+ * Respuesta estándar de la API
+ */
+export interface ApiResponse<T> {
+  success: boolean;
+  data?: T;
+  message?: string;
+  error?: string;
+}
+
+/**
+ * Inventario Alternador
+ * Tabla: tbl_23_inventario_alternador
+ */
+export interface InventarioAlternador {
+  id_inventario_23: number;
+  id_alternador_23: number;
+  id_estado_actual_23: number;
+  id_maquina_asignada_23?: number;
+  ubicacion_23?: string;
+  fecha_ultimo_movimiento_23: Date;
+  contador_reparaciones_23: number;
+  activo_23: boolean;
+  // Campos JOINed
+  cod_alternador_19?: string;
+  marca_18?: string;
+  estado_20?: string;
+  numinterno_11?: string;
+  ppu_11?: string;
+}
+
+/**
+ * DTO para crear un nuevo registro de inventario
+ */
+export interface CreateInventarioAlternadorDTO {
+  id_alternador_23: number;
+  id_estado_actual_23: number;
+  id_maquina_asignada_23?: number;
+  ubicacion_23?: string;
+  contador_reparaciones_23?: number;
+  activo_23?: boolean;
+}
+
+/**
+ * DTO para actualizar un registro de inventario
+ */
+export interface UpdateInventarioAlternadorDTO {
+  id_alternador_23?: number;
+  id_estado_actual_23?: number;
+  id_maquina_asignada_23?: number;
+  ubicacion_23?: string;
+  contador_reparaciones_23?: number;
+  activo_23?: boolean;
+}
+
+/**
+ * Cargo
+ * Tabla: tbl_14_cargo
+ */
+export interface Cargo {
+  idcargo_14: number;
+  cargo_14: string;
+}
+
+/**
+ * DTO para crear un nuevo cargo
+ */
+export interface CreateCargoDTO {
+  cargo_14: string;
+}
+
+/**
+ * DTO para actualizar un cargo
+ */
+export interface UpdateCargoDTO {
+  cargo_14: string;
+}
+
+/**
+ * Orden de Trabajo
+ * Tabla: tbl_24_orden_trabajo
+ */
+export interface OrdenTrabajo {
+  id_orden_24: number;
+  id_alternador_24: number;
+  id_maquina_retirado_24?: number;
+  fecha_ingreso_taller_24: Date;
+  fecha_salida_taller_24?: Date;
+  diagnostico_24?: string;
+  trabajo_realizado_24?: string;
+  costo_reparacion_24?: number;
+  tecnico_responsable_24?: string;
+  estado_orden_24: 'PENDIENTE' | 'EN_REPARACION' | 'COMPLETADA' | 'CANCELADA';
+  // Campos JOINed
+  cod_alternador_19?: string;
+  marca_18?: string;
+  numinterno_11?: string;
+  ppu_11?: string;
+}
+
+/**
+ * DTO para crear una nueva orden de trabajo
+ */
+export interface CreateOrdenTrabajoDTO {
+  id_alternador_24: number;
+  id_maquina_retirado_24?: number;
+  diagnostico_24?: string;
+  trabajo_realizado_24?: string;
+  costo_reparacion_24?: number;
+  tecnico_responsable_24?: string;
+  estado_orden_24?: 'PENDIENTE' | 'EN_REPARACION' | 'COMPLETADA' | 'CANCELADA';
+}
+
+/**
+ * DTO para actualizar una orden de trabajo
+ */
+export interface UpdateOrdenTrabajoDTO {
+  id_alternador_24?: number;
+  id_maquina_retirado_24?: number;
+  fecha_salida_taller_24?: Date;
+  diagnostico_24?: string;
+  trabajo_realizado_24?: string;
+  costo_reparacion_24?: number;
+  tecnico_responsable_24?: string;
+  estado_orden_24?: 'PENDIENTE' | 'EN_REPARACION' | 'COMPLETADA' | 'CANCELADA';
+}

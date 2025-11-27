@@ -33,6 +33,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onNavigate, currentView }) => {
                 { id: 'marcas', label: 'Marcas', icon: '🏷️', path: 'alternadores' },
                 { id: 'alternadores', label: 'Alternadores', icon: '⚡', path: 'lista-alternadores' },
                 { id: 'estados', label: 'Estados', icon: '📊', path: 'estados' },
+                { id: 'cargos', label: 'Cargos', icon: '👔', path: 'cargos' },
                 { id: 'tecnicos', label: 'Técnicos', icon: '👷', path: 'tecnicos' }
             ]
         },
@@ -42,7 +43,8 @@ const Sidebar: React.FC<SidebarProps> = ({ onNavigate, currentView }) => {
             icon: '⚙️',
             children: [
                 { id: 'movimientos', label: 'Movimientos', icon: '🔄', path: 'movimientos' },
-                { id: 'inventario', label: 'Inventario', icon: '📦', path: 'inventario' }
+                { id: 'inventario', label: 'Inventario', icon: '📦', path: 'inventario' },
+                { id: 'ordenes-trabajo', label: 'Órdenes de Trabajo', icon: '🔧', path: 'ordenes-trabajo' }
             ]
         },
         {

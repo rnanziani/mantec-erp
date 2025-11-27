@@ -271,8 +271,7 @@ const AlternadoresView: React.FC = () => {
             onChange={setSearchTerm}
           />
           <div className="results-info">
-            {filteredAndSortedAlternadores.length} resultado{filteredAndSortedAlternadores.length !== 1 ? 's' : ''}
-            {searchTerm && ` para "${searchTerm}"`}
+            Mostrando {currentAlternadores.length} de {filteredAndSortedAlternadores.length} registros
           </div>
         </div>
       )}

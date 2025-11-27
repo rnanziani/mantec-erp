@@ -7,6 +7,8 @@ import EstadoAlternadorView from './components/EstadoAlternadorView';
 import MovimientoAlternadorView from './components/MovimientoAlternadorView';
 import TecnicoView from './components/TecnicoView';
 import InventarioAlternadorView from './components/InventarioAlternadorView';
+import CargoView from './components/CargoView';
+import OrdenTrabajoView from './components/OrdenTrabajoView';
 import { ToastProvider } from './context/ToastContext';
 import ToastContainer from './components/shared/ToastContainer';
 
@@ -59,6 +61,10 @@ function App() {
           {currentView === 'inventario' && <InventarioAlternadorView />}
 
           {currentView === 'tecnicos' && <TecnicoView />}
+
+          {currentView === 'cargos' && <CargoView />}
+
+          {currentView === 'ordenes-trabajo' && <OrdenTrabajoView />}
 
           {currentView === 'reportes' && (
             <div className="mantec-welcome">
