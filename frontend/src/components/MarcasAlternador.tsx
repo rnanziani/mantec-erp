@@ -267,8 +267,9 @@ const MarcasAlternador: React.FC = () => {
                 id="marca"
                 className="form-input"
                 value={marcaName}
-                onChange={(e) => setMarcaName(e.target.value)}
+                onChange={(e) => setMarcaName(e.target.value.toUpperCase())}
                 placeholder="Ej: Scania, Volvo, M Benz..."
+                style={{ textTransform: 'uppercase' }}
                 required
                 autoFocus
               />

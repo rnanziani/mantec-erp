@@ -548,8 +548,9 @@ const OrdenTrabajoView: React.FC = () => {
                                     id="tecnico"
                                     className="form-input"
                                     value={tecnicoResponsable}
-                                    onChange={(e) => setTecnicoResponsable(e.target.value)}
+                                    onChange={(e) => setTecnicoResponsable(e.target.value.toUpperCase())}
                                     placeholder="Nombre del técnico"
+                                    style={{ textTransform: 'uppercase' }}
                                     maxLength={100}
                                 />
                             </div>

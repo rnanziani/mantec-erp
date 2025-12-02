@@ -4,13 +4,15 @@ import Sidebar from './components/Sidebar';
 import MarcasAlternador from './components/MarcasAlternador';
 import AlternadoresView from './components/AlternadoresView';
 import EstadoAlternadorView from './components/EstadoAlternadorView';
-import MovimientoAlternadorView from './components/MovimientoAlternadorView';
 import TecnicoView from './components/TecnicoView';
-import InventarioAlternadorView from './components/InventarioAlternadorView';
 import CargoView from './components/CargoView';
 import OrdenTrabajoView from './components/OrdenTrabajoView';
 import { ToastProvider } from './context/ToastContext';
 import ToastContainer from './components/shared/ToastContainer';
+import BodegaView from './components/BodegaView';
+import TipoTransaccionView from './components/TipoTransaccionView';
+import ExistenciaView from './components/ExistenciaView';
+import TransaccionView from './components/TransaccionView';
 
 function App() {
   const [currentView, setCurrentView] = useState<string>('dashboard');
@@ -56,15 +58,19 @@ function App() {
 
           {currentView === 'estados' && <EstadoAlternadorView />}
 
-          {currentView === 'movimientos' && <MovimientoAlternadorView />}
-
-          {currentView === 'inventario' && <InventarioAlternadorView />}
-
           {currentView === 'tecnicos' && <TecnicoView />}
 
           {currentView === 'cargos' && <CargoView />}
 
           {currentView === 'ordenes-trabajo' && <OrdenTrabajoView />}
+
+          {currentView === 'bodegas' && <BodegaView />}
+
+          {currentView === 'tipos-transaccion' && <TipoTransaccionView />}
+
+          {currentView === 'existencias' && <ExistenciaView />}
+
+          {currentView === 'transacciones' && <TransaccionView />}
 
           {currentView === 'reportes' && (
             <div className="mantec-welcome">

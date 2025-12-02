@@ -282,11 +282,11 @@ const TecnicoView: React.FC = () => {
             <div className="tecnicos-header">
                 <h2>👷 Gestión de Técnicos</h2>
                 <div className="header-actions">
-                    <button className="btn-primary" onClick={() => setShowForm(!showForm)}>
-                        {showForm ? '✕ Cancelar' : '+ Nuevo Técnico'}
-                    </button>
                     <button className="btn-export" onClick={handleExport}>
                         📊 Exportar Excel
+                    </button>
+                    <button className="btn-primary" onClick={() => setShowForm(!showForm)}>
+                        {showForm ? '✕ Cancelar' : '+ Nuevo Técnico'}
                     </button>
                 </div>
             </div>
@@ -320,7 +320,8 @@ const TecnicoView: React.FC = () => {
                                     id="nombres"
                                     className="form-input"
                                     value={nombres}
-                                    onChange={(e) => setNombres(e.target.value)}
+                                    onChange={(e) => setNombres(e.target.value.toUpperCase())}
+                                    style={{ textTransform: 'uppercase' }}
                                     required
                                 />
                             </div>
@@ -334,7 +335,8 @@ const TecnicoView: React.FC = () => {
                                     id="aPaterno"
                                     className="form-input"
                                     value={aPaterno}
-                                    onChange={(e) => setAPaterno(e.target.value)}
+                                    onChange={(e) => setAPaterno(e.target.value.toUpperCase())}
+                                    style={{ textTransform: 'uppercase' }}
                                     required
                                 />
                             </div>
@@ -346,7 +348,8 @@ const TecnicoView: React.FC = () => {
                                     id="aMaterno"
                                     className="form-input"
                                     value={aMaterno}
-                                    onChange={(e) => setAMaterno(e.target.value)}
+                                    onChange={(e) => setAMaterno(e.target.value.toUpperCase())}
+                                    style={{ textTransform: 'uppercase' }}
                                     required
                                 />
                             </div>

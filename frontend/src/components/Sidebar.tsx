@@ -15,7 +15,7 @@ interface SidebarProps {
 }
 
 const Sidebar: React.FC<SidebarProps> = ({ onNavigate, currentView }) => {
-    const [expandedMenus, setExpandedMenus] = useState<Set<string>>(new Set(['maestros', 'operaciones']));
+    const [expandedMenus, setExpandedMenus] = useState<Set<string>>(new Set(['maestros', 'operaciones', 'inventario']));
     const [isCollapsed, setIsCollapsed] = useState(false);
 
     const menuItems: MenuItem[] = [
@@ -42,9 +42,18 @@ const Sidebar: React.FC<SidebarProps> = ({ onNavigate, currentView }) => {
             label: 'Operaciones',
             icon: '⚙️',
             children: [
-                { id: 'movimientos', label: 'Movimientos', icon: '🔄', path: 'movimientos' },
-                { id: 'inventario', label: 'Inventario', icon: '📦', path: 'inventario' },
                 { id: 'ordenes-trabajo', label: 'Órdenes de Trabajo', icon: '🔧', path: 'ordenes-trabajo' }
+            ]
+        },
+        {
+            id: 'inventario',
+            label: 'Inventario',
+            icon: '📦',
+            children: [
+                { id: 'bodegas', label: 'Bodegas', icon: '🏢', path: 'bodegas' },
+                { id: 'tipos-transaccion', label: 'Tipos de Transacción', icon: '🔄', path: 'tipos-transaccion' },
+                { id: 'existencias', label: 'Stock Actual', icon: '📊', path: 'existencias' },
+                { id: 'transacciones', label: 'Movimientos', icon: '📝', path: 'transacciones' }
             ]
         },
         {
