@@ -6,12 +6,14 @@ import { testConnection } from './db.js';
 import marcasRoutes from './routes/marcasRoutes.js';
 import alternadoresRoutes from './routes/alternadoresRoutes.js';
 import estadoAlternadorRoutes from './routes/estadoAlternadorRoutes.js';
-import movimientoAlternadorRoutes from './routes/movimientoAlternadorRoutes.js';
 import maquinaRoutes from './routes/maquinaRoutes.js';
 import tecnicoRoutes from './routes/tecnicoRoutes.js';
 import cargoRoutes from './routes/cargoRoutes.js';
-import inventarioAlternadorRoutes from './routes/inventarioAlternadorRoutes.js';
 import ordenTrabajoRoutes from './routes/ordenTrabajoRoutes.js';
+import bodegaRoutes from './routes/bodegaRoutes.js';
+import tipoTransaccionRoutes from './routes/tipoTransaccionRoutes.js';
+import existenciaRoutes from './routes/existenciaRoutes.js';
+import transaccionRoutes from './routes/transaccionRoutes.js';
 
 console.log('🔄 Servidor iniciando - Cargando rutas...');
 
@@ -58,12 +60,15 @@ console.log('🧪 Ruta de prueba POST registrada en /api/test-post');
 app.use('/api/marcas', marcasRoutes);
 app.use('/api/alternadores', alternadoresRoutes);
 app.use('/api/estados', estadoAlternadorRoutes);
-app.use('/api/movimientos', movimientoAlternadorRoutes);
 app.use('/api/maquinas', maquinaRoutes);
 app.use('/api/tecnicos', tecnicoRoutes);
 app.use('/api/cargos', cargoRoutes);
-app.use('/api/inventario', inventarioAlternadorRoutes);
 app.use('/api/ordenes-trabajo', ordenTrabajoRoutes);
+// Rutas de Inventario
+app.use('/api/bodegas', bodegaRoutes);
+app.use('/api/tipos-transaccion', tipoTransaccionRoutes);
+app.use('/api/existencias', existenciaRoutes);
+app.use('/api/transacciones', transaccionRoutes);
 
 console.log('✅ Todas las rutas cargadas');
 
@@ -84,11 +89,9 @@ const startServer = async () => {
 🛠️  API Marcas: http://localhost:${PORT}/api/marcas
 🛠️  API Alternadores: http://localhost:${PORT}/api/alternadores
 🛠️  API Estados: http://localhost:${PORT}/api/estados
-🛠️  API Movimientos: http://localhost:${PORT}/api/movimientos
 🛠️  API Máquinas: http://localhost:${PORT}/api/maquinas
 🛠️  API Técnicos: http://localhost:${PORT}/api/tecnicos
 🛠️  API Cargos: http://localhost:${PORT}/api/cargos
-🛠️  API Inventario: http://localhost:${PORT}/api/inventario
 🛠️  API Órdenes Trabajo: http://localhost:${PORT}/api/ordenes-trabajo
 🛠️  DB Status: ${dbConnected ? '✅ Conectado' : '❌ Desconectado'}
 🛠️  ==================================
