@@ -34,7 +34,8 @@ const Sidebar: React.FC<SidebarProps> = ({ onNavigate, currentView }) => {
                 { id: 'alternadores', label: 'Alternadores', icon: '⚡', path: 'lista-alternadores' },
                 { id: 'estados', label: 'Estados', icon: '📊', path: 'estados' },
                 { id: 'cargos', label: 'Cargos', icon: '👔', path: 'cargos' },
-                { id: 'tecnicos', label: 'Técnicos', icon: '👷', path: 'tecnicos' }
+                { id: 'tecnicos', label: 'Técnicos', icon: '👷', path: 'tecnicos' },
+                { id: 'trabajadores', label: 'Trabajadores', icon: '👥', path: 'trabajadores' }
             ]
         },
         {

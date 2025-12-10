@@ -14,6 +14,7 @@ import TipoTransaccionView from './components/TipoTransaccionView';
 import ExistenciaView from './components/ExistenciaView';
 import TransaccionView from './components/TransaccionView';
 import AsignacionProductosAseoView from './components/AsignacionProductosAseoView';
+import TrabajadorView from './components/TrabajadorView';
 
 function App() {
   const [currentView, setCurrentView] = useState<string>('dashboard');
@@ -74,6 +75,8 @@ function App() {
           {currentView === 'transacciones' && <TransaccionView />}
 
           {currentView === 'asignacion-productos-aseo' && <AsignacionProductosAseoView />}
+
+          {currentView === 'trabajadores' && <TrabajadorView />}
 
           {currentView === 'reportes' && (
             <div className="mantec-welcome">

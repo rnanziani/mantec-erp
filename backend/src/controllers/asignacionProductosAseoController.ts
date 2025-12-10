@@ -31,10 +31,11 @@ export const getAllProductos = async (req: Request, res: Response): Promise<void
         idproductoaseo_10 as id_producto,
         productoaseo_10 as nombre_producto,
         enuso_10 as activo,
-        um_10 as unidad_medida
+        um_10 as unidad_medida,
+        orden_10 as orden
       FROM ${TABLA_PRODUCTO}
       WHERE enuso_10 = true
-      ORDER BY productoaseo_10 ASC
+      ORDER BY COALESCE(orden_10, 999999) ASC, productoaseo_10 ASC
     `;
 
     const result = await pool.query<ProductoAseo>(query);
@@ -252,7 +253,7 @@ export const getDetallesAsignacion = async (req: Request, res: Response): Promis
       FROM ${TABLA_DETALLE} d
       LEFT JOIN ${TABLA_PRODUCTO} p ON d.idproductoaseo_13 = p.idproductoaseo_10
       WHERE d.idproductomain_13 = $1
-      ORDER BY p.productoaseo_10 ASC
+      ORDER BY COALESCE(p.orden_10, 999999) ASC, p.productoaseo_10 ASC
     `;
 
     const result = await pool.query<DetalleAsignacionProducto>(query, [id]);
