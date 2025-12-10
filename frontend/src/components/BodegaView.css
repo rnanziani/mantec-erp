@@ -154,7 +154,8 @@
 }
 
 .btn-edit,
-.btn-toggle {
+.btn-toggle,
+.btn-delete {
     padding: 4px 8px;
     font-size: 16px;
     background: transparent;
@@ -169,4 +170,9 @@
 .btn-toggle:hover {
     background: #fff3cd;
     border-color: #ffc107;
+}
+
+.btn-delete:hover {
+    background: #fee;
+    border-color: #dc3545;
 }

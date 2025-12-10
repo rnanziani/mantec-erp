@@ -21,6 +21,10 @@ const TipoTransaccionView: React.FC = () => {
         valor_accion_25: 1 as -1 | 0 | 1
     });
 
+    // Estados para búsqueda y ordenamiento
+    const [filtro, setFiltro] = useState('');
+    const [sortConfig, setSortConfig] = useState<{ key: keyof TipoTransaccion; direction: 'asc' | 'desc' } | null>(null);
+
     const API_URL = 'http://localhost:3001/api/tipos-transaccion';
 
     useEffect(() => {
@@ -103,6 +107,50 @@ const TipoTransaccionView: React.FC = () => {
         return '➖ 0 Neutro';
     };
 
+    // Lógica de Ordenamiento
+    const handleSort = (key: keyof TipoTransaccion) => {
+        let direction: 'asc' | 'desc' = 'asc';
+        if (sortConfig && sortConfig.key === key && sortConfig.direction === 'asc') {
+            direction = 'desc';
+        }
+        setSortConfig({ key, direction });
+    };
+
+    const getSortIndicator = (key: keyof TipoTransaccion) => {
+        if (!sortConfig || sortConfig.key !== key) return '↕️';
+        return sortConfig.direction === 'asc' ? '↑' : '↓';
+    };
+
+    // Lógica de Filtrado y Ordenamiento Combinada
+    const processedTipos = React.useMemo(() => {
+        let data = [...tipos];
+
+        // 1. Filtrar
+        if (filtro) {
+            const lowerFiltro = filtro.toLowerCase();
+            data = data.filter(t =>
+                t.descripcion_25.toLowerCase().includes(lowerFiltro) ||
+                t.cod_accion_25.toLowerCase().includes(lowerFiltro) ||
+                t.id_tipo_transaccion_25.toString().includes(lowerFiltro)
+            );
+        }
+
+        // 2. Ordenar
+        if (sortConfig) {
+            data.sort((a, b) => {
+                if (a[sortConfig.key] < b[sortConfig.key]) {
+                    return sortConfig.direction === 'asc' ? -1 : 1;
+                }
+                if (a[sortConfig.key] > b[sortConfig.key]) {
+                    return sortConfig.direction === 'asc' ? 1 : -1;
+                }
+                return 0;
+            });
+        }
+
+        return data;
+    }, [tipos, filtro, sortConfig]);
+
     return (
         <div className="bodega-view">
             <div className="view-header">
@@ -169,24 +217,43 @@ const TipoTransaccionView: React.FC = () => {
                 </div>
             )}
 
+            {/* Buscador */}
+            <div className="form-container" style={{ marginBottom: '20px' }}>
+                <input
+                    type="text"
+                    placeholder="🔍 Buscar tipo de transacción..."
+                    value={filtro}
+                    onChange={(e) => setFiltro(e.target.value)}
+                    style={{ width: '100%', padding: '10px', fontSize: '14px', borderRadius: '4px', border: '1px solid #ced4da' }}
+                />
+            </div>
+
             <div className="table-container">
                 <table className="data-table">
                     <thead>
                         <tr>
-                            <th>ID</th>
-                            <th>Código</th>
-                            <th>Descripción</th>
-                            <th>Impacto en Stock</th>
+                            <th onClick={() => handleSort('id_tipo_transaccion_25')} style={{ cursor: 'pointer' }}>
+                                ID {getSortIndicator('id_tipo_transaccion_25')}
+                            </th>
+                            <th onClick={() => handleSort('cod_accion_25')} style={{ cursor: 'pointer' }}>
+                                Código {getSortIndicator('cod_accion_25')}
+                            </th>
+                            <th onClick={() => handleSort('descripcion_25')} style={{ cursor: 'pointer' }}>
+                                Descripción {getSortIndicator('descripcion_25')}
+                            </th>
+                            <th onClick={() => handleSort('valor_accion_25')} style={{ cursor: 'pointer' }}>
+                                Impacto en Stock {getSortIndicator('valor_accion_25')}
+                            </th>
                             <th>Acciones</th>
                         </tr>
                     </thead>
                     <tbody>
                         {loading && tipos.length === 0 ? (
                             <tr><td colSpan={5}>Cargando...</td></tr>
-                        ) : tipos.length === 0 ? (
+                        ) : processedTipos.length === 0 ? (
                             <tr><td colSpan={5}>No hay tipos registrados</td></tr>
                         ) : (
-                            tipos.map((tipo) => (
+                            processedTipos.map((tipo) => (
                                 <tr key={tipo.id_tipo_transaccion_25}>
                                     <td>{tipo.id_tipo_transaccion_25}</td>
                                     <td><strong>{tipo.cod_accion_25}</strong></td>

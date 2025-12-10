@@ -8,7 +8,7 @@ import { Bodega, CreateBodegaDTO, UpdateBodegaDTO, ApiResponse } from '../types.
 export const getAllBodegas = async (req: Request, res: Response): Promise<void> => {
     try {
         const result = await pool.query<Bodega>(
-            `SELECT * FROM tbl_27_bodega ORDER BY descripcion_27 ASC`
+            `SELECT * FROM tbl_27_ubicacion ORDER BY descripcion_27 ASC`
         );
 
         const response: ApiResponse<Bodega[]> = {
@@ -35,7 +35,7 @@ export const getBodegaById = async (req: Request, res: Response): Promise<void> 
         const { id } = req.params;
 
         const result = await pool.query<Bodega>(
-            `SELECT * FROM tbl_27_bodega WHERE id_bodega_27 = $1`,
+            `SELECT * FROM tbl_27_ubicacion WHERE id_ubicacion_27 = $1`,
             [id]
         );
 
@@ -82,7 +82,7 @@ export const createBodega = async (req: Request, res: Response): Promise<void> =
         }
 
         const result = await pool.query<Bodega>(
-            `INSERT INTO tbl_27_bodega (descripcion_27, activo)
+            `INSERT INTO tbl_27_ubicacion (descripcion_27, activo)
        VALUES ($1, $2)
        RETURNING *`,
             [descripcion_27.trim(), activo]
@@ -149,9 +149,9 @@ export const updateBodega = async (req: Request, res: Response): Promise<void> =
         values.push(id);
 
         const result = await pool.query<Bodega>(
-            `UPDATE tbl_27_bodega
+            `UPDATE tbl_27_ubicacion
        SET ${updates.join(', ')}
-       WHERE id_bodega_27 = $${paramCount}
+       WHERE id_ubicacion_27 = $${paramCount}
        RETURNING *`,
             values
         );
@@ -190,9 +190,9 @@ export const toggleBodegaStatus = async (req: Request, res: Response): Promise<v
         const { id } = req.params;
 
         const result = await pool.query<Bodega>(
-            `UPDATE tbl_27_bodega
+            `UPDATE tbl_27_ubicacion
        SET activo = NOT activo
-       WHERE id_bodega_27 = $1
+       WHERE id_ubicacion_27 = $1
        RETURNING *`,
             [id]
         );
@@ -229,7 +229,7 @@ export const toggleBodegaStatus = async (req: Request, res: Response): Promise<v
 export const getActiveBodegas = async (req: Request, res: Response): Promise<void> => {
     try {
         const result = await pool.query<Bodega>(
-            `SELECT * FROM tbl_27_bodega WHERE activo = true ORDER BY descripcion_27 ASC`
+            `SELECT * FROM tbl_27_ubicacion WHERE activo = true ORDER BY descripcion_27 ASC`
         );
 
         const response: ApiResponse<Bodega[]> = {

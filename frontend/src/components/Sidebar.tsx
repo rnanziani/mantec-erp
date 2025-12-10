@@ -15,7 +15,7 @@ interface SidebarProps {
 }
 
 const Sidebar: React.FC<SidebarProps> = ({ onNavigate, currentView }) => {
-    const [expandedMenus, setExpandedMenus] = useState<Set<string>>(new Set(['maestros', 'operaciones', 'inventario']));
+    const [expandedMenus, setExpandedMenus] = useState<Set<string>>(new Set([]));
     const [isCollapsed, setIsCollapsed] = useState(false);
 
     const menuItems: MenuItem[] = [
@@ -42,7 +42,8 @@ const Sidebar: React.FC<SidebarProps> = ({ onNavigate, currentView }) => {
             label: 'Operaciones',
             icon: '⚙️',
             children: [
-                { id: 'ordenes-trabajo', label: 'Órdenes de Trabajo', icon: '🔧', path: 'ordenes-trabajo' }
+                { id: 'ordenes-trabajo', label: 'Órdenes de Trabajo', icon: '🔧', path: 'ordenes-trabajo' },
+                { id: 'asignacion-productos-aseo', label: 'Asignación Productos Aseo', icon: '🧼', path: 'asignacion-productos-aseo' }
             ]
         },
         {
@@ -52,8 +53,8 @@ const Sidebar: React.FC<SidebarProps> = ({ onNavigate, currentView }) => {
             children: [
                 { id: 'bodegas', label: 'Bodegas', icon: '🏢', path: 'bodegas' },
                 { id: 'tipos-transaccion', label: 'Tipos de Transacción', icon: '🔄', path: 'tipos-transaccion' },
-                { id: 'existencias', label: 'Stock Actual', icon: '📊', path: 'existencias' },
-                { id: 'transacciones', label: 'Movimientos', icon: '📝', path: 'transacciones' }
+                { id: 'transacciones', label: 'Movimientos', icon: '📝', path: 'transacciones' },
+                { id: 'existencias', label: 'Stock Actual', icon: '📊', path: 'existencias' }
             ]
         },
         {

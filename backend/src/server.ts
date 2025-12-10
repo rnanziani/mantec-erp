@@ -14,6 +14,10 @@ import bodegaRoutes from './routes/bodegaRoutes.js';
 import tipoTransaccionRoutes from './routes/tipoTransaccionRoutes.js';
 import existenciaRoutes from './routes/existenciaRoutes.js';
 import transaccionRoutes from './routes/transaccionRoutes.js';
+import trabajadorRoutes from './routes/trabajadorRoutes.js';
+import productosAseoRoutes from './routes/productosAseoRoutes.js';
+import asignacionProductosAseoRoutes from './routes/asignacionProductosAseoRoutes.js';
+import responsableEntregaRoutes from './routes/responsableEntregaRoutes.js';
 
 console.log('🔄 Servidor iniciando - Cargando rutas...');
 
@@ -69,6 +73,10 @@ app.use('/api/bodegas', bodegaRoutes);
 app.use('/api/tipos-transaccion', tipoTransaccionRoutes);
 app.use('/api/existencias', existenciaRoutes);
 app.use('/api/transacciones', transaccionRoutes);
+app.use('/api/trabajadores', trabajadorRoutes);
+app.use('/api/productos-aseo', productosAseoRoutes);
+app.use('/api/asignaciones-productos-aseo', asignacionProductosAseoRoutes);
+app.use('/api/responsables-entrega', responsableEntregaRoutes);
 
 console.log('✅ Todas las rutas cargadas');
 

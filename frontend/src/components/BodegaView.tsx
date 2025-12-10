@@ -14,10 +14,11 @@ const BodegaView: React.FC = () => {
     const [loading, setLoading] = useState(false);
     const [showForm, setShowForm] = useState(false);
     const [editingId, setEditingId] = useState<number | null>(null);
-    const [formData, setFormData] = useState({
-        descripcion_27: '',
-        activo: true
-    });
+    const [descripcion, setDescripcion] = useState('');
+
+    // Estados para búsqueda y ordenamiento
+    const [filtro, setFiltro] = useState('');
+    const [sortConfig, setSortConfig] = useState<{ key: keyof Bodega; direction: 'asc' | 'desc' } | null>(null);
 
     const API_URL = 'http://localhost:3001/api/bodegas';
 
@@ -34,8 +35,8 @@ const BodegaView: React.FC = () => {
                 setBodegas(data.data);
             }
         } catch (error) {
-            console.error('Error al cargar bodegas:', error);
-            alert('Error al cargar las bodegas');
+            console.error('Error:', error);
+            alert('Error al cargar bodegas');
         } finally {
             setLoading(false);
         }
@@ -52,7 +53,7 @@ const BodegaView: React.FC = () => {
             const response = await fetch(url, {
                 method,
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(formData)
+                body: JSON.stringify({ descripcion_27: descripcion })
             });
 
             const data = await response.json();
@@ -66,51 +67,84 @@ const BodegaView: React.FC = () => {
             }
         } catch (error) {
             console.error('Error:', error);
-            alert('Error al guardar la bodega');
+            alert('Error al guardar');
         } finally {
             setLoading(false);
         }
     };
 
-    const handleEdit = (bodega: Bodega) => {
-        setEditingId(bodega.id_bodega_27);
-        setFormData({
-            descripcion_27: bodega.descripcion_27,
-            activo: bodega.activo
-        });
-        setShowForm(true);
-    };
-
     const handleToggleStatus = async (id: number) => {
-        if (!confirm('¿Desea cambiar el estado de esta bodega?')) return;
+        if (!window.confirm('¿Está seguro de cambiar el estado de esta bodega?')) return;
 
-        setLoading(true);
         try {
             const response = await fetch(`${API_URL}/${id}/toggle`, {
                 method: 'PATCH'
             });
-
             const data = await response.json();
-
             if (data.success) {
-                alert(data.message);
                 fetchBodegas();
             } else {
                 alert(data.error);
             }
         } catch (error) {
             console.error('Error:', error);
-            alert('Error al cambiar el estado');
-        } finally {
-            setLoading(false);
         }
     };
 
+    const handleEdit = (bodega: Bodega) => {
+        setEditingId(bodega.id_bodega_27);
+        setDescripcion(bodega.descripcion_27);
+        setShowForm(true);
+    };
+
     const resetForm = () => {
-        setFormData({ descripcion_27: '', activo: true });
+        setDescripcion('');
         setEditingId(null);
         setShowForm(false);
     };
+
+    // Lógica de Ordenamiento
+    const handleSort = (key: keyof Bodega) => {
+        let direction: 'asc' | 'desc' = 'asc';
+        if (sortConfig && sortConfig.key === key && sortConfig.direction === 'asc') {
+            direction = 'desc';
+        }
+        setSortConfig({ key, direction });
+    };
+
+    const getSortIndicator = (key: keyof Bodega) => {
+        if (!sortConfig || sortConfig.key !== key) return '↕️';
+        return sortConfig.direction === 'asc' ? '↑' : '↓';
+    };
+
+    // Lógica de Filtrado y Ordenamiento Combinada
+    const processedBodegas = React.useMemo(() => {
+        let data = [...bodegas];
+
+        // 1. Filtrar
+        if (filtro) {
+            const lowerFiltro = filtro.toLowerCase();
+            data = data.filter(b =>
+                b.descripcion_27.toLowerCase().includes(lowerFiltro) ||
+                b.id_bodega_27.toString().includes(lowerFiltro)
+            );
+        }
+
+        // 2. Ordenar
+        if (sortConfig) {
+            data.sort((a, b) => {
+                if (a[sortConfig.key] < b[sortConfig.key]) {
+                    return sortConfig.direction === 'asc' ? -1 : 1;
+                }
+                if (a[sortConfig.key] > b[sortConfig.key]) {
+                    return sortConfig.direction === 'asc' ? 1 : -1;
+                }
+                return 0;
+            });
+        }
+
+        return data;
+    }, [bodegas, filtro, sortConfig]);
 
     return (
         <div className="bodega-view">
@@ -129,27 +163,15 @@ const BodegaView: React.FC = () => {
                     <h3>{editingId ? 'Editar Bodega' : 'Nueva Bodega'}</h3>
                     <form onSubmit={handleSubmit}>
                         <div className="form-group">
-                            <label>Descripción *</label>
+                            <label>Descripción de la Bodega *</label>
                             <input
                                 type="text"
-                                value={formData.descripcion_27}
-                                onChange={(e) => setFormData({ ...formData, descripcion_27: e.target.value })}
+                                value={descripcion}
+                                onChange={(e) => setDescripcion(e.target.value)}
                                 required
                                 placeholder="Ej: Bodega Central"
                             />
                         </div>
-
-                        <div className="form-group checkbox-group">
-                            <label>
-                                <input
-                                    type="checkbox"
-                                    checked={formData.activo}
-                                    onChange={(e) => setFormData({ ...formData, activo: e.target.checked })}
-                                />
-                                Bodega Activa
-                            </label>
-                        </div>
-
                         <div className="form-actions">
                             <button type="submit" className="btn-primary" disabled={loading}>
                                 {loading ? 'Guardando...' : 'Guardar'}
@@ -162,29 +184,46 @@ const BodegaView: React.FC = () => {
                 </div>
             )}
 
+            {/* Buscador */}
+            <div className="form-container" style={{ marginBottom: '20px' }}>
+                <input
+                    type="text"
+                    placeholder="🔍 Buscar bodega..."
+                    value={filtro}
+                    onChange={(e) => setFiltro(e.target.value)}
+                    style={{ width: '100%', padding: '10px', fontSize: '14px', borderRadius: '4px', border: '1px solid #ced4da' }}
+                />
+            </div>
+
             <div className="table-container">
                 <table className="data-table">
                     <thead>
                         <tr>
-                            <th>ID</th>
-                            <th>Descripción</th>
-                            <th>Estado</th>
+                            <th onClick={() => handleSort('id_bodega_27')} style={{ cursor: 'pointer' }}>
+                                ID {getSortIndicator('id_bodega_27')}
+                            </th>
+                            <th onClick={() => handleSort('descripcion_27')} style={{ cursor: 'pointer' }}>
+                                Descripción {getSortIndicator('descripcion_27')}
+                            </th>
+                            <th onClick={() => handleSort('activo')} style={{ cursor: 'pointer' }}>
+                                Estado {getSortIndicator('activo')}
+                            </th>
                             <th>Acciones</th>
                         </tr>
                     </thead>
                     <tbody>
                         {loading && bodegas.length === 0 ? (
                             <tr><td colSpan={4}>Cargando...</td></tr>
-                        ) : bodegas.length === 0 ? (
+                        ) : processedBodegas.length === 0 ? (
                             <tr><td colSpan={4}>No hay bodegas registradas</td></tr>
                         ) : (
-                            bodegas.map((bodega) => (
+                            processedBodegas.map((bodega) => (
                                 <tr key={bodega.id_bodega_27}>
                                     <td>{bodega.id_bodega_27}</td>
                                     <td>{bodega.descripcion_27}</td>
                                     <td>
                                         <span className={`status-badge ${bodega.activo ? 'active' : 'inactive'}`}>
-                                            {bodega.activo ? '✓ Activa' : '✕ Inactiva'}
+                                            {bodega.activo ? 'Activo' : 'Inactivo'}
                                         </span>
                                     </td>
                                     <td className="actions">
@@ -196,11 +235,11 @@ const BodegaView: React.FC = () => {
                                             ✏️
                                         </button>
                                         <button
-                                            className="btn-toggle"
+                                            className={`btn-toggle ${bodega.activo ? 'btn-danger' : 'btn-success'}`}
                                             onClick={() => handleToggleStatus(bodega.id_bodega_27)}
                                             title={bodega.activo ? 'Desactivar' : 'Activar'}
                                         >
-                                            {bodega.activo ? '🔒' : '🔓'}
+                                            {bodega.activo ? '🚫' : '✅'}
                                         </button>
                                     </td>
                                 </tr>

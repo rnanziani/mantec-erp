@@ -1,186 +1,195 @@
 import { Request, Response } from 'express';
 import { pool } from '../db.js';
-import { Existencia, ApiResponse } from '../types.js';
+import { Existencia, UpsertExistenciaDTO, ApiResponse } from '../types.js';
 
 /**
- * Obtener todas las existencias con información relacionada
+ * Obtener todas las existencias con información de alternador, marca y ubicación
  */
 export const getAllExistencias = async (req: Request, res: Response): Promise<void> => {
-    try {
-        const result = await pool.query<Existencia>(
-            `SELECT 
-        e.*,
+  try {
+    const query = `
+      SELECT 
+        e.id_existencia_26,
+        e.id_alternador_26,
+        e.id_ubicacion_26,
+        e.cantidad_26,
+        e.created_at,
+        e.updated_at,
         a.cod_alternador_19,
         m.marca_18,
-        b.descripcion_27 as bodega_descripcion
+        u.descripcion_27 AS ubicacion_descripcion
       FROM tbl_26_existencia e
       INNER JOIN tbl_19_alternador a ON e.id_alternador_26 = a.id_alternador_19
-      INNER JOIN tbl_18_marca_alternador m ON a.id_marca_19 = m.id_marca_18
-      INNER JOIN tbl_27_bodega b ON e.id_bodega_26 = b.id_bodega_27
-      ORDER BY b.descripcion_27, m.marca_18, a.cod_alternador_19`
-        );
+      LEFT JOIN tbl_18_marca_alternador m ON a.id_marca_19 = m.id_marca_18
+      INNER JOIN tbl_27_ubicacion u ON e.id_ubicacion_26 = u.id_ubicacion_27
+      ORDER BY e.updated_at DESC, e.id_existencia_26 DESC
+    `;
 
-        const response: ApiResponse<Existencia[]> = {
-            success: true,
-            data: result.rows
-        };
+    const result = await pool.query<Existencia>(query);
 
-        res.json(response);
-    } catch (error) {
-        console.error('Error al obtener existencias:', error);
-        const response: ApiResponse<null> = {
-            success: false,
-            error: 'Error al obtener las existencias'
-        };
-        res.status(500).json(response);
-    }
+    const response: ApiResponse<Existencia[]> = {
+      success: true,
+      data: result.rows
+    };
+
+    res.json(response);
+  } catch (error) {
+    console.error('Error al obtener existencias:', error);
+    const response: ApiResponse<null> = {
+      success: false,
+      error: 'Error al obtener las existencias',
+      message: error instanceof Error ? error.message : 'Error desconocido'
+    };
+    res.status(500).json(response);
+  }
 };
 
 /**
- * Obtener existencias de un alternador específico en todas las bodegas
+ * Obtener existencia por ID
  */
-export const getExistenciasByAlternador = async (req: Request, res: Response): Promise<void> => {
-    try {
-        const { id } = req.params;
-
-        const result = await pool.query<Existencia>(
-            `SELECT 
-        e.*,
+export const getExistenciaById = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params;
+    const query = `
+      SELECT 
+        e.id_existencia_26,
+        e.id_alternador_26,
+        e.id_ubicacion_26,
+        e.cantidad_26,
+        e.created_at,
+        e.updated_at,
         a.cod_alternador_19,
         m.marca_18,
-        b.descripcion_27 as bodega_descripcion
+        u.descripcion_27 AS ubicacion_descripcion
       FROM tbl_26_existencia e
       INNER JOIN tbl_19_alternador a ON e.id_alternador_26 = a.id_alternador_19
-      INNER JOIN tbl_18_marca_alternador m ON a.id_marca_19 = m.id_marca_18
-      INNER JOIN tbl_27_bodega b ON e.id_bodega_26 = b.id_bodega_27
-      WHERE e.id_alternador_26 = $1
-      ORDER BY b.descripcion_27`,
-            [id]
-        );
+      LEFT JOIN tbl_18_marca_alternador m ON a.id_marca_19 = m.id_marca_18
+      INNER JOIN tbl_27_ubicacion u ON e.id_ubicacion_26 = u.id_ubicacion_27
+      WHERE e.id_existencia_26 = $1
+    `;
 
-        const response: ApiResponse<Existencia[]> = {
-            success: true,
-            data: result.rows
-        };
+    const result = await pool.query<Existencia>(query, [id]);
 
-        res.json(response);
-    } catch (error) {
-        console.error('Error al obtener existencias por alternador:', error);
-        const response: ApiResponse<null> = {
-            success: false,
-            error: 'Error al obtener las existencias del alternador'
-        };
-        res.status(500).json(response);
+    if (result.rowCount === 0) {
+      const response: ApiResponse<null> = {
+        success: false,
+        error: 'Existencia no encontrada'
+      };
+      res.status(404).json(response);
+      return;
     }
+
+    const response: ApiResponse<Existencia> = {
+      success: true,
+      data: result.rows[0]
+    };
+
+    res.json(response);
+  } catch (error) {
+    console.error('Error al obtener existencia:', error);
+    const response: ApiResponse<null> = {
+      success: false,
+      error: 'Error al obtener la existencia',
+      message: error instanceof Error ? error.message : 'Error desconocido'
+    };
+    res.status(500).json(response);
+  }
 };
 
 /**
- * Obtener existencias de una bodega específica
+ * Crear o actualizar existencia (UPSERT)
+ * Si ya existe una existencia para ese alternador y ubicación, la actualiza
  */
-export const getExistenciasByBodega = async (req: Request, res: Response): Promise<void> => {
-    try {
-        const { id } = req.params;
+export const upsertExistencia = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { id_alternador_26, id_ubicacion_26, cantidad_26 }: UpsertExistenciaDTO = req.body;
 
-        const result = await pool.query<Existencia>(
-            `SELECT 
-        e.*,
-        a.cod_alternador_19,
-        m.marca_18,
-        b.descripcion_27 as bodega_descripcion
-      FROM tbl_26_existencia e
-      INNER JOIN tbl_19_alternador a ON e.id_alternador_26 = a.id_alternador_19
-      INNER JOIN tbl_18_marca_alternador m ON a.id_marca_19 = m.id_marca_18
-      INNER JOIN tbl_27_bodega b ON e.id_bodega_26 = b.id_bodega_27
-      WHERE e.id_bodega_26 = $1
-      ORDER BY m.marca_18, a.cod_alternador_19`,
-            [id]
-        );
-
-        const response: ApiResponse<Existencia[]> = {
-            success: true,
-            data: result.rows
-        };
-
-        res.json(response);
-    } catch (error) {
-        console.error('Error al obtener existencias por bodega:', error);
-        const response: ApiResponse<null> = {
-            success: false,
-            error: 'Error al obtener las existencias de la bodega'
-        };
-        res.status(500).json(response);
+    // Validación
+    if (!id_alternador_26 || !id_ubicacion_26 || cantidad_26 === undefined) {
+      const response: ApiResponse<null> = {
+        success: false,
+        error: 'id_alternador_26, id_ubicacion_26 y cantidad_26 son requeridos'
+      };
+      res.status(400).json(response);
+      return;
     }
+
+    if (cantidad_26 < 0) {
+      const response: ApiResponse<null> = {
+        success: false,
+        error: 'La cantidad no puede ser negativa'
+      };
+      res.status(400).json(response);
+      return;
+    }
+
+    // UPSERT usando ON CONFLICT
+    const query = `
+      INSERT INTO tbl_26_existencia (id_alternador_26, id_ubicacion_26, cantidad_26)
+      VALUES ($1, $2, $3)
+      ON CONFLICT (id_alternador_26, id_ubicacion_26)
+      DO UPDATE SET 
+        cantidad_26 = EXCLUDED.cantidad_26,
+        updated_at = NOW()
+      RETURNING *
+    `;
+
+    const result = await pool.query<Existencia>(query, [id_alternador_26, id_ubicacion_26, cantidad_26]);
+
+    const response: ApiResponse<Existencia> = {
+      success: true,
+      data: result.rows[0],
+      message: 'Existencia actualizada exitosamente'
+    };
+
+    res.status(200).json(response);
+  } catch (error) {
+    console.error('Error al crear/actualizar existencia:', error);
+    const response: ApiResponse<null> = {
+      success: false,
+      error: 'Error al crear/actualizar la existencia',
+      message: error instanceof Error ? error.message : 'Error desconocido'
+    };
+    res.status(500).json(response);
+  }
 };
 
 /**
- * Obtener alternadores con stock bajo (cantidad <= 2)
+ * Eliminar una existencia
  */
-export const getStockBajo = async (req: Request, res: Response): Promise<void> => {
-    try {
-        const umbral = req.query.umbral ? parseInt(req.query.umbral as string) : 2;
+export const deleteExistencia = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params;
 
-        const result = await pool.query<Existencia>(
-            `SELECT 
-        e.*,
-        a.cod_alternador_19,
-        m.marca_18,
-        b.descripcion_27 as bodega_descripcion
-      FROM tbl_26_existencia e
-      INNER JOIN tbl_19_alternador a ON e.id_alternador_26 = a.id_alternador_19
-      INNER JOIN tbl_18_marca_alternador m ON a.id_marca_19 = m.id_marca_18
-      INNER JOIN tbl_27_bodega b ON e.id_bodega_26 = b.id_bodega_27
-      WHERE e.cantidad_26 <= $1 AND e.cantidad_26 > 0
-      ORDER BY e.cantidad_26 ASC, b.descripcion_27`,
-            [umbral]
-        );
+    const result = await pool.query(
+      'DELETE FROM tbl_26_existencia WHERE id_existencia_26 = $1 RETURNING id_existencia_26',
+      [id]
+    );
 
-        const response: ApiResponse<Existencia[]> = {
-            success: true,
-            data: result.rows,
-            message: `Se encontraron ${result.rows.length} registros con stock bajo`
-        };
-
-        res.json(response);
-    } catch (error) {
-        console.error('Error al obtener stock bajo:', error);
-        const response: ApiResponse<null> = {
-            success: false,
-            error: 'Error al obtener el stock bajo'
-        };
-        res.status(500).json(response);
+    if (result.rowCount === 0) {
+      const response: ApiResponse<null> = {
+        success: false,
+        error: 'Existencia no encontrada'
+      };
+      res.status(404).json(response);
+      return;
     }
+
+    const response: ApiResponse<null> = {
+      success: true,
+      message: 'Existencia eliminada exitosamente'
+    };
+
+    res.json(response);
+  } catch (error) {
+    console.error('Error al eliminar existencia:', error);
+    const response: ApiResponse<null> = {
+      success: false,
+      error: 'Error al eliminar la existencia',
+      message: error instanceof Error ? error.message : 'Error desconocido'
+    };
+    res.status(500).json(response);
+  }
 };
 
-/**
- * Obtener stock total por alternador (suma de todas las bodegas)
- */
-export const getStockTotalPorAlternador = async (req: Request, res: Response): Promise<void> => {
-    try {
-        const result = await pool.query(
-            `SELECT 
-        a.id_alternador_19,
-        a.cod_alternador_19,
-        m.marca_18,
-        COALESCE(SUM(e.cantidad_26), 0) as stock_total
-      FROM tbl_19_alternador a
-      INNER JOIN tbl_18_marca_alternador m ON a.id_marca_19 = m.id_marca_18
-      LEFT JOIN tbl_26_existencia e ON a.id_alternador_19 = e.id_alternador_26
-      GROUP BY a.id_alternador_19, a.cod_alternador_19, m.marca_18
-      ORDER BY m.marca_18, a.cod_alternador_19`
-        );
 
-        const response: ApiResponse<any[]> = {
-            success: true,
-            data: result.rows
-        };
-
-        res.json(response);
-    } catch (error) {
-        console.error('Error al obtener stock total por alternador:', error);
-        const response: ApiResponse<null> = {
-            success: false,
-            error: 'Error al obtener el stock total'
-        };
-        res.status(500).json(response);
-    }
-};

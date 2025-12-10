@@ -243,7 +243,7 @@ export interface ApiResponse<T> {
  * Tabla: tbl_27_bodega
  */
 export interface Bodega {
-  id_bodega_27: number;
+  id_ubicacion_27: number;
   descripcion_27: string;
   activo: boolean;
   created_at: Date;
@@ -302,15 +302,16 @@ export interface UpdateTipoTransaccionDTO {
  * Tabla: tbl_26_existencia
  */
 export interface Existencia {
+  id_existencia_26: number;
   id_alternador_26: number;
-  id_bodega_26: number;
+  id_ubicacion_26: number;
   cantidad_26: number;
   created_at: Date;
   updated_at: Date;
   // Campos JOINed
   cod_alternador_19?: string;
   marca_18?: string;
-  bodega_descripcion?: string;
+  ubicacion_descripcion?: string;
   estado_20?: string;
 }
 
@@ -320,7 +321,7 @@ export interface Existencia {
  */
 export interface UpsertExistenciaDTO {
   id_alternador_26: number;
-  id_bodega_26: number;
+  id_ubicacion_26: number;
   cantidad_26: number;
 }
 
@@ -331,18 +332,26 @@ export interface UpsertExistenciaDTO {
 export interface Transaccion {
   id_transaccion_28: number;
   id_alternador_28: number;
-  id_bodega_28: number;
-  fecha_28: Date;
+  id_ubicacion_origen_28: number;
+  id_ubicacion_destino_28: number;
   id_tipo_transaccion_28: number;
+  id_tecnico_28?: number; // Opcional: Quién realizó la transacción
+  id_maquina_28?: number; // Opcional: Si es instalación
+  fecha_28: Date;
+  hora_28: string; // time without time zone
   created_at: Date;
   updated_at: Date;
   // Campos JOINed
   cod_alternador_19?: string;
   marca_18?: string;
-  bodega_descripcion?: string;
+  ubicacion_origen_descripcion?: string;
+  ubicacion_destino_descripcion?: string;
   tipo_descripcion?: string;
   tipo_codigo?: string;
   valor_accion?: -1 | 0 | 1;
+  tecnico_nombre?: string; // Nombre completo del técnico
+  maquina_numinterno?: string; // Número interno de la máquina
+  maquina_ppu?: string; // Patente de la máquina
 }
 
 /**
@@ -350,9 +359,13 @@ export interface Transaccion {
  */
 export interface CreateTransaccionDTO {
   id_alternador_28: number;
-  id_bodega_28: number;
+  id_ubicacion_origen_28: number;
+  id_ubicacion_destino_28: number;
   id_tipo_transaccion_28: number;
-  fecha_28?: Date; // Opcional, default: now()
+  id_tecnico_28?: number; // Opcional
+  id_maquina_28?: number; // Opcional
+  fecha_28?: string; // date format YYYY-MM-DD, default: CURRENT_DATE
+  hora_28?: string; // time format HH:MM:SS, default: CURRENT_TIME
 }
 
 /**
@@ -360,7 +373,107 @@ export interface CreateTransaccionDTO {
  */
 export interface UpdateTransaccionDTO {
   id_alternador_28?: number;
-  id_bodega_28?: number;
+  id_ubicacion_origen_28?: number;
+  id_ubicacion_destino_28?: number;
   id_tipo_transaccion_28?: number;
-  fecha_28?: Date;
+  id_tecnico_28?: number;
+  id_maquina_28?: number;
+  fecha_28?: string;
+  hora_28?: string;
+}
+
+// ============================================
+// ASIGNACIÓN DE PRODUCTOS DE ASEO
+// ============================================
+
+/**
+ * Producto de Aseo
+ * Tabla: tbl_XX_producto_aseo (ajustar número de tabla según tu BD)
+ */
+export interface ProductoAseo {
+  id_producto: number;
+  nombre_producto: string;
+  activo?: boolean;
+  created_at?: Date;
+  updated_at?: Date;
+}
+
+/**
+ * DTO para crear un nuevo producto de aseo
+ */
+export interface CreateProductoAseoDTO {
+  nombre_producto: string;
+  activo?: boolean;
+}
+
+/**
+ * DTO para actualizar un producto de aseo
+ */
+export interface UpdateProductoAseoDTO {
+  nombre_producto?: string;
+  activo?: boolean;
+}
+
+/**
+ * Asignación de Productos de Aseo (Maestro)
+ * Tabla: tbl_XX_asignacion_producto_aseo (ajustar número de tabla según tu BD)
+ */
+export interface AsignacionProductoAseo {
+  id_asignacion: number;
+  id_maquina: number;
+  id_trabajador: number;
+  id_responsable: number;
+  fecha: Date;
+  hora: string;
+  created_at?: Date;
+  updated_at?: Date;
+  // Campos JOINed
+  maquina_ppu?: string;
+  maquina_numinterno?: string;
+  maquina_descripcion?: string;
+  trabajador_nombre?: string;
+  responsable_nombre?: string;
+}
+
+/**
+ * Detalle de Asignación de Productos de Aseo
+ * Tabla: tbl_XX_detalle_asignacion_producto (ajustar número de tabla según tu BD)
+ */
+export interface DetalleAsignacionProducto {
+  id_detalle: number;
+  id_asignacion: number;
+  id_producto: number;
+  cantidad: number;
+  // Campos JOINed
+  producto_nombre?: string;
+}
+
+/**
+ * DTO para crear una nueva asignación con sus detalles
+ */
+export interface CreateAsignacionProductoAseoDTO {
+  id_maquina: number;
+  id_trabajador: number;
+  id_responsable: number;
+  fecha: string; // YYYY-MM-DD
+  hora: string; // HH:MM
+  detalles: Array<{
+    id_producto: number;
+    cantidad: number;
+  }>;
+}
+
+/**
+ * DTO para actualizar una asignación
+ */
+export interface UpdateAsignacionProductoAseoDTO {
+  id_maquina?: number;
+  id_trabajador?: number;
+  id_responsable?: number;
+  fecha?: string;
+  hora?: string;
+  detalles?: Array<{
+    id_producto: number;
+    cantidad: number;
+  }>;
 }

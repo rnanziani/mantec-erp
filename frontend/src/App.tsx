@@ -13,6 +13,7 @@ import BodegaView from './components/BodegaView';
 import TipoTransaccionView from './components/TipoTransaccionView';
 import ExistenciaView from './components/ExistenciaView';
 import TransaccionView from './components/TransaccionView';
+import AsignacionProductosAseoView from './components/AsignacionProductosAseoView';
 
 function App() {
   const [currentView, setCurrentView] = useState<string>('dashboard');
@@ -71,6 +72,8 @@ function App() {
           {currentView === 'existencias' && <ExistenciaView />}
 
           {currentView === 'transacciones' && <TransaccionView />}
+
+          {currentView === 'asignacion-productos-aseo' && <AsignacionProductosAseoView />}
 
           {currentView === 'reportes' && (
             <div className="mantec-welcome">
