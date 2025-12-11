@@ -391,27 +391,43 @@ export interface UpdateTransaccionDTO {
  * Tabla: tbl_XX_producto_aseo (ajustar número de tabla según tu BD)
  */
 export interface ProductoAseo {
-  id_producto: number;
-  nombre_producto: string;
+  id_producto?: number;
+  nombre_producto?: string;
   activo?: boolean;
+  unidad_medida?: string;
+  valor_por_defecto?: number;
+  orden?: number;
   created_at?: Date;
   updated_at?: Date;
+  // Campos directos de la tabla
+  idproductoaseo_10?: number;
+  productoaseo_10?: string;
+  um_10?: string;
+  enuso_10?: boolean;
+  valorpordefecto_10?: number;
+  orden_10?: number | null;
 }
 
 /**
  * DTO para crear un nuevo producto de aseo
  */
 export interface CreateProductoAseoDTO {
-  nombre_producto: string;
-  activo?: boolean;
+  productoaseo_10: string;
+  um_10: string;
+  enuso_10?: boolean;
+  valorpordefecto_10?: number;
+  orden_10?: number | null;
 }
 
 /**
  * DTO para actualizar un producto de aseo
  */
 export interface UpdateProductoAseoDTO {
-  nombre_producto?: string;
-  activo?: boolean;
+  productoaseo_10?: string;
+  um_10?: string;
+  enuso_10?: boolean;
+  valorpordefecto_10?: number;
+  orden_10?: number | null;
 }
 
 /**

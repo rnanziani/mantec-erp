@@ -336,11 +336,17 @@ const CargoView: React.FC = () => {
             <table className="cargo-table">
               <thead>
                 <tr>
-                  <th onClick={() => handleSort('idcargo_14')} className="sortable">
-                    ID {getSortIcon('idcargo_14')}
+                  <th 
+                    onClick={() => handleSort('idcargo_14')} 
+                    className={`sortable ${sortConfig.key === 'idcargo_14' ? (sortConfig.direction === 'asc' ? 'sort-asc' : 'sort-desc') : ''}`}
+                  >
+                    ID
                   </th>
-                  <th onClick={() => handleSort('cargo_14')} className="sortable">
-                    Cargo {getSortIcon('cargo_14')}
+                  <th 
+                    onClick={() => handleSort('cargo_14')} 
+                    className={`sortable ${sortConfig.key === 'cargo_14' ? (sortConfig.direction === 'asc' ? 'sort-asc' : 'sort-desc') : ''}`}
+                  >
+                    CARGO
                   </th>
                   <th>Acciones</th>
                 </tr>

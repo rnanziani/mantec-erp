@@ -614,25 +614,40 @@ const OrdenTrabajoView: React.FC = () => {
                         <table className="ordenes-table">
                             <thead>
                                 <tr>
-                                    <th onClick={() => handleSort('id_orden_24')} className="sortable">
-                                        ID {getSortIcon('id_orden_24')}
+                                    <th 
+                                        onClick={() => handleSort('id_orden_24')} 
+                                        className={`sortable ${sortConfig.key === 'id_orden_24' ? (sortConfig.direction === 'asc' ? 'sort-asc' : 'sort-desc') : ''}`}
+                                    >
+                                        ID
                                     </th>
-                                    <th onClick={() => handleSort('cod_alternador_19')} className="sortable">
-                                        Alternador {getSortIcon('cod_alternador_19')}
+                                    <th 
+                                        onClick={() => handleSort('cod_alternador_19')} 
+                                        className={`sortable ${sortConfig.key === 'cod_alternador_19' ? (sortConfig.direction === 'asc' ? 'sort-asc' : 'sort-desc') : ''}`}
+                                    >
+                                        ALTERNADOR
                                     </th>
-                                    <th>Máquina</th>
-                                    <th onClick={() => handleSort('fecha_ingreso_taller_24')} className="sortable">
-                                        F. Ingreso {getSortIcon('fecha_ingreso_taller_24')}
+                                    <th>MÁQUINA</th>
+                                    <th 
+                                        onClick={() => handleSort('fecha_ingreso_taller_24')} 
+                                        className={`sortable ${sortConfig.key === 'fecha_ingreso_taller_24' ? (sortConfig.direction === 'asc' ? 'sort-asc' : 'sort-desc') : ''}`}
+                                    >
+                                        F. INGRESO
                                     </th>
-                                    <th onClick={() => handleSort('fecha_salida_taller_24')} className="sortable">
-                                        F. Salida {getSortIcon('fecha_salida_taller_24')}
+                                    <th 
+                                        onClick={() => handleSort('fecha_salida_taller_24')} 
+                                        className={`sortable ${sortConfig.key === 'fecha_salida_taller_24' ? (sortConfig.direction === 'asc' ? 'sort-asc' : 'sort-desc') : ''}`}
+                                    >
+                                        F. SALIDA
                                     </th>
-                                    <th onClick={() => handleSort('estado_orden_24')} className="sortable">
-                                        Estado {getSortIcon('estado_orden_24')}
+                                    <th 
+                                        onClick={() => handleSort('estado_orden_24')} 
+                                        className={`sortable ${sortConfig.key === 'estado_orden_24' ? (sortConfig.direction === 'asc' ? 'sort-asc' : 'sort-desc') : ''}`}
+                                    >
+                                        ESTADO
                                     </th>
-                                    <th>Costo</th>
-                                    <th>Técnico</th>
-                                    <th>Acciones</th>
+                                    <th>COSTO</th>
+                                    <th>TÉCNICO</th>
+                                    <th>ACCIONES</th>
                                 </tr>
                             </thead>
                             <tbody>

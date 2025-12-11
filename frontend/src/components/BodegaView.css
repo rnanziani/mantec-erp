@@ -38,12 +38,14 @@
     color: #495057;
 }
 
-.form-group input[type="text"] {
+.form-group input[type="text"],
+.form-group input[type="number"] {
     width: 100%;
     padding: 8px 12px;
     border: 1px solid #ced4da;
     border-radius: 4px;
     font-size: 14px;
+    box-sizing: border-box;
 }
 
 .checkbox-group label {
@@ -66,6 +68,8 @@
 
 .btn-primary,
 .btn-secondary,
+.btn-success,
+.btn-export,
 .btn-edit,
 .btn-toggle {
     padding: 8px 16px;
@@ -99,6 +103,29 @@
     background: #545b62;
 }
 
+.btn-success {
+    background: #28a745;
+    color: white;
+}
+
+.btn-success:hover {
+    background: #218838;
+}
+
+.btn-success:disabled {
+    background: #6c757d;
+    cursor: not-allowed;
+}
+
+.btn-export {
+    background: #6f42c1;
+    color: white;
+}
+
+.btn-export:hover {
+    background: #5a32a3;
+}
+
 .table-container {
     background: white;
     border-radius: 8px;
@@ -108,18 +135,60 @@
 
 .data-table {
     width: 100%;
-    border-collapse: collapse;
+    border-collapse: separate;
+    border-spacing: 0;
 }
 
 .data-table thead {
-    background: #343a40;
+    background: #1e3a5f;
     color: white;
+    border-radius: 8px 8px 0 0;
+}
+
+.data-table thead tr:first-child th:first-child {
+    border-top-left-radius: 8px;
+}
+
+.data-table thead tr:first-child th:last-child {
+    border-top-right-radius: 8px;
 }
 
 .data-table th {
     padding: 12px;
     text-align: left;
     font-weight: 600;
+    text-transform: uppercase;
+    font-size: 0.85rem;
+    letter-spacing: 0.5px;
+    position: relative;
+}
+
+.data-table th.sortable {
+    cursor: pointer;
+    user-select: none;
+    transition: background 0.2s;
+}
+
+.data-table th.sortable:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.data-table th.sortable::after {
+    content: '⇅';
+    margin-left: 8px;
+    font-size: 0.9rem;
+    opacity: 0.7;
+    display: inline-block;
+}
+
+.data-table th.sortable.sort-asc::after {
+    content: '▲';
+    opacity: 1;
+}
+
+.data-table th.sortable.sort-desc::after {
+    content: '▼';
+    opacity: 1;
 }
 
 .data-table td {

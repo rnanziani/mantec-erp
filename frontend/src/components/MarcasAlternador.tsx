@@ -294,13 +294,19 @@ const MarcasAlternador: React.FC = () => {
             <table className="marcas-table">
               <thead>
                 <tr>
-                  <th onClick={() => handleSort('id_marca_18')} className="sortable">
-                    ID {getSortIcon('id_marca_18')}
+                  <th 
+                    onClick={() => handleSort('id_marca_18')} 
+                    className={`sortable ${sortConfig.key === 'id_marca_18' ? (sortConfig.direction === 'asc' ? 'sort-asc' : 'sort-desc') : ''}`}
+                  >
+                    ID
                   </th>
-                  <th onClick={() => handleSort('marca_18')} className="sortable">
-                    Marca {getSortIcon('marca_18')}
+                  <th 
+                    onClick={() => handleSort('marca_18')} 
+                    className={`sortable ${sortConfig.key === 'marca_18' ? (sortConfig.direction === 'asc' ? 'sort-asc' : 'sort-desc') : ''}`}
+                  >
+                    MARCA
                   </th>
-                  <th>Acciones</th>
+                  <th>ACCIONES</th>
                 </tr>
               </thead>
               <tbody>

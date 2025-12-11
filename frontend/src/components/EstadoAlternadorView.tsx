@@ -322,16 +322,25 @@ const EstadoAlternadorView: React.FC = () => {
             <table className="estados-table">
               <thead>
                 <tr>
-                  <th onClick={() => handleSort('id_estado_20')} className="sortable">
-                    ID {getSortIcon('id_estado_20')}
+                  <th 
+                    onClick={() => handleSort('id_estado_20')} 
+                    className={`sortable ${sortConfig.key === 'id_estado_20' ? (sortConfig.direction === 'asc' ? 'sort-asc' : 'sort-desc') : ''}`}
+                  >
+                    ID
                   </th>
-                  <th onClick={() => handleSort('estado_20')} className="sortable">
-                    Estado {getSortIcon('estado_20')}
+                  <th 
+                    onClick={() => handleSort('estado_20')} 
+                    className={`sortable ${sortConfig.key === 'estado_20' ? (sortConfig.direction === 'asc' ? 'sort-asc' : 'sort-desc') : ''}`}
+                  >
+                    ESTADO
                   </th>
-                  <th onClick={() => handleSort('descripcion_20')} className="sortable">
-                    Descripción {getSortIcon('descripcion_20')}
+                  <th 
+                    onClick={() => handleSort('descripcion_20')} 
+                    className={`sortable ${sortConfig.key === 'descripcion_20' ? (sortConfig.direction === 'asc' ? 'sort-asc' : 'sort-desc') : ''}`}
+                  >
+                    DESCRIPCIÓN
                   </th>
-                  <th>Acciones</th>
+                  <th>ACCIONES</th>
                 </tr>
               </thead>
               <tbody>

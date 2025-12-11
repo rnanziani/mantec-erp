@@ -14,6 +14,7 @@ import TipoTransaccionView from './components/TipoTransaccionView';
 import ExistenciaView from './components/ExistenciaView';
 import TransaccionView from './components/TransaccionView';
 import AsignacionProductosAseoView from './components/AsignacionProductosAseoView';
+import ProductoAseoView from './components/ProductoAseoView';
 import TrabajadorView from './components/TrabajadorView';
 
 function App() {
@@ -75,6 +76,8 @@ function App() {
           {currentView === 'transacciones' && <TransaccionView />}
 
           {currentView === 'asignacion-productos-aseo' && <AsignacionProductosAseoView />}
+
+          {currentView === 'productos-aseo' && <ProductoAseoView />}
 
           {currentView === 'trabajadores' && <TrabajadorView />}
 

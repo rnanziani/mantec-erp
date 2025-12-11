@@ -35,7 +35,8 @@ const Sidebar: React.FC<SidebarProps> = ({ onNavigate, currentView }) => {
                 { id: 'estados', label: 'Estados', icon: '📊', path: 'estados' },
                 { id: 'cargos', label: 'Cargos', icon: '👔', path: 'cargos' },
                 { id: 'tecnicos', label: 'Técnicos', icon: '👷', path: 'tecnicos' },
-                { id: 'trabajadores', label: 'Trabajadores', icon: '👥', path: 'trabajadores' }
+                { id: 'trabajadores', label: 'Trabajadores', icon: '👥', path: 'trabajadores' },
+                { id: 'productos-aseo', label: 'Productos de Aseo', icon: '🧼', path: 'productos-aseo' }
             ]
         },
         {
@@ -44,7 +45,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onNavigate, currentView }) => {
             icon: '⚙️',
             children: [
                 { id: 'ordenes-trabajo', label: 'Órdenes de Trabajo', icon: '🔧', path: 'ordenes-trabajo' },
-                { id: 'asignacion-productos-aseo', label: 'Asignación Productos Aseo', icon: '🧼', path: 'asignacion-productos-aseo' }
+                { id: 'asignacion-productos-aseo', label: 'Asignación Productos Aseo', icon: '📋', path: 'asignacion-productos-aseo' }
             ]
         },
         {

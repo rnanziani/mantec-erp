@@ -583,24 +583,39 @@ const TrabajadorView: React.FC = () => {
         <table className="tecnicos-table">
           <thead>
             <tr>
-              <th className="sortable" onClick={() => handleSort('ruttrabajador_06')}>
-                RUT {sortConfig.key === 'ruttrabajador_06' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
+              <th 
+                className={`sortable ${sortConfig.key === 'ruttrabajador_06' ? (sortConfig.direction === 'asc' ? 'sort-asc' : 'sort-desc') : ''}`}
+                onClick={() => handleSort('ruttrabajador_06')}
+              >
+                RUT
               </th>
-              <th className="sortable" onClick={() => handleSort('nombre_06')}>
-                Nombre {sortConfig.key === 'nombre_06' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
+              <th 
+                className={`sortable ${sortConfig.key === 'nombre_06' ? (sortConfig.direction === 'asc' ? 'sort-asc' : 'sort-desc') : ''}`}
+                onClick={() => handleSort('nombre_06')}
+              >
+                NOMBRES
               </th>
-              <th className="sortable" onClick={() => handleSort('apaterno_06')}>
-                Apellido Paterno {sortConfig.key === 'apaterno_06' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
+              <th 
+                className={`sortable ${sortConfig.key === 'apaterno_06' ? (sortConfig.direction === 'asc' ? 'sort-asc' : 'sort-desc') : ''}`}
+                onClick={() => handleSort('apaterno_06')}
+              >
+                APELLIDO PATERNO
               </th>
-              <th className="sortable" onClick={() => handleSort('amaterno_06')}>
-                Apellido Materno {sortConfig.key === 'amaterno_06' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
+              <th 
+                className={`sortable ${sortConfig.key === 'amaterno_06' ? (sortConfig.direction === 'asc' ? 'sort-asc' : 'sort-desc') : ''}`}
+                onClick={() => handleSort('amaterno_06')}
+              >
+                APELLIDO MATERNO
               </th>
-              <th>Cargo</th>
-              <th>Empresa</th>
-              <th className="sortable" onClick={() => handleSort('estado_06')}>
-                Estado {sortConfig.key === 'estado_06' && (sortConfig.direction === 'asc' ? '▲' : '▼')}
+              <th>CARGO</th>
+              <th>ESTADO</th>
+              <th 
+                className={`sortable ${sortConfig.key === 'estado_06' ? (sortConfig.direction === 'asc' ? 'sort-asc' : 'sort-desc') : ''}`}
+                onClick={() => handleSort('estado_06')}
+              >
+                ESTADO
               </th>
-              <th>Acciones</th>
+              <th>ACCIONES</th>
             </tr>
           </thead>
           <tbody>

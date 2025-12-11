@@ -28,13 +28,13 @@ export const getAllProductos = async (req: Request, res: Response): Promise<void
   try {
     const query = `
       SELECT 
-        idproductoaseo_10 as id_producto,
-        productoaseo_10 as nombre_producto,
-        enuso_10 as activo,
-        um_10 as unidad_medida,
-        orden_10 as orden
+        idproductoaseo_10,
+        productoaseo_10,
+        um_10,
+        enuso_10,
+        valorpordefecto_10,
+        orden_10
       FROM ${TABLA_PRODUCTO}
-      WHERE enuso_10 = true
       ORDER BY COALESCE(orden_10, 999999) ASC, productoaseo_10 ASC
     `;
 
@@ -62,9 +62,9 @@ export const getAllProductos = async (req: Request, res: Response): Promise<void
  */
 export const createProducto = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { nombre_producto, unidad_medida, activo, valor_por_defecto }: any = req.body;
+    const { productoaseo_10, um_10, enuso_10, valorpordefecto_10, orden_10 }: CreateProductoAseoDTO = req.body;
 
-    if (!nombre_producto || !unidad_medida) {
+    if (!productoaseo_10 || !um_10) {
       const response: ApiResponse<null> = {
         success: false,
         error: 'El nombre del producto y la unidad de medida son requeridos'
@@ -74,16 +74,17 @@ export const createProducto = async (req: Request, res: Response): Promise<void>
     }
 
     const query = `
-      INSERT INTO ${TABLA_PRODUCTO} (productoaseo_10, um_10, enuso_10, valorpordefecto_10)
-      VALUES ($1, $2, COALESCE($3, true), COALESCE($4, 0))
-      RETURNING idproductoaseo_10 as id_producto, productoaseo_10 as nombre_producto, enuso_10 as activo, um_10 as unidad_medida
+      INSERT INTO ${TABLA_PRODUCTO} (productoaseo_10, um_10, enuso_10, valorpordefecto_10, orden_10)
+      VALUES ($1, $2, COALESCE($3, true), COALESCE($4, 0), $5)
+      RETURNING idproductoaseo_10, productoaseo_10, um_10, enuso_10, valorpordefecto_10, orden_10
     `;
 
     const result = await pool.query<ProductoAseo>(query, [
-      nombre_producto, 
-      unidad_medida || 'UND', 
-      activo !== undefined ? activo : true,
-      valor_por_defecto || 0
+      productoaseo_10.trim(), 
+      um_10.trim(), 
+      enuso_10 !== undefined ? enuso_10 : true,
+      valorpordefecto_10 !== undefined ? valorpordefecto_10 : 0,
+      orden_10 !== undefined ? orden_10 : null
     ]);
 
     const response: ApiResponse<ProductoAseo> = {
@@ -98,6 +99,203 @@ export const createProducto = async (req: Request, res: Response): Promise<void>
     const response: ApiResponse<null> = {
       success: false,
       error: 'Error al crear el producto',
+      message: error instanceof Error ? error.message : 'Error desconocido'
+    };
+    res.status(500).json(response);
+  }
+};
+
+/**
+ * Obtener un producto de aseo por ID
+ */
+export const getProductoById = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params;
+
+    const query = `
+      SELECT 
+        idproductoaseo_10,
+        productoaseo_10,
+        um_10,
+        enuso_10,
+        valorpordefecto_10,
+        orden_10
+      FROM ${TABLA_PRODUCTO}
+      WHERE idproductoaseo_10 = $1
+    `;
+
+    const result = await pool.query<ProductoAseo>(query, [id]);
+
+    if (result.rows.length === 0) {
+      const response: ApiResponse<null> = {
+        success: false,
+        error: 'Producto no encontrado'
+      };
+      res.status(404).json(response);
+      return;
+    }
+
+    const response: ApiResponse<ProductoAseo> = {
+      success: true,
+      data: result.rows[0]
+    };
+
+    res.json(response);
+  } catch (error) {
+    console.error('Error al obtener producto:', error);
+    const response: ApiResponse<null> = {
+      success: false,
+      error: 'Error al obtener el producto',
+      message: error instanceof Error ? error.message : 'Error desconocido'
+    };
+    res.status(500).json(response);
+  }
+};
+
+/**
+ * Actualizar un producto de aseo
+ */
+export const updateProducto = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params;
+    const { productoaseo_10, um_10, enuso_10, valorpordefecto_10, orden_10 }: UpdateProductoAseoDTO = req.body;
+
+    // Verificar que el producto existe
+    const checkQuery = `SELECT idproductoaseo_10 FROM ${TABLA_PRODUCTO} WHERE idproductoaseo_10 = $1`;
+    const checkResult = await pool.query(checkQuery, [id]);
+
+    if (checkResult.rows.length === 0) {
+      const response: ApiResponse<null> = {
+        success: false,
+        error: 'Producto no encontrado'
+      };
+      res.status(404).json(response);
+      return;
+    }
+
+    // Construir la query dinámicamente basada en los campos proporcionados
+    const updates: string[] = [];
+    const values: any[] = [];
+    let paramCount = 1;
+
+    if (productoaseo_10 !== undefined) {
+      updates.push(`productoaseo_10 = $${paramCount}`);
+      values.push(productoaseo_10.trim());
+      paramCount++;
+    }
+
+    if (um_10 !== undefined) {
+      updates.push(`um_10 = $${paramCount}`);
+      values.push(um_10.trim());
+      paramCount++;
+    }
+
+    if (enuso_10 !== undefined) {
+      updates.push(`enuso_10 = $${paramCount}`);
+      values.push(enuso_10);
+      paramCount++;
+    }
+
+    if (valorpordefecto_10 !== undefined) {
+      updates.push(`valorpordefecto_10 = $${paramCount}`);
+      values.push(valorpordefecto_10);
+      paramCount++;
+    }
+
+    if (orden_10 !== undefined) {
+      updates.push(`orden_10 = $${paramCount}`);
+      values.push(orden_10);
+      paramCount++;
+    }
+
+    if (updates.length === 0) {
+      const response: ApiResponse<null> = {
+        success: false,
+        error: 'No se proporcionaron campos para actualizar'
+      };
+      res.status(400).json(response);
+      return;
+    }
+
+    values.push(id);
+    const query = `
+      UPDATE ${TABLA_PRODUCTO}
+      SET ${updates.join(', ')}, updated_at = CURRENT_TIMESTAMP
+      WHERE idproductoaseo_10 = $${paramCount}
+      RETURNING idproductoaseo_10, productoaseo_10, um_10, enuso_10, valorpordefecto_10, orden_10
+    `;
+
+    const result = await pool.query<ProductoAseo>(query, values);
+
+    const response: ApiResponse<ProductoAseo> = {
+      success: true,
+      data: result.rows[0],
+      message: 'Producto actualizado exitosamente'
+    };
+
+    res.json(response);
+  } catch (error) {
+    console.error('Error al actualizar producto:', error);
+    const response: ApiResponse<null> = {
+      success: false,
+      error: 'Error al actualizar el producto',
+      message: error instanceof Error ? error.message : 'Error desconocido'
+    };
+    res.status(500).json(response);
+  }
+};
+
+/**
+ * Eliminar un producto de aseo
+ */
+export const deleteProducto = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params;
+
+    // Verificar que el producto existe
+    const checkQuery = `SELECT idproductoaseo_10 FROM ${TABLA_PRODUCTO} WHERE idproductoaseo_10 = $1`;
+    const checkResult = await pool.query(checkQuery, [id]);
+
+    if (checkResult.rows.length === 0) {
+      const response: ApiResponse<null> = {
+        success: false,
+        error: 'Producto no encontrado'
+      };
+      res.status(404).json(response);
+      return;
+    }
+
+    // Verificar si el producto está siendo usado en asignaciones
+    const checkUsageQuery = `
+      SELECT COUNT(*) as count
+      FROM ${TABLA_DETALLE}
+      WHERE idproductoaseo_13 = $1
+    `;
+    const usageResult = await pool.query(checkUsageQuery, [id]);
+
+    if (parseInt(usageResult.rows[0].count) > 0) {
+      const response: ApiResponse<null> = {
+        success: false,
+        error: 'No se puede eliminar el producto porque está siendo usado en asignaciones'
+      };
+      res.status(400).json(response);
+      return;
+    }
+
+    const query = `DELETE FROM ${TABLA_PRODUCTO} WHERE idproductoaseo_10 = $1`;
+    await pool.query(query, [id]);
+
+    const response: ApiResponse<null> = {
+      success: true,
+      message: 'Producto eliminado exitosamente'
+    };
+
+    res.json(response);
+  } catch (error) {
+    console.error('Error al eliminar producto:', error);
+    const response: ApiResponse<null> = {
+      success: false,
+      error: 'Error al eliminar el producto',
       message: error instanceof Error ? error.message : 'Error desconocido'
     };
     res.status(500).json(response);

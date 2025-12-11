@@ -326,16 +326,25 @@ const AlternadoresView: React.FC = () => {
             <table className="alternadores-table">
               <thead>
                 <tr>
-                  <th onClick={() => handleSort('id_alternador_19')} className="sortable">
-                    ID {getSortIcon('id_alternador_19')}
+                  <th 
+                    onClick={() => handleSort('id_alternador_19')} 
+                    className={`sortable ${sortConfig.key === 'id_alternador_19' ? (sortConfig.direction === 'asc' ? 'sort-asc' : 'sort-desc') : ''}`}
+                  >
+                    ID
                   </th>
-                  <th onClick={() => handleSort('cod_alternador_19')} className="sortable">
-                    Código {getSortIcon('cod_alternador_19')}
+                  <th 
+                    onClick={() => handleSort('cod_alternador_19')} 
+                    className={`sortable ${sortConfig.key === 'cod_alternador_19' ? (sortConfig.direction === 'asc' ? 'sort-asc' : 'sort-desc') : ''}`}
+                  >
+                    CÓDIGO
                   </th>
-                  <th onClick={() => handleSort('marca_18')} className="sortable">
-                    Marca {getSortIcon('marca_18')}
+                  <th 
+                    onClick={() => handleSort('marca_18')} 
+                    className={`sortable ${sortConfig.key === 'marca_18' ? (sortConfig.direction === 'asc' ? 'sort-asc' : 'sort-desc') : ''}`}
+                  >
+                    MARCA
                   </th>
-                  <th>Acciones</th>
+                  <th>ACCIONES</th>
                 </tr>
               </thead>
               <tbody>

@@ -199,14 +199,23 @@ const BodegaView: React.FC = () => {
                 <table className="data-table">
                     <thead>
                         <tr>
-                            <th onClick={() => handleSort('id_bodega_27')} style={{ cursor: 'pointer' }}>
-                                ID {getSortIndicator('id_bodega_27')}
+                            <th 
+                                onClick={() => handleSort('id_bodega_27')} 
+                                className={`sortable ${sortConfig && sortConfig.key === 'id_bodega_27' ? (sortConfig.direction === 'asc' ? 'sort-asc' : 'sort-desc') : ''}`}
+                            >
+                                ID
                             </th>
-                            <th onClick={() => handleSort('descripcion_27')} style={{ cursor: 'pointer' }}>
-                                Descripción {getSortIndicator('descripcion_27')}
+                            <th 
+                                onClick={() => handleSort('descripcion_27')} 
+                                className={`sortable ${sortConfig && sortConfig.key === 'descripcion_27' ? (sortConfig.direction === 'asc' ? 'sort-asc' : 'sort-desc') : ''}`}
+                            >
+                                Descripción
                             </th>
-                            <th onClick={() => handleSort('activo')} style={{ cursor: 'pointer' }}>
-                                Estado {getSortIndicator('activo')}
+                            <th 
+                                onClick={() => handleSort('activo')} 
+                                className={`sortable ${sortConfig && sortConfig.key === 'activo' ? (sortConfig.direction === 'asc' ? 'sort-asc' : 'sort-desc') : ''}`}
+                            >
+                                Estado
                             </th>
                             <th>Acciones</th>
                         </tr>
