@@ -27,7 +27,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onNavigate, currentView }) => {
         },
         {
             id: 'maestros',
-            label: 'Maestros',
+            label: 'Mantenedores',
             icon: '📋',
             children: [
                 { id: 'marcas', label: 'Marcas', icon: '🏷️', path: 'alternadores' },
