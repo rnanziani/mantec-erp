@@ -164,10 +164,21 @@ const AsignacionProductosAseoView: React.FC = () => {
       const response = await fetch(PRODUCTOS_URL);
       const data: ApiResponse = await response.json();
       if (data.success && Array.isArray(data.data)) {
-        setProductos(data.data);
+        // Mapear los campos de la base de datos a los campos esperados por el componente
+        const productosMapeados = data.data.map((producto: any) => ({
+          id_producto: producto.idproductoaseo_10 || producto.id_producto,
+          nombre_producto: producto.productoaseo_10 || producto.nombre_producto,
+          activo: producto.enuso_10 !== undefined ? producto.enuso_10 : (producto.activo !== undefined ? producto.activo : true)
+        }));
+        console.log('Productos cargados:', productosMapeados.length);
+        setProductos(productosMapeados);
+      } else {
+        console.error('Error en respuesta de productos:', data);
+        setError('Error al cargar productos: ' + (data.error || 'Respuesta inválida'));
       }
     } catch (err) {
       console.error('Error al cargar productos:', err);
+      setError('Error de conexión al cargar productos');
     }
   };
 
@@ -834,30 +845,54 @@ const AsignacionProductosAseoView: React.FC = () => {
           {/* Botones dinámicos de productos */}
           <div style={{ marginBottom: '20px' }}>
             <label style={{ display: 'block', marginBottom: '10px', fontWeight: 'bold' }}>Productos Disponibles</label>
-            <div style={{ 
-              display: 'grid', 
-              gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', 
-              gap: '10px' 
-            }}>
-              {productos.filter(p => p.activo !== false).map(producto => (
-                <button
-                  key={producto.id_producto}
-                  type="button"
-                  onClick={() => handleAgregarProducto(producto)}
-                  className="btn-primary"
-                  style={{
-                    padding: '10px',
-                    fontSize: '12px',
-                    whiteSpace: 'normal',
-                    wordWrap: 'break-word',
-                    height: 'auto',
-                    minHeight: '50px'
-                  }}
-                >
-                  {producto.nombre_producto}
-                </button>
-              ))}
-            </div>
+            {productos.length === 0 ? (
+              <div style={{ 
+                textAlign: 'center', 
+                color: '#6c757d', 
+                padding: '20px',
+                border: '1px solid #ced4da',
+                borderRadius: '4px',
+                backgroundColor: '#f8f9fa'
+              }}>
+                {loading ? 'Cargando productos...' : 'No hay productos disponibles. Verifique la conexión con el servidor.'}
+              </div>
+            ) : productos.filter(p => p.activo !== false).length === 0 ? (
+              <div style={{ 
+                textAlign: 'center', 
+                color: '#6c757d', 
+                padding: '20px',
+                border: '1px solid #ced4da',
+                borderRadius: '4px',
+                backgroundColor: '#f8f9fa'
+              }}>
+                No hay productos activos disponibles.
+              </div>
+            ) : (
+              <div style={{ 
+                display: 'grid', 
+                gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', 
+                gap: '10px' 
+              }}>
+                {productos.filter(p => p.activo !== false).map(producto => (
+                  <button
+                    key={producto.id_producto}
+                    type="button"
+                    onClick={() => handleAgregarProducto(producto)}
+                    className="btn-primary"
+                    style={{
+                      padding: '10px',
+                      fontSize: '12px',
+                      whiteSpace: 'normal',
+                      wordWrap: 'break-word',
+                      height: 'auto',
+                      minHeight: '50px'
+                    }}
+                  >
+                    {producto.nombre_producto}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Tabla de detalles */}
