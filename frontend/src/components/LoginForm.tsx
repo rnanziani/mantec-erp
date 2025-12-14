@@ -60,40 +60,44 @@ const LoginForm: React.FC = () => {
       display: 'flex', 
       alignItems: 'center', 
       justifyContent: 'center',
-      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
+      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+      padding: '2rem'
     }}>
       <div style={{ 
-        maxWidth: '400px', 
+        maxWidth: '600px', 
         width: '100%', 
-        padding: '2rem',
+        padding: '3rem',
         background: 'white',
-        borderRadius: '10px',
-        boxShadow: '0 10px 25px rgba(0,0,0,0.2)'
+        borderRadius: '15px',
+        boxShadow: '0 15px 35px rgba(0,0,0,0.3)'
       }}>
-        <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
-          <h2 style={{ color: '#333', marginBottom: '0.5rem' }}>
+        <div style={{ textAlign: 'center', marginBottom: '3rem' }}>
+          <h2 style={{ color: '#333', marginBottom: '1rem', fontSize: '2rem', fontWeight: 'bold' }}>
             🔐 Sistema de Autenticación
           </h2>
-          <p style={{ color: '#666', fontSize: '0.9rem' }}>
+          <p style={{ color: '#666', fontSize: '1.1rem' }}>
             Ingrese sus credenciales para acceder
           </p>
         </div>
 
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
           {error && (
             <div style={{ 
               background: '#FEE2E2', 
               color: '#991B1B', 
-              padding: '0.75rem', 
-              borderRadius: '5px',
-              fontSize: '0.9rem'
+              padding: '1rem', 
+              borderRadius: '8px',
+              fontSize: '1rem',
+              fontWeight: '500'
             }}>
               ⚠️ {error}
             </div>
           )}
 
           <div className="form-group">
-            <label htmlFor="email">Correo Electrónico:</label>
+            <label htmlFor="email" style={{ fontSize: '1.1rem', fontWeight: '600', marginBottom: '0.75rem', display: 'block' }}>
+              Correo Electrónico:
+            </label>
             <input
               type="email"
               id="email"
@@ -102,11 +106,21 @@ const LoginForm: React.FC = () => {
               value={formData.email}
               onChange={handleChange}
               placeholder="correo@ejemplo.com"
+              style={{
+                width: '100%',
+                padding: '1rem',
+                fontSize: '1.1rem',
+                border: '2px solid #ddd',
+                borderRadius: '8px',
+                boxSizing: 'border-box'
+              }}
             />
           </div>
 
           <div className="form-group">
-            <label htmlFor="password">Contraseña:</label>
+            <label htmlFor="password" style={{ fontSize: '1.1rem', fontWeight: '600', marginBottom: '0.75rem', display: 'block' }}>
+              Contraseña:
+            </label>
             <input
               type="password"
               id="password"
@@ -115,6 +129,14 @@ const LoginForm: React.FC = () => {
               value={formData.password}
               onChange={handleChange}
               placeholder="Ingrese su contraseña"
+              style={{
+                width: '100%',
+                padding: '1rem',
+                fontSize: '1.1rem',
+                border: '2px solid #ddd',
+                borderRadius: '8px',
+                boxSizing: 'border-box'
+              }}
             />
           </div>
 
@@ -122,18 +144,28 @@ const LoginForm: React.FC = () => {
             type="submit"
             className="btn-primary"
             disabled={loading}
-            style={{ width: '100%', marginTop: '1rem' }}
+            style={{ 
+              width: '100%', 
+              marginTop: '1.5rem',
+              padding: '1.2rem',
+              fontSize: '1.2rem',
+              fontWeight: 'bold',
+              borderRadius: '8px',
+              border: 'none',
+              cursor: loading ? 'not-allowed' : 'pointer',
+              transition: 'all 0.3s ease'
+            }}
           >
             {loading ? '⏳ Iniciando sesión...' : '🚀 Iniciar Sesión'}
           </button>
         </form>
 
-        <div style={{ marginTop: '1.5rem', textAlign: 'center', fontSize: '0.9rem', color: '#666' }}>
+        <div style={{ marginTop: '2rem', textAlign: 'center', fontSize: '1rem', color: '#666' }}>
           <p>
             ¿No tiene una cuenta?{' '}
             <a 
               href="#register" 
-              style={{ color: '#667eea', textDecoration: 'none', fontWeight: 'bold' }}
+              style={{ color: '#667eea', textDecoration: 'none', fontWeight: 'bold', fontSize: '1.1rem' }}
             >
               Regístrese aquí
             </a>
@@ -141,19 +173,21 @@ const LoginForm: React.FC = () => {
         </div>
 
         <div style={{ 
-          marginTop: '1.5rem', 
-          padding: '1rem', 
+          marginTop: '2rem', 
+          padding: '1.5rem', 
           background: '#F3F4F6', 
-          borderRadius: '5px',
-          fontSize: '0.8rem',
+          borderRadius: '10px',
+          fontSize: '0.95rem',
           color: '#666'
         }}>
-          <p style={{ marginBottom: '0.5rem', fontWeight: 'bold' }}>Controles de seguridad:</p>
-          <ul style={{ margin: 0, paddingLeft: '1.2rem', lineHeight: '1.6' }}>
-            <li>Bloqueo después de 10 intentos fallidos</li>
-            <li>Expiración de sesión: 30 minutos</li>
-            <li>Requisitos de complejidad de contraseña</li>
-            <li>Caducidad de contraseña: 91 días</li>
+          <p style={{ marginBottom: '1rem', fontWeight: 'bold', fontSize: '1.1rem', color: '#333' }}>
+            Controles de seguridad:
+          </p>
+          <ul style={{ margin: 0, paddingLeft: '1.5rem', lineHeight: '2' }}>
+            <li style={{ fontSize: '1rem', marginBottom: '0.5rem' }}>Bloqueo después de 10 intentos fallidos</li>
+            <li style={{ fontSize: '1rem', marginBottom: '0.5rem' }}>Expiración de sesión: 30 minutos</li>
+            <li style={{ fontSize: '1rem', marginBottom: '0.5rem' }}>Requisitos de complejidad de contraseña</li>
+            <li style={{ fontSize: '1rem' }}>Caducidad de contraseña: 91 días</li>
           </ul>
         </div>
       </div>

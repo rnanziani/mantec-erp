@@ -39,13 +39,27 @@
 }
 
 .form-group input[type="text"],
-.form-group input[type="number"] {
+.form-group input[type="number"],
+.form-group input[type="email"],
+.form-group input[type="password"],
+.form-container input[type="text"],
+.form-container select {
     width: 100%;
     padding: 8px 12px;
     border: 1px solid #ced4da;
     border-radius: 4px;
     font-size: 14px;
+    font-family: inherit;
+    color: #495057;
     box-sizing: border-box;
+    background-color: #fff;
+}
+
+.form-container input[type="text"]:focus,
+.form-container select:focus {
+    outline: none;
+    border-color: #007bff;
+    box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
 }
 
 .checkbox-group label {

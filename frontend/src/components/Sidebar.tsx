@@ -50,6 +50,14 @@ const Sidebar: React.FC<SidebarProps> = ({ onNavigate, currentView }) => {
             ]
         },
         {
+            id: 'permisos',
+            label: 'Nivel de Acceso',
+            icon: '🔐',
+            children: [
+                { id: 'usuarios', label: 'Usuarios', icon: '👥', path: 'usuarios' }
+            ]
+        },
+        {
             id: 'inventario',
             label: 'Inventario',
             icon: '📦',

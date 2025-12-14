@@ -21,6 +21,8 @@ import asignacionProductosAseoRoutes from './routes/asignacionProductosAseoRoute
 import asignacionPrendasRoutes from './routes/asignacionPrendasRoutes.js';
 import responsableEntregaRoutes from './routes/responsableEntregaRoutes.js';
 import authRoutes from './routes/authRoutes.js';
+import usuarioRoutes from './routes/usuarioRoutes.js';
+import sesionRoutes from './routes/sesionRoutes.js';
 
 console.log('🔄 Servidor iniciando - Cargando rutas...');
 
@@ -83,6 +85,8 @@ app.use('/api/asignaciones-productos-aseo', asignacionProductosAseoRoutes);
 app.use('/api/asignaciones-prendas', asignacionPrendasRoutes);
 app.use('/api/responsables-entrega', responsableEntregaRoutes);
 app.use('/api/auth', authRoutes);
+app.use('/api/usuarios', usuarioRoutes);
+app.use('/api/sesiones', sesionRoutes);
 
 console.log('✅ Todas las rutas cargadas');
 

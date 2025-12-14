@@ -20,6 +20,7 @@ import TrabajadorView from './components/TrabajadorView';
 import LoginForm from './components/LoginForm';
 import RegisterForm from './components/RegisterForm';
 import ChangePasswordForm from './components/ChangePasswordForm';
+import UsuarioView from './components/UsuarioView';
 
 function App() {
   const [currentView, setCurrentView] = useState<string>('dashboard');
@@ -109,6 +110,8 @@ function App() {
           {currentView === 'productos-aseo' && <ProductoAseoView />}
 
           {currentView === 'trabajadores' && <TrabajadorView />}
+
+          {currentView === 'usuarios' && <UsuarioView />}
 
           {currentView === 'login' && <LoginForm />}
 
