@@ -204,3 +204,6 @@ export function obtenerIpCliente(req: any): string | undefined {
          req.socket?.remoteAddress;
 }
 
+
+
+

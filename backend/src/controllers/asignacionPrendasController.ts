@@ -508,3 +508,6 @@ export const getAllTallas = async (req: Request, res: Response): Promise<void> =
 
 
 
+
+
+

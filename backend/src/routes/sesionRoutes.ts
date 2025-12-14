@@ -38,3 +38,6 @@ router.delete('/usuario/:id', cerrarTodasSesionesUsuario);
 
 export default router;
 
+
+
+
