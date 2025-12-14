@@ -23,6 +23,7 @@ import responsableEntregaRoutes from './routes/responsableEntregaRoutes.js';
 import authRoutes from './routes/authRoutes.js';
 import usuarioRoutes from './routes/usuarioRoutes.js';
 import sesionRoutes from './routes/sesionRoutes.js';
+import nivelUsuarioRoutes from './routes/nivelUsuarioRoutes.js';
 
 console.log('🔄 Servidor iniciando - Cargando rutas...');
 
@@ -87,6 +88,7 @@ app.use('/api/responsables-entrega', responsableEntregaRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/usuarios', usuarioRoutes);
 app.use('/api/sesiones', sesionRoutes);
+app.use('/api/niveles-usuario', nivelUsuarioRoutes);
 
 console.log('✅ Todas las rutas cargadas');
 

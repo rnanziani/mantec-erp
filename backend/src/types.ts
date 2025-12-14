@@ -267,6 +267,33 @@ export interface UpdateBodegaDTO {
 }
 
 /**
+ * Nivel de Usuario
+ * Tabla: tbl_04_nivel_usuario
+ */
+export interface NivelUsuario {
+  id_nivel_04: number;
+  nombre_nivel_04: string;
+  descripcion_04: string | null;
+  creado_en_04: Date;
+}
+
+/**
+ * DTO para crear un nuevo nivel de usuario
+ */
+export interface CreateNivelUsuarioDTO {
+  nombre_nivel_04: string;
+  descripcion_04?: string;
+}
+
+/**
+ * DTO para actualizar un nivel de usuario
+ */
+export interface UpdateNivelUsuarioDTO {
+  nombre_nivel_04?: string;
+  descripcion_04?: string;
+}
+
+/**
  * Tipo de Transacción
  * Tabla: tbl_25_tipo_transaccion
  */
