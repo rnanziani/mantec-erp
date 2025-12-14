@@ -42,3 +42,12 @@ export const getAllEmpresas = async (req: Request, res: Response): Promise<void>
 
 
 
+
+
+
+
+
+
+
+
+

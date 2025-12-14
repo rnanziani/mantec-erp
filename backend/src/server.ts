@@ -18,7 +18,9 @@ import trabajadorRoutes from './routes/trabajadorRoutes.js';
 import empresaRoutes from './routes/empresaRoutes.js';
 import productosAseoRoutes from './routes/productosAseoRoutes.js';
 import asignacionProductosAseoRoutes from './routes/asignacionProductosAseoRoutes.js';
+import asignacionPrendasRoutes from './routes/asignacionPrendasRoutes.js';
 import responsableEntregaRoutes from './routes/responsableEntregaRoutes.js';
+import authRoutes from './routes/authRoutes.js';
 
 console.log('🔄 Servidor iniciando - Cargando rutas...');
 
@@ -78,7 +80,9 @@ app.use('/api/trabajadores', trabajadorRoutes);
 app.use('/api/empresas', empresaRoutes);
 app.use('/api/productos-aseo', productosAseoRoutes);
 app.use('/api/asignaciones-productos-aseo', asignacionProductosAseoRoutes);
+app.use('/api/asignaciones-prendas', asignacionPrendasRoutes);
 app.use('/api/responsables-entrega', responsableEntregaRoutes);
+app.use('/api/auth', authRoutes);
 
 console.log('✅ Todas las rutas cargadas');
 

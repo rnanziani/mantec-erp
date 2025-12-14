@@ -45,7 +45,8 @@ const Sidebar: React.FC<SidebarProps> = ({ onNavigate, currentView }) => {
             icon: '⚙️',
             children: [
                 { id: 'ordenes-trabajo', label: 'Órdenes de Trabajo', icon: '🔧', path: 'ordenes-trabajo' },
-                { id: 'asignacion-productos-aseo', label: 'Asignación Productos Aseo', icon: '📋', path: 'asignacion-productos-aseo' }
+                { id: 'asignacion-productos-aseo', label: 'Asignación Productos Aseo', icon: '📋', path: 'asignacion-productos-aseo' },
+                { id: 'asignacion-prendas', label: 'Asignación de Prendas', icon: '👔', path: 'asignacion-prendas' }
             ]
         },
         {
@@ -159,9 +160,62 @@ const Sidebar: React.FC<SidebarProps> = ({ onNavigate, currentView }) => {
                 {!isCollapsed && (
                     <div className="sidebar-user">
                         <span className="user-icon">👤</span>
-                        <span className="user-name">Usuario</span>
+                        <span className="user-name">
+                            {(() => {
+                                const userStr = localStorage.getItem('user');
+                                if (userStr) {
+                                    try {
+                                        const user = JSON.parse(userStr);
+                                        return user.nombre_completo || user.username || 'Usuario';
+                                    } catch {
+                                        return 'Usuario';
+                                    }
+                                }
+                                return 'Usuario';
+                            })()}
+                        </span>
                     </div>
                 )}
+                <button
+                    className="sidebar-item"
+                    onClick={async () => {
+                        const token = localStorage.getItem('token');
+                        if (token) {
+                            try {
+                                await fetch('http://localhost:3001/api/auth/logout', {
+                                    method: 'POST',
+                                    headers: {
+                                        'Authorization': `Bearer ${token}`
+                                    }
+                                });
+                            } catch (error) {
+                                console.error('Error al cerrar sesión:', error);
+                            }
+                        }
+                        localStorage.removeItem('token');
+                        localStorage.removeItem('user');
+                        window.location.hash = 'login';
+                        window.location.reload();
+                    }}
+                    style={{
+                        width: '100%',
+                        padding: '10px',
+                        marginTop: '10px',
+                        background: '#DC2626',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '5px',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '10px',
+                        justifyContent: isCollapsed ? 'center' : 'flex-start'
+                    }}
+                    title="Cerrar Sesión"
+                >
+                    <span>🚪</span>
+                    {!isCollapsed && <span>Cerrar Sesión</span>}
+                </button>
             </div>
         </div>
     );

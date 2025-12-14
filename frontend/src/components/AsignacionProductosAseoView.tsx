@@ -688,6 +688,7 @@ const AsignacionProductosAseoView: React.FC = () => {
         <div className="form-container">
           <h3>Datos de la Asignación</h3>
           
+          {/* Primera fila: Búsquedas */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', marginBottom: '20px' }}>
             <div className="form-group">
               <label>Buscar Por Patente</label>
@@ -713,7 +714,10 @@ const AsignacionProductosAseoView: React.FC = () => {
                 💡 Tip: Escribe un apellido para búsqueda amplia, o dos apellidos para búsqueda precisa
               </small>
             </div>
+          </div>
 
+          {/* Segunda fila: Responsable, Fecha y Hora en 3 columnas */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '15px', marginBottom: '20px' }}>
             <div className="form-group">
               <label>Responsable *</label>
               <select

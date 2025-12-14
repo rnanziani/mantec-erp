@@ -14,33 +14,60 @@ import TipoTransaccionView from './components/TipoTransaccionView';
 import ExistenciaView from './components/ExistenciaView';
 import TransaccionView from './components/TransaccionView';
 import AsignacionProductosAseoView from './components/AsignacionProductosAseoView';
+import AsignacionPrendasView from './components/AsignacionPrendasView';
 import ProductoAseoView from './components/ProductoAseoView';
 import TrabajadorView from './components/TrabajadorView';
+import LoginForm from './components/LoginForm';
+import RegisterForm from './components/RegisterForm';
+import ChangePasswordForm from './components/ChangePasswordForm';
 
 function App() {
   const [currentView, setCurrentView] = useState<string>('dashboard');
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
 
   useEffect(() => {
+    // Verificar autenticación
+    const token = localStorage.getItem('token');
+    setIsAuthenticated(!!token);
+
     // Leer el hash de la URL para determinar la vista
     const hash = window.location.hash.replace('#', '') || 'dashboard';
-    setCurrentView(hash);
+    
+    // Si no está autenticado y no está en login/register, redirigir a login
+    if (!token && hash !== 'login' && hash !== 'register') {
+      setCurrentView('login');
+      window.location.hash = 'login';
+    } else {
+      setCurrentView(hash);
+    }
 
     // Escuchar cambios en el hash
     const handleHashChange = () => {
       const newHash = window.location.hash.replace('#', '') || 'dashboard';
-      setCurrentView(newHash);
+      const currentToken = localStorage.getItem('token');
+      
+      // Si no está autenticado y no está en login/register, redirigir a login
+      if (!currentToken && newHash !== 'login' && newHash !== 'register') {
+        setCurrentView('login');
+        window.location.hash = 'login';
+      } else {
+        setCurrentView(newHash);
+      }
     };
 
     window.addEventListener('hashchange', handleHashChange);
     return () => window.removeEventListener('hashchange', handleHashChange);
   }, []);
 
+  // Ocultar sidebar en login y register
+  const showSidebar = currentView !== 'login' && currentView !== 'register';
+
   return (
     <ToastProvider>
       <div className="mantec-app">
-        <Sidebar onNavigate={setCurrentView} currentView={currentView} />
+        {showSidebar && <Sidebar onNavigate={setCurrentView} currentView={currentView} />}
         <ToastContainer />
-        <div className="mantec-main-content">
+        <div className="mantec-main-content" style={!showSidebar ? { marginLeft: 0 } : {}}>
           {currentView === 'dashboard' && (
             <div className="mantec-welcome">
               <h2>Bienvenido a MANTEC ERP</h2>
@@ -77,9 +104,17 @@ function App() {
 
           {currentView === 'asignacion-productos-aseo' && <AsignacionProductosAseoView />}
 
+          {currentView === 'asignacion-prendas' && <AsignacionPrendasView />}
+
           {currentView === 'productos-aseo' && <ProductoAseoView />}
 
           {currentView === 'trabajadores' && <TrabajadorView />}
+
+          {currentView === 'login' && <LoginForm />}
+
+          {currentView === 'register' && <RegisterForm />}
+
+          {currentView === 'change-password' && <ChangePasswordForm />}
 
           {currentView === 'reportes' && (
             <div className="mantec-welcome">

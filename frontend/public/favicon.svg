@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <defs>
+    <linearGradient id="bgGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#2E5A88;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#1a3d5a;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  
+  <!-- Background circle -->
+  <circle cx="50" cy="50" r="48" fill="url(#bgGradient)"/>
+  
+  <!-- Hammer head (left side) -->
+  <rect x="15" y="30" width="28" height="18" rx="3" fill="#fff" opacity="0.95"/>
+  <rect x="18" y="33" width="22" height="12" rx="2" fill="#F36F21" opacity="0.8"/>
+  
+  <!-- Hammer handle -->
+  <rect x="43" y="48" width="10" height="35" rx="5" fill="#fff" opacity="0.95"/>
+  <rect x="45" y="50" width="6" height="33" rx="3" fill="#2E5A88" opacity="0.4"/>
+  
+  <!-- Wrench (right side) -->
+  <path d="M 60 25 L 72 25 L 72 32 L 66 38 L 78 50 L 72 58 L 66 52 L 60 45 L 60 25 Z" fill="#fff" opacity="0.95"/>
+  <circle cx="66" cy="40" r="4" fill="#F36F21" opacity="0.8"/>
+  <rect x="64" y="42" width="4" height="8" rx="2" fill="#2E5A88" opacity="0.3"/>
+</svg>

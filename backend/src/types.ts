@@ -493,3 +493,170 @@ export interface UpdateAsignacionProductoAseoDTO {
     cantidad: number;
   }>;
 }
+
+/**
+ * Asignación de Prendas (Maestro)
+ * Tabla: tbl_09_asignacion_main
+ */
+export interface AsignacionPrenda {
+  idasignacionmain_09: number;
+  idtrabajador_09: number;
+  fecha_09: Date | string;
+  hora_09: string;
+  idresponsableentrega_09: number;
+  created_at?: Date;
+  updated_at?: Date;
+  // Campos JOINed
+  trabajador_nombre?: string;
+  responsable_nombre?: string;
+}
+
+/**
+ * Detalle de Asignación de Prendas
+ * Tabla: tbl_10_asignacion_detail
+ */
+export interface DetalleAsignacionPrenda {
+  idasignaciondetail_10: number;
+  idasignacionmain_10: number;
+  idprenda_10: number;
+  talla_10: string;
+  cantidad_10: number;
+  // Campos JOINed
+  prenda_nombre?: string;
+  talla_descripcion?: string;
+}
+
+/**
+ * DTO para crear una nueva asignación de prendas con sus detalles
+ */
+export interface CreateAsignacionPrendaDTO {
+  idtrabajador_09: number;
+  fecha_09: string; // YYYY-MM-DD
+  hora_09: string; // HH:MM
+  idresponsableentrega_09: number;
+  detalles: Array<{
+    idprenda_10: number;
+    talla_10: string;
+    cantidad_10: number;
+  }>;
+}
+
+/**
+ * DTO para actualizar una asignación de prendas
+ */
+export interface UpdateAsignacionPrendaDTO {
+  idtrabajador_09?: number;
+  fecha_09?: string;
+  hora_09?: string;
+  idresponsableentrega_09?: number;
+  detalles?: Array<{
+    idprenda_10: number;
+    talla_10: string;
+    cantidad_10: number;
+  }>;
+}
+
+/**
+ * Prenda
+ * Tabla: tbl_07_prenda
+ */
+export interface Prenda {
+  idprenda_07: number;
+  prenda_07: string;
+}
+
+/**
+ * Talla
+ * Tabla: tbl_16_tallas
+ */
+export interface Talla {
+  id_16: number;
+  talla_16: string;
+  tipo_16?: string;
+}
+
+// ============================================
+// AUTENTICACIÓN Y SEGURIDAD
+// ============================================
+
+/**
+ * Usuario
+ * Tabla: tbl_00_usuario
+ */
+export interface Usuario {
+  id_usuario_00: number;
+  username: string;
+  email: string;
+  password_hash: string;
+  nombre_completo_00?: string;
+  is_active: boolean;
+  password_expires_at: Date;
+  last_password_change_at: Date;
+  last_login_at?: Date;
+  created_at: Date;
+  updated_at: Date;
+}
+
+/**
+ * DTO para crear un nuevo usuario
+ */
+export interface CreateUsuarioDTO {
+  username: string;
+  email: string;
+  password: string;
+  nombre_completo_00?: string;
+}
+
+/**
+ * DTO para login
+ */
+export interface LoginDTO {
+  email: string;
+  password: string;
+}
+
+/**
+ * DTO para cambiar contraseña
+ */
+export interface ChangePasswordDTO {
+  password_actual: string;
+  password_nueva: string;
+}
+
+/**
+ * Historial de Contraseñas
+ * Tabla: tbl_01_historial_contrasena
+ */
+export interface HistorialContrasena {
+  id_historial_01: number;
+  id_usuario_01: number;
+  hashed_password_01: string;
+  fecha_cambio_01: Date;
+}
+
+/**
+ * Intento de Login
+ * Tabla: tbl_02_intento_login
+ */
+export interface IntentoLogin {
+  id_intento_02: number;
+  id_usuario_02?: number;
+  attempted_email: string;
+  ip_address_02?: string;
+  exitoso_02: boolean;
+  fecha_intento_02: Date;
+}
+
+/**
+ * Sesión
+ * Tabla: tbl_03_sesion
+ */
+export interface Sesion {
+  id_sesion_03: string;
+  id_usuario_03: number;
+  token_sesion_03: string;
+  fecha_creacion_03: Date;
+  fecha_expiracion_03: Date;
+  ip_address_03?: string;
+  user_agent_03?: string;
+}
