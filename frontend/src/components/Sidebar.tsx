@@ -55,7 +55,12 @@ const Sidebar: React.FC<SidebarProps> = ({ onNavigate, currentView }) => {
             icon: '🔐',
             children: [
                 { id: 'usuarios', label: 'Usuarios', icon: '👥', path: 'usuarios' },
-                { id: 'niveles-usuario', label: 'Nivel de Acceso', icon: '👤', path: 'niveles-usuario' }
+                { id: 'niveles-usuario', label: 'Nivel de Acceso', icon: '👤', path: 'niveles-usuario' },
+                { id: 'permisos', label: 'Permisos', icon: '🔐', path: 'permisos' },
+                { id: 'nivel-permisos', label: 'Asignación Permisos', icon: '🔗', path: 'nivel-permisos' },
+                { id: 'historial-contrasenas', label: 'Historial Contraseñas', icon: '🔒', path: 'historial-contrasenas' },
+                { id: 'intentos-login', label: 'Intentos de Login', icon: '🔐', path: 'intentos-login' },
+                { id: 'sesiones', label: 'Sesiones', icon: '🔑', path: 'sesiones' }
             ]
         },
         {

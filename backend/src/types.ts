@@ -294,6 +294,104 @@ export interface UpdateNivelUsuarioDTO {
 }
 
 /**
+ * Permiso
+ * Tabla: tbl_05_permiso
+ */
+export interface Permiso {
+  id_permiso_05: number;
+  nombre_permiso_05: string;
+  descripcion_05: string | null;
+}
+
+/**
+ * DTO para crear un nuevo permiso
+ */
+export interface CreatePermisoDTO {
+  nombre_permiso_05: string;
+  descripcion_05?: string;
+}
+
+/**
+ * DTO para actualizar un permiso
+ */
+export interface UpdatePermisoDTO {
+  nombre_permiso_05?: string;
+  descripcion_05?: string;
+}
+
+/**
+ * Relación Nivel-Permiso
+ * Tabla: tbl_050_nivel_permiso
+ */
+export interface NivelPermiso {
+  id_nivel_04: number;
+  id_permiso_05: number;
+  // Campos JOINed para visualización
+  nombre_nivel_04?: string;
+  nombre_permiso_05?: string;
+  descripcion_04?: string;
+  descripcion_05?: string;
+}
+
+/**
+ * DTO para crear una relación nivel-permiso
+ */
+export interface CreateNivelPermisoDTO {
+  id_nivel_04: number;
+  id_permiso_05: number;
+}
+
+/**
+ * Historial de Contraseña
+ * Tabla: tbl_01_historial_contrasena
+ */
+export interface HistorialContrasena {
+  id_historial_01: number;
+  id_usuario_01: number;
+  hashed_password_01: string;
+  fecha_cambio_01: Date;
+  // Campos JOINed para visualización
+  username_00?: string;
+  nombre_completo?: string;
+  email_00?: string;
+}
+
+/**
+ * Intento de Login
+ * Tabla: tbl_02_intento_login
+ */
+export interface IntentoLogin {
+  id_intento_02: number;
+  id_usuario_02: number | null;
+  attempted_email: string;
+  ip_address_02: string | null;
+  exitoso_02: boolean;
+  fecha_intento_02: Date;
+  // Campos JOINed para visualización
+  username?: string;
+  nombre_completo_00?: string;
+  email?: string;
+}
+
+/**
+ * Sesión de Usuario
+ * Tabla: tbl_03_sesion
+ */
+export interface Sesion {
+  id_sesion_03: string;
+  id_usuario_03: number;
+  token_sesion_03: string;
+  fecha_creacion_03: Date;
+  fecha_expiracion_03: Date;
+  ip_address_03: string | null;
+  user_agent_03: string | null;
+  // Campos JOINed para visualización
+  username?: string;
+  nombre_completo_00?: string;
+  email?: string;
+}
+
+/**
  * Tipo de Transacción
  * Tabla: tbl_25_tipo_transaccion
  */

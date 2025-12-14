@@ -24,6 +24,11 @@ import authRoutes from './routes/authRoutes.js';
 import usuarioRoutes from './routes/usuarioRoutes.js';
 import sesionRoutes from './routes/sesionRoutes.js';
 import nivelUsuarioRoutes from './routes/nivelUsuarioRoutes.js';
+import permisoRoutes from './routes/permisoRoutes.js';
+import nivelPermisoRoutes from './routes/nivelPermisoRoutes.js';
+import historialContrasenaRoutes from './routes/historialContrasenaRoutes.js';
+import intentoLoginRoutes from './routes/intentoLoginRoutes.js';
+import sesionViewRoutes from './routes/sesionViewRoutes.js';
 
 console.log('🔄 Servidor iniciando - Cargando rutas...');
 
@@ -89,6 +94,11 @@ app.use('/api/auth', authRoutes);
 app.use('/api/usuarios', usuarioRoutes);
 app.use('/api/sesiones', sesionRoutes);
 app.use('/api/niveles-usuario', nivelUsuarioRoutes);
+app.use('/api/permisos', permisoRoutes);
+app.use('/api/nivel-permisos', nivelPermisoRoutes);
+app.use('/api/historial-contrasenas', historialContrasenaRoutes);
+app.use('/api/intentos-login', intentoLoginRoutes);
+app.use('/api/sesiones-view', sesionViewRoutes);
 
 console.log('✅ Todas las rutas cargadas');
 

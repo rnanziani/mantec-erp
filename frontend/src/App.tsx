@@ -22,6 +22,11 @@ import RegisterForm from './components/RegisterForm';
 import ChangePasswordForm from './components/ChangePasswordForm';
 import UsuarioView from './components/UsuarioView';
 import NivelUsuarioView from './components/NivelUsuarioView';
+import PermisoView from './components/PermisoView';
+import NivelPermisoView from './components/NivelPermisoView';
+import HistorialContrasenaView from './components/HistorialContrasenaView';
+import IntentoLoginView from './components/IntentoLoginView';
+import SesionView from './components/SesionView';
 
 function App() {
   const [currentView, setCurrentView] = useState<string>('dashboard');
@@ -115,6 +120,16 @@ function App() {
           {currentView === 'usuarios' && <UsuarioView />}
 
           {currentView === 'niveles-usuario' && <NivelUsuarioView />}
+
+          {currentView === 'permisos' && <PermisoView />}
+
+          {currentView === 'nivel-permisos' && <NivelPermisoView />}
+
+          {currentView === 'historial-contrasenas' && <HistorialContrasenaView />}
+
+          {currentView === 'intentos-login' && <IntentoLoginView />}
+
+          {currentView === 'sesiones' && <SesionView />}
 
           {currentView === 'login' && <LoginForm />}
 
