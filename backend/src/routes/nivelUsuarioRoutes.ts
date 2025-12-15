@@ -18,3 +18,4 @@ router.delete('/:id', deleteNivelUsuario);
 
 export default router;
 
+

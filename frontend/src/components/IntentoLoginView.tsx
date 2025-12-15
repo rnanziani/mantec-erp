@@ -260,3 +260,4 @@ const IntentoLoginView: React.FC = () => {
 
 export default IntentoLoginView;
 
+
