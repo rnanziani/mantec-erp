@@ -17,3 +17,9 @@ router.delete('/:id_nivel/:id_permiso', deleteNivelPermiso);
 export default router;
 
 
+
+
+
+
+
+

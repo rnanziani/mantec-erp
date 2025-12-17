@@ -15,3 +15,9 @@ router.get('/:id', getHistorialById);
 export default router;
 
 
+
+
+
+
+
+

@@ -19,3 +19,9 @@ router.get('/:id', getSesionById);
 export default router;
 
 
+
+
+
+
+
+

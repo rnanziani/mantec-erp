@@ -19,3 +19,9 @@ router.delete('/:id', deletePermiso);
 export default router;
 
 
+
+
+
+
+
+

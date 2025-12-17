@@ -26,30 +26,6 @@ const Sidebar: React.FC<SidebarProps> = ({ onNavigate, currentView }) => {
             path: 'dashboard'
         },
         {
-            id: 'maestros',
-            label: 'Mantenedores',
-            icon: '📋',
-            children: [
-                { id: 'marcas', label: 'Marcas', icon: '🏷️', path: 'alternadores' },
-                { id: 'alternadores', label: 'Alternadores', icon: '⚡', path: 'lista-alternadores' },
-                { id: 'estados', label: 'Estados', icon: '📊', path: 'estados' },
-                { id: 'cargos', label: 'Cargos', icon: '👔', path: 'cargos' },
-                { id: 'tecnicos', label: 'Técnicos', icon: '👷', path: 'tecnicos' },
-                { id: 'trabajadores', label: 'Trabajadores', icon: '👥', path: 'trabajadores' },
-                { id: 'productos-aseo', label: 'Productos de Aseo', icon: '🧼', path: 'productos-aseo' }
-            ]
-        },
-        {
-            id: 'operaciones',
-            label: 'Operaciones',
-            icon: '⚙️',
-            children: [
-                { id: 'ordenes-trabajo', label: 'Órdenes de Trabajo', icon: '🔧', path: 'ordenes-trabajo' },
-                { id: 'asignacion-productos-aseo', label: 'Asignación Productos Aseo', icon: '📋', path: 'asignacion-productos-aseo' },
-                { id: 'asignacion-prendas', label: 'Asignación de Prendas', icon: '👔', path: 'asignacion-prendas' }
-            ]
-        },
-        {
             id: 'permisos',
             label: 'Nivel de Acceso',
             icon: '🔐',
@@ -64,8 +40,18 @@ const Sidebar: React.FC<SidebarProps> = ({ onNavigate, currentView }) => {
             ]
         },
         {
+            id: 'operaciones',
+            label: 'Operaciones',
+            icon: '⚙️',
+            children: [
+                { id: 'ordenes-trabajo', label: 'Órdenes de Trabajo', icon: '🔧', path: 'ordenes-trabajo' },
+                { id: 'asignacion-productos-aseo', label: 'Asignación Productos Aseo', icon: '📋', path: 'asignacion-productos-aseo' },
+                { id: 'asignacion-prendas', label: 'Asignación de Prendas', icon: '👔', path: 'asignacion-prendas' }
+            ]
+        },
+        {
             id: 'inventario',
-            label: 'Inventario',
+            label: 'Gestion Alternadores',
             icon: '📦',
             children: [
                 { id: 'bodegas', label: 'Bodegas', icon: '🏢', path: 'bodegas' },
@@ -79,6 +65,20 @@ const Sidebar: React.FC<SidebarProps> = ({ onNavigate, currentView }) => {
             label: 'Reportes',
             icon: '📈',
             path: 'reportes'
+        },
+        {
+            id: 'maestros',
+            label: 'Mantenedores',
+            icon: '📋',
+            children: [
+                { id: 'marcas', label: 'Marcas', icon: '🏷️', path: 'alternadores' },
+                { id: 'alternadores', label: 'Alternadores', icon: '⚡', path: 'lista-alternadores' },
+                { id: 'estados', label: 'Estados', icon: '📊', path: 'estados' },
+                { id: 'cargos', label: 'Cargos', icon: '👔', path: 'cargos' },
+                { id: 'tecnicos', label: 'Técnicos', icon: '👷', path: 'tecnicos' },
+                { id: 'trabajadores', label: 'Trabajadores', icon: '👥', path: 'trabajadores' },
+                { id: 'productos-aseo', label: 'Productos de Aseo', icon: '🧼', path: 'productos-aseo' }
+            ]
         }
     ];
 
