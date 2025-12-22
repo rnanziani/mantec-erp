@@ -54,10 +54,20 @@ export async function middleware(request: NextRequest) {
         return response;
       }
 
-      // Actualizar timestamp de actividad si es necesario
+      // Actualizar timestamp de actividad con tiempo configurable
+      // Obtener parámetro de tiempo de sesión
+      const parametro = await db.tbl_000_parametros_sistema.findUnique({
+        where: { codigo_parametro_000: 'SESSION_TIMEOUT_MINUTES' },
+        select: { valor_parametro_000: true, activo_000: true }
+      });
+
+      const minutosSesion = parametro && parametro.activo_000 
+        ? parseInt(parametro.valor_parametro_000, 10) || 30
+        : 30;
+
       await db.tbl_03_sesion.update({
         where: { id_sesion_03: sesion.id_sesion_03 },
-        data: { fecha_expiracion_03: new Date(Date.now() + 30 * 60 * 1000) } // 30 minutos más
+        data: { fecha_expiracion_03: new Date(Date.now() + minutosSesion * 60 * 1000) }
       });
 
     } catch (error) {

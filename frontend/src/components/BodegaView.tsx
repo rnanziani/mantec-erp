@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { showSuccess, showError, showConfirm } from '../utils/swal';
 import './BodegaView.css';
 
 interface Bodega {
@@ -36,7 +37,7 @@ const BodegaView: React.FC = () => {
             }
         } catch (error) {
             console.error('Error:', error);
-            alert('Error al cargar bodegas');
+            await showError('Error', 'Error al cargar bodegas');
         } finally {
             setLoading(false);
         }
@@ -59,22 +60,26 @@ const BodegaView: React.FC = () => {
             const data = await response.json();
 
             if (data.success) {
-                alert(data.message || 'Operación exitosa');
+                await showSuccess('¡Éxito!', data.message || 'Operación exitosa');
                 fetchBodegas();
                 resetForm();
             } else {
-                alert(data.error || 'Error en la operación');
+                await showError('Error', data.error || 'Error en la operación');
             }
         } catch (error) {
             console.error('Error:', error);
-            alert('Error al guardar');
+            await showError('Error', 'Error al guardar');
         } finally {
             setLoading(false);
         }
     };
 
     const handleToggleStatus = async (id: number) => {
-        if (!window.confirm('¿Está seguro de cambiar el estado de esta bodega?')) return;
+        const confirmed = await showConfirm(
+            'Confirmar cambio de estado',
+            '¿Está seguro de cambiar el estado de esta bodega?'
+        );
+        if (!confirmed) return;
 
         try {
             const response = await fetch(`${API_URL}/${id}/toggle`, {
@@ -84,7 +89,7 @@ const BodegaView: React.FC = () => {
             if (data.success) {
                 fetchBodegas();
             } else {
-                alert(data.error);
+                await showError('Error', data.error);
             }
         } catch (error) {
             console.error('Error:', error);

@@ -252,7 +252,11 @@ const UsuarioView: React.FC = () => {
   };
 
   const handleDelete = async (id: number) => {
-    if (!window.confirm('¿Está seguro de eliminar este usuario? Se eliminarán también todos sus datos relacionados.')) return;
+    const confirmed = await showDeleteConfirm(
+        'este usuario',
+        'Se eliminarán también todos sus datos relacionados.'
+    );
+    if (!confirmed) return;
 
     try {
       setError('');

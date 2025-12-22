@@ -180,7 +180,8 @@ const TecnicoView: React.FC = () => {
     };
 
     const handleDelete = async (id: number) => {
-        if (!window.confirm('¿Está seguro de eliminar este técnico?')) return;
+        const confirmed = await showDeleteConfirm('este técnico');
+        if (!confirmed) return;
 
         try {
             const response = await fetch(`${API_URL}/${id}`, {

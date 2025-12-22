@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import './BodegaView.css'; // Reutilizamos los mismos estilos que TipoTransaccionView
+import { showError } from '../utils/swal';
 
 interface Existencia {
   id_existencia_26: number;
@@ -46,11 +47,11 @@ const ExistenciaView: React.FC = () => {
       if (data.success && Array.isArray(data.data)) {
         setExistencias(data.data);
       } else {
-        alert('Error al cargar las existencias');
+        await showError('Error', 'Error al cargar las existencias');
       }
     } catch (err) {
       console.error('Error:', err);
-      alert('Error de conexión con el servidor');
+      await showError('Error', 'Error de conexión con el servidor');
     } finally {
       setLoading(false);
     }

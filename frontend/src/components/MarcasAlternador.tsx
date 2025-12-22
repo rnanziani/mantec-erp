@@ -4,6 +4,7 @@ import { useToast } from '../context/ToastContext';
 import SearchBar from './shared/SearchBar';
 import Pagination from './shared/Pagination';
 import { exportToExcel } from '../utils/exportUtils';
+import { showDeleteConfirm } from '../utils/swal';
 
 interface MarcaAlternador {
   id_marca_18: number;
@@ -167,7 +168,8 @@ const MarcasAlternador: React.FC = () => {
   };
 
   const handleDelete = async (id: number) => {
-    if (!window.confirm('¿Está seguro de eliminar esta marca?')) return;
+    const confirmed = await showDeleteConfirm('esta marca');
+    if (!confirmed) return;
 
     try {
       setError('');

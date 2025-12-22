@@ -85,9 +85,12 @@ export async function verificarReutilizacionPassword(
 
 /**
  * Generar token JWT
- * Expiración: 30 minutos
+ * Expiración: Configurable desde parámetros del sistema (JWT_EXPIRATION_MINUTES)
  */
-export function generarToken(usuario: { id_usuario_00: number; username: string; email: string }): string {
+export async function generarToken(usuario: { id_usuario_00: number; username: string; email: string }): Promise<string> {
+  // Importación dinámica para evitar problemas de dependencia circular
+  const { obtenerParametroNumero } = await import('./parametrosUtils.js');
+  const minutosExpiracion = await obtenerParametroNumero('JWT_EXPIRATION_MINUTES', 30);
   return jwt.sign(
     {
       id: usuario.id_usuario_00,
@@ -95,7 +98,7 @@ export function generarToken(usuario: { id_usuario_00: number; username: string;
       email: usuario.email
     },
     JWT_SECRET,
-    { expiresIn: '30m' }
+    { expiresIn: `${minutosExpiracion}m` }
   );
 }
 
@@ -203,6 +206,15 @@ export function obtenerIpCliente(req: any): string | undefined {
          req.connection?.remoteAddress ||
          req.socket?.remoteAddress;
 }
+
+
+
+
+
+
+
+
+
 
 
 

@@ -4,6 +4,7 @@ import {
   login,
   changePassword,
   getMe,
+  getSessionStatus,
   logout
 } from '../controllers/authController.js';
 
@@ -38,6 +39,20 @@ router.post('/change-password', changePassword);
 router.get('/me', getMe);
 
 /**
+ * @route   GET /api/auth/session-status
+ * @desc    Obtener estado de la sesión actual (tiempo restante)
+ * @access  Private
+ */
+router.get('/session-status', getSessionStatus);
+
+/**
+ * @route   POST /api/auth/extend-session
+ * @desc    Extender la sesión actual
+ * @access  Private
+ */
+router.post('/extend-session', extendSession);
+
+/**
  * @route   POST /api/auth/logout
  * @desc    Cerrar sesión
  * @access  Private
@@ -45,6 +60,15 @@ router.get('/me', getMe);
 router.post('/logout', logout);
 
 export default router;
+
+
+
+
+
+
+
+
+
 
 
 

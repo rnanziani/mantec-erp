@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import './BodegaView.css'; // Reutilizamos los mismos estilos
+import { showSuccess, showError, showDeleteConfirm } from '../utils/swal';
 
 interface Asignacion {
   id_asignacion: number;
@@ -339,12 +340,12 @@ const AsignacionProductosAseoView: React.FC = () => {
 
   const handleGuardar = async () => {
     if (!maquinaSeleccionada || !trabajadorSeleccionado || !idResponsable || !fecha || !hora) {
-      alert('Todos los campos son requeridos');
+      await showError('Validación', 'Todos los campos son requeridos');
       return;
     }
 
     if (detalleProductos.length === 0) {
-      alert('Debe agregar al menos un producto');
+      await showError('Validación', 'Debe agregar al menos un producto');
       return;
     }
 
@@ -380,14 +381,14 @@ const AsignacionProductosAseoView: React.FC = () => {
       const data: ApiResponse = await response.json();
 
       if (data.success) {
-        alert(data.message || 'Asignación guardada exitosamente');
+        await showSuccess('¡Éxito!', data.message || 'Asignación guardada exitosamente');
         await fetchAsignaciones();
         resetForm();
       } else {
-        alert(data.error || 'Error al guardar la asignación');
+        await showError('Error', data.error || 'Error al guardar la asignación');
       }
     } catch (err) {
-      alert('Error al guardar la asignación');
+      await showError('Error', 'Error al guardar la asignación');
       console.error('Error:', err);
     } finally {
       setLoading(false);
@@ -395,7 +396,8 @@ const AsignacionProductosAseoView: React.FC = () => {
   };
 
   const handleEliminar = async (id: number) => {
-    if (!window.confirm('¿Está seguro de eliminar esta asignación?')) return;
+    const confirmed = await showDeleteConfirm('esta asignación');
+    if (!confirmed) return;
 
     try {
       setError('');
@@ -406,16 +408,16 @@ const AsignacionProductosAseoView: React.FC = () => {
       const data: ApiResponse = await response.json();
 
       if (data.success) {
-        alert(data.message || 'Asignación eliminada exitosamente');
+        await showSuccess('¡Eliminado!', data.message || 'Asignación eliminada exitosamente');
         await fetchAsignaciones();
         if (idAsignacionSeleccionada === id) {
           resetForm();
         }
       } else {
-        alert(data.error || 'Error al eliminar la asignación');
+        await showError('Error', data.error || 'Error al eliminar la asignación');
       }
     } catch (err) {
-      alert('Error al eliminar la asignación');
+      await showError('Error', 'Error al eliminar la asignación');
       console.error('Error:', err);
     }
   };
@@ -565,7 +567,7 @@ const AsignacionProductosAseoView: React.FC = () => {
   const handleVistaPrevia = async () => {
     // Validar fechas requeridas
     if (!reportFechaDesde || !reportFechaHasta) {
-      alert('Las fechas desde y hasta son requeridas');
+      await showError('Validación', 'Las fechas desde y hasta son requeridas');
       return;
     }
 
@@ -580,19 +582,19 @@ const AsignacionProductosAseoView: React.FC = () => {
         setShowPreview(true);
         setShowReportModal(false);
       } else {
-        alert(data.error || 'Error al cargar la vista previa');
+        await showError('Error', data.error || 'Error al cargar la vista previa');
       }
     } catch (err) {
-      alert('Error al cargar la vista previa');
+      await showError('Error', 'Error al cargar la vista previa');
       console.error('Error:', err);
     } finally {
       setPreviewLoading(false);
     }
   };
 
-  const handleGenerarReporte = () => {
+  const handleGenerarReporte = async () => {
     if (!reportFechaDesde || !reportFechaHasta) {
-      alert('Las fechas desde y hasta son requeridas');
+      await showError('Validación', 'Las fechas desde y hasta son requeridas');
       return;
     }
 

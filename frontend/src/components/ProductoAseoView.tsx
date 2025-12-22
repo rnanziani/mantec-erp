@@ -3,6 +3,7 @@ import './BodegaView.css'; // Reutilizamos los mismos estilos que AsignacionProd
 import { useToast } from '../context/ToastContext';
 import Pagination from './shared/Pagination';
 import { exportToExcel } from '../utils/exportUtils';
+import { showDeleteConfirm, showConfirm } from '../utils/swal';
 
 interface ProductoAseo {
   idproductoaseo_10: number;
@@ -251,7 +252,8 @@ const ProductoAseoView: React.FC = () => {
   };
 
   const handleDelete = async (id: number) => {
-    if (!window.confirm('¿Está seguro de eliminar este producto de aseo?')) return;
+    const confirmed = await showDeleteConfirm('este producto de aseo');
+    if (!confirmed) return;
 
     try {
       setError('');
@@ -310,8 +312,12 @@ const ProductoAseoView: React.FC = () => {
     showToast('Datos exportados exitosamente', 'success');
   };
 
-  const handleSalir = () => {
-    if (window.confirm('¿Desea salir de la gestión de productos de aseo?')) {
+  const handleSalir = async () => {
+    const confirmed = await showConfirm(
+        'Confirmar salida',
+        '¿Desea salir de la gestión de productos de aseo?'
+    );
+    if (confirmed) {
       window.location.hash = 'dashboard';
     }
   };

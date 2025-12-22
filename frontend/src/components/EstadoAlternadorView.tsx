@@ -180,7 +180,8 @@ const EstadoAlternadorView: React.FC = () => {
   };
 
   const handleDelete = async (id: number) => {
-    if (!window.confirm('¿Está seguro de eliminar este estado?')) return;
+    const confirmed = await showDeleteConfirm('este estado');
+    if (!confirmed) return;
 
     try {
       setError('');

@@ -9,6 +9,25 @@ import {
   verificarExpiracionPassword
 } from '@/lib/auth';
 
+// Función helper para obtener parámetros desde la base de datos
+async function obtenerParametroNumero(codigo: string, valorPorDefecto: number): Promise<number> {
+  try {
+    const parametro = await db.tbl_000_parametros_sistema.findUnique({
+      where: { codigo_parametro_000: codigo },
+      select: { valor_parametro_000: true, activo_000: true }
+    });
+
+    if (parametro && parametro.activo_000) {
+      const valor = parseInt(parametro.valor_parametro_000, 10);
+      return isNaN(valor) ? valorPorDefecto : valor;
+    }
+    return valorPorDefecto;
+  } catch (error) {
+    console.error(`Error al obtener parámetro ${codigo}:`, error);
+    return valorPorDefecto;
+  }
+}
+
 export async function POST(request: NextRequest) {
   try {
     const { email_00, password } = await request.json();
@@ -81,11 +100,12 @@ export async function POST(request: NextRequest) {
     await actualizarUltimoLogin(usuario.id_usuario_00);
 
     // Generar token
-    const token = generarToken(usuario);
+    const token = await generarToken(usuario);
 
-    // Crear sesión
+    // Crear sesión con tiempo configurable desde parámetros
+    const minutosSesion = await obtenerParametroNumero('SESSION_TIMEOUT_MINUTES', 30);
     const fechaExpiracion = new Date();
-    fechaExpiracion.setMinutes(fechaExpiracion.getMinutes() + 30); // 30 minutos
+    fechaExpiracion.setMinutes(fechaExpiracion.getMinutes() + minutosSesion);
 
     await db.tbl_03_sesion.create({
       data: {

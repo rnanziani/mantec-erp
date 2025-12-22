@@ -81,8 +81,27 @@ export async function verificarReutilizacionPassword(
   return false;
 }
 
-// Generar token JWT
-export function generarToken(usuario: Usuario): string {
+// Generar token JWT con expiración configurable
+export async function generarToken(usuario: Usuario): Promise<string> {
+  // Obtener tiempo de expiración desde parámetros
+  let minutosExpiracion = 30; // Valor por defecto
+  
+  try {
+    const parametro = await db.tbl_000_parametros_sistema.findUnique({
+      where: { codigo_parametro_000: 'JWT_EXPIRATION_MINUTES' },
+      select: { valor_parametro_000: true, activo_000: true }
+    });
+
+    if (parametro && parametro.activo_000) {
+      const valor = parseInt(parametro.valor_parametro_000, 10);
+      if (!isNaN(valor)) {
+        minutosExpiracion = valor;
+      }
+    }
+  } catch (error) {
+    console.error('Error al obtener parámetro JWT_EXPIRATION_MINUTES:', error);
+  }
+
   return jwt.sign(
     {
       id: usuario.id_usuario_00,
@@ -90,7 +109,7 @@ export function generarToken(usuario: Usuario): string {
       email: usuario.email_00
     },
     JWT_SECRET,
-    { expiresIn: '30m' } // Regla g: 30 minutos de expiración
+    { expiresIn: `${minutosExpiracion}m` }
   );
 }
 

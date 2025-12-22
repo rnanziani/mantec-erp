@@ -208,7 +208,8 @@ const CargoView: React.FC = () => {
   };
 
   const handleDelete = async (id: number) => {
-    if (!window.confirm('¿Está seguro de eliminar este cargo?')) return;
+    const confirmed = await showDeleteConfirm('este cargo');
+    if (!confirmed) return;
 
     try {
       setError('');

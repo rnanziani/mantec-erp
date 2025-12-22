@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import './BodegaView.css'; // Reutilizamos los mismos estilos
+import { showSuccess, showError, showDeleteConfirm } from '../utils/swal';
 
 interface AsignacionPrenda {
   idasignacionmain_09: number;
@@ -210,12 +211,12 @@ const AsignacionPrendasView: React.FC = () => {
 
   const handleGuardar = async () => {
     if (!trabajadorSeleccionado || !idResponsable || !fecha || !hora) {
-      alert('Todos los campos son requeridos');
+      await showError('Validación', 'Todos los campos son requeridos');
       return;
     }
 
     if (detallePrendas.length === 0) {
-      alert('Debe agregar al menos una prenda');
+      await showError('Validación', 'Debe agregar al menos una prenda');
       return;
     }
 
@@ -250,14 +251,14 @@ const AsignacionPrendasView: React.FC = () => {
       const data: ApiResponse = await response.json();
 
       if (data.success) {
-        alert(data.message || 'Asignación guardada exitosamente');
+        await showSuccess('¡Éxito!', data.message || 'Asignación guardada exitosamente');
         await fetchAsignaciones();
         resetForm();
       } else {
-        alert(data.error || 'Error al guardar la asignación');
+        await showError('Error', data.error || 'Error al guardar la asignación');
       }
     } catch (err) {
-      alert('Error al guardar la asignación');
+      await showError('Error', 'Error al guardar la asignación');
       console.error('Error:', err);
     } finally {
       setLoading(false);
@@ -265,7 +266,11 @@ const AsignacionPrendasView: React.FC = () => {
   };
 
   const handleEliminar = async (id: number) => {
-    if (!window.confirm('¿Está seguro de eliminar esta asignación? Se eliminarán también todos sus detalles.')) return;
+    const confirmed = await showDeleteConfirm(
+      'esta asignación',
+      'Se eliminarán también todos sus detalles.'
+    );
+    if (!confirmed) return;
 
     try {
       setError('');
@@ -276,21 +281,21 @@ const AsignacionPrendasView: React.FC = () => {
       const data: ApiResponse = await response.json();
 
       if (data.success) {
-        alert(data.message || 'Asignación eliminada exitosamente');
+        await showSuccess('¡Eliminado!', data.message || 'Asignación eliminada exitosamente');
         await fetchAsignaciones();
         resetForm();
       } else {
-        alert(data.error || 'Error al eliminar la asignación');
+        await showError('Error', data.error || 'Error al eliminar la asignación');
       }
     } catch (err) {
-      alert('Error al eliminar la asignación');
+      await showError('Error', 'Error al eliminar la asignación');
       console.error('Error:', err);
     }
   };
 
   const handleAgregarPrenda = () => {
     if (!prendaSeleccionada || !tallaSeleccionada || cantidad < 1) {
-      alert('Debe seleccionar una prenda, talla y cantidad válida');
+      showError('Validación', 'Debe seleccionar una prenda, talla y cantidad válida');
       return;
     }
 

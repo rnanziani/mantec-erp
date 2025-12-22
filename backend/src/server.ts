@@ -29,6 +29,7 @@ import nivelPermisoRoutes from './routes/nivelPermisoRoutes.js';
 import historialContrasenaRoutes from './routes/historialContrasenaRoutes.js';
 import intentoLoginRoutes from './routes/intentoLoginRoutes.js';
 import sesionViewRoutes from './routes/sesionViewRoutes.js';
+import parametrosRoutes from './routes/parametrosRoutes.js';
 
 console.log('🔄 Servidor iniciando - Cargando rutas...');
 
@@ -99,6 +100,7 @@ app.use('/api/nivel-permisos', nivelPermisoRoutes);
 app.use('/api/historial-contrasenas', historialContrasenaRoutes);
 app.use('/api/intentos-login', intentoLoginRoutes);
 app.use('/api/sesiones-view', sesionViewRoutes);
+app.use('/api/parametros', parametrosRoutes);
 
 console.log('✅ Todas las rutas cargadas');
 

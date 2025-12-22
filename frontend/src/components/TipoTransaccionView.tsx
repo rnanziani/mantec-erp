@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { showSuccess, showError } from '../utils/swal';
 import './BodegaView.css'; // Reutilizamos los mismos estilos
 
 interface TipoTransaccion {
@@ -41,7 +42,7 @@ const TipoTransaccionView: React.FC = () => {
             }
         } catch (error) {
             console.error('Error:', error);
-            alert('Error al cargar tipos de transacción');
+            await showError('Error', 'Error al cargar tipos de transacción');
         } finally {
             setLoading(false);
         }
@@ -52,7 +53,7 @@ const TipoTransaccionView: React.FC = () => {
 
         // Validar código de 3 letras mayúsculas
         if (!/^[A-Z]{3}$/.test(formData.cod_accion_25)) {
-            alert('El código debe ser exactamente 3 letras mayúsculas');
+            await showError('Validación', 'El código debe ser exactamente 3 letras mayúsculas');
             return;
         }
 
@@ -71,15 +72,15 @@ const TipoTransaccionView: React.FC = () => {
             const data = await response.json();
 
             if (data.success) {
-                alert(data.message || 'Operación exitosa');
+                await showSuccess('¡Éxito!', data.message || 'Operación exitosa');
                 fetchTipos();
                 resetForm();
             } else {
-                alert(data.error || 'Error en la operación');
+                await showError('Error', data.error || 'Error en la operación');
             }
         } catch (error) {
             console.error('Error:', error);
-            alert('Error al guardar');
+            await showError('Error', 'Error al guardar');
         } finally {
             setLoading(false);
         }

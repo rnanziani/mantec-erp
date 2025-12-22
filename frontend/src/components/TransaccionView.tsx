@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { showSuccess, showError, showDeleteConfirm, showWarning } from '../utils/swal';
 import './BodegaView.css'; // Reutilizamos los mismos estilos que TipoTransaccionView
 
 interface Transaccion {
@@ -291,17 +292,17 @@ const TransaccionView: React.FC = () => {
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!idAlternador || !idUbicacionOrigen || !idUbicacionDestino || !idTipoTransaccion) {
-      alert('Todos los campos marcados con * son requeridos');
+      await showError('Validación', 'Todos los campos marcados con * son requeridos');
       return;
     }
 
     if (!alternadorSeleccionado) {
-      alert('Por favor seleccione un alternador de la lista');
+      await showError('Validación', 'Por favor seleccione un alternador de la lista');
       return;
     }
 
     if (idUbicacionOrigen === idUbicacionDestino) {
-      alert('La ubicación de origen y destino deben ser diferentes');
+      await showError('Validación', 'La ubicación de origen y destino deben ser diferentes');
       return;
     }
 
@@ -327,14 +328,14 @@ const TransaccionView: React.FC = () => {
       const data: ApiResponse = await response.json();
 
       if (data.success) {
-        alert(data.message || 'Transacción creada exitosamente');
+        await showSuccess('¡Éxito!', data.message || 'Transacción creada exitosamente');
         await fetchTransacciones();
         resetForm();
       } else {
-        alert(data.error || 'Error al crear la transacción');
+        await showError('Error', data.error || 'Error al crear la transacción');
       }
     } catch (err) {
-      alert('Error al crear la transacción');
+      await showError('Error', 'Error al crear la transacción');
       console.error('Error:', err);
     } finally {
       setLoading(false);
@@ -342,7 +343,8 @@ const TransaccionView: React.FC = () => {
   };
 
   const handleDelete = async (id: number) => {
-    if (!window.confirm('¿Está seguro de eliminar esta transacción?')) return;
+    const confirmed = await showDeleteConfirm('esta transacción');
+    if (!confirmed) return;
 
     try {
       setError('');
@@ -353,13 +355,13 @@ const TransaccionView: React.FC = () => {
       const data: ApiResponse = await response.json();
 
       if (data.success) {
-        alert(data.message || 'Transacción eliminada exitosamente');
+        await showSuccess('¡Eliminado!', data.message || 'Transacción eliminada exitosamente');
         await fetchTransacciones();
       } else {
-        alert(data.error || 'Error al eliminar la transacción');
+        await showError('Error', data.error || 'Error al eliminar la transacción');
       }
     } catch (err) {
-      alert('Error al eliminar la transacción');
+      await showError('Error', 'Error al eliminar la transacción');
       console.error('Error:', err);
     }
   };
@@ -410,7 +412,7 @@ const TransaccionView: React.FC = () => {
   const handleVistaPrevia = async () => {
     // Validar fechas requeridas
     if (!reportFechaDesde || !reportFechaHasta) {
-      alert('Las fechas desde y hasta son requeridas');
+      await showError('Validación', 'Las fechas desde y hasta son requeridas');
       return;
     }
 
@@ -444,20 +446,20 @@ const TransaccionView: React.FC = () => {
         setShowPreview(true);
         setShowReportModal(false);
       } else {
-        alert(data.error || 'Error al cargar la vista previa');
+        await showError('Error', data.error || 'Error al cargar la vista previa');
       }
     } catch (err) {
-      alert('Error al cargar la vista previa');
+      await showError('Error', 'Error al cargar la vista previa');
       console.error('Error:', err);
     } finally {
       setPreviewLoading(false);
     }
   };
 
-  const handleGenerarReporte = () => {
+  const handleGenerarReporte = async () => {
     // Validar fechas requeridas
     if (!reportFechaDesde || !reportFechaHasta) {
-      alert('Las fechas desde y hasta son requeridas');
+      await showError('Validación', 'Las fechas desde y hasta son requeridas');
       return;
     }
 

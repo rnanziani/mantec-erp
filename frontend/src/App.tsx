@@ -27,21 +27,29 @@ import NivelPermisoView from './components/NivelPermisoView';
 import HistorialContrasenaView from './components/HistorialContrasenaView';
 import IntentoLoginView from './components/IntentoLoginView';
 import SesionView from './components/SesionView';
+import ParametrosView from './components/ParametrosView';
+import { useSessionMonitor } from './hooks/useSessionMonitor';
+import { showSessionWarning } from './utils/swal';
+import './utils/swal.css';
 
 function App() {
   const [currentView, setCurrentView] = useState<string>('dashboard');
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
+  
+  // Monitorear sesión solo si está autenticado
+  const token = localStorage.getItem('token');
+  const { sessionStatus, refresh } = useSessionMonitor(!!token && currentView !== 'login' && currentView !== 'register');
 
   useEffect(() => {
     // Verificar autenticación
-    const token = localStorage.getItem('token');
-    setIsAuthenticated(!!token);
+    const currentToken = localStorage.getItem('token');
+    setIsAuthenticated(!!currentToken);
 
     // Leer el hash de la URL para determinar la vista
     const hash = window.location.hash.replace('#', '') || 'dashboard';
     
     // Si no está autenticado y no está en login/register, redirigir a login
-    if (!token && hash !== 'login' && hash !== 'register') {
+    if (!currentToken && hash !== 'login' && hash !== 'register') {
       setCurrentView('login');
       window.location.hash = 'login';
     } else {
@@ -69,11 +77,80 @@ function App() {
   // Ocultar sidebar en login y register
   const showSidebar = currentView !== 'login' && currentView !== 'register';
 
+  // Manejar extensión de sesión
+  const handleExtendSession = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) return;
+
+      // Llamar al endpoint específico para extender la sesión
+      const response = await fetch('http://localhost:3001/api/auth/extend-session', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (response.ok) {
+        // Refrescar el estado de la sesión después de extender
+        setTimeout(() => {
+          refresh();
+        }, 500);
+      }
+    } catch (error) {
+      console.error('Error al extender sesión:', error);
+    }
+  };
+
+  // Manejar logout
+  const handleLogout = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      if (token) {
+        await fetch('http://localhost:3001/api/auth/logout', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+      }
+    } catch (error) {
+      console.error('Error en logout:', error);
+    } finally {
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      setCurrentView('login');
+      window.location.hash = 'login';
+    }
+  };
+
+  // Mostrar advertencia de sesión con SweetAlert2
+  useEffect(() => {
+    if (sessionStatus?.debeAdvertir && !sessionStatus.sessionExpired) {
+      showSessionWarning(
+        sessionStatus.minutosRestantes,
+        sessionStatus.segundosRestantes,
+        handleExtendSession,
+        handleLogout
+      );
+    }
+  }, [sessionStatus?.debeAdvertir, sessionStatus?.minutosRestantes, sessionStatus?.segundosRestantes]);
+
+  // Redirigir si la sesión expiró
+  useEffect(() => {
+    if (sessionStatus?.sessionExpired) {
+      handleLogout();
+    }
+  }, [sessionStatus?.sessionExpired]);
+
   return (
     <ToastProvider>
       <div className="mantec-app">
         {showSidebar && <Sidebar onNavigate={setCurrentView} currentView={currentView} />}
         <ToastContainer />
+        
+        {/* La advertencia de sesión se maneja con SweetAlert2 */}
         <div className="mantec-main-content" style={!showSidebar ? { marginLeft: 0 } : {}}>
           {currentView === 'dashboard' && (
             <div className="mantec-welcome">
@@ -130,6 +207,8 @@ function App() {
           {currentView === 'intentos-login' && <IntentoLoginView />}
 
           {currentView === 'sesiones' && <SesionView />}
+
+          {currentView === 'parametros' && <ParametrosView />}
 
           {currentView === 'login' && <LoginForm />}
 

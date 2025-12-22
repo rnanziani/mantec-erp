@@ -273,7 +273,8 @@ const OrdenTrabajoView: React.FC = () => {
     };
 
     const handleDelete = async (id: number) => {
-        if (!window.confirm('¿Está seguro de eliminar esta orden de trabajo?')) return;
+        const confirmed = await showDeleteConfirm('esta orden de trabajo');
+        if (!confirmed) return;
 
         try {
             setError('');

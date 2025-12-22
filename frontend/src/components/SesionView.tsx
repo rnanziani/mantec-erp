@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import './BodegaView.css';
+import { showError } from '../utils/swal';
 
 interface Sesion {
     id_sesion_03: string;
@@ -48,7 +49,7 @@ const SesionView: React.FC = () => {
             }
         } catch (error) {
             console.error('Error:', error);
-            alert('Error al cargar sesiones');
+            await showError('Error', 'Error al cargar sesiones');
         } finally {
             setLoading(false);
         }
@@ -329,6 +330,15 @@ const SesionView: React.FC = () => {
 };
 
 export default SesionView;
+
+
+
+
+
+
+
+
+
 
 
 

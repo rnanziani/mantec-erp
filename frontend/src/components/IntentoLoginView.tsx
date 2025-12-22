@@ -37,7 +37,7 @@ const IntentoLoginView: React.FC = () => {
             }
         } catch (error) {
             console.error('Error:', error);
-            alert('Error al cargar intentos de login');
+            await showError('Error', 'Error al cargar intentos de login');
         } finally {
             setLoading(false);
         }
@@ -259,6 +259,15 @@ const IntentoLoginView: React.FC = () => {
 };
 
 export default IntentoLoginView;
+
+
+
+
+
+
+
+
+
 
 
 

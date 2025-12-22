@@ -58,9 +58,11 @@ export const register = async (req: Request, res: Response) => {
     // Hashear contraseña
     const passwordHash = await hashPassword(password);
 
-    // Calcular fecha de expiración (91 días)
+    // Calcular fecha de expiración desde parámetros del sistema
+    const { obtenerParametroNumero } = await import('../utils/parametrosUtils.js');
+    const diasExpiracion = await obtenerParametroNumero('PASSWORD_EXPIRATION_DAYS', 91);
     const fechaExpiracion = new Date();
-    fechaExpiracion.setDate(fechaExpiracion.getDate() + 91);
+    fechaExpiracion.setDate(fechaExpiracion.getDate() + diasExpiracion);
 
     // Crear usuario
     const result = await pool.query(
@@ -185,16 +187,18 @@ export const login = async (req: Request, res: Response) => {
     await actualizarUltimoLogin(usuario.id_usuario_00);
 
     // Generar token
-    const token = generarToken({
+    const token = await generarToken({
       id_usuario_00: usuario.id_usuario_00,
       username: usuario.username,
       email: usuario.email
     });
 
-    // Crear sesión en base de datos
+    // Crear sesión en base de datos con tiempo configurable
+    const { obtenerParametroNumero: obtenerParametroNumeroSesion } = await import('../utils/parametrosUtils.js');
+    const minutosSesion = await obtenerParametroNumeroSesion('SESSION_TIMEOUT_MINUTES', 30);
     const idSesion = `sesion_${usuario.id_usuario_00}_${Date.now()}`;
     const fechaExpiracion = new Date();
-    fechaExpiracion.setMinutes(fechaExpiracion.getMinutes() + 30); // 30 minutos
+    fechaExpiracion.setMinutes(fechaExpiracion.getMinutes() + minutosSesion);
 
     await pool.query(
       `INSERT INTO tbl_03_sesion 
@@ -362,6 +366,19 @@ export const getMe = async (req: Request, res: Response) => {
       });
     }
 
+    // Extender sesión automáticamente al hacer cualquier petición autenticada
+    const { obtenerParametroNumero } = await import('../utils/parametrosUtils.js');
+    const minutosSesion = await obtenerParametroNumero('SESSION_TIMEOUT_MINUTES', 30);
+    const nuevaFechaExpiracion = new Date();
+    nuevaFechaExpiracion.setMinutes(nuevaFechaExpiracion.getMinutes() + minutosSesion);
+
+    await pool.query(
+      `UPDATE tbl_03_sesion 
+       SET fecha_expiracion_03 = $1 
+       WHERE token_sesion_03 = $2 AND activa_03 = TRUE`,
+      [nuevaFechaExpiracion, token]
+    );
+
     const result = await pool.query(
       `SELECT id_usuario_00, username, email, nombre_completo_00, is_active, 
               password_expires_at, last_login_at, created_at
@@ -404,6 +421,145 @@ export const getMe = async (req: Request, res: Response) => {
 };
 
 /**
+ * @route   GET /api/auth/session-status
+ * @desc    Obtener estado de la sesión actual (tiempo restante)
+ * @access  Private
+ */
+export const getSessionStatus = async (req: Request, res: Response) => {
+  try {
+    const token = req.headers.authorization?.replace('Bearer ', '');
+    if (!token) {
+      return res.status(401).json({
+        success: false,
+        error: 'Token de autenticación requerido'
+      });
+    }
+
+    const decoded = verificarToken(token);
+    if (!decoded) {
+      return res.status(401).json({
+        success: false,
+        error: 'Token inválido o expirado',
+        sessionExpired: true
+      });
+    }
+
+    // Obtener información de la sesión actual
+    const sesionResult = await pool.query(
+      `SELECT fecha_expiracion_03, fecha_creacion_03
+       FROM tbl_03_sesion 
+       WHERE token_sesion_03 = $1 AND activa_03 = TRUE
+       ORDER BY fecha_creacion_03 DESC
+       LIMIT 1`,
+      [token]
+    );
+
+    if (sesionResult.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Sesión no encontrada',
+        sessionExpired: true
+      });
+    }
+
+    const sesion = sesionResult.rows[0];
+    const fechaExpiracion = new Date(sesion.fecha_expiracion_03);
+    const ahora = new Date();
+    const tiempoRestante = fechaExpiracion.getTime() - ahora.getTime();
+    const minutosRestantes = Math.max(0, Math.floor(tiempoRestante / (1000 * 60)));
+    const segundosRestantes = Math.max(0, Math.floor((tiempoRestante % (1000 * 60)) / 1000));
+
+    // Obtener parámetro de minutos de advertencia
+    const { obtenerParametroNumero } = await import('../utils/parametrosUtils.js');
+    const minutosAdvertencia = await obtenerParametroNumero('SESSION_WARNING_MINUTES', 5);
+
+    const debeAdvertir = minutosRestantes <= minutosAdvertencia && minutosRestantes > 0;
+
+    res.json({
+      success: true,
+      data: {
+        sessionExpired: tiempoRestante <= 0,
+        minutosRestantes,
+        segundosRestantes,
+        fechaExpiracion: fechaExpiracion.toISOString(),
+        debeAdvertir,
+        minutosAdvertencia
+      }
+    });
+  } catch (error: any) {
+    console.error('Error en getSessionStatus:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Error al obtener estado de sesión',
+      details: error.message
+    });
+  }
+};
+
+/**
+ * @route   POST /api/auth/extend-session
+ * @desc    Extender la sesión actual
+ * @access  Private
+ */
+export const extendSession = async (req: Request, res: Response) => {
+  try {
+    const token = req.headers.authorization?.replace('Bearer ', '');
+    if (!token) {
+      return res.status(401).json({
+        success: false,
+        error: 'Token de autenticación requerido'
+      });
+    }
+
+    const decoded = verificarToken(token);
+    if (!decoded) {
+      return res.status(401).json({
+        success: false,
+        error: 'Token inválido o expirado'
+      });
+    }
+
+    // Obtener tiempo de sesión desde parámetros
+    const { obtenerParametroNumero } = await import('../utils/parametrosUtils.js');
+    const minutosSesion = await obtenerParametroNumero('SESSION_TIMEOUT_MINUTES', 30);
+    const nuevaFechaExpiracion = new Date();
+    nuevaFechaExpiracion.setMinutes(nuevaFechaExpiracion.getMinutes() + minutosSesion);
+
+    // Actualizar fecha de expiración de la sesión
+    const result = await pool.query(
+      `UPDATE tbl_03_sesion 
+       SET fecha_expiracion_03 = $1 
+       WHERE token_sesion_03 = $2 AND activa_03 = TRUE
+       RETURNING fecha_expiracion_03`,
+      [nuevaFechaExpiracion, token]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Sesión no encontrada'
+      });
+    }
+
+    res.json({
+      success: true,
+      message: 'Sesión extendida exitosamente',
+      data: {
+        nuevaFechaExpiracion: nuevaFechaExpiracion.toISOString(),
+        minutosSesion
+      }
+    });
+  } catch (error: any) {
+    console.error('Error al extender sesión:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Error al extender sesión',
+      details: error.message
+    });
+  }
+};
+
+/**
  * @route   POST /api/auth/logout
  * @desc    Cerrar sesión
  * @access  Private
@@ -432,6 +588,15 @@ export const logout = async (req: Request, res: Response) => {
     });
   }
 };
+
+
+
+
+
+
+
+
+
 
 
 

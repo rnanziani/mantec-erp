@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { showSuccess, showError, showDeleteConfirm } from '../utils/swal';
 import './BodegaView.css';
 
 interface NivelUsuario {
@@ -36,7 +37,7 @@ const NivelUsuarioView: React.FC = () => {
             }
         } catch (error) {
             console.error('Error:', error);
-            alert('Error al cargar niveles de acceso');
+            await showError('Error', 'Error al cargar niveles de acceso');
         } finally {
             setLoading(false);
         }
@@ -62,15 +63,15 @@ const NivelUsuarioView: React.FC = () => {
             const data = await response.json();
 
             if (data.success) {
-                alert(data.message || 'Operación exitosa');
+                await showSuccess('¡Éxito!', data.message || 'Operación exitosa');
                 fetchNiveles();
                 resetForm();
             } else {
-                alert(data.error || 'Error en la operación');
+                await showError('Error', data.error || 'Error en la operación');
             }
         } catch (error) {
             console.error('Error:', error);
-            alert('Error al guardar');
+            await showError('Error', 'Error al guardar');
         } finally {
             setLoading(false);
         }
@@ -85,14 +86,14 @@ const NivelUsuarioView: React.FC = () => {
             });
             const data = await response.json();
             if (data.success) {
-                alert(data.message || 'Nivel de acceso eliminado exitosamente');
+                await showSuccess('¡Eliminado!', data.message || 'Nivel de acceso eliminado exitosamente');
                 fetchNiveles();
             } else {
-                alert(data.error || 'Error al eliminar');
+                await showError('Error', data.error || 'Error al eliminar');
             }
         } catch (error) {
             console.error('Error:', error);
-            alert('Error al eliminar');
+            await showError('Error', 'Error al eliminar');
         }
     };
 

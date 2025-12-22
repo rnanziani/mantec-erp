@@ -1,0 +1,78 @@
+/* Estilos personalizados para SweetAlert2 */
+
+.swal2-popup-custom {
+  border-radius: 12px;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+}
+
+.swal2-confirm-button-custom {
+  border-radius: 6px;
+  padding: 10px 24px;
+  font-weight: 500;
+  transition: all 0.3s ease;
+}
+
+.swal2-confirm-button-custom:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.4);
+}
+
+.swal2-cancel-button-custom {
+  border-radius: 6px;
+  padding: 10px 24px;
+  font-weight: 500;
+  transition: all 0.3s ease;
+}
+
+.swal2-cancel-button-custom:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(107, 114, 128, 0.4);
+}
+
+/* Estilos para el timer de sesión */
+#session-timer {
+  display: inline-block;
+  padding: 8px 16px;
+  background-color: #fef2f2;
+  border: 2px solid #dc2626;
+  border-radius: 8px;
+  font-weight: bold;
+  letter-spacing: 2px;
+}
+
+/* Animaciones suaves */
+.swal2-popup {
+  animation: swal2-show 0.3s;
+}
+
+@keyframes swal2-show {
+  0% {
+    transform: scale(0.7);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+/* Responsive */
+@media (max-width: 600px) {
+  .swal2-popup {
+    width: 90% !important;
+    margin: 0 auto;
+  }
+  
+  .swal2-actions {
+    flex-direction: column;
+    width: 100%;
+  }
+  
+  .swal2-confirm,
+  .swal2-cancel {
+    width: 100%;
+    margin: 5px 0 !important;
+  }
+}
+
+

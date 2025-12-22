@@ -210,7 +210,8 @@ const TrabajadorView: React.FC = () => {
   };
 
   const handleDelete = async (id: number) => {
-    if (!window.confirm('¿Está seguro de eliminar este trabajador?')) {
+    const confirmed = await showDeleteConfirm('este trabajador');
+    if (!confirmed) {
       return;
     }
 

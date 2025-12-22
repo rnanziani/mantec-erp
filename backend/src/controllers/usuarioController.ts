@@ -129,9 +129,11 @@ export const createUsuario = async (req: Request, res: Response) => {
     // Hashear contraseña
     const passwordHash = await hashPassword(password);
 
-    // Calcular fecha de expiración (91 días)
+    // Calcular fecha de expiración desde parámetros del sistema
+    const { obtenerParametroNumero } = await import('../utils/parametrosUtils.js');
+    const diasExpiracion = await obtenerParametroNumero('PASSWORD_EXPIRATION_DAYS', 91);
     const fechaExpiracion = new Date();
-    fechaExpiracion.setDate(fechaExpiracion.getDate() + 91);
+    fechaExpiracion.setDate(fechaExpiracion.getDate() + diasExpiracion);
 
     // Crear usuario
     const result = await pool.query(
@@ -427,6 +429,15 @@ export const getSesionesUsuario = async (req: Request, res: Response) => {
     });
   }
 };
+
+
+
+
+
+
+
+
+
 
 
 

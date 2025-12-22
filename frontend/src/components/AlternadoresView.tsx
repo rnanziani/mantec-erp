@@ -192,7 +192,8 @@ const AlternadoresView: React.FC = () => {
   };
 
   const handleDelete = async (id: number) => {
-    if (!window.confirm('¿Está seguro de eliminar este alternador?')) return;
+    const confirmed = await showDeleteConfirm('este alternador');
+    if (!confirmed) return;
 
     try {
       setError('');

@@ -33,7 +33,7 @@ const HistorialContrasenaView: React.FC = () => {
             }
         } catch (error) {
             console.error('Error:', error);
-            alert('Error al cargar historial de contraseñas');
+            await showError('Error', 'Error al cargar historial de contraseñas');
         } finally {
             setLoading(false);
         }
@@ -215,6 +215,15 @@ const HistorialContrasenaView: React.FC = () => {
 };
 
 export default HistorialContrasenaView;
+
+
+
+
+
+
+
+
+
 
 
 

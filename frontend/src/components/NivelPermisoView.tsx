@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { showSuccess, showError, showDeleteConfirm } from '../utils/swal';
 import './BodegaView.css';
 
 interface NivelPermiso {
@@ -55,7 +56,7 @@ const NivelPermisoView: React.FC = () => {
             }
         } catch (error) {
             console.error('Error:', error);
-            alert('Error al cargar relaciones nivel-permiso');
+            await showError('Error', 'Error al cargar relaciones nivel-permiso');
         } finally {
             setLoading(false);
         }
@@ -89,7 +90,7 @@ const NivelPermisoView: React.FC = () => {
         e.preventDefault();
         
         if (!selectedNivel || !selectedPermiso) {
-            alert('Debe seleccionar un nivel y un permiso');
+            await showError('Validación', 'Debe seleccionar un nivel y un permiso');
             return;
         }
 
@@ -108,22 +109,23 @@ const NivelPermisoView: React.FC = () => {
             const data = await response.json();
 
             if (data.success) {
-                alert(data.message || 'Relación creada exitosamente');
+                await showSuccess('¡Éxito!', data.message || 'Relación creada exitosamente');
                 fetchRelaciones();
                 resetForm();
             } else {
-                alert(data.error || 'Error en la operación');
+                await showError('Error', data.error || 'Error en la operación');
             }
         } catch (error) {
             console.error('Error:', error);
-            alert('Error al guardar');
+            await showError('Error', 'Error al guardar');
         } finally {
             setLoading(false);
         }
     };
 
     const handleDelete = async (idNivel: number, idPermiso: number) => {
-        if (!window.confirm('¿Está seguro de eliminar esta relación?')) return;
+        const confirmed = await showDeleteConfirm('esta relación');
+        if (!confirmed) return;
 
         try {
             const response = await fetch(`${API_URL}/${idNivel}/${idPermiso}`, {
@@ -131,14 +133,14 @@ const NivelPermisoView: React.FC = () => {
             });
             const data = await response.json();
             if (data.success) {
-                alert(data.message || 'Relación eliminada exitosamente');
+                await showSuccess('¡Eliminado!', data.message || 'Relación eliminada exitosamente');
                 fetchRelaciones();
             } else {
-                alert(data.error || 'Error al eliminar');
+                await showError('Error', data.error || 'Error al eliminar');
             }
         } catch (error) {
             console.error('Error:', error);
-            alert('Error al eliminar');
+            await showError('Error', 'Error al eliminar');
         }
     };
 
@@ -349,6 +351,15 @@ const NivelPermisoView: React.FC = () => {
 };
 
 export default NivelPermisoView;
+
+
+
+
+
+
+
+
+
 
 
 
