@@ -5,6 +5,7 @@ import {
   changePassword,
   getMe,
   getSessionStatus,
+  extendSession,
   logout
 } from '../controllers/authController.js';
 
