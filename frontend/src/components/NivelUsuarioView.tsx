@@ -78,7 +78,8 @@ const NivelUsuarioView: React.FC = () => {
     };
 
     const handleDelete = async (id: number) => {
-        if (!window.confirm('¿Está seguro de eliminar este nivel de acceso?')) return;
+        const confirmed = await showDeleteConfirm('este nivel de acceso');
+        if (!confirmed) return;
 
         try {
             const response = await fetch(`${API_URL}/${id}`, {

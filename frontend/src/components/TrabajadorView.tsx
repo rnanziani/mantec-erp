@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import './TecnicoView.css'; // Reutilizamos los mismos estilos
-import { useToast } from '../context/ToastContext';
+import { showSuccess, showError, showDeleteConfirm } from '../utils/swal';
 import SearchBar from './shared/SearchBar';
 import Pagination from './shared/Pagination';
 import { exportToExcel } from '../utils/exportUtils';
@@ -76,7 +76,6 @@ const TrabajadorView: React.FC = () => {
   // Buscador de trabajadores (similar a AsignacionProductosAseoView)
   const [buscarApellido, setBuscarApellido] = useState<string>('');
 
-  const { showToast } = useToast();
   const API_URL = 'http://localhost:3001/api/trabajadores';
   const CARGOS_URL = 'http://localhost:3001/api/cargos';
   const EMPRESAS_URL = 'http://localhost:3001/api/empresas';
@@ -154,7 +153,7 @@ const TrabajadorView: React.FC = () => {
     // Validar RUT
     if (!validateRut(rut)) {
       setRutError('RUT inválido');
-      showToast('Por favor ingrese un RUT válido', 'error');
+      showError('Error de validación', 'Por favor ingrese un RUT válido');
       return;
     }
 
@@ -181,17 +180,16 @@ const TrabajadorView: React.FC = () => {
       const data: ApiResponse = await response.json();
 
       if (data.success) {
-        showToast(
-          editingId ? 'Trabajador actualizado exitosamente' : 'Trabajador creado exitosamente',
-          'success'
+        showSuccess(
+          editingId ? 'Trabajador actualizado exitosamente' : 'Trabajador creado exitosamente'
         );
         resetForm();
         fetchTrabajadores();
       } else {
-        showToast(data.error || 'Error al guardar trabajador', 'error');
+        showError('Error al guardar trabajador', data.error || 'No se pudo guardar el trabajador');
       }
     } catch (err) {
-      showToast('Error de conexión con el servidor', 'error');
+      showError('Error de conexión', 'Error de conexión con el servidor');
       console.error(err);
     }
   };
@@ -223,13 +221,13 @@ const TrabajadorView: React.FC = () => {
       const data: ApiResponse = await response.json();
 
       if (data.success) {
-        showToast('Trabajador eliminado exitosamente', 'success');
+        showSuccess('Trabajador eliminado exitosamente');
         fetchTrabajadores();
       } else {
-        showToast(data.error || 'Error al eliminar trabajador', 'error');
+        showError('Error al eliminar trabajador', data.error || 'No se pudo eliminar el trabajador');
       }
     } catch (err) {
-      showToast('Error de conexión con el servidor', 'error');
+      showError('Error de conexión', 'Error de conexión con el servidor');
       console.error(err);
     }
   };
@@ -350,7 +348,7 @@ const TrabajadorView: React.FC = () => {
       'Estado': t.estado_06 ? 'Activo' : 'Inactivo'
     }));
     exportToExcel(exportData, 'trabajadores');
-    showToast('Datos exportados exitosamente', 'success');
+    showSuccess('Datos exportados exitosamente');
   };
 
   if (loading) {

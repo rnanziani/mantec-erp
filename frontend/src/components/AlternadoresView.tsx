@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import './AlternadoresView.css';
-import { useToast } from '../context/ToastContext';
+import { showSuccess, showError, showDeleteConfirm } from '../utils/swal';
 import SearchBar from './shared/SearchBar';
 import Pagination from './shared/Pagination';
 import { exportToExcel } from '../utils/exportUtils';
@@ -45,7 +45,6 @@ const AlternadoresView: React.FC = () => {
   const [itemsPerPage] = useState<number>(10);
   const [sortConfig, setSortConfig] = useState<SortConfig>({ key: 'id_alternador_19', direction: 'asc' });
 
-  const { showToast } = useToast();
   const API_URL = 'http://localhost:3001/api/alternadores';
   const MARCAS_URL = 'http://localhost:3001/api/marcas';
 
@@ -134,7 +133,7 @@ const AlternadoresView: React.FC = () => {
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedMarca || selectedMarca === 0) {
-      showToast('Debe seleccionar una marca', 'error');
+      await showError('Validación', 'Debe seleccionar una marca');
       return;
     }
 
@@ -152,12 +151,12 @@ const AlternadoresView: React.FC = () => {
         await fetchAlternadores();
         setSelectedMarca(0);
         setShowForm(false);
-        showToast('Alternador creado exitosamente', 'success');
+        await showSuccess('¡Éxito!', 'Alternador creado exitosamente');
       } else {
-        showToast(data.error || 'Error al crear el alternador', 'error');
+        await showError('Error', data.error || 'Error al crear el alternador');
       }
     } catch (err) {
-      showToast('Error al crear el alternador', 'error');
+      await showError('Error', 'Error al crear el alternador');
       console.error('Error:', err);
     }
   };

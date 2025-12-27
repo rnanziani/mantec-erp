@@ -40,7 +40,17 @@ const ParametrosView: React.FC = () => {
   const fetchParametros = async () => {
     try {
       setLoading(true);
+      setError(''); // Limpiar error anterior
+      
       const token = localStorage.getItem('token');
+      if (!token) {
+        const errorMsg = 'No hay token de autenticación. Por favor, inicia sesión.';
+        setError(errorMsg);
+        showToast(errorMsg, 'error');
+        setLoading(false);
+        return;
+      }
+
       const response = await fetch(API_URL, {
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -49,18 +59,29 @@ const ParametrosView: React.FC = () => {
       });
 
       if (!response.ok) {
-        throw new Error('Error al obtener parámetros');
+        const errorData = await response.json().catch(() => ({ error: 'Error desconocido' }));
+        throw new Error(errorData.error || `Error ${response.status}: ${response.statusText}`);
       }
 
       const data: ApiResponse = await response.json();
       if (data.success && data.data) {
         setParametros(data.data);
+        setError(''); // Limpiar error si la carga fue exitosa
       } else {
         throw new Error(data.error || 'Error desconocido');
       }
     } catch (err: any) {
-      setError(err.message || 'Error al cargar parámetros');
-      showToast('Error al cargar parámetros: ' + err.message, 'error');
+      const errorMessage = err.message || 'Error al cargar parámetros';
+      
+      // Verificar si es un error de red
+      if (err.message?.includes('Failed to fetch') || err.message?.includes('NetworkError')) {
+        const networkError = 'No se pudo conectar con el servidor. Verifica que el backend esté corriendo en http://localhost:3001';
+        setError(networkError);
+        showToast(networkError, 'error');
+      } else {
+        setError(errorMessage);
+        showToast('Error al cargar parámetros: ' + errorMessage, 'error');
+      }
     } finally {
       setLoading(false);
     }
@@ -151,8 +172,15 @@ const ParametrosView: React.FC = () => {
       </div>
 
       {error && (
-        <div className="error-message" style={{ marginBottom: '20px' }}>
-          {error}
+        <div className="error-message" style={{ 
+          marginBottom: '20px', 
+          padding: '15px', 
+          backgroundColor: '#fee', 
+          border: '1px solid #fcc', 
+          borderRadius: '5px',
+          color: '#c33'
+        }}>
+          <strong>⚠️ Error:</strong> {error}
         </div>
       )}
 

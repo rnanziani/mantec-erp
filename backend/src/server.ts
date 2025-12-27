@@ -108,6 +108,12 @@ console.log('✅ Todas las rutas cargadas');
 const startServer = async () => {
   // Verificar conexión a la base de datos
   const dbConnected = await testConnection();
+  
+  if (!dbConnected) {
+    console.warn('⚠️  ADVERTENCIA: El servidor se iniciará sin conexión a la base de datos');
+    console.warn('⚠️  Las funcionalidades que requieren base de datos no estarán disponibles');
+    console.warn('⚠️  Verifica tu archivo .env y que PostgreSQL esté corriendo');
+  }
 
   app.listen(PORT, () => {
     console.log(`

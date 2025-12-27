@@ -14,6 +14,23 @@ import { verificarToken } from '../utils/authUtils.js';
  */
 export const getAllParametros = async (req: Request, res: Response) => {
   try {
+    // Verificar autenticación
+    const token = req.headers.authorization?.replace('Bearer ', '');
+    if (!token) {
+      return res.status(401).json({
+        success: false,
+        error: 'Token de autenticación requerido'
+      });
+    }
+
+    const decoded = verificarToken(token);
+    if (!decoded) {
+      return res.status(401).json({
+        success: false,
+        error: 'Token inválido o expirado'
+      });
+    }
+
     const parametros = await obtenerTodosParametros();
 
     res.json({
@@ -38,6 +55,23 @@ export const getAllParametros = async (req: Request, res: Response) => {
  */
 export const getParametroByCodigo = async (req: Request, res: Response) => {
   try {
+    // Verificar autenticación
+    const token = req.headers.authorization?.replace('Bearer ', '');
+    if (!token) {
+      return res.status(401).json({
+        success: false,
+        error: 'Token de autenticación requerido'
+      });
+    }
+
+    const decoded = verificarToken(token);
+    if (!decoded) {
+      return res.status(401).json({
+        success: false,
+        error: 'Token inválido o expirado'
+      });
+    }
+
     const { codigo } = req.params;
     const valor = await obtenerParametro(codigo, '');
 

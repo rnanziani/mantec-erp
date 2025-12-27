@@ -28,6 +28,7 @@ import HistorialContrasenaView from './components/HistorialContrasenaView';
 import IntentoLoginView from './components/IntentoLoginView';
 import SesionView from './components/SesionView';
 import ParametrosView from './components/ParametrosView';
+import MaquinaView from './components/MaquinaView';
 import { useSessionMonitor } from './hooks/useSessionMonitor';
 import { showSessionWarning } from './utils/swal';
 import './utils/swal.css';
@@ -209,6 +210,8 @@ function App() {
           {currentView === 'sesiones' && <SesionView />}
 
           {currentView === 'parametros' && <ParametrosView />}
+
+          {currentView === 'maquinas' && <MaquinaView />}
 
           {currentView === 'login' && <LoginForm />}
 

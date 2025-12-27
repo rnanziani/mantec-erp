@@ -77,7 +77,8 @@ const PermisoView: React.FC = () => {
     };
 
     const handleDelete = async (id: number) => {
-        if (!window.confirm('¿Está seguro de eliminar este permiso?')) return;
+        const confirmed = await showDeleteConfirm('este permiso');
+        if (!confirmed) return;
 
         try {
             const response = await fetch(`${API_URL}/${id}`, {

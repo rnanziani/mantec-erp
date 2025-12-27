@@ -35,6 +35,13 @@ const SesionView: React.FC = () => {
     const fetchSesiones = async () => {
         setLoading(true);
         try {
+            const token = localStorage.getItem('token');
+            if (!token) {
+                await showError('Error', 'No hay token de autenticación. Por favor, inicia sesión.');
+                setLoading(false);
+                return;
+            }
+
             let url = API_URL;
             if (filtroEstado === 'activas') {
                 url = `${API_URL}/activas`;
@@ -42,14 +49,34 @@ const SesionView: React.FC = () => {
                 url = `${API_URL}/expiradas`;
             }
 
-            const response = await fetch(url);
+            const response = await fetch(url, {
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({ error: 'Error desconocido' }));
+                throw new Error(errorData.error || `Error ${response.status}: ${response.statusText}`);
+            }
+
             const data = await response.json();
             if (data.success) {
                 setSesiones(data.data);
+            } else {
+                throw new Error(data.error || 'Error desconocido');
             }
-        } catch (error) {
+        } catch (error: any) {
             console.error('Error:', error);
-            await showError('Error', 'Error al cargar sesiones');
+            const errorMessage = error.message || 'Error al cargar sesiones';
+            
+            // Verificar si es un error de red
+            if (errorMessage.includes('Failed to fetch') || errorMessage.includes('NetworkError')) {
+                await showError('Error de Conexión', 'No se pudo conectar con el servidor. Verifica que el backend esté corriendo en http://localhost:3001');
+            } else {
+                await showError('Error', errorMessage);
+            }
         } finally {
             setLoading(false);
         }

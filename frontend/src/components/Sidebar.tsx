@@ -78,7 +78,8 @@ const Sidebar: React.FC<SidebarProps> = ({ onNavigate, currentView }) => {
                 { id: 'cargos', label: 'Cargos', icon: '👔', path: 'cargos' },
                 { id: 'tecnicos', label: 'Técnicos', icon: '👷', path: 'tecnicos' },
                 { id: 'trabajadores', label: 'Trabajadores', icon: '👥', path: 'trabajadores' },
-                { id: 'productos-aseo', label: 'Productos de Aseo', icon: '🧼', path: 'productos-aseo' }
+                { id: 'productos-aseo', label: 'Productos de Aseo', icon: '🧼', path: 'productos-aseo' },
+                { id: 'maquinas', label: 'Máquinas', icon: '🔧', path: 'maquinas' }
             ]
         }
     ];
@@ -113,6 +114,26 @@ const Sidebar: React.FC<SidebarProps> = ({ onNavigate, currentView }) => {
                     {isCollapsed ? '☰' : '✕'}
                 </button>
             </div>
+
+            {!isCollapsed && (
+                <div className="sidebar-user">
+                    <span className="user-icon">👤</span>
+                    <span className="user-name">
+                        {(() => {
+                            const userStr = localStorage.getItem('user');
+                            if (userStr) {
+                                try {
+                                    const user = JSON.parse(userStr);
+                                    return user.nombre_completo || user.username || 'Usuario';
+                                } catch {
+                                    return 'Usuario';
+                                }
+                            }
+                            return 'Usuario';
+                        })()}
+                    </span>
+                </div>
+            )}
 
             <div className="sidebar-search">
                 {!isCollapsed && (
@@ -172,25 +193,6 @@ const Sidebar: React.FC<SidebarProps> = ({ onNavigate, currentView }) => {
             </nav>
 
             <div className="sidebar-footer">
-                {!isCollapsed && (
-                    <div className="sidebar-user">
-                        <span className="user-icon">👤</span>
-                        <span className="user-name">
-                            {(() => {
-                                const userStr = localStorage.getItem('user');
-                                if (userStr) {
-                                    try {
-                                        const user = JSON.parse(userStr);
-                                        return user.nombre_completo || user.username || 'Usuario';
-                                    } catch {
-                                        return 'Usuario';
-                                    }
-                                }
-                                return 'Usuario';
-                            })()}
-                        </span>
-                    </div>
-                )}
                 <button
                     className="sidebar-item"
                     onClick={async () => {
