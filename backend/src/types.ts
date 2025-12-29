@@ -777,6 +777,14 @@ export interface ChangePasswordDTO {
 }
 
 /**
+ * DTO para resetear contraseña (administrador)
+ */
+export interface ResetPasswordDTO {
+  password_nueva?: string;
+  generar_temporal?: boolean;
+}
+
+/**
  * Historial de Contraseñas
  * Tabla: tbl_01_historial_contrasena
  */

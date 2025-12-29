@@ -46,6 +46,34 @@ export async function hashPassword(password: string): Promise<string> {
 }
 
 /**
+ * Generar contraseña temporal segura
+ * Formato: 12 caracteres con mayúsculas, minúsculas, dígitos y caracteres especiales
+ */
+export function generarPasswordTemporal(): string {
+  const mayusculas = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+  const minusculas = 'abcdefghijklmnopqrstuvwxyz';
+  const digitos = '0123456789';
+  const especiales = '!@#$%&*';
+  
+  const todos = mayusculas + minusculas + digitos + especiales;
+  
+  // Asegurar al menos 2 de cada tipo
+  let password = '';
+  password += mayusculas[Math.floor(Math.random() * mayusculas.length)];
+  password += minusculas[Math.floor(Math.random() * minusculas.length)];
+  password += digitos[Math.floor(Math.random() * digitos.length)];
+  password += especiales[Math.floor(Math.random() * especiales.length)];
+  
+  // Completar hasta 12 caracteres
+  for (let i = password.length; i < 12; i++) {
+    password += todos[Math.floor(Math.random() * todos.length)];
+  }
+  
+  // Mezclar caracteres
+  return password.split('').sort(() => Math.random() - 0.5).join('');
+}
+
+/**
  * Verificar contraseña
  */
 export async function verifyPassword(password: string, hash: string): Promise<boolean> {

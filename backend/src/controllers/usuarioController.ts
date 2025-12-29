@@ -345,6 +345,131 @@ export const deleteUsuario = async (req: Request, res: Response) => {
 };
 
 /**
+ * @route   POST /api/usuarios/:id/reset-password
+ * @desc    Resetear contraseña de un usuario (solo administradores)
+ * @access  Private (requiere permisos de administrador)
+ */
+export const resetPassword = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { password_nueva, generar_temporal } = req.body;
+
+    // Verificar que el usuario existe
+    const usuarioResult = await pool.query(
+      `SELECT id_usuario_00, username, email FROM tbl_00_usuario WHERE id_usuario_00 = $1`,
+      [id]
+    );
+
+    if (usuarioResult.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Usuario no encontrado'
+      });
+    }
+
+    const usuario = usuarioResult.rows[0];
+    let nuevaPassword: string;
+
+    // Si se solicita generar temporal, crear una contraseña segura
+    if (generar_temporal) {
+      const { generarPasswordTemporal } = await import('../utils/authUtils.js');
+      nuevaPassword = generarPasswordTemporal();
+    } else {
+      // Validar que se proporcionó una contraseña
+      if (!password_nueva) {
+        return res.status(400).json({
+          success: false,
+          error: 'Debe proporcionar una contraseña nueva o solicitar generar una temporal'
+        });
+      }
+
+      // Validar complejidad de la contraseña
+      const { validarComplejidadPassword } = await import('../utils/authUtils.js');
+      const validacion = validarComplejidadPassword(password_nueva);
+      if (!validacion.valido) {
+        return res.status(400).json({
+          success: false,
+          error: validacion.errores.join(', ')
+        });
+      }
+
+      // Verificar reutilización
+      const { verificarReutilizacionPassword } = await import('../utils/authUtils.js');
+      const esReutilizada = await verificarReutilizacionPassword(parseInt(id), password_nueva);
+      if (esReutilizada) {
+        return res.status(400).json({
+          success: false,
+          error: 'No puede reutilizar contraseñas anteriores. Por favor, elija una nueva.'
+        });
+      }
+
+      nuevaPassword = password_nueva;
+    }
+
+    // Hashear nueva contraseña
+    const { hashPassword } = await import('../utils/authUtils.js');
+    const nuevoHash = await hashPassword(nuevaPassword);
+
+    // Obtener contraseña actual para guardarla en historial
+    const passwordActualResult = await pool.query(
+      `SELECT password_hash FROM tbl_00_usuario WHERE id_usuario_00 = $1`,
+      [id]
+    );
+    const passwordActual = passwordActualResult.rows[0].password_hash;
+
+    // Guardar contraseña actual en historial
+    await pool.query(
+      `INSERT INTO tbl_01_historial_contrasena 
+       (id_usuario_01, hashed_password_01, fecha_cambio_01)
+       VALUES ($1, $2, NOW())`,
+      [id, passwordActual]
+    );
+
+    // Calcular nueva fecha de expiración
+    const { obtenerParametroNumero } = await import('../utils/parametrosUtils.js');
+    const diasExpiracion = await obtenerParametroNumero('PASSWORD_EXPIRATION_DAYS', 91);
+    const nuevaFechaExpiracion = new Date();
+    nuevaFechaExpiracion.setDate(nuevaFechaExpiracion.getDate() + diasExpiracion);
+
+    // Actualizar contraseña del usuario
+    await pool.query(
+      `UPDATE tbl_00_usuario 
+       SET password_hash = $1, 
+           last_password_change_at = NOW(),
+           password_expires_at = $2
+       WHERE id_usuario_00 = $3`,
+      [nuevoHash, nuevaFechaExpiracion, parseInt(id)]
+    );
+
+    // Invalidar todas las sesiones activas del usuario
+    await pool.query(
+      `UPDATE tbl_03_sesion 
+       SET fecha_expiracion_03 = NOW() - INTERVAL '1 day'
+       WHERE id_usuario_03 = $1 AND fecha_expiracion_03 > NOW()`,
+      [id]
+    );
+
+    res.json({
+      success: true,
+      message: 'Contraseña reseteada exitosamente',
+      data: {
+        password_temporal: generar_temporal ? nuevaPassword : undefined,
+        username: usuario.username,
+        email: usuario.email,
+        requiere_cambio: true
+      }
+    });
+  } catch (error: any) {
+    console.error('Error al resetear contraseña:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Error al resetear contraseña',
+      details: error.message
+    });
+  }
+};
+
+/**
  * @route   GET /api/usuarios/:id/historial-contrasenas
  * @desc    Obtener historial de contraseñas de un usuario
  * @access  Private

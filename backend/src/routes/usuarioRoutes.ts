@@ -5,6 +5,7 @@ import {
   createUsuario,
   updateUsuario,
   deleteUsuario,
+  resetPassword,
   getHistorialContrasenas,
   getIntentosLogin,
   getSesionesUsuario
@@ -53,6 +54,13 @@ router.get('/:id/sesiones', getSesionesUsuario);
  * @access  Private
  */
 router.post('/', createUsuario);
+
+/**
+ * @route   POST /api/usuarios/:id/reset-password
+ * @desc    Resetear contraseña de un usuario (solo administradores)
+ * @access  Private
+ */
+router.post('/:id/reset-password', resetPassword);
 
 /**
  * @route   PUT /api/usuarios/:id

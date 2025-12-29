@@ -89,10 +89,19 @@ const UsuarioView: React.FC = () => {
   const [showHistorial, setShowHistorial] = useState<boolean>(false);
   const [showIntentos, setShowIntentos] = useState<boolean>(false);
   const [showSesiones, setShowSesiones] = useState<boolean>(false);
+  const [showResetPassword, setShowResetPassword] = useState<boolean>(false);
   const [usuarioSeleccionado, setUsuarioSeleccionado] = useState<number | null>(null);
   const [historialData, setHistorialData] = useState<HistorialContrasena[]>([]);
   const [intentosData, setIntentosData] = useState<IntentoLogin[]>([]);
   const [sesionesData, setSesionesData] = useState<Sesion[]>([]);
+  
+  // Estado para reseteo de contraseña
+  const [resetPasswordMode, setResetPasswordMode] = useState<'temporal' | 'manual'>('temporal');
+  const [nuevaPassword, setNuevaPassword] = useState<string>('');
+  const [passwordTemporal, setPasswordTemporal] = useState<string>('');
+  const [resetLoading, setResetLoading] = useState<boolean>(false);
+  const [showPasswordTemporal, setShowPasswordTemporal] = useState<boolean>(false);
+  const [showPasswordManual, setShowPasswordManual] = useState<boolean>(false);
 
   // Búsqueda y filtros
   const [searchTerm, setSearchTerm] = useState<string>('');
@@ -335,6 +344,91 @@ const UsuarioView: React.FC = () => {
     setIdNivel('');
     setEditingId(null);
     setShowForm(false);
+  };
+
+  const handleResetPassword = async () => {
+    if (!usuarioSeleccionado) return;
+
+    if (resetPasswordMode === 'manual' && !nuevaPassword) {
+      showToast('Debe ingresar una contraseña nueva', 'error');
+      return;
+    }
+
+    if (resetPasswordMode === 'manual') {
+      const tieneMinusculas = /[a-z]/.test(nuevaPassword);
+      const tieneMayusculas = /[A-Z]/.test(nuevaPassword);
+      const tieneDigitos = /\d/.test(nuevaPassword);
+      const tieneEspeciales = /[!@#$%&*()/\][:";><?,.]/.test(nuevaPassword);
+      
+      let controlesCumplidos = 0;
+      if (tieneMinusculas && tieneMayusculas) controlesCumplidos++;
+      if (tieneDigitos) controlesCumplidos++;
+      if (tieneEspeciales) controlesCumplidos++;
+
+      if (nuevaPassword.length < 8) {
+        showToast('La contraseña debe tener al menos 8 caracteres', 'error');
+        return;
+      }
+
+      if (controlesCumplidos < 2) {
+        showToast('La contraseña debe cumplir al menos 2 de: mayúsculas y minúsculas, dígitos, caracteres especiales', 'error');
+        return;
+      }
+    }
+
+    try {
+      setResetLoading(true);
+      setError('');
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${API_URL}/${usuarioSeleccionado}/reset-password`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          password_nueva: resetPasswordMode === 'manual' ? nuevaPassword : undefined,
+          generar_temporal: resetPasswordMode === 'temporal'
+        })
+      });
+
+      const data: ApiResponse = await response.json();
+
+      if (data.success) {
+        if (data.data?.password_temporal) {
+          setPasswordTemporal(data.data.password_temporal);
+        }
+        await fetchUsuarios();
+        showToast('Contraseña reseteada exitosamente', 'success');
+        if (!data.data?.password_temporal) {
+          handleCloseResetPassword();
+        }
+      } else {
+        showToast(data.error || 'Error al resetear contraseña', 'error');
+      }
+    } catch (err) {
+      showToast('Error al resetear contraseña', 'error');
+    } finally {
+      setResetLoading(false);
+    }
+  };
+
+  const handleOpenResetPassword = (id: number) => {
+    setUsuarioSeleccionado(id);
+    setShowResetPassword(true);
+    setResetPasswordMode('temporal');
+    setNuevaPassword('');
+    setPasswordTemporal('');
+  };
+
+  const handleCloseResetPassword = () => {
+    setShowResetPassword(false);
+    setUsuarioSeleccionado(null);
+    setResetPasswordMode('temporal');
+    setNuevaPassword('');
+    setPasswordTemporal('');
+    setShowPasswordTemporal(false);
+    setShowPasswordManual(false);
   };
 
   const handleVerHistorial = async (id: number) => {
@@ -666,10 +760,10 @@ const UsuarioView: React.FC = () => {
                           ✏️
                         </button>
                         <button
-                          onClick={() => window.location.hash = `usuario-permisos`}
-                          title="Permisos"
+                          onClick={() => handleOpenResetPassword(usuario.id_usuario_00)}
+                          title="Resetear Contraseña"
                           style={{ 
-                            background: '#3B82F6', 
+                            background: '#10B981', 
                             color: 'white', 
                             border: 'none', 
                             padding: '6px 10px', 
@@ -889,6 +983,218 @@ const UsuarioView: React.FC = () => {
             <button className="btn-secondary" onClick={() => setShowSesiones(false)} style={{ marginTop: '1rem' }}>
               Cerrar
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Reseteo de Contraseña */}
+      {showResetPassword && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(0,0,0,0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000
+        }}>
+          <div style={{
+            background: 'white',
+            padding: '2rem',
+            borderRadius: '10px',
+            maxWidth: '500px',
+            width: '90%'
+          }}>
+            <h3 style={{ marginTop: 0 }}>🔑 Resetear Contraseña</h3>
+            
+            {passwordTemporal ? (
+              <div>
+                <div style={{ 
+                  background: '#F0FDF4', 
+                  border: '2px solid #10B981', 
+                  borderRadius: '8px', 
+                  padding: '1rem', 
+                  marginBottom: '1rem' 
+                }}>
+                  <p style={{ margin: '0 0 0.5rem 0', fontWeight: 'bold', color: '#065F46' }}>
+                    ✅ Contraseña temporal generada exitosamente
+                  </p>
+                  <p style={{ margin: '0 0 0.5rem 0', fontSize: '0.9em', color: '#047857' }}>
+                    Copia esta contraseña y entrégala al usuario de forma segura:
+                  </p>
+                  <div style={{
+                    position: 'relative',
+                    display: 'flex',
+                    alignItems: 'center',
+                    background: 'white',
+                    border: '1px solid #10B981',
+                    borderRadius: '4px',
+                    padding: '0.75rem',
+                  }}>
+                    <input
+                      type={showPasswordTemporal ? 'text' : 'password'}
+                      value={passwordTemporal}
+                      readOnly
+                      style={{
+                        flex: 1,
+                        border: 'none',
+                        outline: 'none',
+                        fontFamily: 'monospace',
+                        fontSize: '1.1em',
+                        fontWeight: 'bold',
+                        textAlign: 'center',
+                        color: '#065F46',
+                        background: 'transparent',
+                        padding: 0,
+                        margin: 0,
+                        userSelect: 'all',
+                        cursor: 'text'
+                      }}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPasswordTemporal(!showPasswordTemporal)}
+                      style={{
+                        background: 'transparent',
+                        border: 'none',
+                        cursor: 'pointer',
+                        padding: '0.25rem 0.5rem',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        color: '#065F46',
+                        fontSize: '1.2em',
+                        transition: 'opacity 0.2s'
+                      }}
+                      title={showPasswordTemporal ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+                      onMouseEnter={(e) => e.currentTarget.style.opacity = '0.7'}
+                      onMouseLeave={(e) => e.currentTarget.style.opacity = '1'}
+                    >
+                      {showPasswordTemporal ? '👁️' : '👁️‍🗨️'}
+                    </button>
+                  </div>
+                  <p style={{ margin: '0.5rem 0 0 0', fontSize: '0.85em', color: '#6B7280' }}>
+                    ⚠️ Esta contraseña solo se mostrará una vez. El usuario deberá cambiarla en su próximo inicio de sesión.
+                  </p>
+                </div>
+                <button 
+                  className="btn-primary" 
+                  onClick={handleCloseResetPassword}
+                  style={{ width: '100%' }}
+                >
+                  Cerrar
+                </button>
+              </div>
+            ) : (
+              <>
+                <div style={{ marginBottom: '1rem' }}>
+                  <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 'bold' }}>
+                    Modo de reseteo:
+                  </label>
+                  <div style={{ display: 'flex', gap: '1rem' }}>
+                    <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
+                      <input
+                        type="radio"
+                        checked={resetPasswordMode === 'temporal'}
+                        onChange={() => setResetPasswordMode('temporal')}
+                        style={{ marginRight: '0.5rem' }}
+                      />
+                      Generar contraseña temporal
+                    </label>
+                    <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
+                      <input
+                        type="radio"
+                        checked={resetPasswordMode === 'manual'}
+                        onChange={() => setResetPasswordMode('manual')}
+                        style={{ marginRight: '0.5rem' }}
+                      />
+                      Asignar contraseña manual
+                    </label>
+                  </div>
+                </div>
+
+                {resetPasswordMode === 'manual' && (
+                  <div className="form-group" style={{ marginBottom: '1rem' }}>
+                    <label>Nueva Contraseña *</label>
+                    <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                      <input
+                        type={showPasswordManual ? 'text' : 'password'}
+                        value={nuevaPassword}
+                        onChange={(e) => setNuevaPassword(e.target.value)}
+                        placeholder="Mínimo 8 caracteres"
+                        style={{ 
+                          width: '100%', 
+                          padding: '8px 40px 8px 12px', 
+                          borderRadius: '4px', 
+                          border: '1px solid #ced4da',
+                          fontFamily: showPasswordManual ? 'monospace' : 'inherit'
+                        }}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPasswordManual(!showPasswordManual)}
+                        style={{
+                          position: 'absolute',
+                          right: '8px',
+                          background: 'transparent',
+                          border: 'none',
+                          cursor: 'pointer',
+                          padding: '0.25rem 0.5rem',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          color: '#6c757d',
+                          fontSize: '1.2em',
+                          transition: 'opacity 0.2s'
+                        }}
+                        title={showPasswordManual ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+                        onMouseEnter={(e) => e.currentTarget.style.opacity = '0.7'}
+                        onMouseLeave={(e) => e.currentTarget.style.opacity = '1'}
+                      >
+                        {showPasswordManual ? '👁️' : '👁️‍🗨️'}
+                      </button>
+                    </div>
+                    <small style={{ color: '#6c757d', fontSize: '0.85em', display: 'block', marginTop: '5px' }}>
+                      La contraseña debe cumplir: mínimo 8 caracteres y al menos 2 de: mayúsculas/minúsculas, dígitos, caracteres especiales
+                    </small>
+                  </div>
+                )}
+
+                {resetPasswordMode === 'temporal' && (
+                  <div style={{ 
+                    background: '#FEF3C7', 
+                    border: '1px solid #F59E0B', 
+                    borderRadius: '4px', 
+                    padding: '0.75rem', 
+                    marginBottom: '1rem' 
+                  }}>
+                    <p style={{ margin: 0, fontSize: '0.9em', color: '#92400E' }}>
+                      ℹ️ Se generará una contraseña temporal segura de 12 caracteres. Deberás copiarla y entregarla al usuario de forma segura.
+                    </p>
+                  </div>
+                )}
+
+                <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
+                  <button 
+                    className="btn-secondary" 
+                    onClick={handleCloseResetPassword}
+                    disabled={resetLoading}
+                  >
+                    Cancelar
+                  </button>
+                  <button 
+                    className="btn-primary" 
+                    onClick={handleResetPassword}
+                    disabled={resetLoading}
+                  >
+                    {resetLoading ? 'Reseteando...' : 'Resetear Contraseña'}
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}
