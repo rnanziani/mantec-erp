@@ -48,7 +48,21 @@ export const useSessionMonitor = (enabled: boolean = true) => {
 
       const data = await response.json();
       if (data.success) {
-        setSessionStatus(data.data);
+        // Calcular segundos totales restantes (minutos * 60 + segundos)
+        const segundosTotales = (data.data.minutosRestantes * 60) + data.data.segundosRestantes;
+        const newStatus = {
+          ...data.data,
+          segundosRestantes: segundosTotales
+        };
+        setSessionStatus(newStatus);
+        console.log('📊 Estado de sesión actualizado:', {
+          minutosRestantes: data.data.minutosRestantes,
+          segundosParciales: data.data.segundosRestantes,
+          segundosTotales,
+          debeAdvertir: data.data.debeAdvertir,
+          sessionExpired: data.data.sessionExpired,
+          mostrarModalEn: segundosTotales > 60 ? `En ${segundosTotales - 60} segundos` : 'AHORA'
+        });
         setError(null);
       } else {
         throw new Error(data.error || 'Error desconocido');
@@ -64,16 +78,64 @@ export const useSessionMonitor = (enabled: boolean = true) => {
   useEffect(() => {
     if (!enabled) return;
 
+    let interval: ReturnType<typeof setInterval> | null = null;
+
     // Verificar inmediatamente
     checkSessionStatus();
 
-    // Verificar cada 30 segundos
-    const interval = setInterval(() => {
-      checkSessionStatus();
-    }, 30000); // 30 segundos
+    const setupCheck = () => {
+      // Limpiar intervalo anterior si existe
+      if (interval) {
+        clearInterval(interval);
+        interval = null;
+      }
 
-    return () => clearInterval(interval);
-  }, [enabled, checkSessionStatus]);
+      // Determinar intervalo basado en el estado actual
+      const currentStatus = sessionStatus;
+      
+      if (!currentStatus || currentStatus.sessionExpired) {
+        // Sin estado o expirado: verificar cada 10 segundos
+        interval = setInterval(() => {
+          checkSessionStatus();
+        }, 10000);
+      } else if (currentStatus.segundosRestantes !== undefined) {
+        if (currentStatus.segundosRestantes <= 60) {
+          // Cerca de expirar (60 segundos o menos): verificar cada segundo
+          console.log('⏱️ Configurando intervalo de 1 segundo. Segundos restantes:', currentStatus.segundosRestantes);
+          interval = setInterval(() => {
+            checkSessionStatus();
+          }, 1000);
+        } else if (currentStatus.segundosRestantes <= 300) {
+          // Menos de 5 minutos: verificar cada 3 segundos (más frecuente para sesiones cortas)
+          console.log('⏱️ Configurando intervalo de 3 segundos. Segundos restantes:', currentStatus.segundosRestantes);
+          interval = setInterval(() => {
+            checkSessionStatus();
+          }, 3000);
+        } else {
+          // Sesión larga: verificar cada 10 segundos
+          interval = setInterval(() => {
+            checkSessionStatus();
+          }, 10000);
+        }
+      }
+    };
+
+    // Configurar intervalo inicial después de un pequeño delay para tener el estado
+    const initialTimeout = setTimeout(() => {
+      setupCheck();
+    }, 1000);
+
+    // También configurar un intervalo que se ajuste dinámicamente cada 2 segundos
+    const adjustInterval = setInterval(() => {
+      setupCheck();
+    }, 2000);
+
+    return () => {
+      if (interval) clearInterval(interval);
+      clearInterval(adjustInterval);
+      clearTimeout(initialTimeout);
+    };
+  }, [enabled, checkSessionStatus, sessionStatus?.segundosRestantes, sessionStatus?.sessionExpired]);
 
   return {
     sessionStatus,

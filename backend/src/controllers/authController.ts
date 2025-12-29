@@ -375,7 +375,7 @@ export const getMe = async (req: Request, res: Response) => {
     await pool.query(
       `UPDATE tbl_03_sesion 
        SET fecha_expiracion_03 = $1 
-       WHERE token_sesion_03 = $2 AND activa_03 = TRUE`,
+       WHERE token_sesion_03 = $2 AND fecha_expiracion_03 > NOW()`,
       [nuevaFechaExpiracion, token]
     );
 
@@ -421,6 +421,115 @@ export const getMe = async (req: Request, res: Response) => {
 };
 
 /**
+ * @route   GET /api/auth/permissions
+ * @desc    Obtener permisos del usuario actual basados en su nivel
+ * @access  Private
+ */
+export const getMyPermissions = async (req: Request, res: Response) => {
+  try {
+    const token = req.headers.authorization?.replace('Bearer ', '');
+    if (!token) {
+      return res.status(401).json({
+        success: false,
+        error: 'Token de autenticación requerido'
+      });
+    }
+
+    const decoded = verificarToken(token);
+    if (!decoded) {
+      return res.status(401).json({
+        success: false,
+        error: 'Token inválido o expirado'
+      });
+    }
+
+    // Obtener el usuario y su nivel
+    const usuarioResult = await pool.query(
+      `SELECT id_usuario_00, id_nivel_04 
+       FROM tbl_00_usuario 
+       WHERE id_usuario_00 = $1`,
+      [decoded.id]
+    );
+
+    if (usuarioResult.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Usuario no encontrado'
+      });
+    }
+
+    const usuario = usuarioResult.rows[0];
+    const idNivel = usuario.id_nivel_04;
+    const idUsuario = usuario.id_usuario_00;
+
+    // Obtener los permisos del usuario: combinación de permisos del nivel + permisos directos
+    // Si el usuario no tiene nivel, solo se obtienen los permisos directos
+    let permisosResult;
+    
+    if (idNivel) {
+      // Usuario con nivel: permisos del nivel + permisos directos
+      permisosResult = await pool.query(
+        `SELECT DISTINCT
+          p.id_permiso_05,
+          p.nombre_permiso_05,
+          p.descripcion_05,
+          p.orden_05,
+          COALESCE(p.orden_05, 9999) AS orden_para_sort
+         FROM tbl_05_permiso p
+         WHERE p.id_permiso_05 IN (
+           -- Permisos del nivel del usuario
+           SELECT np.id_permiso_05
+           FROM tbl_050_nivel_permiso np
+           WHERE np.id_nivel_04 = $1
+           
+           UNION
+           
+           -- Permisos directos del usuario
+           SELECT up.id_permiso_000
+           FROM tbl_000_usuario_permiso up
+           WHERE up.id_usuario_000 = $2
+         )
+         ORDER BY orden_para_sort ASC, p.nombre_permiso_05 ASC`,
+        [idNivel, idUsuario]
+      );
+    } else {
+      // Usuario sin nivel: solo permisos directos
+      permisosResult = await pool.query(
+        `SELECT DISTINCT
+          p.id_permiso_05,
+          p.nombre_permiso_05,
+          p.descripcion_05,
+          p.orden_05,
+          COALESCE(p.orden_05, 9999) AS orden_para_sort
+         FROM tbl_05_permiso p
+         INNER JOIN tbl_000_usuario_permiso up ON p.id_permiso_05 = up.id_permiso_000
+         WHERE up.id_usuario_000 = $1
+         ORDER BY orden_para_sort ASC, p.nombre_permiso_05 ASC`,
+        [idUsuario]
+      );
+    }
+
+    const permissions = permisosResult.rows;
+    const permissionNames = permissions.map((p: any) => p.nombre_permiso_05);
+
+    res.json({
+      success: true,
+      data: {
+        permissions,
+        permissionNames
+      }
+    });
+  } catch (error: any) {
+    console.error('Error en getMyPermissions:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Error al obtener permisos del usuario',
+      details: error.message
+    });
+  }
+};
+
+/**
  * @route   GET /api/auth/session-status
  * @desc    Obtener estado de la sesión actual (tiempo restante)
  * @access  Private
@@ -448,7 +557,7 @@ export const getSessionStatus = async (req: Request, res: Response) => {
     const sesionResult = await pool.query(
       `SELECT fecha_expiracion_03, fecha_creacion_03
        FROM tbl_03_sesion 
-       WHERE token_sesion_03 = $1 AND activa_03 = TRUE
+       WHERE token_sesion_03 = $1 AND fecha_expiracion_03 > NOW()
        ORDER BY fecha_creacion_03 DESC
        LIMIT 1`,
       [token]
@@ -472,8 +581,12 @@ export const getSessionStatus = async (req: Request, res: Response) => {
     // Obtener parámetro de minutos de advertencia
     const { obtenerParametroNumero } = await import('../utils/parametrosUtils.js');
     const minutosAdvertencia = await obtenerParametroNumero('SESSION_WARNING_MINUTES', 5);
-
-    const debeAdvertir = minutosRestantes <= minutosAdvertencia && minutosRestantes > 0;
+    
+    // Calcular segundos totales restantes
+    const segundosTotalesRestantes = minutosRestantes * 60 + segundosRestantes;
+    
+    // Advertir si quedan menos minutos que el parámetro, O si quedan 60 segundos o menos (siempre)
+    const debeAdvertir = (minutosRestantes <= minutosAdvertencia && minutosRestantes > 0) || segundosTotalesRestantes <= 60;
 
     res.json({
       success: true,
@@ -529,7 +642,7 @@ export const extendSession = async (req: Request, res: Response) => {
     const result = await pool.query(
       `UPDATE tbl_03_sesion 
        SET fecha_expiracion_03 = $1 
-       WHERE token_sesion_03 = $2 AND activa_03 = TRUE
+       WHERE token_sesion_03 = $2 AND fecha_expiracion_03 > NOW()
        RETURNING fecha_expiracion_03`,
       [nuevaFechaExpiracion, token]
     );

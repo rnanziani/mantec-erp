@@ -1,4 +1,4 @@
-.session-warning-overlay {
+.session-expired-overlay {
   position: fixed;
   top: 0;
   left: 0;
@@ -8,11 +8,11 @@
   display: flex;
   justify-content: center;
   align-items: center;
-  z-index: 10000;
+  z-index: 10001;
   backdrop-filter: blur(4px);
 }
 
-.session-warning-modal {
+.session-expired-modal {
   background-color: white;
   border-radius: 12px;
   padding: 40px;
@@ -34,58 +34,58 @@
   }
 }
 
-.session-warning-icon-container {
+.session-expired-icon-container {
   margin-bottom: 30px;
   display: flex;
   justify-content: center;
 }
 
-.session-warning-icon-orange {
+.session-expired-icon-blue {
   width: 80px;
   height: 80px;
   border-radius: 50%;
-  background-color: #ff6b35;
+  background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 4px 12px rgba(255, 107, 53, 0.3);
+  box-shadow: 0 4px 12px rgba(0, 123, 255, 0.3);
 }
 
-.session-warning-exclamation {
+.session-expired-info {
   font-size: 48px;
   font-weight: bold;
   color: white;
   font-family: Arial, sans-serif;
+  font-style: italic;
 }
 
-.session-warning-message {
+.session-expired-message {
   margin-bottom: 40px;
 }
 
-.session-warning-message h2 {
+.session-expired-message h2 {
   font-size: 24px;
   font-weight: 600;
-  color: #8b4513;
-  margin: 0 0 15px 0;
+  color: #007bff;
+  margin: 0 0 20px 0;
   font-family: Arial, sans-serif;
 }
 
-.session-warning-countdown {
+.session-expired-message p {
   font-size: 16px;
-  color: #6c757d;
-  margin: 0;
-  font-weight: 400;
+  color: #495057;
+  margin: 10px 0;
+  line-height: 1.5;
+  font-family: Arial, sans-serif;
 }
 
-.session-warning-actions {
+.session-expired-actions {
   display: flex;
-  gap: 15px;
   justify-content: center;
 }
 
-.session-warning-btn-logout,
-.session-warning-btn-reactivate {
-  padding: 12px 30px;
+.session-expired-btn-relogin {
+  padding: 12px 40px;
   border: none;
   border-radius: 6px;
   font-size: 14px;
@@ -94,26 +94,15 @@
   transition: all 0.3s ease;
   text-transform: uppercase;
   font-family: Arial, sans-serif;
-}
-
-.session-warning-btn-logout {
-  background-color: white;
-  border: 1px solid #dee2e6;
-  color: #495057;
-}
-
-.session-warning-btn-logout:hover {
-  background-color: #f8f9fa;
-  border-color: #adb5bd;
-}
-
-.session-warning-btn-reactivate {
-  background-color: #007bff;
+  background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
   color: white;
-}
-
-.session-warning-btn-reactivate:hover {
-  background-color: #0056b3;
-  transform: translateY(-1px);
   box-shadow: 0 4px 8px rgba(0, 123, 255, 0.3);
 }
+
+.session-expired-btn-relogin:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 12px rgba(0, 123, 255, 0.4);
+  background: linear-gradient(135deg, #0056b3 0%, #004085 100%);
+}
+
+

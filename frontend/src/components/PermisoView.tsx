@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { showSuccess, showError, showDeleteConfirm } from '../utils/swal';
+import Pagination from './shared/Pagination';
 import './BodegaView.css';
 
 interface Permiso {
     id_permiso_05: number;
     nombre_permiso_05: string;
     descripcion_05: string | null;
+    orden_05: number | null;
 }
 
 const PermisoView: React.FC = () => {
@@ -15,10 +17,15 @@ const PermisoView: React.FC = () => {
     const [editingId, setEditingId] = useState<number | null>(null);
     const [nombrePermiso, setNombrePermiso] = useState('');
     const [descripcion, setDescripcion] = useState('');
+    const [orden, setOrden] = useState<number>(0);
 
     // Estados para búsqueda y ordenamiento
     const [filtro, setFiltro] = useState('');
     const [sortConfig, setSortConfig] = useState<{ key: keyof Permiso; direction: 'asc' | 'desc' } | null>(null);
+    
+    // Estados para paginación
+    const [currentPage, setCurrentPage] = useState<number>(1);
+    const [itemsPerPage] = useState<number>(10);
 
     const API_URL = 'http://localhost:3001/api/permisos';
 
@@ -55,7 +62,8 @@ const PermisoView: React.FC = () => {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     nombre_permiso_05: nombrePermiso,
-                    descripcion_05: descripcion || null
+                    descripcion_05: descripcion || null,
+                    orden_05: orden
                 })
             });
 
@@ -101,12 +109,14 @@ const PermisoView: React.FC = () => {
         setEditingId(permiso.id_permiso_05);
         setNombrePermiso(permiso.nombre_permiso_05);
         setDescripcion(permiso.descripcion_05 || '');
+        setOrden(permiso.orden_05 ?? 0);
         setShowForm(true);
     };
 
     const resetForm = () => {
         setNombrePermiso('');
         setDescripcion('');
+        setOrden(0);
         setEditingId(null);
         setShowForm(false);
     };
@@ -120,11 +130,6 @@ const PermisoView: React.FC = () => {
         setSortConfig({ key, direction });
     };
 
-    const getSortIndicator = (key: keyof Permiso) => {
-        if (!sortConfig || sortConfig.key !== key) return '↕️';
-        return sortConfig.direction === 'asc' ? '↑' : '↓';
-    };
-
     // Lógica de Filtrado y Ordenamiento Combinada
     const processedPermisos = React.useMemo(() => {
         let data = [...permisos];
@@ -135,7 +140,8 @@ const PermisoView: React.FC = () => {
             data = data.filter(p =>
                 p.nombre_permiso_05.toLowerCase().includes(lowerFiltro) ||
                 (p.descripcion_05 && p.descripcion_05.toLowerCase().includes(lowerFiltro)) ||
-                p.id_permiso_05.toString().includes(lowerFiltro)
+                p.id_permiso_05.toString().includes(lowerFiltro) ||
+                (p.orden_05 !== null && p.orden_05.toString().includes(lowerFiltro))
             );
         }
 
@@ -145,6 +151,7 @@ const PermisoView: React.FC = () => {
                 const aValue = a[sortConfig.key];
                 const bValue = b[sortConfig.key];
                 
+                // Manejar valores null/undefined
                 if (aValue === null || aValue === undefined) return 1;
                 if (bValue === null || bValue === undefined) return -1;
                 
@@ -156,10 +163,34 @@ const PermisoView: React.FC = () => {
                 }
                 return 0;
             });
+        } else {
+            // Orden por defecto: por orden_05, luego por nombre
+            data.sort((a, b) => {
+                const aOrden = a.orden_05 ?? 9999;
+                const bOrden = b.orden_05 ?? 9999;
+                
+                if (aOrden !== bOrden) {
+                    return aOrden - bOrden;
+                }
+                return a.nombre_permiso_05.localeCompare(b.nombre_permiso_05);
+            });
         }
 
         return data;
     }, [permisos, filtro, sortConfig]);
+
+    // Paginación: calcular items a mostrar
+    const paginatedPermisos = React.useMemo(() => {
+        const startIndex = (currentPage - 1) * itemsPerPage;
+        return processedPermisos.slice(startIndex, startIndex + itemsPerPage);
+    }, [processedPermisos, currentPage, itemsPerPage]);
+
+    const totalPages = Math.ceil(processedPermisos.length / itemsPerPage);
+
+    // Resetear a página 1 cuando cambia el filtro
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [filtro]);
 
     return (
         <div className="bodega-view">
@@ -197,6 +228,20 @@ const PermisoView: React.FC = () => {
                                 rows={4}
                                 style={{ width: '100%', padding: '8px 12px', borderRadius: '4px', border: '1px solid #ced4da', fontFamily: 'inherit', resize: 'vertical' }}
                             />
+                        </div>
+                        <div className="form-group">
+                            <label>Orden</label>
+                            <input
+                                type="number"
+                                value={orden}
+                                onChange={(e) => setOrden(parseInt(e.target.value) || 0)}
+                                placeholder="Orden de visualización (ej: 1000, 2000, 3000...)"
+                                min="0"
+                                style={{ width: '100%', padding: '8px 12px', borderRadius: '4px', border: '1px solid #ced4da' }}
+                            />
+                            <small style={{ color: '#6c757d', fontSize: '0.85em', display: 'block', marginTop: '5px' }}>
+                                💡 Tip: Usa rangos para agrupar permisos (1000-1999: Dashboard, 2000-2999: Nivel de Acceso, etc.)
+                            </small>
                         </div>
                         <div className="form-actions">
                             <button type="submit" className="btn-primary" disabled={loading}>
@@ -243,20 +288,34 @@ const PermisoView: React.FC = () => {
                             >
                                 Descripción
                             </th>
+                            <th 
+                                onClick={() => handleSort('orden_05')} 
+                                className={`sortable ${sortConfig && sortConfig.key === 'orden_05' ? (sortConfig.direction === 'asc' ? 'sort-asc' : 'sort-desc') : ''}`}
+                            >
+                                Orden
+                            </th>
                             <th>Acciones</th>
                         </tr>
                     </thead>
                     <tbody>
                         {loading && permisos.length === 0 ? (
-                            <tr><td colSpan={4}>Cargando...</td></tr>
+                            <tr><td colSpan={5}>Cargando...</td></tr>
                         ) : processedPermisos.length === 0 ? (
-                            <tr><td colSpan={4}>No hay permisos registrados</td></tr>
+                            <tr><td colSpan={5}>No hay permisos registrados</td></tr>
                         ) : (
-                            processedPermisos.map((permiso) => (
+                            paginatedPermisos.map((permiso) => (
                                 <tr key={permiso.id_permiso_05}>
                                     <td>{permiso.id_permiso_05}</td>
                                     <td><strong>{permiso.nombre_permiso_05}</strong></td>
                                     <td>{permiso.descripcion_05 || <span style={{ color: '#999', fontStyle: 'italic' }}>Sin descripción</span>}</td>
+                                    <td>
+                                        <span style={{ 
+                                            fontWeight: permiso.orden_05 && permiso.orden_05 > 0 ? 'bold' : 'normal',
+                                            color: permiso.orden_05 && permiso.orden_05 > 0 ? '#495057' : '#999'
+                                        }}>
+                                            {permiso.orden_05 !== null && permiso.orden_05 !== undefined ? permiso.orden_05 : <span style={{ fontStyle: 'italic' }}>0</span>}
+                                        </span>
+                                    </td>
                                     <td className="actions">
                                         <button
                                             className="btn-edit"
@@ -279,6 +338,17 @@ const PermisoView: React.FC = () => {
                     </tbody>
                 </table>
             </div>
+
+            {/* Paginación */}
+            {processedPermisos.length > 0 && (
+                <Pagination
+                    currentPage={currentPage}
+                    totalPages={totalPages}
+                    totalItems={processedPermisos.length}
+                    itemsPerPage={itemsPerPage}
+                    onPageChange={setCurrentPage}
+                />
+            )}
         </div>
     );
 };

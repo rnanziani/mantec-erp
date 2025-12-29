@@ -704,41 +704,41 @@ const AsignacionProductosAseoView: React.FC = () => {
             </div>
 
             <div className="form-group">
-              <label>Seleccionar Máquina *</label>
-              <div style={{ 
-                maxHeight: '150px', 
-                overflowY: 'auto', 
-                border: '1px solid #ced4da', 
-                borderRadius: '4px',
-                padding: '10px'
-              }}>
-                {maquinasFiltradas.length > 0 ? (
-                  maquinasFiltradas.map(maq => (
-                    <div
-                      key={maq.idmaquina_11}
-                      onClick={() => setMaquinaSeleccionada(maq)}
-                      style={{
-                        padding: '8px',
-                        cursor: 'pointer',
-                        backgroundColor: maquinaSeleccionada?.idmaquina_11 === maq.idmaquina_11 ? '#007bff' : 'transparent',
-                        color: maquinaSeleccionada?.idmaquina_11 === maq.idmaquina_11 ? 'white' : 'black',
-                        marginBottom: '5px',
-                        borderRadius: '4px',
-                        border: maquinaSeleccionada?.idmaquina_11 === maq.idmaquina_11 ? '2px solid #0056b3' : '1px solid #ced4da'
-                      }}
-                    >
-                      <strong>{maq.ppu_11 || 'N/A'}</strong> - {maq.numinterno_11 || 'N/A'} {maq.descripcion_11 ? `(${maq.descripcion_11})` : ''}
-                    </div>
-                  ))
-                ) : (
-                  <div style={{ 
-                    textAlign: 'center', 
-                    color: '#6c757d', 
-                    padding: '10px' 
-                  }}>
-                    {maquinas.length === 0 ? 'Cargando máquinas...' : 'No se encontraron máquinas con ese criterio'}
+            <label>Seleccionar Máquina *</label>
+            <div style={{ 
+              maxHeight: '150px', 
+              overflowY: 'auto', 
+              border: '1px solid #ced4da', 
+              borderRadius: '4px',
+              padding: '10px'
+            }}>
+              {maquinasFiltradas.length > 0 ? (
+                maquinasFiltradas.map(maq => (
+                  <div
+                    key={maq.idmaquina_11}
+                    onClick={() => setMaquinaSeleccionada(maq)}
+                    style={{
+                      padding: '8px',
+                      cursor: 'pointer',
+                      backgroundColor: maquinaSeleccionada?.idmaquina_11 === maq.idmaquina_11 ? '#007bff' : 'transparent',
+                      color: maquinaSeleccionada?.idmaquina_11 === maq.idmaquina_11 ? 'white' : 'black',
+                      marginBottom: '5px',
+                      borderRadius: '4px',
+                      border: maquinaSeleccionada?.idmaquina_11 === maq.idmaquina_11 ? '2px solid #0056b3' : '1px solid #ced4da'
+                    }}
+                  >
+                    <strong>{maq.ppu_11 || 'N/A'}</strong> - {maq.numinterno_11 || 'N/A'} {maq.descripcion_11 ? `(${maq.descripcion_11})` : ''}
                   </div>
-                )}
+                ))
+              ) : (
+                <div style={{ 
+                  textAlign: 'center', 
+                  color: '#6c757d', 
+                  padding: '10px' 
+                }}>
+                  {maquinas.length === 0 ? 'Cargando máquinas...' : 'No se encontraron máquinas con ese criterio'}
+                </div>
+              )}
               </div>
             </div>
           </div>
@@ -760,41 +760,41 @@ const AsignacionProductosAseoView: React.FC = () => {
             </div>
 
             <div className="form-group">
-              <label>Seleccionar Trabajador *</label>
-              <div style={{ 
-                maxHeight: '150px', 
-                overflowY: 'auto', 
-                border: '1px solid #ced4da', 
-                borderRadius: '4px',
-                padding: '10px'
-              }}>
-                {trabajadoresFiltrados.length > 0 ? (
-                  trabajadoresFiltrados.map(trab => (
-                    <div
-                      key={trab.idtrabajador_06}
-                      onClick={() => setTrabajadorSeleccionado(trab)}
-                      style={{
-                        padding: '8px',
-                        cursor: 'pointer',
-                        backgroundColor: trabajadorSeleccionado?.idtrabajador_06 === trab.idtrabajador_06 ? '#007bff' : 'transparent',
-                        color: trabajadorSeleccionado?.idtrabajador_06 === trab.idtrabajador_06 ? 'white' : 'black',
-                        marginBottom: '5px',
-                        borderRadius: '4px',
-                        border: trabajadorSeleccionado?.idtrabajador_06 === trab.idtrabajador_06 ? '2px solid #0056b3' : '1px solid #ced4da'
-                      }}
-                    >
-                      <strong>{trab.apaterno_06 || ''} {trab.amaterno_06 || ''}</strong> {trab.nombre_06 || ''} - <span style={{ fontSize: '0.9em', opacity: 0.8 }}>{trab.ruttrabajador_06 || ''}</span>
-                    </div>
-                  ))
-                ) : (
-                  <div style={{ 
-                    textAlign: 'center', 
-                    color: '#6c757d', 
-                    padding: '10px' 
-                  }}>
-                    {trabajadores.length === 0 ? 'Cargando trabajadores...' : 'No se encontraron trabajadores con ese criterio'}
+            <label>Seleccionar Trabajador *</label>
+            <div style={{ 
+              maxHeight: '150px', 
+              overflowY: 'auto', 
+              border: '1px solid #ced4da', 
+              borderRadius: '4px',
+              padding: '10px'
+            }}>
+              {trabajadoresFiltrados.length > 0 ? (
+                trabajadoresFiltrados.map(trab => (
+                  <div
+                    key={trab.idtrabajador_06}
+                    onClick={() => setTrabajadorSeleccionado(trab)}
+                    style={{
+                      padding: '8px',
+                      cursor: 'pointer',
+                      backgroundColor: trabajadorSeleccionado?.idtrabajador_06 === trab.idtrabajador_06 ? '#007bff' : 'transparent',
+                      color: trabajadorSeleccionado?.idtrabajador_06 === trab.idtrabajador_06 ? 'white' : 'black',
+                      marginBottom: '5px',
+                      borderRadius: '4px',
+                      border: trabajadorSeleccionado?.idtrabajador_06 === trab.idtrabajador_06 ? '2px solid #0056b3' : '1px solid #ced4da'
+                    }}
+                  >
+                    <strong>{trab.apaterno_06 || ''} {trab.amaterno_06 || ''}</strong> {trab.nombre_06 || ''} - <span style={{ fontSize: '0.9em', opacity: 0.8 }}>{trab.ruttrabajador_06 || ''}</span>
                   </div>
-                )}
+                ))
+              ) : (
+                <div style={{ 
+                  textAlign: 'center', 
+                  color: '#6c757d', 
+                  padding: '10px' 
+                }}>
+                  {trabajadores.length === 0 ? 'Cargando trabajadores...' : 'No se encontraron trabajadores con ese criterio'}
+                </div>
+              )}
               </div>
             </div>
           </div>

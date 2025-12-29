@@ -508,13 +508,14 @@ const TransaccionView: React.FC = () => {
           <button
             className="btn-primary"
             onClick={() => setShowForm(!showForm)}
+            style={{ backgroundColor: showForm ? '#6c757d' : '#007bff' }}
           >
             {showForm ? '✕ Cancelar' : '+ Nueva Transacción'}
           </button>
           <button
             className="btn-primary"
             onClick={() => setShowReportModal(true)}
-            style={{ backgroundColor: '#28a745' }}
+            style={{ backgroundColor: '#17a2b8' }}
           >
             📊 Generar Reporte
           </button>
@@ -523,20 +524,20 @@ const TransaccionView: React.FC = () => {
 
       {showForm && (
         <div className="form-container">
-          <h3>{'Nueva Transacción'}</h3>
+          <h3>Nueva Transacción</h3>
           <form onSubmit={handleCreate}>
             {/* Primera fila: Búsqueda de Alternador y Selección de Alternador */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', marginBottom: '15px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '20px' }}>
               <div className="form-group">
                 <label>Buscar Alternador</label>
                 <input
                   type="text"
                   value={buscarAlternador}
                   onChange={(e) => setBuscarAlternador(e.target.value.toUpperCase())}
-                  placeholder="Ingrese código o marca"
+                  placeholder="INGRESE CÓDIGO O MARCA"
                   style={{ width: '100%', padding: '8px 12px', borderRadius: '4px', border: '1px solid #ced4da', textTransform: 'uppercase', fontSize: '14px' }}
                 />
-                <small style={{ color: '#6c757d', fontSize: '0.85em' }}>
+                <small style={{ color: '#007bff', fontSize: '0.85em', display: 'block', marginTop: '5px' }}>
                   💡 Tip: Busque por código de alternador o marca
                 </small>
               </div>
@@ -544,11 +545,11 @@ const TransaccionView: React.FC = () => {
               <div className="form-group">
                 <label>Seleccionar Alternador *</label>
                 <div style={{ 
-                  maxHeight: '120px', 
+                  maxHeight: '150px', 
                   overflowY: 'auto', 
                   border: '1px solid #ced4da', 
                   borderRadius: '4px',
-                  padding: '8px'
+                  padding: '10px'
                 }}>
                   {alternadoresFiltrados.length > 0 ? (
                     alternadoresFiltrados.map(alt => (
@@ -586,8 +587,8 @@ const TransaccionView: React.FC = () => {
               </div>
             </div>
 
-            {/* Ubicación Origen y Destino */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', marginBottom: '15px' }}>
+            {/* Segunda fila: Ubicación Origen, Ubicación Destino y Tipo de Transacción */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '15px', marginBottom: '20px' }}>
               <div className="form-group">
                 <label>Ubicación Origen *</label>
                 <select
@@ -620,11 +621,8 @@ const TransaccionView: React.FC = () => {
                     </option>
                   ))}
                 </select>
-              </div>
             </div>
 
-            {/* Tipo de Transacción, Fecha y Hora en una sola línea */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '15px', marginBottom: '15px' }}>
               <div className="form-group">
                 <label>Tipo de Transacción *</label>
                 <select
@@ -637,6 +635,25 @@ const TransaccionView: React.FC = () => {
                   {tiposTransaccion.map(tipo => (
                     <option key={tipo.id_tipo_transaccion_25} value={tipo.id_tipo_transaccion_25}>
                       {tipo.cod_accion_25} - {tipo.descripcion_25} ({getValorAccionIcon(tipo.valor_accion_25)})
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            {/* Tercera fila: Técnico, Fecha y Hora */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '15px', marginBottom: '20px' }}>
+              <div className="form-group">
+                <label>Técnico</label>
+                <select
+                  value={idTecnico}
+                  onChange={(e) => setIdTecnico(e.target.value)}
+                  style={{ width: '100%', padding: '8px 12px', borderRadius: '4px', border: '1px solid #ced4da', fontSize: '14px' }}
+                >
+                  <option value="">Seleccione un técnico (opcional)</option>
+                  {tecnicos.map(tec => (
+                    <option key={tec.id_tecnico_21} value={tec.id_tecnico_21}>
+                      {tec.nombres_21} {tec.a_paterno_21} {tec.a_materno_21} {tec.nombre_cargo ? `- ${tec.nombre_cargo}` : ''}
                     </option>
                   ))}
                 </select>
@@ -665,48 +682,30 @@ const TransaccionView: React.FC = () => {
               </div>
             </div>
 
-            {/* Cuarta fila: Técnico y Búsqueda de Máquina */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', marginBottom: '15px' }}>
-              <div className="form-group">
-                <label>Técnico</label>
-                <select
-                  value={idTecnico}
-                  onChange={(e) => setIdTecnico(e.target.value)}
-                  style={{ width: '100%', padding: '8px 12px', borderRadius: '4px', border: '1px solid #ced4da', fontSize: '14px' }}
-                >
-                  <option value="">Seleccione un técnico (opcional)</option>
-                  {tecnicos.map(tec => (
-                    <option key={tec.id_tecnico_21} value={tec.id_tecnico_21}>
-                      {tec.nombres_21} {tec.a_paterno_21} {tec.a_materno_21} {tec.nombre_cargo ? `- ${tec.nombre_cargo}` : ''}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
+            {/* Cuarta fila: Búsqueda de Máquina y Selección de Máquina */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '20px' }}>
               <div className="form-group">
                 <label>Buscar Máquina</label>
                 <input
                   type="text"
                   value={buscarMaquina}
                   onChange={(e) => setBuscarMaquina(e.target.value.toUpperCase())}
-                  placeholder="Ingrese patente, número interno o descripción"
+                  placeholder="INGRESE PATENTE, NÚMERO INTERNO O DESCRIPCIÓN"
                   style={{ width: '100%', padding: '8px 12px', borderRadius: '4px', border: '1px solid #ced4da', textTransform: 'uppercase', fontSize: '14px' }}
                 />
-                <small style={{ color: '#6c757d', fontSize: '0.85em' }}>
+                <small style={{ color: '#007bff', fontSize: '0.85em', display: 'block', marginTop: '5px' }}>
                   💡 Tip: Busque por patente, número interno o descripción
                 </small>
-              </div>
             </div>
 
-            {/* Selección de Máquina */}
-            <div className="form-group" style={{ marginBottom: '20px' }}>
+              <div className="form-group">
               <label>Seleccionar Máquina (opcional)</label>
               <div style={{ 
-                maxHeight: '120px', 
+                  maxHeight: '150px', 
                 overflowY: 'auto', 
                 border: '1px solid #ced4da', 
                 borderRadius: '4px',
-                padding: '8px'
+                  padding: '10px'
               }}>
                 {maquinasFiltradas.length > 0 ? (
                   maquinasFiltradas.map(maq => (
@@ -740,14 +739,15 @@ const TransaccionView: React.FC = () => {
                     {maquinas.length === 0 ? 'Cargando máquinas...' : 'No se encontraron máquinas con ese criterio'}
                   </div>
                 )}
+                </div>
               </div>
             </div>
 
-            <div className="form-actions">
-              <button type="submit" className="btn-primary" disabled={loading}>
+            <div className="form-actions" style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '20px' }}>
+              <button type="submit" className="btn-primary" disabled={loading} style={{ backgroundColor: '#28a745' }}>
                 {loading ? 'Guardando...' : 'Guardar'}
               </button>
-              <button type="button" className="btn-secondary" onClick={resetForm}>
+              <button type="button" className="btn-secondary" onClick={resetForm} style={{ backgroundColor: '#6c757d' }}>
                 Cancelar
               </button>
             </div>

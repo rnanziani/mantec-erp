@@ -22,7 +22,7 @@ export const getAllNivelPermisos = async (req: Request, res: Response): Promise<
             FROM ${TABLA_NIVEL_PERMISO} np
             INNER JOIN ${TABLA_NIVEL} n ON np.id_nivel_04 = n.id_nivel_04
             INNER JOIN ${TABLA_PERMISO} p ON np.id_permiso_05 = p.id_permiso_05
-            ORDER BY n.nombre_nivel_04 ASC, p.nombre_permiso_05 ASC
+            ORDER BY n.nombre_nivel_04 ASC, COALESCE(p.orden_05, 9999) ASC, p.nombre_permiso_05 ASC
         `;
 
         const result = await pool.query<NivelPermiso>(query);
@@ -62,7 +62,7 @@ export const getPermisosByNivel = async (req: Request, res: Response): Promise<v
             INNER JOIN ${TABLA_NIVEL} n ON np.id_nivel_04 = n.id_nivel_04
             INNER JOIN ${TABLA_PERMISO} p ON np.id_permiso_05 = p.id_permiso_05
             WHERE np.id_nivel_04 = $1
-            ORDER BY p.nombre_permiso_05 ASC
+            ORDER BY COALESCE(p.orden_05, 9999) ASC, p.nombre_permiso_05 ASC
         `;
 
         const result = await pool.query<NivelPermiso>(query, [id_nivel]);
@@ -226,6 +226,8 @@ export const deleteNivelPermiso = async (req: Request, res: Response): Promise<v
         res.status(500).json(response);
     }
 };
+
+
 
 
 

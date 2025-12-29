@@ -39,7 +39,6 @@ export async function middleware(request: NextRequest) {
       const sesion = await db.tbl_03_sesion.findFirst({
         where: {
           token_sesion_03: token,
-          activa_03: true,
           fecha_expiracion_03: {
             gt: new Date()
           }
@@ -89,7 +88,6 @@ export async function middleware(request: NextRequest) {
           const sesion = await db.tbl_03_sesion.findFirst({
             where: {
               token_sesion_03: token,
-              activa_03: true,
               fecha_expiracion_03: {
                 gt: new Date()
               }

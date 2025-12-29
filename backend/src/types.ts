@@ -301,6 +301,7 @@ export interface Permiso {
   id_permiso_05: number;
   nombre_permiso_05: string;
   descripcion_05: string | null;
+  orden_05: number | null;
 }
 
 /**
@@ -309,6 +310,7 @@ export interface Permiso {
 export interface CreatePermisoDTO {
   nombre_permiso_05: string;
   descripcion_05?: string;
+  orden_05?: number;
 }
 
 /**
@@ -317,6 +319,7 @@ export interface CreatePermisoDTO {
 export interface UpdatePermisoDTO {
   nombre_permiso_05?: string;
   descripcion_05?: string;
+  orden_05?: number;
 }
 
 /**
@@ -339,6 +342,31 @@ export interface NivelPermiso {
 export interface CreateNivelPermisoDTO {
   id_nivel_04: number;
   id_permiso_05: number;
+}
+
+/**
+ * Relación Usuario-Permiso
+ * Tabla: tbl_000_usuario_permiso
+ */
+export interface UsuarioPermiso {
+  id_usuario_000: number;
+  id_permiso_000: number;
+  created_at_000: Date;
+  // Campos JOINed para visualización
+  username?: string;
+  nombre_completo_00?: string;
+  email?: string;
+  nombre_permiso_05?: string;
+  descripcion_05?: string;
+  orden_05?: number;
+}
+
+/**
+ * DTO para crear una relación usuario-permiso
+ */
+export interface CreateUsuarioPermisoDTO {
+  id_usuario_000: number;
+  id_permiso_000: number;
 }
 
 /**

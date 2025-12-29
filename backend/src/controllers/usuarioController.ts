@@ -11,18 +11,22 @@ export const getAllUsuarios = async (req: Request, res: Response) => {
   try {
     const result = await pool.query(
       `SELECT 
-        id_usuario_00,
-        username,
-        email,
-        nombre_completo_00,
-        is_active,
-        password_expires_at,
-        last_password_change_at,
-        last_login_at,
-        created_at,
-        updated_at
-       FROM tbl_00_usuario
-       ORDER BY created_at DESC`
+        u.id_usuario_00,
+        u.username,
+        u.email,
+        u.nombre_completo_00,
+        u.is_active,
+        u.password_expires_at,
+        u.last_password_change_at,
+        u.last_login_at,
+        u.created_at,
+        u.updated_at,
+        u.id_nivel_04,
+        n.nombre_nivel_04,
+        n.descripcion_04
+       FROM tbl_00_usuario u
+       LEFT JOIN tbl_04_nivel_usuario n ON u.id_nivel_04 = n.id_nivel_04
+       ORDER BY u.created_at DESC`
     );
 
     res.json({
@@ -51,18 +55,22 @@ export const getUsuarioById = async (req: Request, res: Response) => {
 
     const result = await pool.query(
       `SELECT 
-        id_usuario_00,
-        username,
-        email,
-        nombre_completo_00,
-        is_active,
-        password_expires_at,
-        last_password_change_at,
-        last_login_at,
-        created_at,
-        updated_at
-       FROM tbl_00_usuario
-       WHERE id_usuario_00 = $1`,
+        u.id_usuario_00,
+        u.username,
+        u.email,
+        u.nombre_completo_00,
+        u.is_active,
+        u.password_expires_at,
+        u.last_password_change_at,
+        u.last_login_at,
+        u.created_at,
+        u.updated_at,
+        u.id_nivel_04,
+        n.nombre_nivel_04,
+        n.descripcion_04
+       FROM tbl_00_usuario u
+       LEFT JOIN tbl_04_nivel_usuario n ON u.id_nivel_04 = n.id_nivel_04
+       WHERE u.id_usuario_00 = $1`,
       [id]
     );
 
@@ -94,7 +102,7 @@ export const getUsuarioById = async (req: Request, res: Response) => {
  */
 export const createUsuario = async (req: Request, res: Response) => {
   try {
-    const { username, email, password, nombre_completo_00, is_active } = req.body;
+    const { username, email, password, nombre_completo_00, is_active, id_nivel_04 } = req.body;
 
     if (!username || !email || !password) {
       return res.status(400).json({
@@ -135,13 +143,27 @@ export const createUsuario = async (req: Request, res: Response) => {
     const fechaExpiracion = new Date();
     fechaExpiracion.setDate(fechaExpiracion.getDate() + diasExpiracion);
 
+    // Validar que el nivel existe si se proporciona
+    if (id_nivel_04 !== undefined && id_nivel_04 !== null) {
+      const nivelCheck = await pool.query(
+        `SELECT id_nivel_04 FROM tbl_04_nivel_usuario WHERE id_nivel_04 = $1`,
+        [id_nivel_04]
+      );
+      if (nivelCheck.rows.length === 0) {
+        return res.status(400).json({
+          success: false,
+          error: 'El nivel de acceso especificado no existe'
+        });
+      }
+    }
+
     // Crear usuario
     const result = await pool.query(
       `INSERT INTO tbl_00_usuario 
-       (username, email, password_hash, nombre_completo_00, is_active, password_expires_at, last_password_change_at)
-       VALUES ($1, $2, $3, $4, $5, $6, NOW())
-       RETURNING id_usuario_00, username, email, nombre_completo_00, is_active, created_at`,
-      [username, email.toLowerCase(), passwordHash, nombre_completo_00 || null, is_active !== undefined ? is_active : true, fechaExpiracion]
+       (username, email, password_hash, nombre_completo_00, is_active, password_expires_at, last_password_change_at, id_nivel_04)
+       VALUES ($1, $2, $3, $4, $5, $6, NOW(), $7)
+       RETURNING id_usuario_00, username, email, nombre_completo_00, is_active, id_nivel_04, created_at`,
+      [username, email.toLowerCase(), passwordHash, nombre_completo_00 || null, is_active !== undefined ? is_active : true, fechaExpiracion, id_nivel_04 || null]
     );
 
     const nuevoUsuario = result.rows[0];
@@ -177,7 +199,7 @@ export const createUsuario = async (req: Request, res: Response) => {
 export const updateUsuario = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const { username, email, nombre_completo_00, is_active } = req.body;
+    const { username, email, nombre_completo_00, is_active, id_nivel_04 } = req.body;
 
     // Verificar si el usuario existe
     const usuarioExistente = await pool.query(
@@ -228,6 +250,23 @@ export const updateUsuario = async (req: Request, res: Response) => {
     if (is_active !== undefined) {
       updates.push(`is_active = $${paramIndex++}`);
       values.push(is_active);
+    }
+    if (id_nivel_04 !== undefined) {
+      // Validar que el nivel existe si se proporciona
+      if (id_nivel_04 !== null) {
+        const nivelCheck = await pool.query(
+          `SELECT id_nivel_04 FROM tbl_04_nivel_usuario WHERE id_nivel_04 = $1`,
+          [id_nivel_04]
+        );
+        if (nivelCheck.rows.length === 0) {
+          return res.status(400).json({
+            success: false,
+            error: 'El nivel de acceso especificado no existe'
+          });
+        }
+      }
+      updates.push(`id_nivel_04 = $${paramIndex++}`);
+      values.push(id_nivel_04);
     }
 
     if (updates.length === 0) {

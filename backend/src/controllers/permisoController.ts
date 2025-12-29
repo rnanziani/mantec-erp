@@ -10,7 +10,7 @@ const TABLA_PERMISO = 'tbl_05_permiso';
 export const getAllPermisos = async (req: Request, res: Response): Promise<void> => {
     try {
         const result = await pool.query<Permiso>(
-            `SELECT * FROM ${TABLA_PERMISO} ORDER BY nombre_permiso_05 ASC`
+            `SELECT * FROM ${TABLA_PERMISO} ORDER BY COALESCE(orden_05, 9999) ASC, nombre_permiso_05 ASC`
         );
 
         const response: ApiResponse<Permiso[]> = {
@@ -71,7 +71,7 @@ export const getPermisoById = async (req: Request, res: Response): Promise<void>
  */
 export const createPermiso = async (req: Request, res: Response): Promise<void> => {
     try {
-        const { nombre_permiso_05, descripcion_05 }: CreatePermisoDTO = req.body;
+        const { nombre_permiso_05, descripcion_05, orden_05 }: CreatePermisoDTO & { orden_05?: number } = req.body;
 
         // Validar nombre
         if (!nombre_permiso_05 || nombre_permiso_05.trim() === '') {
@@ -84,10 +84,10 @@ export const createPermiso = async (req: Request, res: Response): Promise<void> 
         }
 
         const result = await pool.query<Permiso>(
-            `INSERT INTO ${TABLA_PERMISO} (nombre_permiso_05, descripcion_05)
-       VALUES ($1, $2)
+            `INSERT INTO ${TABLA_PERMISO} (nombre_permiso_05, descripcion_05, orden_05)
+       VALUES ($1, $2, $3)
        RETURNING *`,
-            [nombre_permiso_05.trim(), descripcion_05?.trim() || null]
+            [nombre_permiso_05.trim(), descripcion_05?.trim() || null, orden_05 ?? 0]
         );
 
         const response: ApiResponse<Permiso> = {
@@ -124,10 +124,10 @@ export const createPermiso = async (req: Request, res: Response): Promise<void> 
 export const updatePermiso = async (req: Request, res: Response): Promise<void> => {
     try {
         const { id } = req.params;
-        const { nombre_permiso_05, descripcion_05 }: UpdatePermisoDTO = req.body;
+        const { nombre_permiso_05, descripcion_05, orden_05 }: UpdatePermisoDTO & { orden_05?: number } = req.body;
 
         // Validar que al menos un campo esté presente
-        if (nombre_permiso_05 === undefined && descripcion_05 === undefined) {
+        if (nombre_permiso_05 === undefined && descripcion_05 === undefined && orden_05 === undefined) {
             const response: ApiResponse<null> = {
                 success: false,
                 error: 'Debe proporcionar al menos un campo para actualizar'
@@ -157,6 +157,11 @@ export const updatePermiso = async (req: Request, res: Response): Promise<void> 
         if (descripcion_05 !== undefined) {
             updates.push(`descripcion_05 = $${paramCount++}`);
             values.push(descripcion_05?.trim() || null);
+        }
+
+        if (orden_05 !== undefined) {
+            updates.push(`orden_05 = $${paramCount++}`);
+            values.push(orden_05 ?? 0);
         }
 
         values.push(id);
@@ -259,6 +264,8 @@ export const deletePermiso = async (req: Request, res: Response): Promise<void> 
         res.status(500).json(response);
     }
 };
+
+
 
 
 

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import './BodegaView.css';
 import { useToast } from '../context/ToastContext';
 import Pagination from './shared/Pagination';
+import { showDeleteConfirm } from '../utils/swal';
 
 interface Usuario {
   id_usuario_00: number;
@@ -14,6 +15,15 @@ interface Usuario {
   last_login_at?: string;
   created_at: string;
   updated_at: string;
+  id_nivel_04?: number | null;
+  nombre_nivel_04?: string | null;
+  descripcion_04?: string | null;
+}
+
+interface NivelUsuario {
+  id_nivel_04: number;
+  nombre_nivel_04: string;
+  descripcion_04: string | null;
 }
 
 interface HistorialContrasena {
@@ -61,6 +71,7 @@ type SortConfig = {
 
 const UsuarioView: React.FC = () => {
   const [usuarios, setUsuarios] = useState<Usuario[]>([]);
+  const [niveles, setNiveles] = useState<NivelUsuario[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string>('');
 
@@ -72,6 +83,7 @@ const UsuarioView: React.FC = () => {
   const [password, setPassword] = useState<string>('');
   const [nombreCompleto, setNombreCompleto] = useState<string>('');
   const [isActive, setIsActive] = useState<boolean>(true);
+  const [idNivel, setIdNivel] = useState<number | ''>('');
 
   // Modales de información
   const [showHistorial, setShowHistorial] = useState<boolean>(false);
@@ -91,10 +103,29 @@ const UsuarioView: React.FC = () => {
 
   const { showToast } = useToast();
   const API_URL = 'http://localhost:3001/api/usuarios';
+  const NIVELES_URL = 'http://localhost:3001/api/niveles-usuario';
 
   useEffect(() => {
     fetchUsuarios();
+    fetchNiveles();
   }, []);
+
+  const fetchNiveles = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(NIVELES_URL, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      const data: ApiResponse = await response.json();
+      if (data.success && Array.isArray(data.data)) {
+        setNiveles(data.data);
+      }
+    } catch (err) {
+      console.error('Error al cargar niveles:', err);
+    }
+  };
 
   const fetchUsuarios = async () => {
     try {
@@ -193,7 +224,8 @@ const UsuarioView: React.FC = () => {
           email,
           password,
           nombre_completo_00: nombreCompleto || null,
-          is_active: isActive
+          is_active: isActive,
+          id_nivel_04: idNivel || null
         })
       });
 
@@ -232,7 +264,8 @@ const UsuarioView: React.FC = () => {
           username,
           email,
           nombre_completo_00: nombreCompleto || null,
-          is_active: isActive
+          is_active: isActive,
+          id_nivel_04: idNivel || null
         })
       });
 
@@ -288,6 +321,7 @@ const UsuarioView: React.FC = () => {
     setEmail(usuario.email);
     setNombreCompleto(usuario.nombre_completo_00 || '');
     setIsActive(usuario.is_active);
+    setIdNivel(usuario.id_nivel_04 || '');
     setPassword('');
     setShowForm(true);
   };
@@ -298,6 +332,7 @@ const UsuarioView: React.FC = () => {
     setPassword('');
     setNombreCompleto('');
     setIsActive(true);
+    setIdNivel('');
     setEditingId(null);
     setShowForm(false);
   };
@@ -379,14 +414,20 @@ const UsuarioView: React.FC = () => {
 
   return (
     <div className="bodega-view">
-      <div className="view-header">
-        <h2>👥 Gestión de Usuarios</h2>
-        <button
-          className="btn-primary"
-          onClick={() => setShowForm(!showForm)}
-        >
-          {showForm ? '✕ Cancelar' : '+ Nuevo Usuario'}
-        </button>
+      <div className="view-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+        <h2 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <span>👥</span>
+          <span>👥</span>
+          <span>Gestión de Usuarios</span>
+        </h2>
+        {!showForm && (
+          <button
+            className="btn-primary"
+            onClick={() => setShowForm(true)}
+          >
+            + Nuevo Usuario
+          </button>
+        )}
       </div>
 
       {error && (
@@ -397,7 +438,17 @@ const UsuarioView: React.FC = () => {
 
       {showForm && (
         <div className="form-container">
-          <h3>{editingId ? 'Editar Usuario' : 'Nuevo Usuario'}</h3>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+            <h3 style={{ margin: 0 }}>{editingId ? 'Editar Usuario' : 'Nuevo Usuario'}</h3>
+            <button
+              type="button"
+              className="btn-primary"
+              onClick={resetForm}
+              style={{ padding: '8px 16px' }}
+            >
+              ✕ Cancelar
+            </button>
+          </div>
           <form onSubmit={editingId ? handleUpdate : handleCreate}>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '15px', marginBottom: '15px' }}>
               <div className="form-group">
@@ -444,14 +495,38 @@ const UsuarioView: React.FC = () => {
               </div>
             )}
 
-            <div className="form-group">
-              <label>Nombre Completo</label>
-              <input
-                type="text"
-                value={nombreCompleto}
-                onChange={(e) => setNombreCompleto(e.target.value)}
-                placeholder="Juan Pérez"
-              />
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', marginBottom: '15px' }}>
+              <div className="form-group">
+                <label>Nombre Completo</label>
+                <input
+                  type="text"
+                  value={nombreCompleto}
+                  onChange={(e) => setNombreCompleto(e.target.value)}
+                  placeholder="Juan Pérez"
+                />
+              </div>
+
+              <div className="form-group">
+                <label>Nivel de Acceso</label>
+                <select
+                  value={idNivel}
+                  onChange={(e) => setIdNivel(e.target.value ? parseInt(e.target.value) : '')}
+                  style={{ width: '100%', padding: '8px 12px', borderRadius: '4px', border: '1px solid #ced4da' }}
+                >
+                  <option value="">Sin nivel asignado</option>
+                  {niveles.map(nivel => (
+                    <option key={nivel.id_nivel_04} value={nivel.id_nivel_04}>
+                      {nivel.nombre_nivel_04} {nivel.descripcion_04 ? `- ${nivel.descripcion_04}` : ''}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div style={{ marginBottom: '15px' }}>
+              <small style={{ color: '#6c757d', fontSize: '0.85em' }}>
+                💡 El usuario heredará los permisos asignados a este nivel. También puedes asignar permisos directos adicionales.
+              </small>
             </div>
 
             <div className="form-group checkbox-group">
@@ -524,6 +599,7 @@ const UsuarioView: React.FC = () => {
                   <th onClick={() => handleSort('nombre_completo_00')} className={`sortable ${sortConfig.key === 'nombre_completo_00' ? (sortConfig.direction === 'asc' ? 'sort-asc' : 'sort-desc') : ''}`}>
                     NOMBRE COMPLETO
                   </th>
+                  <th>NIVEL DE ACCESO</th>
                   <th onClick={() => handleSort('is_active')} className={`sortable ${sortConfig.key === 'is_active' ? (sortConfig.direction === 'asc' ? 'sort-asc' : 'sort-desc') : ''}`}>
                     ESTADO
                   </th>
@@ -536,7 +612,7 @@ const UsuarioView: React.FC = () => {
               <tbody>
                 {usuariosPaginados.length === 0 ? (
                   <tr>
-                    <td colSpan={7} style={{ textAlign: 'center', padding: '3rem' }}>
+                    <td colSpan={8} style={{ textAlign: 'center', padding: '3rem' }}>
                       {searchTerm || filterEstado !== 'all'
                         ? '📋 No se encontraron usuarios con los filtros aplicados'
                         : '📋 No hay usuarios registrados'}
@@ -550,6 +626,23 @@ const UsuarioView: React.FC = () => {
                       <td>{usuario.email}</td>
                       <td>{usuario.nombre_completo_00 || '-'}</td>
                       <td>
+                        {usuario.nombre_nivel_04 ? (
+                          <span style={{ 
+                            display: 'inline-block',
+                            padding: '4px 12px',
+                            borderRadius: '12px',
+                            backgroundColor: '#E0E7FF',
+                            color: '#3730A3',
+                            fontSize: '0.85em',
+                            fontWeight: '500'
+                          }}>
+                            {usuario.nombre_nivel_04}
+                          </span>
+                        ) : (
+                          <span style={{ color: '#999', fontStyle: 'italic', fontSize: '0.9em' }}>Sin nivel</span>
+                        )}
+                      </td>
+                      <td>
                         <span className={`status-badge ${usuario.is_active ? 'active' : 'inactive'}`}>
                           {usuario.is_active ? 'Activo' : 'Inactivo'}
                         </span>
@@ -557,40 +650,69 @@ const UsuarioView: React.FC = () => {
                       <td>{formatDate(usuario.last_login_at || '')}</td>
                       <td className="actions">
                         <button
-                          className="btn-edit"
                           onClick={() => startEdit(usuario)}
                           title="Editar"
+                          style={{ 
+                            background: '#FF6B35', 
+                            color: 'white', 
+                            border: 'none', 
+                            padding: '6px 10px', 
+                            borderRadius: '4px', 
+                            cursor: 'pointer',
+                            marginRight: '5px',
+                            fontSize: '14px'
+                          }}
                         >
                           ✏️
                         </button>
                         <button
-                          className="btn-primary"
-                          onClick={() => handleVerHistorial(usuario.id_usuario_00)}
-                          title="Ver Historial"
-                          style={{ fontSize: '0.85rem', padding: '5px 10px', marginRight: '5px' }}
+                          onClick={() => window.location.hash = `usuario-permisos`}
+                          title="Permisos"
+                          style={{ 
+                            background: '#3B82F6', 
+                            color: 'white', 
+                            border: 'none', 
+                            padding: '6px 10px', 
+                            borderRadius: '4px', 
+                            cursor: 'pointer',
+                            marginRight: '5px',
+                            fontSize: '14px'
+                          }}
                         >
                           🔑
                         </button>
                         <button
-                          className="btn-primary"
-                          onClick={() => handleVerIntentos(usuario.id_usuario_00)}
-                          title="Ver Intentos"
-                          style={{ fontSize: '0.85rem', padding: '5px 10px', marginRight: '5px' }}
+                          onClick={() => {
+                            handleVerHistorial(usuario.id_usuario_00);
+                            handleVerIntentos(usuario.id_usuario_00);
+                            handleVerSesiones(usuario.id_usuario_00);
+                          }}
+                          title="Ver Detalles"
+                          style={{ 
+                            background: '#3B82F6', 
+                            color: 'white', 
+                            border: 'none', 
+                            padding: '6px 10px', 
+                            borderRadius: '4px', 
+                            cursor: 'pointer',
+                            marginRight: '5px',
+                            fontSize: '14px'
+                          }}
                         >
-                          🔐
+                          📁
                         </button>
                         <button
-                          className="btn-primary"
-                          onClick={() => handleVerSesiones(usuario.id_usuario_00)}
-                          title="Ver Sesiones"
-                          style={{ fontSize: '0.85rem', padding: '5px 10px', marginRight: '5px' }}
-                        >
-                          📱
-                        </button>
-                        <button
-                          className="btn-delete"
                           onClick={() => handleDelete(usuario.id_usuario_00)}
                           title="Eliminar"
+                          style={{ 
+                            background: '#9CA3AF', 
+                            color: 'white', 
+                            border: 'none', 
+                            padding: '6px 10px', 
+                            borderRadius: '4px', 
+                            cursor: 'pointer',
+                            fontSize: '14px'
+                          }}
                         >
                           🗑️
                         </button>

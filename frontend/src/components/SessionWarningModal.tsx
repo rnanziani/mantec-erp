@@ -2,68 +2,66 @@ import React, { useEffect, useState } from 'react';
 import './SessionWarningModal.css';
 
 interface SessionWarningModalProps {
-  minutosRestantes: number;
   segundosRestantes: number;
-  onExtendSession: () => void;
+  onExtend: () => void;
   onLogout: () => void;
 }
 
 const SessionWarningModal: React.FC<SessionWarningModalProps> = ({
-  minutosRestantes,
   segundosRestantes,
-  onExtendSession,
+  onExtend,
   onLogout
 }) => {
-  const [timeLeft, setTimeLeft] = useState({ minutos: minutosRestantes, segundos: segundosRestantes });
+  const [segundos, setSegundos] = useState(segundosRestantes);
 
   useEffect(() => {
-    setTimeLeft({ minutos: minutosRestantes, segundos: segundosRestantes });
-  }, [minutosRestantes, segundosRestantes]);
+    setSegundos(segundosRestantes);
+  }, [segundosRestantes]);
 
   useEffect(() => {
+    if (segundos <= 0) {
+      onLogout();
+      return;
+    }
+
     const interval = setInterval(() => {
-      setTimeLeft(prev => {
-        if (prev.segundos > 0) {
-          return { ...prev, segundos: prev.segundos - 1 };
-        } else if (prev.minutos > 0) {
-          return { minutos: prev.minutos - 1, segundos: 59 };
+      setSegundos((prev) => {
+        if (prev <= 1) {
+          clearInterval(interval);
+          onLogout();
+          return 0;
         }
-        return { minutos: 0, segundos: 0 };
+        return prev - 1;
       });
     }, 1000);
 
     return () => clearInterval(interval);
-  }, []);
-
-  const tiempoFormateado = `${timeLeft.minutos.toString().padStart(2, '0')}:${timeLeft.segundos.toString().padStart(2, '0')}`;
+  }, [segundos, onLogout]);
 
   return (
     <div className="session-warning-overlay">
       <div className="session-warning-modal">
-        <div className="session-warning-header">
-          <h2>⚠️ Tu sesión está por expirar</h2>
+        <div className="session-warning-icon-container">
+          <div className="session-warning-icon-orange">
+            <span className="session-warning-exclamation">!</span>
+          </div>
         </div>
-        <div className="session-warning-content">
-          <p>
-            Tu sesión expirará en <strong className="time-remaining">{tiempoFormateado}</strong>
-          </p>
-          <p className="warning-message">
-            Para continuar trabajando, haz clic en "Extender Sesión". 
-            De lo contrario, serás redirigido al inicio de sesión.
-          </p>
+        <div className="session-warning-message">
+          <h2>Su sesión será finalizada</h2>
+          <p className="session-warning-countdown">en {segundos} Segundos</p>
         </div>
         <div className="session-warning-actions">
           <button 
-            onClick={onExtendSession}
-            className="btn btn-primary btn-extend"
+            className="session-warning-btn-logout" 
+            onClick={onLogout}
           >
-            🔄 Extender Sesión
+            CERRAR SESIÓN
           </button>
           <button 
-            onClick={onLogout}
-            className="btn btn-secondary btn-logout"
+            className="session-warning-btn-reactivate" 
+            onClick={onExtend}
           >
-            🚪 Cerrar Sesión
+            REACTIVAR
           </button>
         </div>
       </div>
@@ -72,5 +70,3 @@ const SessionWarningModal: React.FC<SessionWarningModalProps> = ({
 };
 
 export default SessionWarningModal;
-
-

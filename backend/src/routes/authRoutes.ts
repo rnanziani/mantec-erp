@@ -4,6 +4,7 @@ import {
   login,
   changePassword,
   getMe,
+  getMyPermissions,
   getSessionStatus,
   extendSession,
   logout
@@ -38,6 +39,13 @@ router.post('/change-password', changePassword);
  * @access  Private
  */
 router.get('/me', getMe);
+
+/**
+ * @route   GET /api/auth/permissions
+ * @desc    Obtener permisos del usuario actual
+ * @access  Private
+ */
+router.get('/permissions', getMyPermissions);
 
 /**
  * @route   GET /api/auth/session-status

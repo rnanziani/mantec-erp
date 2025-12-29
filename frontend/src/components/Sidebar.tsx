@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useUserPermissions } from '../hooks/useUserPermissions';
 import './Sidebar.css';
 
 interface MenuItem {
@@ -17,72 +18,128 @@ interface SidebarProps {
 const Sidebar: React.FC<SidebarProps> = ({ onNavigate, currentView }) => {
     const [expandedMenus, setExpandedMenus] = useState<Set<string>>(new Set([]));
     const [isCollapsed, setIsCollapsed] = useState(false);
+    
+    // Obtener permisos del usuario
+    const { hasPermission } = useUserPermissions(true);
 
-    const menuItems: MenuItem[] = [
+    // Mapeo de permisos a menús (permissionRequired puede ser string o array)
+    interface MenuItemWithPermission extends MenuItem {
+        permissionRequired?: string | string[]; // Permiso requerido para mostrar este menú
+    }
+
+    const allMenuItems: MenuItemWithPermission[] = [
         {
             id: 'dashboard',
             label: 'Inicio',
             icon: '🏠',
-            path: 'dashboard'
+            path: 'dashboard',
+            permissionRequired: 'MENU_DASHBOARD'
         },
         {
             id: 'permisos',
             label: 'Nivel de Acceso',
             icon: '🔐',
+            permissionRequired: 'MENU_NIVEL_ACCESO',
             children: [
-                { id: 'usuarios', label: 'Usuarios', icon: '👥', path: 'usuarios' },
-                { id: 'niveles-usuario', label: 'Nivel de Acceso', icon: '👤', path: 'niveles-usuario' },
-                { id: 'permisos', label: 'Permisos', icon: '🔐', path: 'permisos' },
-                { id: 'nivel-permisos', label: 'Asignación Permisos', icon: '🔗', path: 'nivel-permisos' },
-                { id: 'historial-contrasenas', label: 'Historial Contraseñas', icon: '🔒', path: 'historial-contrasenas' },
-                { id: 'intentos-login', label: 'Intentos de Login', icon: '🔐', path: 'intentos-login' },
-                { id: 'sesiones', label: 'Sesiones', icon: '🔑', path: 'sesiones' },
-                { id: 'parametros', label: 'Parámetros del Sistema', icon: '⚙️', path: 'parametros' }
+                { id: 'usuarios', label: 'Usuarios', icon: '👥', path: 'usuarios', permissionRequired: 'MENU_NIVEL_ACCESO_USUARIOS' },
+                { id: 'niveles-usuario', label: 'Nivel de Acceso', icon: '👤', path: 'niveles-usuario', permissionRequired: 'MENU_NIVEL_ACCESO_NIVELES' },
+                { id: 'permisos', label: 'Permisos', icon: '🔐', path: 'permisos', permissionRequired: 'MENU_NIVEL_ACCESO_PERMISOS' },
+                { id: 'nivel-permisos', label: 'Asignación Niveles', icon: '🔗', path: 'nivel-permisos', permissionRequired: 'MENU_NIVEL_ACCESO_ASIGNACION' },
+                { id: 'usuario-permisos', label: 'Permisos Directos', icon: '👤', path: 'usuario-permisos', permissionRequired: 'MENU_NIVEL_ACCESO_ASIGNACION' },
+                { id: 'historial-contrasenas', label: 'Historial Contraseñas', icon: '🔒', path: 'historial-contrasenas', permissionRequired: 'MENU_NIVEL_ACCESO_HISTORIAL' },
+                { id: 'intentos-login', label: 'Intentos de Login', icon: '🔐', path: 'intentos-login', permissionRequired: 'MENU_NIVEL_ACCESO_INTENTOS' },
+                { id: 'sesiones', label: 'Sesiones', icon: '🔑', path: 'sesiones', permissionRequired: 'MENU_NIVEL_ACCESO_SESIONES' },
+                { id: 'parametros', label: 'Parámetros del Sistema', icon: '⚙️', path: 'parametros', permissionRequired: 'MENU_NIVEL_ACCESO_PARAMETROS' }
             ]
         },
         {
             id: 'operaciones',
             label: 'Operaciones',
             icon: '⚙️',
+            permissionRequired: 'MENU_OPERACIONES',
             children: [
-                { id: 'ordenes-trabajo', label: 'Órdenes de Trabajo', icon: '🔧', path: 'ordenes-trabajo' },
-                { id: 'asignacion-productos-aseo', label: 'Asignación Productos Aseo', icon: '📋', path: 'asignacion-productos-aseo' },
-                { id: 'asignacion-prendas', label: 'Asignación de Prendas', icon: '👔', path: 'asignacion-prendas' }
+                { id: 'ordenes-trabajo', label: 'Órdenes de Trabajo', icon: '🔧', path: 'ordenes-trabajo', permissionRequired: 'MENU_OPERACIONES_ORDENES_TRABAJO' },
+                { id: 'asignacion-productos-aseo', label: 'Asignación Productos Aseo', icon: '📋', path: 'asignacion-productos-aseo', permissionRequired: 'MENU_OPERACIONES_ASIGNACION_ASEO' },
+                { id: 'asignacion-prendas', label: 'Asignación de Prendas', icon: '👔', path: 'asignacion-prendas', permissionRequired: 'MENU_OPERACIONES_ASIGNACION_PRENDAS' }
             ]
         },
         {
             id: 'inventario',
             label: 'Gestion Alternadores',
             icon: '📦',
+            permissionRequired: 'MENU_INVENTARIO',
             children: [
-                { id: 'bodegas', label: 'Bodegas', icon: '🏢', path: 'bodegas' },
-                { id: 'tipos-transaccion', label: 'Tipos de Transacción', icon: '🔄', path: 'tipos-transaccion' },
-                { id: 'transacciones', label: 'Movimientos', icon: '📝', path: 'transacciones' },
-                { id: 'existencias', label: 'Stock Actual', icon: '📊', path: 'existencias' }
+                { id: 'bodegas', label: 'Bodegas', icon: '🏢', path: 'bodegas', permissionRequired: 'MENU_INVENTARIO_BODEGAS' },
+                { id: 'tipos-transaccion', label: 'Tipos de Transacción', icon: '🔄', path: 'tipos-transaccion', permissionRequired: 'MENU_INVENTARIO_TIPOS_TRANSACCION' },
+                { id: 'transacciones', label: 'Movimientos', icon: '📝', path: 'transacciones', permissionRequired: 'MENU_INVENTARIO_TRANSACCIONES' },
+                { id: 'existencias', label: 'Stock Actual', icon: '📊', path: 'existencias', permissionRequired: 'MENU_INVENTARIO_EXISTENCIAS' }
             ]
         },
         {
             id: 'reportes',
             label: 'Reportes',
             icon: '📈',
-            path: 'reportes'
+            path: 'reportes',
+            permissionRequired: 'MENU_REPORTES'
         },
         {
             id: 'maestros',
             label: 'Mantenedores',
             icon: '📋',
+            permissionRequired: 'MENU_MANTENEDORES',
             children: [
-                { id: 'marcas', label: 'Marcas', icon: '🏷️', path: 'alternadores' },
-                { id: 'alternadores', label: 'Alternadores', icon: '⚡', path: 'lista-alternadores' },
-                { id: 'estados', label: 'Estados', icon: '📊', path: 'estados' },
-                { id: 'cargos', label: 'Cargos', icon: '👔', path: 'cargos' },
-                { id: 'tecnicos', label: 'Técnicos', icon: '👷', path: 'tecnicos' },
-                { id: 'trabajadores', label: 'Trabajadores', icon: '👥', path: 'trabajadores' },
-                { id: 'productos-aseo', label: 'Productos de Aseo', icon: '🧼', path: 'productos-aseo' },
-                { id: 'maquinas', label: 'Máquinas', icon: '🔧', path: 'maquinas' }
+                { id: 'marcas', label: 'Marcas', icon: '🏷️', path: 'alternadores', permissionRequired: 'MENU_MANTENEDORES_MARCAS' },
+                { id: 'alternadores', label: 'Alternadores', icon: '⚡', path: 'lista-alternadores', permissionRequired: 'MENU_MANTENEDORES_ALTERNADORES' },
+                { id: 'estados', label: 'Estados', icon: '📊', path: 'estados', permissionRequired: 'MENU_MANTENEDORES_ESTADOS' },
+                { id: 'cargos', label: 'Cargos', icon: '👔', path: 'cargos', permissionRequired: 'MENU_MANTENEDORES_CARGOS' },
+                { id: 'tecnicos', label: 'Técnicos', icon: '👷', path: 'tecnicos', permissionRequired: 'MENU_MANTENEDORES_TECNICOS' },
+                { id: 'trabajadores', label: 'Trabajadores', icon: '👥', path: 'trabajadores', permissionRequired: 'MENU_MANTENEDORES_TRABAJADORES' },
+                { id: 'productos-aseo', label: 'Productos de Aseo', icon: '🧼', path: 'productos-aseo', permissionRequired: 'MENU_MANTENEDORES_PRODUCTOS_ASEO' },
+                { id: 'maquinas', label: 'Máquinas', icon: '🔧', path: 'maquinas', permissionRequired: 'MENU_MANTENEDORES_MAQUINAS' }
             ]
         }
     ];
+
+    // Función para verificar si un menú debe mostrarse
+    const shouldShowMenuItem = (item: MenuItemWithPermission): boolean => {
+        // Si no tiene permiso requerido, mostrarlo (compatibilidad hacia atrás)
+        if (!item.permissionRequired) {
+            return true;
+        }
+
+        // Si es un array, verificar si tiene alguno de los permisos
+        if (Array.isArray(item.permissionRequired)) {
+            return item.permissionRequired.some(perm => hasPermission(perm));
+        }
+
+        // Si es string, verificar el permiso
+        return hasPermission(item.permissionRequired);
+    };
+
+    // Filtrar menús según permisos
+    const filterMenuItems = (items: MenuItemWithPermission[]): MenuItem[] => {
+        return items
+            .filter(shouldShowMenuItem)
+            .map(item => {
+                // Si tiene hijos, filtrarlos también
+                if (item.children) {
+                    const filteredChildren = filterMenuItems(item.children as MenuItemWithPermission[]);
+                    // Si después de filtrar quedan hijos, mostrar el menú padre
+                    if (filteredChildren.length > 0) {
+                        return {
+                            ...item,
+                            children: filteredChildren
+                        };
+                    }
+                    // Si no quedan hijos, no mostrar el menú padre
+                    return null;
+                }
+                return item;
+            })
+            .filter((item): item is MenuItem => item !== null);
+    };
+
+    const menuItems = filterMenuItems(allMenuItems);
 
     const toggleMenu = (menuId: string) => {
         const newExpanded = new Set(expandedMenus);

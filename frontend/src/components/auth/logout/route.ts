@@ -23,14 +23,16 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Desactivar la sesión
+    // Desactivar la sesión (poner fecha de expiración en el pasado)
     await db.tbl_03_sesion.updateMany({
       where: {
         token_sesion_03: token,
-        activa_03: true
+        fecha_expiracion_03: {
+          gt: new Date()
+        }
       },
       data: {
-        activa_03: false
+        fecha_expiracion_03: new Date(0) // Fecha en el pasado para invalidar la sesión
       }
     });
 
