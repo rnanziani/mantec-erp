@@ -24,6 +24,7 @@ interface Transaccion {
   tecnico_nombre?: string;
   maquina_numinterno?: string;
   maquina_ppu?: string;
+  tipo_comp_descripcion?: string;
 }
 
 interface Alternador {
@@ -86,6 +87,7 @@ const TransaccionView: React.FC = () => {
   const [tecnicos, setTecnicos] = useState<Tecnico[]>([]);
   const [maquinas, setMaquinas] = useState<Maquina[]>([]);
   const [marcas, setMarcas] = useState<Marca[]>([]);
+  const [tiposComp, setTiposComp] = useState<any[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string>('');
 
@@ -118,6 +120,16 @@ const TransaccionView: React.FC = () => {
   const [reportIdDestino, setReportIdDestino] = useState<string>('');
   const [reportIdMaquina, setReportIdMaquina] = useState<string>('');
 
+  // Estados para el modal de reporte de cantidad de componentes
+  const [showCantComponentesModal, setShowCantComponentesModal] = useState<boolean>(false);
+  const [cantCompFechaDesde, setCantCompFechaDesde] = useState<string>('');
+  const [cantCompFechaHasta, setCantCompFechaHasta] = useState<string>('');
+  const [cantCompIdTipoTransaccion, setCantCompIdTipoTransaccion] = useState<string>('');
+  const [cantCompIdMarca, setCantCompIdMarca] = useState<string>('');
+  const [cantCompIdDestino, setCantCompIdDestino] = useState<string>('');
+  const [cantCompIdMaquina, setCantCompIdMaquina] = useState<string>('');
+  const [cantCompIdTipoComp, setCantCompIdTipoComp] = useState<string>('');
+
   // Búsqueda y ordenamiento (igual que TipoTransaccionView)
   const [filtro, setFiltro] = useState<string>('');
   const [sortConfig, setSortConfig] = useState<{ key: keyof Transaccion; direction: 'asc' | 'desc' } | null>(null);
@@ -129,6 +141,7 @@ const TransaccionView: React.FC = () => {
   const TECNICOS_URL = 'http://localhost:3001/api/tecnicos';
   const MAQUINAS_URL = 'http://localhost:3001/api/maquinas';
   const MARCAS_URL = 'http://localhost:3001/api/marcas';
+  const TIPOS_COMP_URL = 'http://localhost:3001/api/tipos-comp-alternador';
 
   useEffect(() => {
     fetchTransacciones();
@@ -138,6 +151,7 @@ const TransaccionView: React.FC = () => {
     fetchTecnicos();
     fetchMaquinas();
     fetchMarcas();
+    fetchTiposComp();
   }, []);
 
   const fetchTransacciones = async () => {
@@ -229,6 +243,18 @@ const TransaccionView: React.FC = () => {
       }
     } catch (err) {
       console.error('Error al cargar marcas:', err);
+    }
+  };
+
+  const fetchTiposComp = async () => {
+    try {
+      const response = await fetch(TIPOS_COMP_URL);
+      const data: ApiResponse = await response.json();
+      if (data.success && Array.isArray(data.data)) {
+        setTiposComp(data.data);
+      }
+    } catch (err) {
+      console.error('Error al cargar tipos de componente:', err);
     }
   };
 
@@ -518,6 +544,13 @@ const TransaccionView: React.FC = () => {
             style={{ backgroundColor: '#17a2b8' }}
           >
             📊 Generar Reporte
+          </button>
+          <button
+            className="btn-primary"
+            onClick={() => setShowCantComponentesModal(true)}
+            style={{ backgroundColor: '#17a2b8' }}
+          >
+            📦 Cant de componentes
           </button>
         </div>
       </div>
@@ -996,7 +1029,7 @@ const TransaccionView: React.FC = () => {
                     <th style={{ padding: '10px', textAlign: 'left', border: '1px solid #ddd', width: '150px', minWidth: '150px' }}>Tipo</th>
                     <th style={{ padding: '10px', textAlign: 'left', border: '1px solid #ddd', width: '140px', minWidth: '140px' }}>Técnico</th>
                     <th style={{ padding: '10px', textAlign: 'left', border: '1px solid #ddd', width: '120px', minWidth: '120px' }}>Máquina</th>
-                    <th style={{ padding: '10px', textAlign: 'center', border: '1px solid #ddd', width: '50px', minWidth: '50px' }}>Impacto</th>
+                    <th style={{ padding: '10px', textAlign: 'left', border: '1px solid #ddd', width: '150px', minWidth: '150px' }}>Tipo Componente</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -1008,8 +1041,6 @@ const TransaccionView: React.FC = () => {
                     </tr>
                   ) : (
                     previewData.map((t, index) => {
-                      const impacto = t.valor_accion === 1 ? '+1' : t.valor_accion === -1 ? '-1' : '0';
-                      const impactoColor = t.valor_accion === 1 ? '#28a745' : t.valor_accion === -1 ? '#dc3545' : '#6c757d';
                       return (
                         <tr key={t.id_transaccion_28} style={{ backgroundColor: index % 2 === 0 ? '#f9f9f9' : 'white' }}>
                           <td style={{ padding: '8px', textAlign: 'center', border: '1px solid #ddd', width: '50px' }}>{t.id_transaccion_28}</td>
@@ -1037,16 +1068,7 @@ const TransaccionView: React.FC = () => {
                             {t.maquina_numinterno || 'N/A'}
                             {t.maquina_ppu && ` (${t.maquina_ppu})`}
                           </td>
-                          <td style={{ 
-                            padding: '8px', 
-                            textAlign: 'center', 
-                            border: '1px solid #ddd',
-                            color: impactoColor,
-                            fontWeight: 'bold',
-                            width: '70px'
-                          }}>
-                            {impacto}
-                          </td>
+                          <td style={{ padding: '8px', textAlign: 'left', border: '1px solid #ddd', width: '150px' }}>{t.tipo_comp_descripcion || 'N/A'}</td>
                         </tr>
                       );
                     })
@@ -1103,8 +1125,8 @@ const TransaccionView: React.FC = () => {
               <th onClick={() => handleSort('maquina_numinterno')} style={{ cursor: 'pointer' }}>
                 Máquina {getSortIndicator('maquina_numinterno')}
               </th>
-              <th onClick={() => handleSort('valor_accion')} style={{ cursor: 'pointer' }}>
-                Impacto {getSortIndicator('valor_accion')}
+              <th onClick={() => handleSort('tipo_comp_descripcion')} style={{ cursor: 'pointer' }}>
+                Tipo Componente {getSortIndicator('tipo_comp_descripcion')}
               </th>
               <th>Acciones</th>
             </tr>
@@ -1113,7 +1135,7 @@ const TransaccionView: React.FC = () => {
             {loading && transacciones.length === 0 ? (
               <tr><td colSpan={12}>Cargando...</td></tr>
             ) : processedTransacciones.length === 0 ? (
-              <tr><td colSpan={12}>No hay transacciones registradas</td></tr>
+              <tr><td colSpan={11}>No hay transacciones registradas</td></tr>
             ) : (
               processedTransacciones.map((transaccion) => (
                 <tr key={transaccion.id_transaccion_28}>
@@ -1138,7 +1160,7 @@ const TransaccionView: React.FC = () => {
                     {transaccion.maquina_numinterno || 'N/A'}
                     {transaccion.maquina_ppu && ` (${transaccion.maquina_ppu})`}
                   </td>
-                  <td>{getValorAccionIcon(transaccion.valor_accion)}</td>
+                  <td>{transaccion.tipo_comp_descripcion || 'N/A'}</td>
                   <td className="actions">
                     <button
                       className="btn-delete"
@@ -1154,6 +1176,211 @@ const TransaccionView: React.FC = () => {
           </tbody>
         </table>
       </div>
+
+      {/* Modal de Reporte de Cantidad de Componentes */}
+      {showCantComponentesModal && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.5)',
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          zIndex: 1000
+        }}>
+          <div className="form-container" style={{
+            backgroundColor: 'white',
+            padding: '30px',
+            borderRadius: '8px',
+            maxWidth: '600px',
+            width: '90%',
+            maxHeight: '90vh',
+            overflowY: 'auto',
+            boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)'
+          }}>
+            <h3 style={{ marginTop: 0, marginBottom: '20px' }}>📦 Cantidad de componentes</h3>
+            
+            <div>
+              <div className="form-group">
+                <label>Fecha Desde *</label>
+                <input
+                  type="date"
+                  value={cantCompFechaDesde}
+                  onChange={(e) => setCantCompFechaDesde(e.target.value)}
+                  required
+                  style={{ width: '100%', padding: '8px 12px', borderRadius: '4px', border: '1px solid #ced4da' }}
+                />
+              </div>
+
+              <div className="form-group">
+                <label>Fecha Hasta *</label>
+                <input
+                  type="date"
+                  value={cantCompFechaHasta}
+                  onChange={(e) => setCantCompFechaHasta(e.target.value)}
+                  required
+                  style={{ width: '100%', padding: '8px 12px', borderRadius: '4px', border: '1px solid #ced4da' }}
+                />
+              </div>
+
+              <div className="form-group">
+                <label>Tipo de Transacción</label>
+                <select
+                  value={cantCompIdTipoTransaccion}
+                  onChange={(e) => setCantCompIdTipoTransaccion(e.target.value)}
+                  style={{ width: '100%', padding: '8px 12px', borderRadius: '4px', border: '1px solid #ced4da' }}
+                >
+                  <option value="">Todos los tipos</option>
+                  {tiposTransaccion.map(tipo => (
+                    <option key={tipo.id_tipo_transaccion_25} value={tipo.id_tipo_transaccion_25}>
+                      {tipo.cod_accion_25} - {tipo.descripcion_25}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="form-group">
+                <label>Marca</label>
+                <select
+                  value={cantCompIdMarca}
+                  onChange={(e) => setCantCompIdMarca(e.target.value)}
+                  style={{ width: '100%', padding: '8px 12px', borderRadius: '4px', border: '1px solid #ced4da' }}
+                >
+                  <option value="">Todas las marcas</option>
+                  {marcas.map(marca => (
+                    <option key={marca.id_marca_18} value={marca.id_marca_18}>
+                      {marca.marca_18}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="form-group">
+                <label>Destino (Ubicación)</label>
+                <select
+                  value={cantCompIdDestino}
+                  onChange={(e) => setCantCompIdDestino(e.target.value)}
+                  style={{ width: '100%', padding: '8px 12px', borderRadius: '4px', border: '1px solid #ced4da' }}
+                >
+                  <option value="">Todos los destinos</option>
+                  {ubicaciones.map(ubic => (
+                    <option key={ubic.id_ubicacion_27} value={ubic.id_ubicacion_27}>
+                      {ubic.descripcion_27}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="form-group">
+                <label>Máquina</label>
+                <select
+                  value={cantCompIdMaquina}
+                  onChange={(e) => setCantCompIdMaquina(e.target.value)}
+                  style={{ width: '100%', padding: '8px 12px', borderRadius: '4px', border: '1px solid #ced4da' }}
+                >
+                  <option value="">Todas las máquinas</option>
+                  {maquinas.map(maq => (
+                    <option key={maq.idmaquina_11} value={maq.idmaquina_11}>
+                      {maq.numinterno_11} - {maq.ppu_11}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="form-group">
+                <label>Tipo de Componente</label>
+                <select
+                  value={cantCompIdTipoComp}
+                  onChange={(e) => setCantCompIdTipoComp(e.target.value)}
+                  style={{ width: '100%', padding: '8px 12px', borderRadius: '4px', border: '1px solid #ced4da' }}
+                >
+                  <option value="">Todos los tipos</option>
+                  {tiposComp.map(tipo => (
+                    <option key={tipo.id_tipo_comp_alternador_32} value={tipo.id_tipo_comp_alternador_32}>
+                      {tipo.tipo_comp_alternador_32}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="form-actions">
+                <button 
+                  type="button" 
+                  className="btn-primary" 
+                  onClick={async () => {
+                    // Validar fechas requeridas
+                    if (!cantCompFechaDesde || !cantCompFechaHasta) {
+                      await showError('Validación', 'Las fechas desde y hasta son requeridas');
+                      return;
+                    }
+
+                    // Construir URL con parámetros
+                    const params = new URLSearchParams({
+                      fecha_desde: cantCompFechaDesde,
+                      fecha_hasta: cantCompFechaHasta
+                    });
+
+                    // Agregar filtros opcionales si están seleccionados
+                    if (cantCompIdTipoTransaccion) {
+                      params.append('id_tipo_transaccion', cantCompIdTipoTransaccion);
+                    }
+                    if (cantCompIdMarca) {
+                      params.append('id_marca', cantCompIdMarca);
+                    }
+                    if (cantCompIdDestino) {
+                      params.append('id_destino', cantCompIdDestino);
+                    }
+                    if (cantCompIdMaquina) {
+                      params.append('id_maquina', cantCompIdMaquina);
+                    }
+                    if (cantCompIdTipoComp) {
+                      params.append('id_tipo_comp_alternador', cantCompIdTipoComp);
+                    }
+
+                    // Abrir el reporte en una nueva ventana para descargar
+                    const reportUrl = `http://localhost:3001/api/transacciones/reporte-cantidad-componentes/pdf?${params.toString()}`;
+                    window.open(reportUrl, '_blank');
+
+                    // Cerrar el modal
+                    setShowCantComponentesModal(false);
+                    
+                    // Resetear filtros
+                    setCantCompFechaDesde('');
+                    setCantCompFechaHasta('');
+                    setCantCompIdTipoTransaccion('');
+                    setCantCompIdMarca('');
+                    setCantCompIdDestino('');
+                    setCantCompIdMaquina('');
+                    setCantCompIdTipoComp('');
+                  }}
+                  style={{ backgroundColor: '#28a745' }}
+                >
+                  📥 Generar PDF
+                </button>
+                <button 
+                  type="button" 
+                  className="btn-secondary" 
+                  onClick={() => {
+                    setShowCantComponentesModal(false);
+                    setCantCompFechaDesde('');
+                    setCantCompFechaHasta('');
+                    setCantCompIdTipoTransaccion('');
+                    setCantCompIdMarca('');
+                    setCantCompIdDestino('');
+                    setCantCompIdMaquina('');
+                    setCantCompIdTipoComp('');
+                  }}
+                >
+                  Cancelar
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

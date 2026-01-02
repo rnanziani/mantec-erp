@@ -22,3 +22,7 @@ router.delete('/usuario/:id_usuario', removerTodosPermisosUsuario);
 
 export default router;
 
+
+
+
+

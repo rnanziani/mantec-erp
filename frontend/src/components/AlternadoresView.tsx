@@ -9,12 +9,20 @@ interface Alternador {
   id_alternador_19: number;
   cod_alternador_19: string;
   id_marca_19: number;
+  estado_ubicacion?: string;
+  id_tipo_comp_alternador_19: number;
   marca_18?: string;
+  tipo_comp_descripcion?: string;
 }
 
 interface Marca {
   id_marca_18: number;
   marca_18: string;
+}
+
+interface TipoCompAlternador {
+  id_tipo_comp_alternador_32: number;
+  tipo_comp_alternador_32: string;
 }
 
 interface ApiResponse {
@@ -33,24 +41,30 @@ type SortConfig = {
 const AlternadoresView: React.FC = () => {
   const [alternadores, setAlternadores] = useState<Alternador[]>([]);
   const [marcas, setMarcas] = useState<Marca[]>([]);
+  const [tiposComp, setTiposComp] = useState<TipoCompAlternador[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string>('');
   const [selectedMarca, setSelectedMarca] = useState<number>(0);
+  const [estadoUbicacion, setEstadoUbicacion] = useState<string>('BODEGA');
+  const [selectedTipoComp, setSelectedTipoComp] = useState<number>(1);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [showForm, setShowForm] = useState<boolean>(false);
 
   // Nuevas funcionalidades
   const [searchTerm, setSearchTerm] = useState<string>('');
+  const [filterTipoComp, setFilterTipoComp] = useState<number>(0); // 0 = todos
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [itemsPerPage] = useState<number>(10);
   const [sortConfig, setSortConfig] = useState<SortConfig>({ key: 'id_alternador_19', direction: 'asc' });
 
   const API_URL = 'http://localhost:3001/api/alternadores';
   const MARCAS_URL = 'http://localhost:3001/api/marcas';
+  const TIPOS_COMP_URL = 'http://localhost:3001/api/tipos-comp-alternador';
 
   useEffect(() => {
     fetchAlternadores();
     fetchMarcas();
+    fetchTiposComp();
   }, []);
 
   const fetchAlternadores = async () => {
@@ -61,7 +75,7 @@ const AlternadoresView: React.FC = () => {
       const data: ApiResponse = await response.json();
 
       if (data.success && Array.isArray(data.data)) {
-        setAlternadores(data.data);
+        setAlternadores(data.data as Alternador[]);
       } else {
         setError('Error al cargar los alternadores');
       }
@@ -79,19 +93,40 @@ const AlternadoresView: React.FC = () => {
       const data: ApiResponse = await response.json();
 
       if (data.success && Array.isArray(data.data)) {
-        setMarcas(data.data);
+        setMarcas(data.data as Marca[]);
       }
     } catch (err) {
       console.error('Error al cargar marcas:', err);
     }
   };
 
+  const fetchTiposComp = async () => {
+    try {
+      const response = await fetch(TIPOS_COMP_URL);
+      const data: ApiResponse = await response.json();
+
+      if (data.success && Array.isArray(data.data)) {
+        setTiposComp(data.data as unknown as TipoCompAlternador[]);
+      }
+    } catch (err) {
+      console.error('Error al cargar tipos de componente:', err);
+    }
+  };
+
   // Filtrar y ordenar datos
   const filteredAndSortedAlternadores = useMemo(() => {
-    let filtered = alternadores.filter(alt =>
-      alt.cod_alternador_19.includes(searchTerm) ||
-      alt.marca_18?.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    let filtered = alternadores.filter(alt => {
+      // Filtro por búsqueda de texto
+      const matchesSearch = alt.cod_alternador_19.includes(searchTerm) ||
+        alt.marca_18?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        alt.estado_ubicacion?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        alt.tipo_comp_descripcion?.toLowerCase().includes(searchTerm.toLowerCase());
+      
+      // Filtro por tipo de componente
+      const matchesTipoComp = filterTipoComp === 0 || alt.id_tipo_comp_alternador_19 === filterTipoComp;
+      
+      return matchesSearch && matchesTipoComp;
+    });
 
     // Ordenar
     filtered.sort((a, b) => {
@@ -105,7 +140,7 @@ const AlternadoresView: React.FC = () => {
     });
 
     return filtered;
-  }, [alternadores, searchTerm, sortConfig]);
+  }, [alternadores, searchTerm, filterTipoComp, sortConfig]);
 
   // Paginación
   const indexOfLastItem = currentPage * itemsPerPage;
@@ -113,10 +148,10 @@ const AlternadoresView: React.FC = () => {
   const currentAlternadores = filteredAndSortedAlternadores.slice(indexOfFirstItem, indexOfLastItem);
   const totalPages = Math.ceil(filteredAndSortedAlternadores.length / itemsPerPage);
 
-  // Resetear página al buscar
+  // Resetear página al buscar o filtrar
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm]);
+  }, [searchTerm, filterTipoComp]);
 
   const handleSort = (key: keyof Alternador) => {
     setSortConfig(prev => ({
@@ -142,7 +177,11 @@ const AlternadoresView: React.FC = () => {
       const response = await fetch(API_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id_marca_19: selectedMarca })
+        body: JSON.stringify({ 
+          id_marca_19: selectedMarca,
+          estado_ubicacion: estadoUbicacion || 'BODEGA',
+          id_tipo_comp_alternador_19: selectedTipoComp || 1
+        })
       });
 
       const data: ApiResponse = await response.json();
@@ -150,6 +189,8 @@ const AlternadoresView: React.FC = () => {
       if (data.success) {
         await fetchAlternadores();
         setSelectedMarca(0);
+        setEstadoUbicacion('BODEGA');
+        setSelectedTipoComp(1);
         setShowForm(false);
         await showSuccess('¡Éxito!', 'Alternador creado exitosamente');
       } else {
@@ -170,7 +211,11 @@ const AlternadoresView: React.FC = () => {
       const response = await fetch(`${API_URL}/${editingId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id_marca_19: selectedMarca })
+        body: JSON.stringify({ 
+          id_marca_19: selectedMarca,
+          estado_ubicacion: estadoUbicacion || 'BODEGA',
+          id_tipo_comp_alternador_19: selectedTipoComp || 1
+        })
       });
 
       const data: ApiResponse = await response.json();
@@ -178,14 +223,16 @@ const AlternadoresView: React.FC = () => {
       if (data.success) {
         await fetchAlternadores();
         setSelectedMarca(0);
+        setEstadoUbicacion('BODEGA');
+        setSelectedTipoComp(1);
         setEditingId(null);
         setShowForm(false);
-        showToast('Alternador actualizado exitosamente', 'success');
+        await showSuccess('¡Éxito!', 'Alternador actualizado exitosamente');
       } else {
-        showToast(data.error || 'Error al actualizar el alternador', 'error');
+        await showError('Error', data.error || 'Error al actualizar el alternador');
       }
     } catch (err) {
-      showToast('Error al actualizar el alternador', 'error');
+      await showError('Error', 'Error al actualizar el alternador');
       console.error('Error:', err);
     }
   };
@@ -204,12 +251,12 @@ const AlternadoresView: React.FC = () => {
 
       if (data.success) {
         await fetchAlternadores();
-        showToast('Alternador eliminado exitosamente', 'success');
+        await showSuccess('¡Éxito!', 'Alternador eliminado exitosamente');
       } else {
-        showToast(data.error || 'Error al eliminar el alternador', 'error');
+        await showError('Error', data.error || 'Error al eliminar el alternador');
       }
     } catch (err) {
-      showToast('Error al eliminar el alternador', 'error');
+      await showError('Error', 'Error al eliminar el alternador');
       console.error('Error:', err);
     }
   };
@@ -217,12 +264,16 @@ const AlternadoresView: React.FC = () => {
   const startEdit = (alternador: Alternador) => {
     setEditingId(alternador.id_alternador_19);
     setSelectedMarca(alternador.id_marca_19);
+    setEstadoUbicacion(alternador.estado_ubicacion || 'BODEGA');
+    setSelectedTipoComp(alternador.id_tipo_comp_alternador_19 || 1);
     setShowForm(true);
     setError('');
   };
 
   const cancelForm = () => {
     setSelectedMarca(0);
+    setEstadoUbicacion('BODEGA');
+    setSelectedTipoComp(1);
     setEditingId(null);
     setShowForm(false);
     setError('');
@@ -230,19 +281,23 @@ const AlternadoresView: React.FC = () => {
 
   const showCreateForm = () => {
     setSelectedMarca(0);
+    setEstadoUbicacion('BODEGA');
+    setSelectedTipoComp(1);
     setEditingId(null);
     setShowForm(true);
     setError('');
   };
 
-  const handleExport = () => {
+  const handleExport = async () => {
     const dataToExport = filteredAndSortedAlternadores.map(a => ({
       ID: a.id_alternador_19,
       Código: a.cod_alternador_19,
-      Marca: a.marca_18 || ''
+      Marca: a.marca_18 || '',
+      'Estado Ubicación': a.estado_ubicacion || 'BODEGA',
+      'Tipo Componente': a.tipo_comp_descripcion || 'Tipo ' + (a.id_tipo_comp_alternador_19 || 1)
     }));
     exportToExcel(dataToExport, 'alternadores', 'Alternadores');
-    showToast('Datos exportados exitosamente', 'success');
+    await showSuccess('¡Éxito!', 'Datos exportados exitosamente');
   };
 
   return (
@@ -265,13 +320,44 @@ const AlternadoresView: React.FC = () => {
 
       {!showForm && (
         <div className="search-section">
-          <SearchBar
-            placeholder="Buscar por código o marca..."
-            value={searchTerm}
-            onChange={setSearchTerm}
-          />
-          <div className="results-info">
-            Mostrando {currentAlternadores.length} de {filteredAndSortedAlternadores.length} registros
+          <div style={{ display: 'flex', gap: '15px', alignItems: 'flex-end', flexWrap: 'nowrap', width: '100%' }}>
+            <div style={{ flex: '1', minWidth: '250px' }}>
+              <SearchBar
+                placeholder="Buscar por código o marca..."
+                value={searchTerm}
+                onChange={setSearchTerm}
+              />
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: '220px' }}>
+              <label htmlFor="filter-tipo-comp" style={{ fontSize: '14px', fontWeight: '500', color: '#333', whiteSpace: 'nowrap' }}>
+                Filtrar por Tipo:
+              </label>
+              <select
+                id="filter-tipo-comp"
+                value={filterTipoComp}
+                onChange={(e) => setFilterTipoComp(parseInt(e.target.value))}
+                style={{
+                  flex: '1',
+                  padding: '8px 12px',
+                  borderRadius: '4px',
+                  border: '1px solid #ced4da',
+                  fontSize: '14px',
+                  backgroundColor: 'white',
+                  cursor: 'pointer',
+                  minWidth: '150px'
+                }}
+              >
+                <option value={0}>Todos los tipos</option>
+                {tiposComp.map(tipo => (
+                  <option key={tipo.id_tipo_comp_alternador_32} value={tipo.id_tipo_comp_alternador_32}>
+                    {tipo.tipo_comp_alternador_32}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="results-info" style={{ whiteSpace: 'nowrap', marginLeft: 'auto' }}>
+              Mostrando {currentAlternadores.length} de {filteredAndSortedAlternadores.length} registros
+            </div>
           </div>
         </div>
       )}
@@ -304,6 +390,41 @@ const AlternadoresView: React.FC = () => {
               </select>
               <small className="form-hint">
                 💡 El código del alternador se generará automáticamente
+              </small>
+            </div>
+            <div className="form-group">
+              <label htmlFor="estadoUbicacion">Estado de Ubicación:</label>
+              <input
+                id="estadoUbicacion"
+                type="text"
+                className="form-input"
+                value={estadoUbicacion}
+                onChange={(e) => setEstadoUbicacion(e.target.value)}
+                placeholder="BODEGA"
+                maxLength={20}
+              />
+              <small className="form-hint">
+                💡 Estado de ubicación del alternador (por defecto: BODEGA)
+              </small>
+            </div>
+            <div className="form-group">
+              <label htmlFor="tipoComp">Tipo de Componente:</label>
+              <select
+                id="tipoComp"
+                className="form-select"
+                value={selectedTipoComp}
+                onChange={(e) => setSelectedTipoComp(parseInt(e.target.value))}
+                required
+              >
+                <option value="0">-- Seleccione un tipo --</option>
+                {tiposComp.map((tipo) => (
+                  <option key={tipo.id_tipo_comp_alternador_32} value={tipo.id_tipo_comp_alternador_32}>
+                    {tipo.tipo_comp_alternador_32}
+                  </option>
+                ))}
+              </select>
+              <small className="form-hint">
+                💡 Tipo de componente del alternador (por defecto: 1)
               </small>
             </div>
             <div className="form-actions">
@@ -344,13 +465,25 @@ const AlternadoresView: React.FC = () => {
                   >
                     MARCA
                   </th>
+                  <th 
+                    onClick={() => handleSort('estado_ubicacion')} 
+                    className={`sortable ${sortConfig.key === 'estado_ubicacion' ? (sortConfig.direction === 'asc' ? 'sort-asc' : 'sort-desc') : ''}`}
+                  >
+                    ESTADO UBICACIÓN
+                  </th>
+                  <th 
+                    onClick={() => handleSort('tipo_comp_descripcion')} 
+                    className={`sortable ${sortConfig.key === 'tipo_comp_descripcion' ? (sortConfig.direction === 'asc' ? 'sort-asc' : 'sort-desc') : ''}`}
+                  >
+                    TIPO COMPONENTE
+                  </th>
                   <th>ACCIONES</th>
                 </tr>
               </thead>
               <tbody>
                 {currentAlternadores.length === 0 ? (
                   <tr>
-                    <td colSpan={4} className="no-data">
+                    <td colSpan={6} className="no-data">
                       {searchTerm
                         ? `📋 No se encontraron alternadores con "${searchTerm}"`
                         : '📋 No hay alternadores registrados'
@@ -363,6 +496,8 @@ const AlternadoresView: React.FC = () => {
                       <td>{alternador.id_alternador_19}</td>
                       <td className="codigo-alternador">{alternador.cod_alternador_19}</td>
                       <td className="marca-name">{alternador.marca_18}</td>
+                      <td className="estado-ubicacion">{alternador.estado_ubicacion || 'BODEGA'}</td>
+                      <td className="tipo-comp">{alternador.tipo_comp_descripcion || 'Tipo ' + (alternador.id_tipo_comp_alternador_19 || 1)}</td>
                       <td className="actions">
                         <button
                           className="btn-edit"

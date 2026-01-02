@@ -4,6 +4,7 @@ import Sidebar from './components/Sidebar';
 import MarcasAlternador from './components/MarcasAlternador';
 import AlternadoresView from './components/AlternadoresView';
 import EstadoAlternadorView from './components/EstadoAlternadorView';
+import TipoCompAlternadorView from './components/TipoCompAlternadorView';
 import TecnicoView from './components/TecnicoView';
 import CargoView from './components/CargoView';
 import OrdenTrabajoView from './components/OrdenTrabajoView';
@@ -75,7 +76,8 @@ function App() {
     'tecnicos': 'MENU_MANTENEDORES_TECNICOS',
     'trabajadores': 'MENU_MANTENEDORES_TRABAJADORES',
     'productos-aseo': 'MENU_MANTENEDORES_PRODUCTOS_ASEO',
-    'maquinas': 'MENU_MANTENEDORES_MAQUINAS'
+    'maquinas': 'MENU_MANTENEDORES_MAQUINAS',
+    'tipos-comp-alternador': 'MENU_MANTENEDORES'
   };
 
   // Función para verificar si el usuario tiene acceso a una ruta
@@ -333,6 +335,8 @@ function App() {
 
           {currentView === 'maquinas' && hasRouteAccess('maquinas') && <MaquinaView />}
 
+          {currentView === 'tipos-comp-alternador' && hasRouteAccess('tipos-comp-alternador') && <TipoCompAlternadorView />}
+
           {currentView === 'login' && <LoginForm />}
 
           {currentView === 'register' && <RegisterForm />}
@@ -342,7 +346,7 @@ function App() {
           {currentView === 'reportes' && hasRouteAccess('reportes') && (
             <div className="mantec-welcome">
               <h2>📊 Reportes</h2>
-              <p>Módulo en desarrollo...</p>
+              <p>No hay reportes disponibles en este momento.</p>
             </div>
           )}
         </div>

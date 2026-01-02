@@ -621,3 +621,7 @@ const UsuarioPermisoView: React.FC = () => {
 
 export default UsuarioPermisoView;
 
+
+
+
+

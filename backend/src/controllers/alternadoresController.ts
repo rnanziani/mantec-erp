@@ -12,9 +12,13 @@ export const getAllAlternadores = async (req: Request, res: Response): Promise<v
         a.id_alternador_19, 
         a.cod_alternador_19, 
         a.id_marca_19,
-        m.marca_18
+        a.estado_ubicacion,
+        a.id_tipo_comp_alternador_19,
+        m.marca_18,
+        t.tipo_comp_alternador_32 as tipo_comp_descripcion
        FROM tbl_19_alternador a
        INNER JOIN tbl_18_marca_alternador m ON a.id_marca_19 = m.id_marca_18
+       LEFT JOIN tbl_32_tipo_comp_alternador t ON a.id_tipo_comp_alternador_19 = t.id_tipo_comp_alternador_32
        ORDER BY a.id_alternador_19 ASC`
     );
 
@@ -44,9 +48,13 @@ export const getAlternadorById = async (req: Request, res: Response): Promise<vo
         a.id_alternador_19, 
         a.cod_alternador_19, 
         a.id_marca_19,
-        m.marca_18
+        a.estado_ubicacion,
+        a.id_tipo_comp_alternador_19,
+        m.marca_18,
+        t.tipo_comp_alternador_32 as tipo_comp_descripcion
        FROM tbl_19_alternador a
        INNER JOIN tbl_18_marca_alternador m ON a.id_marca_19 = m.id_marca_18
+       LEFT JOIN tbl_32_tipo_comp_alternador t ON a.id_tipo_comp_alternador_19 = t.id_tipo_comp_alternador_32
        WHERE a.id_alternador_19 = $1`,
       [id]
     );
@@ -79,7 +87,7 @@ export const getAlternadorById = async (req: Request, res: Response): Promise<vo
  */
 export const createAlternador = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { id_marca_19 }: CreateAlternadorDTO = req.body;
+    const { id_marca_19, estado_ubicacion, id_tipo_comp_alternador_19 }: CreateAlternadorDTO = req.body;
 
     // Validación
     if (!id_marca_19) {
@@ -104,23 +112,44 @@ export const createAlternador = async (req: Request, res: Response): Promise<voi
       return;
     }
 
+    // Verificar que el tipo de componente existe si se proporciona
+    if (id_tipo_comp_alternador_19) {
+      const tipoExists = await pool.query(
+        'SELECT id_tipo_comp_alternador_32 FROM tbl_32_tipo_comp_alternador WHERE id_tipo_comp_alternador_32 = $1',
+        [id_tipo_comp_alternador_19]
+      );
+
+      if (tipoExists.rowCount === 0) {
+        res.status(400).json({
+          success: false,
+          error: 'El tipo de componente seleccionado no existe'
+        });
+        return;
+      }
+    }
+
     // Insertar alternador (el código se genera automáticamente por trigger)
+    // Si estado_ubicacion o id_tipo_comp_alternador_19 no se proporcionan, se usan los defaults de la BD
     const result = await pool.query<Alternador>(
-      `INSERT INTO tbl_19_alternador (id_marca_19) 
-       VALUES ($1) 
-       RETURNING id_alternador_19, cod_alternador_19, id_marca_19`,
-      [id_marca_19]
+      `INSERT INTO tbl_19_alternador (id_marca_19, estado_ubicacion, id_tipo_comp_alternador_19) 
+       VALUES ($1, $2, $3) 
+       RETURNING id_alternador_19, cod_alternador_19, id_marca_19, estado_ubicacion, id_tipo_comp_alternador_19`,
+      [id_marca_19, estado_ubicacion || 'BODEGA', id_tipo_comp_alternador_19 || 1]
     );
 
-    // Obtener el alternador completo con la marca
+    // Obtener el alternador completo con la marca y tipo de componente
     const alternadorCompleto = await pool.query<Alternador>(
       `SELECT 
         a.id_alternador_19, 
         a.cod_alternador_19, 
         a.id_marca_19,
-        m.marca_18
+        a.estado_ubicacion,
+        a.id_tipo_comp_alternador_19,
+        m.marca_18,
+        t.tipo_comp_alternador_32 as tipo_comp_descripcion
        FROM tbl_19_alternador a
        INNER JOIN tbl_18_marca_alternador m ON a.id_marca_19 = m.id_marca_18
+       LEFT JOIN tbl_32_tipo_comp_alternador t ON a.id_tipo_comp_alternador_19 = t.id_tipo_comp_alternador_32
        WHERE a.id_alternador_19 = $1`,
       [result.rows[0].id_alternador_19]
     );
@@ -146,34 +175,77 @@ export const createAlternador = async (req: Request, res: Response): Promise<voi
 export const updateAlternador = async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
-    const { id_marca_19 }: UpdateAlternadorDTO = req.body;
+    const { id_marca_19, estado_ubicacion, id_tipo_comp_alternador_19 }: UpdateAlternadorDTO = req.body;
 
-    // Validación
-    if (!id_marca_19) {
+    // Validación: al menos uno de los campos debe estar presente
+    if (!id_marca_19 && estado_ubicacion === undefined && id_tipo_comp_alternador_19 === undefined) {
       res.status(400).json({
         success: false,
-        error: 'El ID de la marca es requerido'
+        error: 'Debe proporcionar al menos un campo para actualizar'
       });
       return;
     }
 
-    // Verificar que la marca existe
-    const marcaExists = await pool.query(
-      'SELECT id_marca_18 FROM tbl_18_marca_alternador WHERE id_marca_18 = $1',
-      [id_marca_19]
-    );
+    // Verificar que la marca existe si se proporciona
+    if (id_marca_19) {
+      const marcaExists = await pool.query(
+        'SELECT id_marca_18 FROM tbl_18_marca_alternador WHERE id_marca_18 = $1',
+        [id_marca_19]
+      );
 
-    if (marcaExists.rowCount === 0) {
-      res.status(400).json({
-        success: false,
-        error: 'La marca seleccionada no existe'
-      });
-      return;
+      if (marcaExists.rowCount === 0) {
+        res.status(400).json({
+          success: false,
+          error: 'La marca seleccionada no existe'
+        });
+        return;
+      }
     }
+
+    // Verificar que el tipo de componente existe si se proporciona
+    if (id_tipo_comp_alternador_19 !== undefined) {
+      const tipoExists = await pool.query(
+        'SELECT id_tipo_comp_alternador_32 FROM tbl_32_tipo_comp_alternador WHERE id_tipo_comp_alternador_32 = $1',
+        [id_tipo_comp_alternador_19]
+      );
+
+      if (tipoExists.rowCount === 0) {
+        res.status(400).json({
+          success: false,
+          error: 'El tipo de componente seleccionado no existe'
+        });
+        return;
+      }
+    }
+
+    // Construir la query de actualización dinámicamente
+    const updates: string[] = [];
+    const values: any[] = [];
+    let paramIndex = 1;
+
+    if (id_marca_19 !== undefined) {
+      updates.push(`id_marca_19 = $${paramIndex}`);
+      values.push(id_marca_19);
+      paramIndex++;
+    }
+
+    if (estado_ubicacion !== undefined) {
+      updates.push(`estado_ubicacion = $${paramIndex}`);
+      values.push(estado_ubicacion);
+      paramIndex++;
+    }
+
+    if (id_tipo_comp_alternador_19 !== undefined) {
+      updates.push(`id_tipo_comp_alternador_19 = $${paramIndex}`);
+      values.push(id_tipo_comp_alternador_19);
+      paramIndex++;
+    }
+
+    values.push(id); // ID al final para el WHERE
 
     const result = await pool.query(
-      'UPDATE tbl_19_alternador SET id_marca_19 = $1 WHERE id_alternador_19 = $2 RETURNING id_alternador_19',
-      [id_marca_19, id]
+      `UPDATE tbl_19_alternador SET ${updates.join(', ')} WHERE id_alternador_19 = $${paramIndex} RETURNING id_alternador_19`,
+      values
     );
 
     if (result.rowCount === 0) {
@@ -184,15 +256,19 @@ export const updateAlternador = async (req: Request, res: Response): Promise<voi
       return;
     }
 
-    // Obtener el alternador actualizado con la marca
+    // Obtener el alternador actualizado con la marca y tipo de componente
     const alternadorActualizado = await pool.query<Alternador>(
       `SELECT 
         a.id_alternador_19, 
         a.cod_alternador_19, 
         a.id_marca_19,
-        m.marca_18
+        a.estado_ubicacion,
+        a.id_tipo_comp_alternador_19,
+        m.marca_18,
+        t.tipo_comp_alternador_32 as tipo_comp_descripcion
        FROM tbl_19_alternador a
        INNER JOIN tbl_18_marca_alternador m ON a.id_marca_19 = m.id_marca_18
+       LEFT JOIN tbl_32_tipo_comp_alternador t ON a.id_tipo_comp_alternador_19 = t.id_tipo_comp_alternador_32
        WHERE a.id_alternador_19 = $1`,
       [id]
     );

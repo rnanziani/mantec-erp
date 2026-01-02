@@ -31,6 +31,7 @@ import historialContrasenaRoutes from './routes/historialContrasenaRoutes.js';
 import intentoLoginRoutes from './routes/intentoLoginRoutes.js';
 import sesionViewRoutes from './routes/sesionViewRoutes.js';
 import parametrosRoutes from './routes/parametrosRoutes.js';
+import tipoCompAlternadorRoutes from './routes/tipoCompAlternadorRoutes.js';
 
 console.log('🔄 Servidor iniciando - Cargando rutas...');
 
@@ -103,6 +104,7 @@ app.use('/api/historial-contrasenas', historialContrasenaRoutes);
 app.use('/api/intentos-login', intentoLoginRoutes);
 app.use('/api/sesiones-view', sesionViewRoutes);
 app.use('/api/parametros', parametrosRoutes);
+app.use('/api/tipos-comp-alternador', tipoCompAlternadorRoutes);
 
 console.log('✅ Todas las rutas cargadas');
 

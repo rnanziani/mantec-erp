@@ -24,6 +24,30 @@ export interface UpdateMarcaAlternadorDTO {
 }
 
 /**
+ * Tipo de Componente Alternador
+ * Tabla: tbl_32_tipo_comp_alternador
+ */
+export interface TipoCompAlternador {
+  id_tipo_comp_alternador_32: number;
+  tipo_comp_alternador_32: string;
+}
+
+/**
+ * DTO para crear un nuevo tipo de componente alternador
+ */
+export interface CreateTipoCompAlternadorDTO {
+  id_tipo_comp_alternador_32: number;
+  tipo_comp_alternador_32: string;
+}
+
+/**
+ * DTO para actualizar un tipo de componente alternador
+ */
+export interface UpdateTipoCompAlternadorDTO {
+  tipo_comp_alternador_32: string;
+}
+
+/**
  * Alternador
  * Tabla: tbl_19_alternador
  */
@@ -31,7 +55,10 @@ export interface Alternador {
   id_alternador_19: number;
   cod_alternador_19: string;
   id_marca_19: number;
+  estado_ubicacion?: string; // Estado de ubicación (default: 'BODEGA')
+  id_tipo_comp_alternador_19: number; // Tipo de componente (default: 1)
   marca_18?: string; // Nombre de la marca (JOIN)
+  tipo_comp_descripcion?: string; // Descripción del tipo de componente (JOIN)
 }
 
 /**
@@ -40,13 +67,17 @@ export interface Alternador {
  */
 export interface CreateAlternadorDTO {
   id_marca_19: number;
+  estado_ubicacion?: string; // Opcional, default: 'BODEGA'
+  id_tipo_comp_alternador_19?: number; // Opcional, default: 1
 }
 
 /**
  * DTO para actualizar un alternador
  */
 export interface UpdateAlternadorDTO {
-  id_marca_19: number;
+  id_marca_19?: number;
+  estado_ubicacion?: string;
+  id_tipo_comp_alternador_19?: number;
 }
 
 /**
@@ -505,6 +536,7 @@ export interface Transaccion {
   tecnico_nombre?: string; // Nombre completo del técnico
   maquina_numinterno?: string; // Número interno de la máquina
   maquina_ppu?: string; // Patente de la máquina
+  tipo_comp_descripcion?: string; // Descripción del tipo de componente del alternador
 }
 
 /**
