@@ -503,33 +503,32 @@ const AsignacionProductosAseoView: React.FC = () => {
   }, [maquinas, reportBuscarPatente]);
 
   const reportTrabajadoresFiltrados = useMemo(() => {
-    // Si el campo está vacío, devolver todos los trabajadores
     if (!reportBuscarTrabajador || reportBuscarTrabajador.trim() === '') {
       return trabajadores;
     }
-    
     const busqueda = reportBuscarTrabajador.trim();
-    const apellidos = busqueda.split(/\s+/); // Separar por espacios
-    
-    return trabajadores.filter(t => {
-      if (apellidos.length === 1) {
-        // Un solo apellido: buscar en paterno O materno
-        const apellidoLower = apellidos[0].toLowerCase();
-        const coincidePaterno = t.apaterno_06 && t.apaterno_06.toLowerCase().includes(apellidoLower);
-        const coincideMaterno = t.amaterno_06 && t.amaterno_06.toLowerCase().includes(apellidoLower);
-        
-        return coincidePaterno || coincideMaterno;
-      } else {
-        // Dos o más apellidos: primer apellido debe estar en paterno Y segundo en materno
-        const primerApellidoLower = apellidos[0].toLowerCase();
-        const segundoApellidoLower = apellidos[1].toLowerCase();
-        
-        const coincidePaterno = t.apaterno_06 && t.apaterno_06.toLowerCase().includes(primerApellidoLower);
-        const coincideMaterno = t.amaterno_06 && t.amaterno_06.toLowerCase().includes(segundoApellidoLower);
-        
-        return coincidePaterno && coincideMaterno;
-      }
-    });
+    const apellidos = busqueda.split(/\s+/).map(a => a.toLowerCase());
+    if (apellidos.length === 1) {
+      const word = apellidos[0];
+      const paternoMatch = trabajadores.filter(t =>
+        t.apaterno_06 != null && t.apaterno_06.toLowerCase().startsWith(word)
+      );
+      const maternoMatch = trabajadores.filter(t =>
+        t.amaterno_06 != null && t.amaterno_06.toLowerCase().startsWith(word) &&
+        !paternoMatch.some(p => p.idtrabajador_06 === t.idtrabajador_06)
+      );
+      return [...paternoMatch, ...maternoMatch];
+    }
+    const [primer, segundo] = apellidos;
+    return trabajadores
+      .filter(t =>
+        t.apaterno_06 != null && t.apaterno_06.toLowerCase().startsWith(primer) &&
+        t.amaterno_06 != null && t.amaterno_06.toLowerCase().startsWith(segundo)
+      )
+      .sort((a, b) => {
+        const cmpP = (a.apaterno_06 || '').localeCompare(b.apaterno_06 || '');
+        return cmpP !== 0 ? cmpP : (a.amaterno_06 || '').localeCompare(b.amaterno_06 || '');
+      });
   }, [trabajadores, reportBuscarTrabajador]);
 
   const handleLimpiarFiltrosReporte = () => {
@@ -621,33 +620,32 @@ const AsignacionProductosAseoView: React.FC = () => {
   }, [maquinas, buscarPatente]);
 
   const trabajadoresFiltrados = useMemo(() => {
-    // Si el campo está vacío, devolver todos los trabajadores
     if (!buscarApellido || buscarApellido.trim() === '') {
       return trabajadores;
     }
-    
     const busqueda = buscarApellido.trim();
-    const apellidos = busqueda.split(/\s+/); // Separar por espacios
-    
-    return trabajadores.filter(t => {
-      if (apellidos.length === 1) {
-        // Un solo apellido: buscar en paterno O materno
-        const apellidoLower = apellidos[0].toLowerCase();
-        const coincidePaterno = t.apaterno_06 && t.apaterno_06.toLowerCase().includes(apellidoLower);
-        const coincideMaterno = t.amaterno_06 && t.amaterno_06.toLowerCase().includes(apellidoLower);
-        
-        return coincidePaterno || coincideMaterno;
-      } else {
-        // Dos o más apellidos: primer apellido debe estar en paterno Y segundo en materno
-        const primerApellidoLower = apellidos[0].toLowerCase();
-        const segundoApellidoLower = apellidos[1].toLowerCase();
-        
-        const coincidePaterno = t.apaterno_06 && t.apaterno_06.toLowerCase().includes(primerApellidoLower);
-        const coincideMaterno = t.amaterno_06 && t.amaterno_06.toLowerCase().includes(segundoApellidoLower);
-        
-        return coincidePaterno && coincideMaterno;
-      }
-    });
+    const apellidos = busqueda.split(/\s+/).map(a => a.toLowerCase());
+    if (apellidos.length === 1) {
+      const word = apellidos[0];
+      const paternoMatch = trabajadores.filter(t =>
+        t.apaterno_06 != null && t.apaterno_06.toLowerCase().startsWith(word)
+      );
+      const maternoMatch = trabajadores.filter(t =>
+        t.amaterno_06 != null && t.amaterno_06.toLowerCase().startsWith(word) &&
+        !paternoMatch.some(p => p.idtrabajador_06 === t.idtrabajador_06)
+      );
+      return [...paternoMatch, ...maternoMatch];
+    }
+    const [primer, segundo] = apellidos;
+    return trabajadores
+      .filter(t =>
+        t.apaterno_06 != null && t.apaterno_06.toLowerCase().startsWith(primer) &&
+        t.amaterno_06 != null && t.amaterno_06.toLowerCase().startsWith(segundo)
+      )
+      .sort((a, b) => {
+        const cmpP = (a.apaterno_06 || '').localeCompare(b.apaterno_06 || '');
+        return cmpP !== 0 ? cmpP : (a.amaterno_06 || '').localeCompare(b.amaterno_06 || '');
+      });
   }, [trabajadores, buscarApellido]);
 
   return (
@@ -755,7 +753,7 @@ const AsignacionProductosAseoView: React.FC = () => {
                 style={{ width: '100%', padding: '8px 12px', borderRadius: '4px', border: '1px solid #ced4da', textTransform: 'uppercase' }}
               />
               <small style={{ color: '#6c757d', fontSize: '0.85em' }}>
-                💡 Tip: Escribe un apellido para búsqueda amplia, o dos apellidos para búsqueda precisa
+                💡 Tip: Una palabra busca por apellido paterno primero, luego materno (empieza con). Dos palabras: paterno y materno en ese orden.
               </small>
             </div>
 
@@ -1029,7 +1027,7 @@ const AsignacionProductosAseoView: React.FC = () => {
                       style={{ width: '100%', padding: '8px 12px', borderRadius: '4px', border: '1px solid #ced4da', textTransform: 'uppercase', fontSize: '14px' }}
                     />
                     <small style={{ color: '#6c757d', fontSize: '0.85em' }}>
-                      💡 Tip: Escribe un apellido para búsqueda amplia, o dos apellidos para búsqueda precisa
+                      💡 Tip: Una palabra busca por apellido paterno primero, luego materno (empieza con). Dos palabras: paterno y materno en ese orden.
                     </small>
                 </div>
               </div>

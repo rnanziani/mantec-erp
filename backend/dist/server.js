@@ -15,9 +15,23 @@ import tipoTransaccionRoutes from './routes/tipoTransaccionRoutes.js';
 import existenciaRoutes from './routes/existenciaRoutes.js';
 import transaccionRoutes from './routes/transaccionRoutes.js';
 import trabajadorRoutes from './routes/trabajadorRoutes.js';
+import empresaRoutes from './routes/empresaRoutes.js';
 import productosAseoRoutes from './routes/productosAseoRoutes.js';
 import asignacionProductosAseoRoutes from './routes/asignacionProductosAseoRoutes.js';
+import asignacionPrendasRoutes from './routes/asignacionPrendasRoutes.js';
 import responsableEntregaRoutes from './routes/responsableEntregaRoutes.js';
+import authRoutes from './routes/authRoutes.js';
+import usuarioRoutes from './routes/usuarioRoutes.js';
+import sesionRoutes from './routes/sesionRoutes.js';
+import nivelUsuarioRoutes from './routes/nivelUsuarioRoutes.js';
+import permisoRoutes from './routes/permisoRoutes.js';
+import nivelPermisoRoutes from './routes/nivelPermisoRoutes.js';
+import usuarioPermisoRoutes from './routes/usuarioPermisoRoutes.js';
+import historialContrasenaRoutes from './routes/historialContrasenaRoutes.js';
+import intentoLoginRoutes from './routes/intentoLoginRoutes.js';
+import sesionViewRoutes from './routes/sesionViewRoutes.js';
+import parametrosRoutes from './routes/parametrosRoutes.js';
+import tipoCompAlternadorRoutes from './routes/tipoCompAlternadorRoutes.js';
 console.log('🔄 Servidor iniciando - Cargando rutas...');
 dotenv.config();
 const app = express();
@@ -66,14 +80,33 @@ app.use('/api/tipos-transaccion', tipoTransaccionRoutes);
 app.use('/api/existencias', existenciaRoutes);
 app.use('/api/transacciones', transaccionRoutes);
 app.use('/api/trabajadores', trabajadorRoutes);
+app.use('/api/empresas', empresaRoutes);
 app.use('/api/productos-aseo', productosAseoRoutes);
 app.use('/api/asignaciones-productos-aseo', asignacionProductosAseoRoutes);
+app.use('/api/asignaciones-prendas', asignacionPrendasRoutes);
 app.use('/api/responsables-entrega', responsableEntregaRoutes);
+app.use('/api/auth', authRoutes);
+app.use('/api/usuarios', usuarioRoutes);
+app.use('/api/sesiones', sesionRoutes);
+app.use('/api/niveles-usuario', nivelUsuarioRoutes);
+app.use('/api/permisos', permisoRoutes);
+app.use('/api/nivel-permisos', nivelPermisoRoutes);
+app.use('/api/usuario-permisos', usuarioPermisoRoutes);
+app.use('/api/historial-contrasenas', historialContrasenaRoutes);
+app.use('/api/intentos-login', intentoLoginRoutes);
+app.use('/api/sesiones-view', sesionViewRoutes);
+app.use('/api/parametros', parametrosRoutes);
+app.use('/api/tipos-comp-alternador', tipoCompAlternadorRoutes);
 console.log('✅ Todas las rutas cargadas');
 // Iniciar servidor
 const startServer = async () => {
     // Verificar conexión a la base de datos
     const dbConnected = await testConnection();
+    if (!dbConnected) {
+        console.warn('⚠️  ADVERTENCIA: El servidor se iniciará sin conexión a la base de datos');
+        console.warn('⚠️  Las funcionalidades que requieren base de datos no estarán disponibles');
+        console.warn('⚠️  Verifica tu archivo .env y que PostgreSQL esté corriendo');
+    }
     app.listen(PORT, () => {
         console.log(`
 🛠️  ==================================

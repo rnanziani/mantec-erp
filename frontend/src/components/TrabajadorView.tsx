@@ -246,33 +246,34 @@ const TrabajadorView: React.FC = () => {
     setBuscarApellido('');
   };
 
-  // Buscador de trabajadores por apellido (similar a AsignacionProductosAseoView)
+  // Buscador estricto: primero apellido paterno (empiece por lo escrito), luego materno
   const trabajadoresFiltradosPorApellido = useMemo(() => {
     if (!buscarApellido || buscarApellido.trim() === '') {
       return trabajadores;
     }
-    
     const busqueda = buscarApellido.trim();
-    const apellidos = busqueda.split(/\s+/);
-    
-    return trabajadores.filter(t => {
-      if (apellidos.length === 1) {
-        const apellidoLower = apellidos[0].toLowerCase();
-        const coincidePaterno = t.apaterno_06 && t.apaterno_06.toLowerCase().includes(apellidoLower);
-        const coincideMaterno = t.amaterno_06 && t.amaterno_06.toLowerCase().includes(apellidoLower);
-        const coincideNombre = t.nombre_06 && t.nombre_06.toLowerCase().includes(apellidoLower);
-        
-        return coincidePaterno || coincideMaterno || coincideNombre;
-      } else {
-        const primerApellidoLower = apellidos[0].toLowerCase();
-        const segundoApellidoLower = apellidos[1].toLowerCase();
-        
-        const coincidePaterno = t.apaterno_06 && t.apaterno_06.toLowerCase().includes(primerApellidoLower);
-        const coincideMaterno = t.amaterno_06 && t.amaterno_06.toLowerCase().includes(segundoApellidoLower);
-        
-        return coincidePaterno && coincideMaterno;
-      }
-    });
+    const apellidos = busqueda.split(/\s+/).map(a => a.toLowerCase());
+    if (apellidos.length === 1) {
+      const word = apellidos[0];
+      const paternoMatch = trabajadores.filter(t =>
+        t.apaterno_06 != null && t.apaterno_06.toLowerCase().startsWith(word)
+      );
+      const maternoMatch = trabajadores.filter(t =>
+        t.amaterno_06 != null && t.amaterno_06.toLowerCase().startsWith(word) &&
+        !paternoMatch.some(p => p.idtrabajador_06 === t.idtrabajador_06)
+      );
+      return [...paternoMatch, ...maternoMatch];
+    }
+    const [primer, segundo] = apellidos;
+    return trabajadores
+      .filter(t =>
+        t.apaterno_06 != null && t.apaterno_06.toLowerCase().startsWith(primer) &&
+        t.amaterno_06 != null && t.amaterno_06.toLowerCase().startsWith(segundo)
+      )
+      .sort((a, b) => {
+        const cmpP = (a.apaterno_06 || '').localeCompare(b.apaterno_06 || '');
+        return cmpP !== 0 ? cmpP : (a.amaterno_06 || '').localeCompare(b.amaterno_06 || '');
+      });
   }, [trabajadores, buscarApellido]);
 
   // Filtering and sorting

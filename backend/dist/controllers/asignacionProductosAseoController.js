@@ -1,4 +1,5 @@
 import { pool } from '../db.js';
+import PdfPrinter from 'pdfmake';
 // Tablas reales según el esquema de base de datos
 const TABLA_ASIGNACION = 'tbl_12_productomain';
 const TABLA_DETALLE = 'tbl_13_productodetail';
@@ -13,13 +14,14 @@ export const getAllProductos = async (req, res) => {
     try {
         const query = `
       SELECT 
-        idproductoaseo_10 as id_producto,
-        productoaseo_10 as nombre_producto,
-        enuso_10 as activo,
-        um_10 as unidad_medida
+        idproductoaseo_10,
+        productoaseo_10,
+        um_10,
+        enuso_10,
+        valorpordefecto_10,
+        orden_10
       FROM ${TABLA_PRODUCTO}
-      WHERE enuso_10 = true
-      ORDER BY productoaseo_10 ASC
+      ORDER BY COALESCE(orden_10, 999999) ASC, productoaseo_10 ASC
     `;
         const result = await pool.query(query);
         const response = {
@@ -43,8 +45,8 @@ export const getAllProductos = async (req, res) => {
  */
 export const createProducto = async (req, res) => {
     try {
-        const { nombre_producto, unidad_medida, activo, valor_por_defecto } = req.body;
-        if (!nombre_producto || !unidad_medida) {
+        const { productoaseo_10, um_10, enuso_10, valorpordefecto_10, orden_10 } = req.body;
+        if (!productoaseo_10 || !um_10) {
             const response = {
                 success: false,
                 error: 'El nombre del producto y la unidad de medida son requeridos'
@@ -53,15 +55,16 @@ export const createProducto = async (req, res) => {
             return;
         }
         const query = `
-      INSERT INTO ${TABLA_PRODUCTO} (productoaseo_10, um_10, enuso_10, valorpordefecto_10)
-      VALUES ($1, $2, COALESCE($3, true), COALESCE($4, 0))
-      RETURNING idproductoaseo_10 as id_producto, productoaseo_10 as nombre_producto, enuso_10 as activo, um_10 as unidad_medida
+      INSERT INTO ${TABLA_PRODUCTO} (productoaseo_10, um_10, enuso_10, valorpordefecto_10, orden_10)
+      VALUES ($1, $2, COALESCE($3, true), COALESCE($4, 0), $5)
+      RETURNING idproductoaseo_10, productoaseo_10, um_10, enuso_10, valorpordefecto_10, orden_10
     `;
         const result = await pool.query(query, [
-            nombre_producto,
-            unidad_medida || 'UND',
-            activo !== undefined ? activo : true,
-            valor_por_defecto || 0
+            productoaseo_10.trim(),
+            um_10.trim(),
+            enuso_10 !== undefined ? enuso_10 : true,
+            valorpordefecto_10 !== undefined ? valorpordefecto_10 : 0,
+            orden_10 !== undefined ? orden_10 : null
         ]);
         const response = {
             success: true,
@@ -75,6 +78,178 @@ export const createProducto = async (req, res) => {
         const response = {
             success: false,
             error: 'Error al crear el producto',
+            message: error instanceof Error ? error.message : 'Error desconocido'
+        };
+        res.status(500).json(response);
+    }
+};
+/**
+ * Obtener un producto de aseo por ID
+ */
+export const getProductoById = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const query = `
+      SELECT 
+        idproductoaseo_10,
+        productoaseo_10,
+        um_10,
+        enuso_10,
+        valorpordefecto_10,
+        orden_10
+      FROM ${TABLA_PRODUCTO}
+      WHERE idproductoaseo_10 = $1
+    `;
+        const result = await pool.query(query, [id]);
+        if (result.rows.length === 0) {
+            const response = {
+                success: false,
+                error: 'Producto no encontrado'
+            };
+            res.status(404).json(response);
+            return;
+        }
+        const response = {
+            success: true,
+            data: result.rows[0]
+        };
+        res.json(response);
+    }
+    catch (error) {
+        console.error('Error al obtener producto:', error);
+        const response = {
+            success: false,
+            error: 'Error al obtener el producto',
+            message: error instanceof Error ? error.message : 'Error desconocido'
+        };
+        res.status(500).json(response);
+    }
+};
+/**
+ * Actualizar un producto de aseo
+ */
+export const updateProducto = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { productoaseo_10, um_10, enuso_10, valorpordefecto_10, orden_10 } = req.body;
+        // Verificar que el producto existe
+        const checkQuery = `SELECT idproductoaseo_10 FROM ${TABLA_PRODUCTO} WHERE idproductoaseo_10 = $1`;
+        const checkResult = await pool.query(checkQuery, [id]);
+        if (checkResult.rows.length === 0) {
+            const response = {
+                success: false,
+                error: 'Producto no encontrado'
+            };
+            res.status(404).json(response);
+            return;
+        }
+        // Construir la query dinámicamente basada en los campos proporcionados
+        const updates = [];
+        const values = [];
+        let paramCount = 1;
+        if (productoaseo_10 !== undefined) {
+            updates.push(`productoaseo_10 = $${paramCount}`);
+            values.push(productoaseo_10.trim());
+            paramCount++;
+        }
+        if (um_10 !== undefined) {
+            updates.push(`um_10 = $${paramCount}`);
+            values.push(um_10.trim());
+            paramCount++;
+        }
+        if (enuso_10 !== undefined) {
+            updates.push(`enuso_10 = $${paramCount}`);
+            values.push(enuso_10);
+            paramCount++;
+        }
+        if (valorpordefecto_10 !== undefined) {
+            updates.push(`valorpordefecto_10 = $${paramCount}`);
+            values.push(valorpordefecto_10);
+            paramCount++;
+        }
+        if (orden_10 !== undefined) {
+            updates.push(`orden_10 = $${paramCount}`);
+            values.push(orden_10);
+            paramCount++;
+        }
+        if (updates.length === 0) {
+            const response = {
+                success: false,
+                error: 'No se proporcionaron campos para actualizar'
+            };
+            res.status(400).json(response);
+            return;
+        }
+        values.push(id);
+        const query = `
+      UPDATE ${TABLA_PRODUCTO}
+      SET ${updates.join(', ')}, updated_at = CURRENT_TIMESTAMP
+      WHERE idproductoaseo_10 = $${paramCount}
+      RETURNING idproductoaseo_10, productoaseo_10, um_10, enuso_10, valorpordefecto_10, orden_10
+    `;
+        const result = await pool.query(query, values);
+        const response = {
+            success: true,
+            data: result.rows[0],
+            message: 'Producto actualizado exitosamente'
+        };
+        res.json(response);
+    }
+    catch (error) {
+        console.error('Error al actualizar producto:', error);
+        const response = {
+            success: false,
+            error: 'Error al actualizar el producto',
+            message: error instanceof Error ? error.message : 'Error desconocido'
+        };
+        res.status(500).json(response);
+    }
+};
+/**
+ * Eliminar un producto de aseo
+ */
+export const deleteProducto = async (req, res) => {
+    try {
+        const { id } = req.params;
+        // Verificar que el producto existe
+        const checkQuery = `SELECT idproductoaseo_10 FROM ${TABLA_PRODUCTO} WHERE idproductoaseo_10 = $1`;
+        const checkResult = await pool.query(checkQuery, [id]);
+        if (checkResult.rows.length === 0) {
+            const response = {
+                success: false,
+                error: 'Producto no encontrado'
+            };
+            res.status(404).json(response);
+            return;
+        }
+        // Verificar si el producto está siendo usado en asignaciones
+        const checkUsageQuery = `
+      SELECT COUNT(*) as count
+      FROM ${TABLA_DETALLE}
+      WHERE idproductoaseo_13 = $1
+    `;
+        const usageResult = await pool.query(checkUsageQuery, [id]);
+        if (parseInt(usageResult.rows[0].count) > 0) {
+            const response = {
+                success: false,
+                error: 'No se puede eliminar el producto porque está siendo usado en asignaciones'
+            };
+            res.status(400).json(response);
+            return;
+        }
+        const query = `DELETE FROM ${TABLA_PRODUCTO} WHERE idproductoaseo_10 = $1`;
+        await pool.query(query, [id]);
+        const response = {
+            success: true,
+            message: 'Producto eliminado exitosamente'
+        };
+        res.json(response);
+    }
+    catch (error) {
+        console.error('Error al eliminar producto:', error);
+        const response = {
+            success: false,
+            error: 'Error al eliminar el producto',
             message: error instanceof Error ? error.message : 'Error desconocido'
         };
         res.status(500).json(response);
@@ -214,7 +389,7 @@ export const getDetallesAsignacion = async (req, res) => {
       FROM ${TABLA_DETALLE} d
       LEFT JOIN ${TABLA_PRODUCTO} p ON d.idproductoaseo_13 = p.idproductoaseo_10
       WHERE d.idproductomain_13 = $1
-      ORDER BY p.productoaseo_10 ASC
+      ORDER BY COALESCE(p.orden_10, 999999) ASC, p.productoaseo_10 ASC
     `;
         const result = await pool.query(query, [id]);
         const response = {
@@ -475,5 +650,325 @@ export const deleteAsignacion = async (req, res) => {
     }
     finally {
         client.release();
+    }
+};
+/**
+ * Obtener datos del reporte de entregas (para vista previa)
+ */
+export const getReporteDatos = async (req, res) => {
+    try {
+        const { fecha_desde, fecha_hasta, patente, id_trabajador, id_producto } = req.query;
+        // Validar que las fechas sean requeridas
+        if (!fecha_desde || !fecha_hasta) {
+            const response = {
+                success: false,
+                error: 'Las fechas desde y hasta son requeridas'
+            };
+            res.status(400).json(response);
+            return;
+        }
+        // Construir la consulta SQL (misma que en generarReportePDF)
+        let query = `
+      SELECT 
+        pm.fecha_12,
+        pm.hora_12,
+        m.ppu_11,
+        CONCAT(
+          re.nombreresponsableentrega_08,
+          CASE WHEN re.apaternoresponsableentrega_08 IS NOT NULL THEN ' ' || re.apaternoresponsableentrega_08 ELSE '' END,
+          CASE WHEN re.amaternoresponsableentrega_08 IS NOT NULL THEN ' ' || re.amaternoresponsableentrega_08 ELSE '' END
+        ) AS responsable,
+        CONCAT(
+          t.nombre_06,
+          CASE WHEN t.apaterno_06 IS NOT NULL THEN ' ' || t.apaterno_06 ELSE '' END,
+          CASE WHEN t.amaterno_06 IS NOT NULL THEN ' ' || t.amaterno_06 ELSE '' END
+        ) AS trabajador,
+        pa.productoaseo_10,
+        pd.cantidad_13
+      FROM ${TABLA_ASIGNACION} pm
+      INNER JOIN ${TABLA_MAQUINA} m ON pm.idmaquina_12 = m.idmaquina_11
+      INNER JOIN ${TABLA_TRABAJADOR} t ON pm.idtrabajador_12 = t.idtrabajador_06
+      INNER JOIN ${TABLA_RESPONSABLE} re ON pm.idresponsableentrega_12 = re.idresponsableentrega_08
+      INNER JOIN ${TABLA_DETALLE} pd ON pm.idproductomain_12 = pd.idproductomain_13
+      INNER JOIN ${TABLA_PRODUCTO} pa ON pd.idproductoaseo_13 = pa.idproductoaseo_10
+      WHERE pm.fecha_12 >= $1 AND pm.fecha_12 <= $2
+    `;
+        const params = [fecha_desde, fecha_hasta];
+        let paramCount = 3;
+        // Agregar filtros opcionales
+        if (patente) {
+            query += ` AND m.ppu_11 = $${paramCount}`;
+            params.push(patente);
+            paramCount++;
+        }
+        if (id_trabajador) {
+            query += ` AND pm.idtrabajador_12 = $${paramCount}`;
+            params.push(parseInt(id_trabajador));
+            paramCount++;
+        }
+        if (id_producto) {
+            query += ` AND pd.idproductoaseo_13 = $${paramCount}`;
+            params.push(parseInt(id_producto));
+            paramCount++;
+        }
+        query += ` ORDER BY pm.fecha_12 DESC, pm.hora_12 DESC, m.ppu_11, re.nombreresponsableentrega_08, pa.productoaseo_10`;
+        // Ejecutar consulta
+        const result = await pool.query(query, params);
+        const response = {
+            success: true,
+            data: result.rows
+        };
+        res.json(response);
+    }
+    catch (error) {
+        console.error('Error al obtener datos del reporte:', error);
+        const response = {
+            success: false,
+            error: 'Error al obtener los datos del reporte',
+            message: error instanceof Error ? error.message : 'Error desconocido'
+        };
+        res.status(500).json(response);
+    }
+};
+/**
+ * Generar reporte PDF de entregas de productos de aseo
+ */
+export const generarReportePDF = async (req, res) => {
+    try {
+        const { fecha_desde, fecha_hasta, patente, id_trabajador, id_producto } = req.query;
+        // Validar que las fechas sean requeridas
+        if (!fecha_desde || !fecha_hasta) {
+            const response = {
+                success: false,
+                error: 'Las fechas desde y hasta son requeridas'
+            };
+            res.status(400).json(response);
+            return;
+        }
+        // Construir la consulta SQL
+        let query = `
+      SELECT 
+        pm.fecha_12,
+        pm.hora_12,
+        m.ppu_11,
+        CONCAT(
+          re.nombreresponsableentrega_08,
+          CASE WHEN re.apaternoresponsableentrega_08 IS NOT NULL THEN ' ' || re.apaternoresponsableentrega_08 ELSE '' END,
+          CASE WHEN re.amaternoresponsableentrega_08 IS NOT NULL THEN ' ' || re.amaternoresponsableentrega_08 ELSE '' END
+        ) AS responsable,
+        CONCAT(
+          t.nombre_06,
+          CASE WHEN t.apaterno_06 IS NOT NULL THEN ' ' || t.apaterno_06 ELSE '' END,
+          CASE WHEN t.amaterno_06 IS NOT NULL THEN ' ' || t.amaterno_06 ELSE '' END
+        ) AS trabajador,
+        pa.productoaseo_10,
+        pd.cantidad_13
+      FROM ${TABLA_ASIGNACION} pm
+      INNER JOIN ${TABLA_MAQUINA} m ON pm.idmaquina_12 = m.idmaquina_11
+      INNER JOIN ${TABLA_TRABAJADOR} t ON pm.idtrabajador_12 = t.idtrabajador_06
+      INNER JOIN ${TABLA_RESPONSABLE} re ON pm.idresponsableentrega_12 = re.idresponsableentrega_08
+      INNER JOIN ${TABLA_DETALLE} pd ON pm.idproductomain_12 = pd.idproductomain_13
+      INNER JOIN ${TABLA_PRODUCTO} pa ON pd.idproductoaseo_13 = pa.idproductoaseo_10
+      WHERE pm.fecha_12 >= $1 AND pm.fecha_12 <= $2
+    `;
+        const params = [fecha_desde, fecha_hasta];
+        let paramCount = 3;
+        // Agregar filtros opcionales
+        if (patente) {
+            query += ` AND m.ppu_11 = $${paramCount}`;
+            params.push(patente);
+            paramCount++;
+        }
+        if (id_trabajador) {
+            query += ` AND pm.idtrabajador_12 = $${paramCount}`;
+            params.push(parseInt(id_trabajador));
+            paramCount++;
+        }
+        if (id_producto) {
+            query += ` AND pd.idproductoaseo_13 = $${paramCount}`;
+            params.push(parseInt(id_producto));
+            paramCount++;
+        }
+        query += ` ORDER BY pm.fecha_12 DESC, pm.hora_12 DESC, m.ppu_11, re.nombreresponsableentrega_08, pa.productoaseo_10`;
+        // Ejecutar consulta
+        const result = await pool.query(query, params);
+        if (result.rows.length === 0) {
+            const response = {
+                success: false,
+                error: 'No hay datos para generar el reporte'
+            };
+            res.status(404).json(response);
+            return;
+        }
+        // Configurar fuentes para pdfmake
+        const fonts = {
+            Roboto: {
+                normal: 'Helvetica',
+                bold: 'Helvetica-Bold',
+                italics: 'Helvetica-Oblique',
+                bolditalics: 'Helvetica-BoldOblique'
+            }
+        };
+        const printer = new PdfPrinter(fonts);
+        // Formatear fecha
+        const formatDate = (date) => {
+            const d = typeof date === 'string' ? new Date(date) : date;
+            return d.toLocaleDateString('es-CL', { day: '2-digit', month: '2-digit', year: 'numeric' });
+        };
+        // Formatear hora
+        const formatTime = (time) => {
+            if (!time)
+                return 'N/A';
+            const parts = time.split(':');
+            if (parts.length >= 2) {
+                return `${parts[0]}:${parts[1]}`;
+            }
+            return time;
+        };
+        // Preparar datos de la tabla
+        const tableBody = [
+            [
+                { text: 'Fecha', style: 'tableHeader', alignment: 'center' },
+                { text: 'Hora', style: 'tableHeader', alignment: 'center' },
+                { text: 'Patente', style: 'tableHeader', alignment: 'center' },
+                { text: 'Responsable', style: 'tableHeader', alignment: 'center' },
+                { text: 'Trabajador', style: 'tableHeader', alignment: 'center' },
+                { text: 'Producto', style: 'tableHeader', alignment: 'center' },
+                { text: 'Cantidad', style: 'tableHeader', alignment: 'center' }
+            ]
+        ];
+        // Agregar filas de datos
+        result.rows.forEach((row, index) => {
+            const backgroundColor = index % 2 === 0 ? '#f9f9f9' : '#ffffff';
+            tableBody.push([
+                { text: formatDate(row.fecha_12), style: 'tableCell', fillColor: backgroundColor, alignment: 'center' },
+                { text: formatTime(row.hora_12), style: 'tableCell', fillColor: backgroundColor, alignment: 'center' },
+                { text: row.ppu_11 || 'N/A', style: 'tableCell', fillColor: backgroundColor, alignment: 'center' },
+                { text: row.responsable || 'N/A', style: 'tableCell', fillColor: backgroundColor },
+                { text: row.trabajador || 'N/A', style: 'tableCell', fillColor: backgroundColor },
+                { text: row.productoaseo_10 || 'N/A', style: 'tableCell', fillColor: backgroundColor },
+                { text: parseFloat(row.cantidad_13).toFixed(0), style: 'tableCell', fillColor: backgroundColor, alignment: 'right' }
+            ]);
+        });
+        // Obtener información de filtros aplicados
+        const filtrosAplicados = [];
+        filtrosAplicados.push(`Período: ${formatDate(fecha_desde)} - ${formatDate(fecha_hasta)}`);
+        if (patente) {
+            filtrosAplicados.push(`Patente: ${patente}`);
+        }
+        else {
+            filtrosAplicados.push('Patente: TODAS');
+        }
+        if (id_trabajador) {
+            const trabajadorResult = await pool.query(`SELECT nombre_06, apaterno_06, amaterno_06 FROM ${TABLA_TRABAJADOR} WHERE idtrabajador_06 = $1`, [id_trabajador]);
+            if (trabajadorResult.rows.length > 0) {
+                const t = trabajadorResult.rows[0];
+                filtrosAplicados.push(`Recibe: ${t.nombre_06} ${t.apaterno_06 || ''} ${t.amaterno_06 || ''}`);
+            }
+        }
+        else {
+            filtrosAplicados.push('Recibe: TODOS');
+        }
+        if (id_producto) {
+            const productoResult = await pool.query(`SELECT productoaseo_10 FROM ${TABLA_PRODUCTO} WHERE idproductoaseo_10 = $1`, [id_producto]);
+            if (productoResult.rows.length > 0) {
+                filtrosAplicados.push(`Insumo: ${productoResult.rows[0].productoaseo_10}`);
+            }
+        }
+        else {
+            filtrosAplicados.push('Insumo: TODOS');
+        }
+        // Definir el documento PDF
+        const docDefinition = {
+            pageSize: 'A4',
+            pageOrientation: 'landscape',
+            pageMargins: [40, 60, 40, 60],
+            header: {
+                text: 'REPORTE DE ENTREGAS PRODUCTO MAIN',
+                style: 'headerTitle',
+                alignment: 'center',
+                margin: [0, 20, 0, 20]
+            },
+            content: [
+                {
+                    text: `Fecha de generación: ${formatDate(new Date())} ${new Date().toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' })}`,
+                    style: 'footer',
+                    margin: [0, 0, 0, 10]
+                },
+                {
+                    text: filtrosAplicados.join(' | '),
+                    style: 'footer',
+                    margin: [0, 0, 0, 10]
+                },
+                {
+                    text: `Total de registros: ${result.rows.length}`,
+                    style: 'footer',
+                    margin: [0, 0, 0, 20],
+                    bold: true
+                },
+                {
+                    table: {
+                        headerRows: 1,
+                        widths: [70, 50, 80, '*', '*', '*', 60],
+                        body: tableBody
+                    },
+                    layout: {
+                        hLineWidth: (i, node) => {
+                            return i === 0 || i === node.table.body.length ? 1 : 0.5;
+                        },
+                        vLineWidth: () => 0.5,
+                        hLineColor: () => '#cccccc',
+                        vLineColor: () => '#cccccc',
+                        paddingLeft: () => 5,
+                        paddingRight: () => 5,
+                        paddingTop: () => 3,
+                        paddingBottom: () => 3
+                    }
+                }
+            ],
+            styles: {
+                headerTitle: {
+                    fontSize: 18,
+                    bold: true,
+                    color: '#1a1a1a'
+                },
+                tableHeader: {
+                    bold: true,
+                    fontSize: 9,
+                    color: '#ffffff',
+                    fillColor: '#34495e',
+                    alignment: 'center'
+                },
+                tableCell: {
+                    fontSize: 8,
+                    color: '#333333'
+                },
+                footer: {
+                    fontSize: 9,
+                    color: '#666666'
+                }
+            },
+            defaultStyle: {
+                font: 'Roboto',
+                fontSize: 10
+            }
+        };
+        // Generar PDF
+        const pdfDoc = printer.createPdfKitDocument(docDefinition);
+        // Configurar headers para descarga
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', `attachment; filename=reporte-entregas-${fecha_desde}-${fecha_hasta}.pdf`);
+        // Enviar PDF
+        pdfDoc.pipe(res);
+        pdfDoc.end();
+    }
+    catch (error) {
+        console.error('Error al generar reporte PDF:', error);
+        const response = {
+            success: false,
+            error: 'Error al generar el reporte PDF',
+            message: error instanceof Error ? error.message : 'Error desconocido'
+        };
+        res.status(500).json(response);
     }
 };

@@ -1,5 +1,7 @@
 import { Request, Response } from 'express';
 import { pool } from '../db.js';
+import PdfPrinter from 'pdfmake';
+import { TDocumentDefinitions } from 'pdfmake/interfaces';
 import {
   AsignacionPrenda,
   DetalleAsignacionPrenda,
@@ -17,6 +19,7 @@ const TABLA_TRABAJADOR = 'tbl_06_trabajador';
 const TABLA_RESPONSABLE = 'tbl_08_responsable_entrega';
 const TABLA_PRENDA = 'tbl_07_prenda';
 const TABLA_TALLA = 'tbl_16_tallas';
+const TABLA_EMPRESA = 'tbl_15_empresas';
 
 /**
  * Obtener todas las asignaciones de prendas
@@ -30,11 +33,15 @@ export const getAllAsignaciones = async (req: Request, res: Response): Promise<v
         am.fecha_09,
         am.hora_09,
         am.idresponsableentrega_09,
+        am.idempresa_09,
+        am.observaciones_09,
         t.nombre_06 || ' ' || COALESCE(t.apaterno_06, '') || ' ' || COALESCE(t.amaterno_06, '') as trabajador_nombre,
-        r.nombreresponsableentrega_08 || ' ' || COALESCE(r.apaternoresponsableentrega_08, '') || ' ' || COALESCE(r.amaternoresponsableentrega_08, '') as responsable_nombre
+        r.nombreresponsableentrega_08 || ' ' || COALESCE(r.apaternoresponsableentrega_08, '') || ' ' || COALESCE(r.amaternoresponsableentrega_08, '') as responsable_nombre,
+        e.nombreempresa_15 as empresa_nombre
       FROM ${TABLA_ASIGNACION} am
       INNER JOIN ${TABLA_TRABAJADOR} t ON am.idtrabajador_09 = t.idtrabajador_06
       INNER JOIN ${TABLA_RESPONSABLE} r ON am.idresponsableentrega_09 = r.idresponsableentrega_08
+      LEFT JOIN ${TABLA_EMPRESA} e ON am.idempresa_09 = e.idempresa_15
       ORDER BY am.fecha_09 DESC, am.hora_09 DESC
     `;
 
@@ -71,11 +78,15 @@ export const getAsignacionById = async (req: Request, res: Response): Promise<vo
         am.fecha_09,
         am.hora_09,
         am.idresponsableentrega_09,
+        am.idempresa_09,
+        am.observaciones_09,
         t.nombre_06 || ' ' || COALESCE(t.apaterno_06, '') || ' ' || COALESCE(t.amaterno_06, '') as trabajador_nombre,
-        r.nombreresponsableentrega_08 || ' ' || COALESCE(r.apaternoresponsableentrega_08, '') || ' ' || COALESCE(r.amaternoresponsableentrega_08, '') as responsable_nombre
+        r.nombreresponsableentrega_08 || ' ' || COALESCE(r.apaternoresponsableentrega_08, '') || ' ' || COALESCE(r.amaternoresponsableentrega_08, '') as responsable_nombre,
+        e.nombreempresa_15 as empresa_nombre
       FROM ${TABLA_ASIGNACION} am
       INNER JOIN ${TABLA_TRABAJADOR} t ON am.idtrabajador_09 = t.idtrabajador_06
       INNER JOIN ${TABLA_RESPONSABLE} r ON am.idresponsableentrega_09 = r.idresponsableentrega_08
+      LEFT JOIN ${TABLA_EMPRESA} e ON am.idempresa_09 = e.idempresa_15
       WHERE am.idasignacionmain_09 = $1
     `;
 
@@ -163,6 +174,8 @@ export const createAsignacion = async (req: Request, res: Response): Promise<voi
       fecha_09,
       hora_09,
       idresponsableentrega_09,
+      idempresa_09,
+      observaciones_09,
       detalles
     }: CreateAsignacionPrendaDTO = req.body;
 
@@ -189,8 +202,8 @@ export const createAsignacion = async (req: Request, res: Response): Promise<voi
 
     // Insertar asignación principal
     const asignacionQuery = `
-      INSERT INTO ${TABLA_ASIGNACION} (idtrabajador_09, fecha_09, hora_09, idresponsableentrega_09)
-      VALUES ($1, $2, $3, $4)
+      INSERT INTO ${TABLA_ASIGNACION} (idtrabajador_09, fecha_09, hora_09, idresponsableentrega_09, idempresa_09, observaciones_09)
+      VALUES ($1, $2, $3, $4, $5, $6)
       RETURNING idasignacionmain_09
     `;
 
@@ -198,7 +211,9 @@ export const createAsignacion = async (req: Request, res: Response): Promise<voi
       idtrabajador_09,
       fecha_09,
       hora_09,
-      idresponsableentrega_09
+      idresponsableentrega_09,
+      idempresa_09 || null,
+      observaciones_09 || null
     ]);
 
     const idAsignacion = asignacionResult.rows[0].idasignacionmain_09;
@@ -227,11 +242,15 @@ export const createAsignacion = async (req: Request, res: Response): Promise<voi
         am.fecha_09,
         am.hora_09,
         am.idresponsableentrega_09,
+        am.idempresa_09,
+        am.observaciones_09,
         t.nombre_06 || ' ' || COALESCE(t.apaterno_06, '') || ' ' || COALESCE(t.amaterno_06, '') as trabajador_nombre,
-        r.nombreresponsableentrega_08 || ' ' || COALESCE(r.apaternoresponsableentrega_08, '') || ' ' || COALESCE(r.amaternoresponsableentrega_08, '') as responsable_nombre
+        r.nombreresponsableentrega_08 || ' ' || COALESCE(r.apaternoresponsableentrega_08, '') || ' ' || COALESCE(r.amaternoresponsableentrega_08, '') as responsable_nombre,
+        e.nombreempresa_15 as empresa_nombre
       FROM ${TABLA_ASIGNACION} am
       INNER JOIN ${TABLA_TRABAJADOR} t ON am.idtrabajador_09 = t.idtrabajador_06
       INNER JOIN ${TABLA_RESPONSABLE} r ON am.idresponsableentrega_09 = r.idresponsableentrega_08
+      LEFT JOIN ${TABLA_EMPRESA} e ON am.idempresa_09 = e.idempresa_15
       WHERE am.idasignacionmain_09 = $1
     `;
 
@@ -273,6 +292,8 @@ export const updateAsignacion = async (req: Request, res: Response): Promise<voi
       fecha_09,
       hora_09,
       idresponsableentrega_09,
+      idempresa_09,
+      observaciones_09,
       detalles
     }: UpdateAsignacionPrendaDTO = req.body;
 
@@ -291,7 +312,7 @@ export const updateAsignacion = async (req: Request, res: Response): Promise<voi
     }
 
     // Actualizar asignación principal si se proporcionan campos
-    if (idtrabajador_09 || fecha_09 || hora_09 || idresponsableentrega_09) {
+    if (idtrabajador_09 !== undefined || fecha_09 !== undefined || hora_09 !== undefined || idresponsableentrega_09 !== undefined || idempresa_09 !== undefined || observaciones_09 !== undefined) {
       const updates: string[] = [];
       const values: any[] = [];
       let paramCount = 1;
@@ -317,6 +338,18 @@ export const updateAsignacion = async (req: Request, res: Response): Promise<voi
       if (idresponsableentrega_09 !== undefined) {
         updates.push(`idresponsableentrega_09 = $${paramCount}`);
         values.push(idresponsableentrega_09);
+        paramCount++;
+      }
+
+      if (idempresa_09 !== undefined) {
+        updates.push(`idempresa_09 = $${paramCount}`);
+        values.push(idempresa_09 || null);
+        paramCount++;
+      }
+
+      if (observaciones_09 !== undefined) {
+        updates.push(`observaciones_09 = $${paramCount}`);
+        values.push(observaciones_09 || null);
         paramCount++;
       }
 
@@ -361,11 +394,15 @@ export const updateAsignacion = async (req: Request, res: Response): Promise<voi
         am.fecha_09,
         am.hora_09,
         am.idresponsableentrega_09,
+        am.idempresa_09,
+        am.observaciones_09,
         t.nombre_06 || ' ' || COALESCE(t.apaterno_06, '') || ' ' || COALESCE(t.amaterno_06, '') as trabajador_nombre,
-        r.nombreresponsableentrega_08 || ' ' || COALESCE(r.apaternoresponsableentrega_08, '') || ' ' || COALESCE(r.amaternoresponsableentrega_08, '') as responsable_nombre
+        r.nombreresponsableentrega_08 || ' ' || COALESCE(r.apaternoresponsableentrega_08, '') || ' ' || COALESCE(r.amaternoresponsableentrega_08, '') as responsable_nombre,
+        e.nombreempresa_15 as empresa_nombre
       FROM ${TABLA_ASIGNACION} am
       INNER JOIN ${TABLA_TRABAJADOR} t ON am.idtrabajador_09 = t.idtrabajador_06
       INNER JOIN ${TABLA_RESPONSABLE} r ON am.idresponsableentrega_09 = r.idresponsableentrega_08
+      LEFT JOIN ${TABLA_EMPRESA} e ON am.idempresa_09 = e.idempresa_15
       WHERE am.idasignacionmain_09 = $1
     `;
 
@@ -442,6 +479,688 @@ export const deleteAsignacion = async (req: Request, res: Response): Promise<voi
     res.status(500).json(response);
   } finally {
     client.release();
+  }
+};
+
+/**
+ * Obtener datos del Acta de Entrega para vista previa (JSON)
+ */
+export const getActaDatos = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params;
+
+    const asignacionQuery = `
+      SELECT 
+        am.idasignacionmain_09,
+        am.fecha_09,
+        am.hora_09,
+        am.observaciones_09,
+        t.nombre_06,
+        t.apaterno_06,
+        t.amaterno_06,
+        t.ruttrabajador_06,
+        c.cargo_14 as nombre_cargo,
+        r.nombreresponsableentrega_08,
+        r.apaternoresponsableentrega_08,
+        r.amaternoresponsableentrega_08,
+        e.nombreempresa_15 as empresa_nombre
+      FROM ${TABLA_ASIGNACION} am
+      INNER JOIN ${TABLA_TRABAJADOR} t ON am.idtrabajador_09 = t.idtrabajador_06
+      LEFT JOIN tbl_14_cargo c ON t.idcargo_06 = c.idcargo_14
+      INNER JOIN ${TABLA_RESPONSABLE} r ON am.idresponsableentrega_09 = r.idresponsableentrega_08
+      LEFT JOIN ${TABLA_EMPRESA} e ON am.idempresa_09 = e.idempresa_15
+      WHERE am.idasignacionmain_09 = $1
+    `;
+
+    const asignacionResult = await pool.query(asignacionQuery, [id]);
+    if (asignacionResult.rows.length === 0) {
+      res.status(404).json({ success: false, error: 'Asignación no encontrada' });
+      return;
+    }
+
+    const asignacion = asignacionResult.rows[0];
+
+    const detallesQuery = `
+      SELECT ad.idprenda_10, ad.talla_10, ad.cantidad_10, p.prenda_07 as prenda_nombre
+      FROM ${TABLA_DETALLE} ad
+      INNER JOIN ${TABLA_PRENDA} p ON ad.idprenda_10 = p.idprenda_07
+      WHERE ad.idasignacionmain_10 = $1
+      ORDER BY p.prenda_07
+    `;
+    const detallesResult = await pool.query(detallesQuery, [id]);
+    const detalles = detallesResult.rows;
+
+    const filasPrendas: Array<{ prenda: string; cantidad: number; talla: string }> = [];
+    detalles.forEach((d: { prenda_nombre: string; talla_10: string; cantidad_10: number }) => {
+      for (let i = 0; i < (d.cantidad_10 || 1); i++) {
+        filasPrendas.push({
+          prenda: d.prenda_nombre || 'N/A',
+          cantidad: 1,
+          talla: d.talla_10 || 'N/A'
+        });
+      }
+    });
+
+    const meses = ['ENERO', 'FEBRERO', 'MARZO', 'ABRIL', 'MAYO', 'JUNIO', 'JULIO', 'AGOSTO', 'SEPTIEMBRE', 'OCTUBRE', 'NOVIEMBRE', 'DICIEMBRE'];
+    const fechaObj = new Date(asignacion.fecha_09);
+    const dia = fechaObj.getDate();
+    const mes = meses[fechaObj.getMonth()];
+    const anio = fechaObj.getFullYear();
+
+    const formatHora = (time: string): string => {
+      if (!time) return '';
+      const parts = String(time).split(':');
+      return parts.length >= 2 ? `${parts[0]}:${parts[1]}` : time;
+    };
+
+    const formatDate = (date: Date | string): string => {
+      const d = typeof date === 'string' ? new Date(date) : date;
+      return d.toLocaleDateString('es-CL', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    };
+
+    const nombreTrabajador = `${asignacion.nombre_06 || ''} ${asignacion.apaterno_06 || ''} ${asignacion.amaterno_06 || ''}`.trim();
+    const nombreResponsable = `${asignacion.nombreresponsableentrega_08 || ''} ${asignacion.apaternoresponsableentrega_08 || ''}`.trim();
+
+    const response: ApiResponse<object> = {
+      success: true,
+      data: {
+        intro: { dia, mes, anio },
+        trabajador: {
+          nombre: nombreTrabajador,
+          rut: asignacion.ruttrabajador_06 || '',
+          cargo: asignacion.nombre_cargo || '',
+          empresa: asignacion.empresa_nombre || ''
+        },
+        prendas: filasPrendas,
+        observaciones: asignacion.observaciones_09 || null,
+        responsable: {
+          nombre: nombreResponsable,
+          fecha: formatDate(asignacion.fecha_09),
+          hora: formatHora(asignacion.hora_09)
+        }
+      }
+    };
+    res.json(response);
+  } catch (error) {
+    console.error('Error al obtener datos del acta:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Error al obtener los datos del acta',
+      message: error instanceof Error ? error.message : 'Error desconocido'
+    });
+  }
+};
+
+/**
+ * Generar PDF del Acta de Entrega de Uniforme (SIG F-622-005)
+ * Todo en una sola página, tabla de prendas dinámica según cantidad entregada
+ */
+export const generarActaEntregaPDF = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params;
+
+    const asignacionQuery = `
+      SELECT 
+        am.idasignacionmain_09,
+        am.fecha_09,
+        am.hora_09,
+        am.observaciones_09,
+        t.nombre_06,
+        t.apaterno_06,
+        t.amaterno_06,
+        t.ruttrabajador_06,
+        c.cargo_14 as nombre_cargo,
+        r.nombreresponsableentrega_08,
+        r.apaternoresponsableentrega_08,
+        r.amaternoresponsableentrega_08,
+        e.nombreempresa_15 as empresa_nombre
+      FROM ${TABLA_ASIGNACION} am
+      INNER JOIN ${TABLA_TRABAJADOR} t ON am.idtrabajador_09 = t.idtrabajador_06
+      LEFT JOIN tbl_14_cargo c ON t.idcargo_06 = c.idcargo_14
+      INNER JOIN ${TABLA_RESPONSABLE} r ON am.idresponsableentrega_09 = r.idresponsableentrega_08
+      LEFT JOIN ${TABLA_EMPRESA} e ON am.idempresa_09 = e.idempresa_15
+      WHERE am.idasignacionmain_09 = $1
+    `;
+
+    const asignacionResult = await pool.query(asignacionQuery, [id]);
+    if (asignacionResult.rows.length === 0) {
+      const response: ApiResponse<null> = {
+        success: false,
+        error: 'Asignación no encontrada'
+      };
+      res.status(404).json(response);
+      return;
+    }
+
+    const asignacion = asignacionResult.rows[0];
+
+    const detallesQuery = `
+      SELECT 
+        ad.idprenda_10,
+        ad.talla_10,
+        ad.cantidad_10,
+        p.prenda_07 as prenda_nombre
+      FROM ${TABLA_DETALLE} ad
+      INNER JOIN ${TABLA_PRENDA} p ON ad.idprenda_10 = p.idprenda_07
+      WHERE ad.idasignacionmain_10 = $1
+      ORDER BY p.prenda_07
+    `;
+
+    const detallesResult = await pool.query(detallesQuery, [id]);
+    const detalles = detallesResult.rows;
+
+    // Expandir detalles: si cantidad=3, crear 3 filas (una por prenda entregada)
+    const filasPrendas: Array<{ prenda: string; cantidad: number; talla: string }> = [];
+    detalles.forEach((d: { prenda_nombre: string; talla_10: string; cantidad_10: number }) => {
+      for (let i = 0; i < (d.cantidad_10 || 1); i++) {
+        filasPrendas.push({
+          prenda: d.prenda_nombre || 'N/A',
+          cantidad: 1,
+          talla: d.talla_10 || 'N/A'
+        });
+      }
+    });
+
+    const formatDate = (date: Date | string): string => {
+      const d = typeof date === 'string' ? new Date(date) : date;
+      return d.toLocaleDateString('es-CL', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    };
+
+    const formatHora = (time: string): string => {
+      if (!time) return '';
+      const parts = time.split(':');
+      return parts.length >= 2 ? `${parts[0]}:${parts[1]}` : time;
+    };
+
+    const meses = ['ENERO', 'FEBRERO', 'MARZO', 'ABRIL', 'MAYO', 'JUNIO', 'JULIO', 'AGOSTO', 'SEPTIEMBRE', 'OCTUBRE', 'NOVIEMBRE', 'DICIEMBRE'];
+    const fechaObj = new Date(asignacion.fecha_09);
+    const dia = fechaObj.getDate();
+    const mes = meses[fechaObj.getMonth()];
+    const anio = fechaObj.getFullYear();
+
+    const nombreTrabajador = `${asignacion.nombre_06 || ''} ${asignacion.apaterno_06 || ''} ${asignacion.amaterno_06 || ''}`.trim();
+    const nombreResponsable = `${asignacion.nombreresponsableentrega_08 || ''} ${asignacion.apaternoresponsableentrega_08 || ''}`.trim();
+
+    const fonts = {
+      Roboto: {
+        normal: 'Helvetica',
+        bold: 'Helvetica-Bold',
+        italics: 'Helvetica-Oblique',
+        bolditalics: 'Helvetica-BoldOblique'
+      }
+    };
+
+    const printer = new PdfPrinter(fonts);
+
+    const tableHeader = [
+      { text: 'Item', style: 'tableHeader', alignment: 'center' },
+      { text: 'Cantidad', style: 'tableHeader', alignment: 'center' },
+      { text: 'Talla', style: 'tableHeader', alignment: 'center' },
+      { text: 'Estado', style: 'tableHeader', alignment: 'center' },
+      { text: 'Firma', style: 'tableHeader', alignment: 'center' }
+    ];
+
+    const tableBody: any[] = [tableHeader];
+
+    filasPrendas.forEach((fila) => {
+      tableBody.push([
+        { text: fila.prenda, style: 'tableCell' },
+        { text: String(fila.cantidad), style: 'tableCell', alignment: 'center' },
+        { text: fila.talla, style: 'tableCell', alignment: 'center' },
+        { text: 'Nuevo', style: 'tableCell', alignment: 'center' },
+        { text: '', style: 'tableCell' }
+      ]);
+    });
+
+    const docDefinition: TDocumentDefinitions = {
+      pageSize: 'LETTER',
+      pageMargins: [40, 30, 40, 30],
+      content: [
+        { text: 'ACTA DE ENTREGA DE UNIFORME', style: 'title', alignment: 'center', margin: [0, 0, 0, 4] },
+        { text: 'SIG F-622-005 Versión 001', style: 'version', alignment: 'right', margin: [0, 0, 0, 8] },
+        {
+          text: `En la ciudad de Santiago, ${dia} días del mes de ${mes} del año ${anio}, se procede a dejar constancia de la entrega del uniforme al trabajador que a continuación se detalla:`,
+          style: 'intro',
+          margin: [0, 0, 0, 10]
+        },
+        { text: 'Datos del Trabajador:', style: 'sectionTitle', margin: [0, 0, 0, 6] },
+        {
+          columns: [
+            { text: 'Nombre:', style: 'fieldLabel', width: 60 },
+            { text: nombreTrabajador, style: 'fieldValue', width: '*' }
+          ],
+          margin: [0, 0, 0, 4]
+        },
+        {
+          columns: [
+            { text: 'Rut:', style: 'fieldLabel', width: 60 },
+            { text: asignacion.ruttrabajador_06 || '', style: 'fieldValue', width: '*' }
+          ],
+          margin: [0, 0, 0, 4]
+        },
+        {
+          columns: [
+            { text: 'Cargo:', style: 'fieldLabel', width: 60 },
+            { text: asignacion.nombre_cargo || '', style: 'fieldValue', width: '*' }
+          ],
+          margin: [0, 0, 0, 4]
+        },
+        {
+          columns: [
+            { text: 'Empresa:', style: 'fieldLabel', width: 60 },
+            { text: asignacion.empresa_nombre || '', style: 'fieldValue', width: '*' }
+          ],
+          margin: [0, 0, 0, 10]
+        },
+        { text: 'Detalle del uniforme entregado', style: 'sectionTitle', margin: [0, 0, 0, 6] },
+        {
+          table: {
+            headerRows: 1,
+            widths: ['*', 55, 50, 50, 65],
+            body: tableBody
+          },
+          layout: {
+            hLineWidth: () => 0.5,
+            vLineWidth: () => 0.5
+          },
+          margin: [0, 0, 0, 10]
+        },
+        ...(asignacion.observaciones_09 ? [
+          {
+            columns: [
+              { text: 'Observaciones:', style: 'fieldLabel', width: 80 },
+              { text: asignacion.observaciones_09, style: 'fieldValue', width: '*' }
+            ],
+            margin: [0, 0, 0, 10]
+          }
+        ] : []),
+        { text: 'Responsabilidades:', style: 'sectionTitle', margin: [0, 0, 0, 6] },
+        { text: 'Usted se compromete a', style: 'paragraph', margin: [0, 0, 0, 4] },
+        {
+          ul: [
+            'Usar el uniforme únicamente durante sus funciones laborales.',
+            'Mantener el uniforme en condiciones limpias y presentables.',
+            'No alterar ni modificar el diseño del uniforme.',
+            'Responder por el cuidado y conservación de las prendas entregadas.',
+            'Reportar inmediatamente cualquier daño o pérdida al área correspondiente.',
+            'El mal uso o la negligencia en el cuidado del uniforme podrá ser objeto de observaciones o medidas disciplinarias conforme al reglamento interno.'
+          ],
+          style: 'listItem',
+          margin: [0, 0, 0, 10]
+        },
+        { text: 'Uso del Uniforme:', style: 'sectionTitle', margin: [0, 0, 0, 6] },
+        {
+          text: 'La empresa hace hincapié en la obligatoriedad del uso del uniforme completo durante todo el periodo de servicio activo. El uso del uniforme contribuye a:',
+          style: 'paragraph',
+          margin: [0, 0, 0, 6]
+        },
+        {
+          ul: [
+            'Proyectar una imagen profesional y ordenada de la empresa.',
+            'Generar confianza en los pasajeros.',
+            'Facilitar la identificación del personal por parte de usuarios.'
+          ],
+          style: 'listItem',
+          margin: [0, 0, 0, 10]
+        },
+        { text: 'Declaración del Trabajador:', style: 'sectionTitle', margin: [0, 0, 0, 6] },
+        {
+          text: 'Declaro haber recibido a conformidad las prendas antes detalladas, las cuales se encuentran en buen estado y son de uso obligatorio durante mi jornada laboral. Asimismo, me comprometo a dar un uso adecuado al uniforme y a conservarlo en buenas condiciones, haciéndome responsable de su cuidado.',
+          style: 'paragraph',
+          margin: [0, 0, 0, 10]
+        },
+        {
+          table: {
+            widths: ['*', '*'],
+            body: [
+              [
+                { text: 'Firma', style: 'tableHeader', alignment: 'center' },
+                { text: 'Huella', style: 'tableHeader', alignment: 'center' }
+              ],
+              [
+                { text: '', style: 'tableCell', margin: [0, 25, 0, 0] },
+                { text: '', style: 'tableCell', margin: [0, 25, 0, 0] }
+              ]
+            ]
+          },
+          layout: { hLineWidth: () => 0.5, vLineWidth: () => 0.5 },
+          margin: [0, 0, 0, 12]
+        },
+        { text: 'Firma del encargado de Entrega', style: 'sectionTitle', margin: [0, 0, 0, 8] },
+        {
+          columns: [
+            { text: 'Nombre: ' + nombreResponsable, style: 'field', width: '*' },
+            { text: 'Fecha: ' + formatDate(asignacion.fecha_09) + ' ' + formatHora(asignacion.hora_09), style: 'field', width: 150 }
+          ]
+        }
+      ],
+      styles: {
+        title: { fontSize: 14, bold: true },
+        version: { fontSize: 8, color: '#666' },
+        intro: { fontSize: 9 },
+        fieldLabel: { fontSize: 9 },
+        fieldValue: { fontSize: 9 },
+        field: { fontSize: 9 },
+        sectionTitle: { fontSize: 10, bold: true },
+        tableHeader: { fontSize: 8, bold: true, fillColor: '#e8e8e8' },
+        tableCell: { fontSize: 8 },
+        listItem: { fontSize: 8 },
+        paragraph: { fontSize: 8 }
+      },
+      defaultStyle: { font: 'Roboto', fontSize: 9 }
+    };
+
+    const pdfDoc = printer.createPdfKitDocument(docDefinition);
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename=acta-entrega-uniforme-${id}.pdf`);
+    pdfDoc.pipe(res);
+    pdfDoc.end();
+  } catch (error) {
+    console.error('Error al generar acta PDF:', error);
+    const response: ApiResponse<null> = {
+      success: false,
+      error: 'Error al generar el acta de entrega',
+      message: error instanceof Error ? error.message : 'Error desconocido'
+    };
+    res.status(500).json(response);
+  }
+};
+
+/**
+ * Obtener datos del reporte de asignaciones por intervalo de fechas, trabajador y prenda
+ * Query params: fechaDesde (YYYY-MM-DD), fechaHasta (YYYY-MM-DD), idTrabajador (opcional), idPrenda (opcional)
+ */
+export const getReporteDatos = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { fechaDesde, fechaHasta, idTrabajador, idPrenda } = req.query;
+
+    if (!fechaDesde || !fechaHasta) {
+      const response: ApiResponse<null> = {
+        success: false,
+        error: 'Los parámetros fechaDesde y fechaHasta son requeridos (formato YYYY-MM-DD)'
+      };
+      res.status(400).json(response);
+      return;
+    }
+
+    const params: (string | number)[] = [fechaDesde, fechaHasta];
+    let paramIdx = 3;
+
+    let whereClause = `WHERE am.fecha_09 >= $1::date AND am.fecha_09 <= $2::date`;
+    if (idTrabajador) {
+      whereClause += ` AND am.idtrabajador_09 = $${paramIdx}`;
+      params.push(Number(idTrabajador));
+      paramIdx++;
+    }
+    if (idPrenda) {
+      whereClause += ` AND ad.idprenda_10 = $${paramIdx}`;
+      params.push(Number(idPrenda));
+      paramIdx++;
+    }
+
+    const query = `
+      SELECT 
+        am.idasignacionmain_09,
+        am.fecha_09,
+        am.hora_09,
+        t.nombre_06 || ' ' || COALESCE(t.apaterno_06, '') || ' ' || COALESCE(t.amaterno_06, '') as trabajador_nombre,
+        t.idtrabajador_06,
+        r.nombreresponsableentrega_08 || ' ' || COALESCE(r.apaternoresponsableentrega_08, '') || ' ' || COALESCE(r.amaternoresponsableentrega_08, '') as responsable_nombre,
+        e.nombreempresa_15 as empresa_nombre,
+        p.prenda_07 as prenda_nombre,
+        p.idprenda_07,
+        ad.talla_10,
+        ad.cantidad_10
+      FROM ${TABLA_ASIGNACION} am
+      INNER JOIN ${TABLA_TRABAJADOR} t ON am.idtrabajador_09 = t.idtrabajador_06
+      INNER JOIN ${TABLA_RESPONSABLE} r ON am.idresponsableentrega_09 = r.idresponsableentrega_08
+      LEFT JOIN ${TABLA_EMPRESA} e ON am.idempresa_09 = e.idempresa_15
+      INNER JOIN ${TABLA_DETALLE} ad ON am.idasignacionmain_09 = ad.idasignacionmain_10
+      INNER JOIN ${TABLA_PRENDA} p ON ad.idprenda_10 = p.idprenda_07
+      ${whereClause}
+      ORDER BY am.fecha_09 ASC, t.apaterno_06 ASC, p.prenda_07 ASC
+    `;
+
+    const result = await pool.query(query, params);
+
+    const response: ApiResponse<object[]> = {
+      success: true,
+      data: result.rows
+    };
+
+    res.json(response);
+  } catch (error) {
+    console.error('Error al obtener reporte:', error);
+    const response: ApiResponse<null> = {
+      success: false,
+      error: 'Error al obtener el reporte',
+      message: error instanceof Error ? error.message : 'Error desconocido'
+    };
+    res.status(500).json(response);
+  }
+};
+
+/**
+ * Generar PDF del reporte de asignaciones (formato carta, horizontal)
+ * Query params: fechaDesde, fechaHasta, idTrabajador (opcional), idPrenda (opcional)
+ */
+export const generarReportePDF = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { fechaDesde, fechaHasta, idTrabajador, idPrenda, usuario } = req.query;
+
+    if (!fechaDesde || !fechaHasta) {
+      const response: ApiResponse<null> = {
+        success: false,
+        error: 'Los parámetros fechaDesde y fechaHasta son requeridos'
+      };
+      res.status(400).json(response);
+      return;
+    }
+
+    const params: (string | number)[] = [fechaDesde, fechaHasta];
+    let paramIdx = 3;
+
+    let whereClause = `WHERE am.fecha_09 >= $1::date AND am.fecha_09 <= $2::date`;
+    if (idTrabajador) {
+      whereClause += ` AND am.idtrabajador_09 = $${paramIdx}`;
+      params.push(Number(idTrabajador));
+      paramIdx++;
+    }
+    if (idPrenda) {
+      whereClause += ` AND ad.idprenda_10 = $${paramIdx}`;
+      params.push(Number(idPrenda));
+      paramIdx++;
+    }
+
+    const query = `
+      SELECT 
+        am.idasignacionmain_09,
+        am.fecha_09,
+        am.hora_09,
+        t.nombre_06 || ' ' || COALESCE(t.apaterno_06, '') || ' ' || COALESCE(t.amaterno_06, '') as trabajador_nombre,
+        r.nombreresponsableentrega_08 || ' ' || COALESCE(r.apaternoresponsableentrega_08, '') || ' ' || COALESCE(r.amaternoresponsableentrega_08, '') as responsable_nombre,
+        e.nombreempresa_15 as empresa_nombre,
+        p.prenda_07 as prenda_nombre,
+        ad.talla_10,
+        ad.cantidad_10
+      FROM ${TABLA_ASIGNACION} am
+      INNER JOIN ${TABLA_TRABAJADOR} t ON am.idtrabajador_09 = t.idtrabajador_06
+      INNER JOIN ${TABLA_RESPONSABLE} r ON am.idresponsableentrega_09 = r.idresponsableentrega_08
+      LEFT JOIN ${TABLA_EMPRESA} e ON am.idempresa_09 = e.idempresa_15
+      INNER JOIN ${TABLA_DETALLE} ad ON am.idasignacionmain_09 = ad.idasignacionmain_10
+      INNER JOIN ${TABLA_PRENDA} p ON ad.idprenda_10 = p.idprenda_07
+      ${whereClause}
+      ORDER BY am.fecha_09 ASC, t.apaterno_06 ASC, p.prenda_07 ASC
+    `;
+
+    const result = await pool.query(query, params);
+    const filas = result.rows as Array<Record<string, unknown> & { idasignacionmain_09: number }>;
+
+    const formatDate = (date: Date | string): string => {
+      const d = typeof date === 'string' ? new Date(date) : date;
+      return d.toLocaleDateString('es-CL', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    };
+
+    const formatHora = (time: string): string => {
+      if (!time) return '';
+      const parts = String(time).split(':');
+      return parts.length >= 2 ? `${parts[0]}:${parts[1]}` : time;
+    };
+
+    const fechaHoraImpresion = new Date().toLocaleString('es-CL', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+
+    // Agrupar por asignación (maestro-detalle)
+    const grupos = new Map<number, { maestro: Record<string, unknown>; detalles: Array<{ prenda_nombre: string; talla_10: string; cantidad_10: number }> }>();
+    filas.forEach((f) => {
+      const id = f.idasignacionmain_09;
+      if (!grupos.has(id)) {
+        grupos.set(id, {
+          maestro: f,
+          detalles: []
+        });
+      }
+      grupos.get(id)!.detalles.push({
+        prenda_nombre: String(f.prenda_nombre || 'N/A'),
+        talla_10: String(f.talla_10 || 'N/A'),
+        cantidad_10: Number(f.cantidad_10 ?? 0)
+      });
+    });
+
+    const fonts = {
+      Roboto: {
+        normal: 'Helvetica',
+        bold: 'Helvetica-Bold',
+        italics: 'Helvetica-Oblique',
+        bolditalics: 'Helvetica-BoldOblique'
+      }
+    };
+
+    const printer = new PdfPrinter(fonts);
+
+    const tableHeaderRow = [
+      { text: 'Fecha', style: 'tableHeader', alignment: 'center' },
+      { text: 'Hora', style: 'tableHeader', alignment: 'center' },
+      { text: 'Trabajador', style: 'tableHeader', alignment: 'center' },
+      { text: 'Prenda', style: 'tableHeader', alignment: 'center' },
+      { text: 'Talla', style: 'tableHeader', alignment: 'center' },
+      { text: 'Cantidad', style: 'tableHeader', alignment: 'center' },
+      { text: 'Responsable', style: 'tableHeader', alignment: 'center' },
+      { text: 'Empresa', style: 'tableHeader', alignment: 'center' }
+    ];
+
+    const tableBody: any[] = [tableHeaderRow];
+
+    Array.from(grupos.values()).forEach(({ maestro, detalles }) => {
+      detalles.forEach((det, dIdx) => {
+        if (dIdx === 0) {
+          tableBody.push([
+            { text: formatDate(maestro.fecha_09 as string), style: 'tableCell', fontSize: 8, rowSpan: detalles.length },
+            { text: formatHora(maestro.hora_09 as string), style: 'tableCell', alignment: 'center', fontSize: 8, rowSpan: detalles.length },
+            { text: String(maestro.trabajador_nombre || 'N/A'), style: 'tableCell', fontSize: 8, rowSpan: detalles.length },
+            { text: det.prenda_nombre, style: 'tableCell', fontSize: 8 },
+            { text: det.talla_10, style: 'tableCell', alignment: 'center', fontSize: 8 },
+            { text: String(det.cantidad_10), style: 'tableCell', alignment: 'center', fontSize: 8 },
+            { text: String(maestro.responsable_nombre || 'N/A'), style: 'tableCell', fontSize: 8, rowSpan: detalles.length },
+            { text: String(maestro.empresa_nombre || 'N/A'), style: 'tableCell', fontSize: 8, rowSpan: detalles.length }
+          ]);
+        } else {
+          // Celdas vacías para las 5 columnas con rowSpan (Fecha, Hora, Trabajador, Responsable, Empresa)
+          tableBody.push([
+            '', '', '',
+            { text: det.prenda_nombre, style: 'tableCell', fontSize: 8 },
+            { text: det.talla_10, style: 'tableCell', alignment: 'center', fontSize: 8 },
+            { text: String(det.cantidad_10), style: 'tableCell', alignment: 'center', fontSize: 8 },
+            '', ''
+          ]);
+        }
+      });
+    });
+
+    const docDefinition: TDocumentDefinitions = {
+      pageSize: 'LETTER',
+      pageOrientation: 'landscape',
+      pageMargins: [30, 50, 30, 30],
+      header: (currentPage: number) => (currentPage > 1 ? {
+        stack: [
+          { text: 'REPORTE DE ASIGNACIÓN DE PRENDAS', style: 'title', alignment: 'center', margin: [0, 0, 0, 2] },
+          { text: `Período: ${formatDate(fechaDesde as string)} - ${formatDate(fechaHasta as string)}`, style: 'subtitle', alignment: 'center', margin: [0, 0, 0, 2] },
+          {
+            columns: [
+              { text: usuario ? `Usuario: ${String(usuario)}` : '', style: 'subtitle', width: '*' },
+              { text: `Fecha y hora de impresión: ${fechaHoraImpresion}`, style: 'subtitle', alignment: 'right', width: 'auto' }
+            ],
+            margin: [0, 0, 0, 4]
+          },
+          {
+            table: {
+              widths: [55, 35, '*', '*', 40, 45, '*', '*'],
+              body: [tableHeaderRow]
+            },
+            layout: { hLineWidth: () => 0.5, vLineWidth: () => 0.5 }
+          }
+        ],
+        margin: [30, 5, 30, 0]
+      } : {}),
+      content: [
+        {
+          text: 'REPORTE DE ASIGNACIÓN DE PRENDAS',
+          style: 'title',
+          alignment: 'center',
+          margin: [0, 0, 0, 4]
+        },
+        {
+          text: `Período: ${formatDate(fechaDesde as string)} - ${formatDate(fechaHasta as string)}`,
+          style: 'subtitle',
+          alignment: 'center',
+          margin: [0, 0, 0, 4]
+        },
+        {
+          columns: [
+            { text: usuario ? `Usuario: ${String(usuario)}` : '', style: 'subtitle', width: '*' },
+            { text: `Fecha y hora de impresión: ${fechaHoraImpresion}`, style: 'subtitle', alignment: 'right', width: 'auto' }
+          ],
+          margin: [0, 0, 0, 12]
+        },
+        {
+          table: {
+            headerRows: 1,
+            widths: [55, 35, '*', '*', 40, 45, '*', '*'],
+            body: tableBody
+          },
+          layout: {
+            hLineWidth: () => 0.5,
+            vLineWidth: () => 0.5
+          }
+        }
+      ],
+      styles: {
+        title: { fontSize: 14, bold: true },
+        subtitle: { fontSize: 10, color: '#555' },
+        tableHeader: { fontSize: 8, bold: true, fillColor: '#e8e8e8' },
+        tableCell: { fontSize: 8 }
+      },
+      defaultStyle: { font: 'Roboto', fontSize: 9 }
+    };
+
+    const pdfDoc = printer.createPdfKitDocument(docDefinition);
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename=reporte-asignacion-prendas-${fechaDesde}-${fechaHasta}.pdf`);
+    pdfDoc.pipe(res);
+    pdfDoc.end();
+  } catch (error) {
+    console.error('Error al generar reporte PDF:', error);
+    const response: ApiResponse<null> = {
+      success: false,
+      error: 'Error al generar el reporte PDF',
+      message: error instanceof Error ? error.message : 'Error desconocido'
+    };
+    res.status(500).json(response);
   }
 };
 

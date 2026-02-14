@@ -689,11 +689,14 @@ export interface AsignacionPrenda {
   fecha_09: Date | string;
   hora_09: string;
   idresponsableentrega_09: number;
+  idempresa_09?: number | null;
+  observaciones_09?: string | null;
   created_at?: Date;
   updated_at?: Date;
   // Campos JOINed
   trabajador_nombre?: string;
   responsable_nombre?: string;
+  empresa_nombre?: string;
 }
 
 /**
@@ -719,6 +722,8 @@ export interface CreateAsignacionPrendaDTO {
   fecha_09: string; // YYYY-MM-DD
   hora_09: string; // HH:MM
   idresponsableentrega_09: number;
+  idempresa_09?: number | null;
+  observaciones_09?: string | null;
   detalles: Array<{
     idprenda_10: number;
     talla_10: string;
@@ -734,6 +739,8 @@ export interface UpdateAsignacionPrendaDTO {
   fecha_09?: string;
   hora_09?: string;
   idresponsableentrega_09?: number;
+  idempresa_09?: number | null;
+  observaciones_09?: string | null;
   detalles?: Array<{
     idprenda_10: number;
     talla_10: string;

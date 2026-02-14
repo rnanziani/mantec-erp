@@ -96,6 +96,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onNavigate, currentView }) => {
                 { id: 'trabajadores', label: 'Trabajadores', icon: '👥', path: 'trabajadores', permissionRequired: 'MENU_MANTENEDORES_TRABAJADORES' },
                 { id: 'productos-aseo', label: 'Productos de Aseo', icon: '🧼', path: 'productos-aseo', permissionRequired: 'MENU_MANTENEDORES_PRODUCTOS_ASEO' },
                 { id: 'maquinas', label: 'Máquinas', icon: '🔧', path: 'maquinas', permissionRequired: 'MENU_MANTENEDORES_MAQUINAS' },
+                { id: 'responsables-entrega', label: 'Responsables de Entrega', icon: '📋', path: 'responsables-entrega', permissionRequired: 'MENU_MANTENEDORES' },
                 { id: 'tipos-comp-alternador', label: 'Tipos Componente', icon: '⚙️', path: 'tipos-comp-alternador', permissionRequired: 'MENU_MANTENEDORES' }
             ]
         }

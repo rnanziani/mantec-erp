@@ -1,6 +1,20 @@
 import { Router } from 'express';
-import { getAllAsignaciones, getAsignacionById, createAsignacion, updateAsignacion, deleteAsignacion, getDetallesAsignacion } from '../controllers/asignacionProductosAseoController.js';
+import { getAllAsignaciones, getAsignacionById, createAsignacion, updateAsignacion, deleteAsignacion, getDetallesAsignacion, getReporteDatos, generarReportePDF } from '../controllers/asignacionProductosAseoController.js';
 const router = Router();
+/**
+ * @route   GET /api/asignaciones-productos-aseo/reporte/datos
+ * @desc    Obtener datos del reporte de entregas (para vista previa)
+ * @access  Public
+ * @query   fecha_desde (requerido), fecha_hasta (requerido), patente (opcional), id_trabajador (opcional), id_producto (opcional)
+ */
+router.get('/reporte/datos', getReporteDatos);
+/**
+ * @route   GET /api/asignaciones-productos-aseo/reporte/pdf
+ * @desc    Generar reporte PDF de entregas de productos de aseo
+ * @access  Public
+ * @query   fecha_desde (requerido), fecha_hasta (requerido), patente (opcional), id_trabajador (opcional), id_producto (opcional)
+ */
+router.get('/reporte/pdf', generarReportePDF);
 /**
  * @route   GET /api/asignaciones-productos-aseo/:id/detalles
  * @desc    Obtener los detalles de una asignación

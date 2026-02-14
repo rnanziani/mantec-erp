@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { getAllTransacciones, getTransaccionById, createTransaccion, updateTransaccion, deleteTransaccion, getTransaccionesFiltradas, generarReportePDF } from '../controllers/transaccionController.js';
+import { getAllTransacciones, getTransaccionById, createTransaccion, updateTransaccion, deleteTransaccion, getTransaccionesFiltradas, generarReportePDF, generarReporteCantidadComponentesPDF } from '../controllers/transaccionController.js';
 const router = Router();
 /**
  * @route   GET /api/transacciones/reporte/pdf
@@ -8,6 +8,13 @@ const router = Router();
  * @query   fecha_desde (requerido), fecha_hasta (requerido), id_tipo_transaccion (opcional), id_marca (opcional), id_destino (opcional), id_maquina (opcional)
  */
 router.get('/reporte/pdf', generarReportePDF);
+/**
+ * @route   GET /api/transacciones/reporte-cantidad-componentes/pdf
+ * @desc    Generar reporte PDF de cantidad de componentes por tipo
+ * @access  Public
+ * @query   fecha_desde (requerido), fecha_hasta (requerido), id_tipo_transaccion (opcional), id_marca (opcional), id_destino (opcional), id_maquina (opcional)
+ */
+router.get('/reporte-cantidad-componentes/pdf', generarReporteCantidadComponentesPDF);
 /**
  * @route   GET /api/transacciones/filtradas
  * @desc    Obtener transacciones filtradas (para uso en frontend)

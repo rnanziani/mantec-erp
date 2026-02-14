@@ -31,6 +31,7 @@ import IntentoLoginView from './components/IntentoLoginView';
 import SesionView from './components/SesionView';
 import ParametrosView from './components/ParametrosView';
 import MaquinaView from './components/MaquinaView';
+import ResponsableEntregaView from './components/ResponsableEntregaView';
 import { useSessionMonitor } from './hooks/useSessionMonitor';
 import { useUserPermissions } from './hooks/useUserPermissions';
 import SessionWarningModal from './components/SessionWarningModal';
@@ -77,6 +78,7 @@ function App() {
     'trabajadores': 'MENU_MANTENEDORES_TRABAJADORES',
     'productos-aseo': 'MENU_MANTENEDORES_PRODUCTOS_ASEO',
     'maquinas': 'MENU_MANTENEDORES_MAQUINAS',
+    'responsables-entrega': 'MENU_MANTENEDORES',
     'tipos-comp-alternador': 'MENU_MANTENEDORES'
   };
 
@@ -334,6 +336,8 @@ function App() {
           {currentView === 'parametros' && hasRouteAccess('parametros') && <ParametrosView />}
 
           {currentView === 'maquinas' && hasRouteAccess('maquinas') && <MaquinaView />}
+
+          {currentView === 'responsables-entrega' && hasRouteAccess('responsables-entrega') && <ResponsableEntregaView />}
 
           {currentView === 'tipos-comp-alternador' && hasRouteAccess('tipos-comp-alternador') && <TipoCompAlternadorView />}
 

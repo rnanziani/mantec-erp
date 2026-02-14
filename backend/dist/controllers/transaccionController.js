@@ -27,7 +27,8 @@ export const getAllTransacciones = async (req, res) => {
         tt.valor_accion_25 AS valor_accion,
         CONCAT(tec.nombres_21, ' ', tec.a_paterno_21, ' ', tec.a_materno_21) AS tecnico_nombre,
         maq.numinterno_11 AS maquina_numinterno,
-        maq.ppu_11 AS maquina_ppu
+        maq.ppu_11 AS maquina_ppu,
+        tc.tipo_comp_alternador_32 AS tipo_comp_descripcion
       FROM tbl_28_transaccion t
       INNER JOIN tbl_19_alternador a ON t.id_alternador_28 = a.id_alternador_19
       LEFT JOIN tbl_18_marca_alternador m ON a.id_marca_19 = m.id_marca_18
@@ -36,6 +37,7 @@ export const getAllTransacciones = async (req, res) => {
       INNER JOIN tbl_25_tipo_transaccion tt ON t.id_tipo_transaccion_28 = tt.id_tipo_transaccion_25
       LEFT JOIN tbl_21_tecnico tec ON t.id_tecnico_28 = tec.id_tecnico_21
       LEFT JOIN tbl_11_maquina maq ON t.id_maquina_28 = maq.idmaquina_11
+      LEFT JOIN tbl_32_tipo_comp_alternador tc ON a.id_tipo_comp_alternador_19 = tc.id_tipo_comp_alternador_32
       ORDER BY t.fecha_28 DESC, t.hora_28 DESC, t.id_transaccion_28 DESC
     `;
         const result = await pool.query(query);
@@ -83,7 +85,8 @@ export const getTransaccionById = async (req, res) => {
         tt.valor_accion_25 AS valor_accion,
         CONCAT(tec.nombres_21, ' ', tec.a_paterno_21, ' ', tec.a_materno_21) AS tecnico_nombre,
         maq.numinterno_11 AS maquina_numinterno,
-        maq.ppu_11 AS maquina_ppu
+        maq.ppu_11 AS maquina_ppu,
+        tc.tipo_comp_alternador_32 AS tipo_comp_descripcion
       FROM tbl_28_transaccion t
       INNER JOIN tbl_19_alternador a ON t.id_alternador_28 = a.id_alternador_19
       LEFT JOIN tbl_18_marca_alternador m ON a.id_marca_19 = m.id_marca_18
@@ -92,6 +95,7 @@ export const getTransaccionById = async (req, res) => {
       INNER JOIN tbl_25_tipo_transaccion tt ON t.id_tipo_transaccion_28 = tt.id_tipo_transaccion_25
       LEFT JOIN tbl_21_tecnico tec ON t.id_tecnico_28 = tec.id_tecnico_21
       LEFT JOIN tbl_11_maquina maq ON t.id_maquina_28 = maq.idmaquina_11
+      LEFT JOIN tbl_32_tipo_comp_alternador tc ON a.id_tipo_comp_alternador_19 = tc.id_tipo_comp_alternador_32
       WHERE t.id_transaccion_28 = $1
     `;
         const result = await pool.query(query, [id]);
@@ -437,7 +441,8 @@ export const generarReportePDF = async (req, res) => {
         tt.valor_accion_25 AS valor_accion,
         CONCAT(tec.nombres_21, ' ', tec.a_paterno_21, ' ', tec.a_materno_21) AS tecnico_nombre,
         maq.numinterno_11 AS maquina_numinterno,
-        maq.ppu_11 AS maquina_ppu
+        maq.ppu_11 AS maquina_ppu,
+        tc.tipo_comp_alternador_32 AS tipo_comp_descripcion
       FROM tbl_28_transaccion t
       INNER JOIN tbl_19_alternador a ON t.id_alternador_28 = a.id_alternador_19
       LEFT JOIN tbl_18_marca_alternador m ON a.id_marca_19 = m.id_marca_18
@@ -446,6 +451,7 @@ export const generarReportePDF = async (req, res) => {
       INNER JOIN tbl_25_tipo_transaccion tt ON t.id_tipo_transaccion_28 = tt.id_tipo_transaccion_25
       LEFT JOIN tbl_21_tecnico tec ON t.id_tecnico_28 = tec.id_tecnico_21
       LEFT JOIN tbl_11_maquina maq ON t.id_maquina_28 = maq.idmaquina_11
+      LEFT JOIN tbl_32_tipo_comp_alternador tc ON a.id_tipo_comp_alternador_19 = tc.id_tipo_comp_alternador_32
       WHERE t.fecha_28 >= $1 AND t.fecha_28 <= $2
     `;
         const params = [fecha_desde, fecha_hasta];
@@ -524,13 +530,10 @@ export const generarReportePDF = async (req, res) => {
                 { text: 'Destino', style: 'tableHeader', alignment: 'left' },
                 { text: 'Tipo', style: 'tableHeader', alignment: 'left' },
                 { text: 'Técnico', style: 'tableHeader', alignment: 'left' },
-                { text: 'Máquina', style: 'tableHeader', alignment: 'left' },
-                { text: 'Impacto', style: 'tableHeader', alignment: 'center' }
+                { text: 'Máquina', style: 'tableHeader', alignment: 'left' }
             ]
         ];
         transacciones.forEach((t) => {
-            const impacto = t.valor_accion === 1 ? '+1' : t.valor_accion === -1 ? '-1' : '0';
-            const impactoColor = t.valor_accion === 1 ? '#28a745' : t.valor_accion === -1 ? '#dc3545' : '#6c757d';
             tableBody.push([
                 { text: t.id_transaccion_28.toString(), style: 'tableCell', alignment: 'center' },
                 { text: formatDate(t.fecha_28), style: 'tableCell', alignment: 'center' },
@@ -541,17 +544,16 @@ export const generarReportePDF = async (req, res) => {
                 { text: t.ubicacion_destino_descripcion || 'N/A', style: 'tableCell', alignment: 'left' },
                 { text: t.tipo_descripcion || 'N/A', style: 'tableCell', alignment: 'left' },
                 { text: t.tecnico_nombre || 'N/A', style: 'tableCell', alignment: 'left' },
-                { text: t.maquina_numinterno ? `${t.maquina_numinterno}${t.maquina_ppu ? ` (${t.maquina_ppu})` : ''}` : 'N/A', style: 'tableCell', alignment: 'left' },
-                { text: impacto, style: 'tableCell', alignment: 'center', color: impactoColor, bold: true }
+                { text: t.maquina_numinterno ? `${t.maquina_numinterno}${t.maquina_ppu ? ` (${t.maquina_ppu})` : ''}` : 'N/A', style: 'tableCell', alignment: 'left' }
             ]);
         });
         // Definir el documento PDF
         const docDefinition = {
             pageSize: 'A4',
             pageOrientation: 'landscape',
-            pageMargins: [40, 120, 40, 60],
+            pageMargins: [20, 120, 40, 60], // Margen izquierdo reducido 50% (40 -> 20)
             header: {
-                margin: [40, 20, 40, 0],
+                margin: [20, 20, 40, 0], // Margen izquierdo reducido 50% (40 -> 20)
                 columns: [
                     {
                         width: 100,
@@ -635,7 +637,17 @@ export const generarReportePDF = async (req, res) => {
                 {
                     table: {
                         headerRows: 1,
-                        widths: [50, 90, 70, 80, 100, 120, 120, 180, 150, 130, 70],
+                        // ID, Fecha, Hora, Alternador, Marca, Origen, Destino, Tipo, Técnico, Máquina, Impacto
+                        // Fecha: 10% menos adicional (54 -> 49)
+                        // Hora: 10% menos adicional (39 -> 35)
+                        // Alternador: 10% menos adicional (54 -> 49)
+                        // Marca: 10% menos adicional (68 -> 61)
+                        // Origen: 10% menos adicional (43 -> 39)
+                        // Destino: 10% menos adicional (43 -> 39)
+                        // Máquina: 50% menos (130 -> 65), luego 30% menos adicional (65 -> 45), luego 10% más (45 -> 50), luego 10% más adicional (50 -> 55)
+                        // Técnico: 20% menos (150 -> 120), luego 10% más (120 -> 132)
+                        // Columna Impacto eliminada
+                        widths: [50, 49, 35, 49, 61, 39, 39, 162, 132, 55],
                         body: tableBody
                     },
                     layout: {
@@ -668,7 +680,7 @@ export const generarReportePDF = async (req, res) => {
             ],
             footer: function (currentPage, pageCount) {
                 return {
-                    margin: [40, 10, 40, 0],
+                    margin: [20, 10, 40, 0], // Margen izquierdo reducido 50% (40 -> 20)
                     text: [
                         { text: 'Página ', style: 'footer' },
                         { text: currentPage.toString(), style: 'footer' },
@@ -727,6 +739,328 @@ export const generarReportePDF = async (req, res) => {
         const response = {
             success: false,
             error: 'Error al generar el reporte PDF',
+            message: error instanceof Error ? error.message : 'Error desconocido'
+        };
+        res.status(500).json(response);
+    }
+};
+/**
+ * Generar reporte PDF de cantidad de componentes
+ */
+export const generarReporteCantidadComponentesPDF = async (req, res) => {
+    try {
+        const { fecha_desde, fecha_hasta, id_tipo_transaccion, id_marca, id_destino, id_maquina, id_tipo_comp_alternador } = req.query;
+        // Validar que las fechas sean requeridas
+        if (!fecha_desde || !fecha_hasta) {
+            const response = {
+                success: false,
+                error: 'Las fechas desde y hasta son requeridas'
+            };
+            res.status(400).json(response);
+            return;
+        }
+        // Query para obtener cantidad de componentes agrupados por tipo de componente
+        let query = `
+      SELECT 
+        COALESCE(tc.tipo_comp_alternador_32, 'Sin tipo') AS tipo_componente,
+        COUNT(DISTINCT t.id_alternador_28) AS cantidad_alternadores,
+        COUNT(t.id_transaccion_28) AS cantidad_transacciones,
+        SUM(CASE WHEN tt.valor_accion_25 = 1 THEN 1 ELSE 0 END) AS entradas,
+        SUM(CASE WHEN tt.valor_accion_25 = -1 THEN 1 ELSE 0 END) AS salidas
+      FROM tbl_28_transaccion t
+      INNER JOIN tbl_19_alternador a ON t.id_alternador_28 = a.id_alternador_19
+      LEFT JOIN tbl_32_tipo_comp_alternador tc ON a.id_tipo_comp_alternador_19 = tc.id_tipo_comp_alternador_32
+      LEFT JOIN tbl_18_marca_alternador m ON a.id_marca_19 = m.id_marca_18
+      INNER JOIN tbl_27_ubicacion ud ON t.id_ubicacion_destino_28 = ud.id_ubicacion_27
+      INNER JOIN tbl_25_tipo_transaccion tt ON t.id_tipo_transaccion_28 = tt.id_tipo_transaccion_25
+      LEFT JOIN tbl_11_maquina maq ON t.id_maquina_28 = maq.idmaquina_11
+      WHERE t.fecha_28 >= $1 AND t.fecha_28 <= $2
+    `;
+        const params = [fecha_desde, fecha_hasta];
+        let paramCount = 3;
+        // Aplicar filtros opcionales
+        if (id_tipo_transaccion) {
+            query += ` AND t.id_tipo_transaccion_28 = $${paramCount}`;
+            params.push(id_tipo_transaccion);
+            paramCount++;
+        }
+        if (id_marca) {
+            query += ` AND a.id_marca_19 = $${paramCount}`;
+            params.push(id_marca);
+            paramCount++;
+        }
+        if (id_destino) {
+            query += ` AND t.id_ubicacion_destino_28 = $${paramCount}`;
+            params.push(id_destino);
+            paramCount++;
+        }
+        if (id_maquina) {
+            query += ` AND t.id_maquina_28 = $${paramCount}`;
+            params.push(id_maquina);
+            paramCount++;
+        }
+        if (id_tipo_comp_alternador) {
+            const tipoCompId = parseInt(id_tipo_comp_alternador);
+            query += ` AND a.id_tipo_comp_alternador_19 = $${paramCount}`;
+            params.push(tipoCompId);
+            paramCount++;
+        }
+        query += ` GROUP BY tc.tipo_comp_alternador_32, tc.id_tipo_comp_alternador_32 ORDER BY tc.tipo_comp_alternador_32`;
+        // Log para depuración
+        console.log('=== REPORTE CANTIDAD COMPONENTES ===');
+        console.log('Query:', query);
+        console.log('Params:', params);
+        console.log('Filtro tipo componente:', id_tipo_comp_alternador);
+        const result = await pool.query(query, params);
+        const datos = result.rows;
+        // Log para depuración
+        console.log('Resultados encontrados:', datos.length);
+        if (datos.length > 0) {
+            console.log('Primeros datos:', datos[0]);
+        }
+        else {
+            console.log('⚠️ No se encontraron resultados con los filtros aplicados');
+        }
+        // Construir filtros aplicados para mostrar en el reporte
+        const filtrosAplicados = [];
+        if (id_tipo_transaccion) {
+            const tipoResult = await pool.query('SELECT descripcion_25 FROM tbl_25_tipo_transaccion WHERE id_tipo_transaccion_25 = $1', [id_tipo_transaccion]);
+            if (tipoResult.rows.length > 0) {
+                filtrosAplicados.push(`Tipo: ${tipoResult.rows[0].descripcion_25}`);
+            }
+        }
+        if (id_marca) {
+            const marcaResult = await pool.query('SELECT marca_18 FROM tbl_18_marca_alternador WHERE id_marca_18 = $1', [id_marca]);
+            if (marcaResult.rows.length > 0) {
+                filtrosAplicados.push(`Marca: ${marcaResult.rows[0].marca_18}`);
+            }
+        }
+        if (id_destino) {
+            const destinoResult = await pool.query('SELECT descripcion_27 FROM tbl_27_ubicacion WHERE id_ubicacion_27 = $1', [id_destino]);
+            if (destinoResult.rows.length > 0) {
+                filtrosAplicados.push(`Destino: ${destinoResult.rows[0].descripcion_27}`);
+            }
+        }
+        if (id_maquina) {
+            const maquinaResult = await pool.query('SELECT numinterno_11, ppu_11 FROM tbl_11_maquina WHERE idmaquina_11 = $1', [id_maquina]);
+            if (maquinaResult.rows.length > 0) {
+                filtrosAplicados.push(`Máquina: ${maquinaResult.rows[0].numinterno_11} - ${maquinaResult.rows[0].ppu_11}`);
+            }
+        }
+        if (id_tipo_comp_alternador) {
+            const tipoCompResult = await pool.query('SELECT tipo_comp_alternador_32 FROM tbl_32_tipo_comp_alternador WHERE id_tipo_comp_alternador_32 = $1', [id_tipo_comp_alternador]);
+            if (tipoCompResult.rows.length > 0) {
+                filtrosAplicados.push(`Tipo Componente: ${tipoCompResult.rows[0].tipo_comp_alternador_32}`);
+            }
+        }
+        // Configurar fuentes para pdfmake
+        const fonts = {
+            Roboto: {
+                normal: 'Helvetica',
+                bold: 'Helvetica-Bold',
+                italics: 'Helvetica-Oblique',
+                bolditalics: 'Helvetica-BoldOblique'
+            }
+        };
+        const printer = new PdfPrinter(fonts);
+        // Formatear fecha
+        const formatDate = (date) => {
+            const d = new Date(date);
+            return d.toLocaleDateString('es-CL', { day: '2-digit', month: '2-digit', year: 'numeric' });
+        };
+        // Preparar datos de la tabla
+        const tableBody = [
+            [
+                { text: 'TIPO COMPONENTE', style: 'tableHeader', alignment: 'left' },
+                { text: 'CANT. ALTERNADORES', style: 'tableHeader', alignment: 'center' },
+                { text: 'CANT. TRANSACCIONES', style: 'tableHeader', alignment: 'center' },
+                { text: 'ENTRADAS', style: 'tableHeader', alignment: 'center' },
+                { text: 'SALIDAS', style: 'tableHeader', alignment: 'center' }
+            ]
+        ];
+        let totalAlternadores = 0;
+        let totalTransacciones = 0;
+        let totalEntradas = 0;
+        let totalSalidas = 0;
+        if (datos.length === 0) {
+            // Si no hay datos, agregar un mensaje informativo
+            tableBody.push([
+                { text: 'No se encontraron transacciones con los filtros aplicados', style: 'tableCell', alignment: 'center', colSpan: 5, color: '#666' }
+            ]);
+        }
+        else {
+            datos.forEach((row) => {
+                const cantAlternadores = parseInt(row.cantidad_alternadores) || 0;
+                const cantTransacciones = parseInt(row.cantidad_transacciones) || 0;
+                const entradas = parseInt(row.entradas) || 0;
+                const salidas = parseInt(row.salidas) || 0;
+                totalAlternadores += cantAlternadores;
+                totalTransacciones += cantTransacciones;
+                totalEntradas += entradas;
+                totalSalidas += salidas;
+                tableBody.push([
+                    { text: row.tipo_componente || 'N/A', style: 'tableCell', alignment: 'left' },
+                    { text: cantAlternadores.toString(), style: 'tableCell', alignment: 'center', bold: true },
+                    { text: cantTransacciones.toString(), style: 'tableCell', alignment: 'center' },
+                    { text: entradas.toString(), style: 'tableCell', alignment: 'center', color: '#28a745' },
+                    { text: salidas.toString(), style: 'tableCell', alignment: 'center', color: '#dc3545' }
+                ]);
+            });
+        }
+        // Agregar fila de totales solo si hay datos
+        if (datos.length > 0) {
+            tableBody.push([
+                { text: 'TOTALES', style: 'tableHeader', alignment: 'left', bold: true },
+                { text: totalAlternadores.toString(), style: 'tableHeader', alignment: 'center', bold: true },
+                { text: totalTransacciones.toString(), style: 'tableHeader', alignment: 'center', bold: true },
+                { text: totalEntradas.toString(), style: 'tableHeader', alignment: 'center', bold: true, color: '#28a745' },
+                { text: totalSalidas.toString(), style: 'tableHeader', alignment: 'center', bold: true, color: '#dc3545' }
+            ]);
+        }
+        // Definir el documento PDF
+        const docDefinition = {
+            pageSize: 'A4',
+            pageOrientation: 'portrait',
+            pageMargins: [20, 120, 40, 60],
+            header: {
+                margin: [20, 20, 40, 0],
+                columns: [
+                    {
+                        width: '*',
+                        text: 'REPORTE DE CANTIDAD DE COMPONENTES',
+                        style: 'headerTitle',
+                        alignment: 'center',
+                        margin: [0, 30, 0, 0]
+                    }
+                ]
+            },
+            content: [
+                // Información del reporte
+                {
+                    text: 'INFORMACIÓN DEL REPORTE',
+                    style: 'sectionTitle',
+                    margin: [0, 0, 0, 10]
+                },
+                {
+                    columns: [
+                        {
+                            width: '*',
+                            text: [
+                                { text: 'Período: ', bold: true },
+                                { text: `${formatDate(fecha_desde)} - ${formatDate(fecha_hasta)}` }
+                            ],
+                            margin: [0, 0, 0, 5]
+                        }
+                    ],
+                    margin: [0, 0, 0, 10]
+                },
+                // Filtros aplicados
+                ...(filtrosAplicados.length > 0 ? [{
+                        text: [
+                            { text: 'Filtros aplicados: ', bold: true },
+                            { text: filtrosAplicados.join(' | ') }
+                        ],
+                        margin: [0, 0, 0, 15]
+                    }] : []),
+                // Tabla de datos
+                {
+                    text: 'CANTIDAD DE COMPONENTES POR TIPO',
+                    style: 'sectionTitle',
+                    margin: [0, 20, 0, 10]
+                },
+                {
+                    table: {
+                        headerRows: 1,
+                        widths: ['*', 100, 120, 80, 80],
+                        body: tableBody
+                    },
+                    layout: {
+                        hLineWidth: function (i, node) {
+                            return i === 0 || i === node.table.body.length ? 1 : 0.5;
+                        },
+                        vLineWidth: function (i, node) {
+                            return i === 0 || i === node.table.widths.length ? 1 : 0.5;
+                        },
+                        hLineColor: function (i, node) {
+                            return i === 0 || i === node.table.body.length ? '#333333' : '#cccccc';
+                        },
+                        vLineColor: function (i, node) {
+                            return i === 0 || i === node.table.widths.length ? '#333333' : '#cccccc';
+                        },
+                        paddingLeft: function (i) {
+                            return i === 0 ? 5 : 5;
+                        },
+                        paddingRight: function (i, node) {
+                            return i === node.table.widths.length - 1 ? 5 : 5;
+                        },
+                        paddingTop: function () {
+                            return 5;
+                        },
+                        paddingBottom: function () {
+                            return 5;
+                        }
+                    }
+                }
+            ],
+            footer: function (currentPage, pageCount) {
+                return {
+                    margin: [20, 10, 40, 0],
+                    text: [
+                        { text: 'Página ', style: 'footer' },
+                        { text: currentPage.toString(), style: 'footer' },
+                        { text: ' de ', style: 'footer' },
+                        { text: pageCount.toString(), style: 'footer' }
+                    ],
+                    alignment: 'center',
+                    fontSize: 9,
+                    color: '#666666'
+                };
+            },
+            styles: {
+                headerTitle: {
+                    fontSize: 18,
+                    bold: true,
+                    color: '#1a1a1a'
+                },
+                sectionTitle: {
+                    fontSize: 14,
+                    bold: true,
+                    color: '#2c3e50',
+                    margin: [0, 10, 0, 10]
+                },
+                tableHeader: {
+                    bold: true,
+                    fontSize: 9,
+                    color: '#ffffff',
+                    fillColor: '#34495e',
+                    alignment: 'center'
+                },
+                tableCell: {
+                    fontSize: 9,
+                    color: '#333333'
+                },
+                footer: {
+                    fontSize: 9,
+                    color: '#666666'
+                }
+            },
+            defaultStyle: {
+                font: 'Roboto',
+                fontSize: 10
+            }
+        };
+        // Generar PDF
+        const pdfDoc = printer.createPdfKitDocument(docDefinition);
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', `attachment; filename=reporte-cantidad-componentes-${fecha_desde}-${fecha_hasta}.pdf`);
+        pdfDoc.pipe(res);
+        pdfDoc.end();
+    }
+    catch (error) {
+        console.error('Error al generar reporte de cantidad de componentes:', error);
+        const response = {
+            success: false,
+            error: 'Error al generar el reporte de cantidad de componentes',
             message: error instanceof Error ? error.message : 'Error desconocido'
         };
         res.status(500).json(response);

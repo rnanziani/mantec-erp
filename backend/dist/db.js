@@ -11,7 +11,7 @@ export const pool = new Pool({
     password: process.env.DB_PASSWORD || 'postgres',
     max: 20, // Máximo de conexiones en el pool
     idleTimeoutMillis: 30000,
-    connectionTimeoutMillis: 2000,
+    connectionTimeoutMillis: 10000, // Aumentado a 10 segundos
 });
 // Evento para manejar errores del pool
 pool.on('error', (err) => {
@@ -21,6 +21,11 @@ pool.on('error', (err) => {
 // Función para verificar la conexión
 export const testConnection = async () => {
     try {
+        console.log('🔄 Intentando conectar a PostgreSQL...');
+        console.log(`   Host: ${process.env.DB_HOST || 'localhost'}`);
+        console.log(`   Port: ${process.env.DB_PORT || '5432'}`);
+        console.log(`   Database: ${process.env.DB_NAME || 'mantec_erp'}`);
+        console.log(`   User: ${process.env.DB_USER || 'postgres'}`);
         const client = await pool.connect();
         const result = await client.query('SELECT NOW()');
         client.release();
@@ -28,7 +33,22 @@ export const testConnection = async () => {
         return true;
     }
     catch (error) {
-        console.error('❌ Error al conectar con PostgreSQL:', error);
+        console.error('❌ Error al conectar con PostgreSQL:', error.message);
+        if (error.code === 'ECONNREFUSED') {
+            console.error('   ⚠️  PostgreSQL no está corriendo o no está accesible en el host/puerto especificado');
+            console.error('   💡 Verifica que PostgreSQL esté corriendo y que las credenciales sean correctas');
+        }
+        else if (error.code === 'ETIMEDOUT' || error.message.includes('timeout')) {
+            console.error('   ⚠️  Timeout de conexión - El servidor PostgreSQL no responde');
+            console.error('   💡 Verifica que PostgreSQL esté corriendo y accesible');
+        }
+        else if (error.code === '28P01') {
+            console.error('   ⚠️  Error de autenticación - Usuario o contraseña incorrectos');
+        }
+        else if (error.code === '3D000') {
+            console.error('   ⚠️  La base de datos no existe');
+            console.error(`   💡 Crea la base de datos: ${process.env.DB_NAME || 'mantec_erp'}`);
+        }
         return false;
     }
 };
