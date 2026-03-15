@@ -3,6 +3,7 @@ import {
   register,
   login,
   changePassword,
+  changePasswordExpired,
   getMe,
   getMyPermissions,
   getSessionStatus,
@@ -32,6 +33,13 @@ router.post('/login', login);
  * @access  Private
  */
 router.post('/change-password', changePassword);
+
+/**
+ * @route   POST /api/auth/change-password-expired
+ * @desc    Cambiar contraseña cuando está expirada (desde login, sin token)
+ * @access  Public
+ */
+router.post('/change-password-expired', changePasswordExpired);
 
 /**
  * @route   GET /api/auth/me

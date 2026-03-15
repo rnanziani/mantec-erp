@@ -209,11 +209,12 @@ export const createTransaccion = async (req: Request, res: Response): Promise<vo
 
     res.status(201).json(response);
   } catch (error) {
+    const msg = error instanceof Error ? error.message : 'Error desconocido';
     console.error('Error al crear transacción:', error);
     const response: ApiResponse<null> = {
       success: false,
       error: 'Error al crear la transacción',
-      message: error instanceof Error ? error.message : 'Error desconocido'
+      message: msg
     };
     res.status(500).json(response);
   }
@@ -377,7 +378,7 @@ export const deleteTransaccion = async (req: Request, res: Response): Promise<vo
  */
 export const getTransaccionesFiltradas = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { fecha_desde, fecha_hasta, id_tipo_transaccion, id_marca, id_destino, id_maquina } = req.query;
+    const { fecha_desde, fecha_hasta, id_tipo_transaccion, id_marca, id_destino, id_maquina, id_alternador } = req.query;
 
     // Validar que las fechas sean requeridas
     if (!fecha_desde || !fecha_hasta) {
@@ -448,6 +449,11 @@ export const getTransaccionesFiltradas = async (req: Request, res: Response): Pr
       params.push(id_maquina);
     }
 
+    if (id_alternador) {
+      query += ` AND t.id_alternador_28 = $${paramCount++}`;
+      params.push(id_alternador);
+    }
+
     query += ` ORDER BY t.fecha_28 DESC, t.hora_28 DESC, t.id_transaccion_28 DESC`;
 
     const result = await pool.query<Transaccion>(query, params);
@@ -474,7 +480,7 @@ export const getTransaccionesFiltradas = async (req: Request, res: Response): Pr
  */
 export const generarReportePDF = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { fecha_desde, fecha_hasta, id_tipo_transaccion, id_marca, id_destino, id_maquina } = req.query;
+    const { fecha_desde, fecha_hasta, id_tipo_transaccion, id_marca, id_destino, id_maquina, id_alternador } = req.query;
 
     // Validar que las fechas sean requeridas
     if (!fecha_desde || !fecha_hasta) {
@@ -545,6 +551,11 @@ export const generarReportePDF = async (req: Request, res: Response): Promise<vo
       params.push(id_maquina);
     }
 
+    if (id_alternador) {
+      query += ` AND t.id_alternador_28 = $${paramCount++}`;
+      params.push(id_alternador);
+    }
+
     query += ` ORDER BY t.fecha_28 DESC, t.hora_28 DESC, t.id_transaccion_28 DESC`;
 
     const result = await pool.query<Transaccion>(query, params);
@@ -552,6 +563,13 @@ export const generarReportePDF = async (req: Request, res: Response): Promise<vo
 
     // Obtener información de filtros aplicados para el reporte
     let filtrosAplicados: string[] = [];
+    if (id_alternador) {
+      const altResult = await pool.query('SELECT a.cod_alternador_19, m.marca_18 FROM tbl_19_alternador a LEFT JOIN tbl_18_marca_alternador m ON a.id_marca_19 = m.id_marca_18 WHERE a.id_alternador_19 = $1', [id_alternador]);
+      if (altResult.rows.length > 0) {
+        const row = altResult.rows[0];
+        filtrosAplicados.push(`Alternador: ${row.cod_alternador_19 || ''} - ${row.marca_18 || 'Sin marca'}`);
+      }
+    }
     if (id_tipo_transaccion) {
       const tipoResult = await pool.query('SELECT descripcion_25 FROM tbl_25_tipo_transaccion WHERE id_tipo_transaccion_25 = $1', [id_tipo_transaccion]);
       if (tipoResult.rows.length > 0) {
@@ -833,7 +851,7 @@ export const generarReportePDF = async (req: Request, res: Response): Promise<vo
  */
 export const generarReporteCantidadComponentesPDF = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { fecha_desde, fecha_hasta, id_tipo_transaccion, id_marca, id_destino, id_maquina, id_tipo_comp_alternador } = req.query;
+    const { fecha_desde, fecha_hasta, id_tipo_transaccion, id_marca, id_destino, id_maquina, id_tipo_comp_alternador, id_alternador } = req.query;
 
     // Validar que las fechas sean requeridas
     if (!fecha_desde || !fecha_hasta) {
@@ -898,6 +916,12 @@ export const generarReporteCantidadComponentesPDF = async (req: Request, res: Re
       paramCount++;
     }
 
+    if (id_alternador) {
+      query += ` AND t.id_alternador_28 = $${paramCount}`;
+      params.push(id_alternador);
+      paramCount++;
+    }
+
     query += ` GROUP BY tc.tipo_comp_alternador_32, tc.id_tipo_comp_alternador_32 ORDER BY tc.tipo_comp_alternador_32`;
 
     // Log para depuración
@@ -919,6 +943,13 @@ export const generarReporteCantidadComponentesPDF = async (req: Request, res: Re
 
     // Construir filtros aplicados para mostrar en el reporte
     const filtrosAplicados: string[] = [];
+    if (id_alternador) {
+      const altResult = await pool.query('SELECT a.cod_alternador_19, m.marca_18 FROM tbl_19_alternador a LEFT JOIN tbl_18_marca_alternador m ON a.id_marca_19 = m.id_marca_18 WHERE a.id_alternador_19 = $1', [id_alternador]);
+      if (altResult.rows.length > 0) {
+        const row = altResult.rows[0];
+        filtrosAplicados.push(`Componente: ${row.cod_alternador_19 || ''} - ${row.marca_18 || 'Sin marca'}`);
+      }
+    }
     if (id_tipo_transaccion) {
       const tipoResult = await pool.query('SELECT descripcion_25 FROM tbl_25_tipo_transaccion WHERE id_tipo_transaccion_25 = $1', [id_tipo_transaccion]);
       if (tipoResult.rows.length > 0) {

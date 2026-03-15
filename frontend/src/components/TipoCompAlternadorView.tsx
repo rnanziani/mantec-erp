@@ -1,9 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import './BodegaView.css';
 import './TipoCompAlternadorView.css';
-import { showSuccess, showError, showDeleteConfirm } from '../utils/swal';
-import SearchBar from './shared/SearchBar';
-import Pagination from './shared/Pagination';
 import { exportToExcel } from '../utils/exportUtils';
+import { showDeleteConfirm, showSuccess, showError } from '../utils/swal';
 
 interface TipoCompAlternador {
   id_tipo_comp_alternador_32: number;
@@ -24,6 +23,7 @@ type SortConfig = {
 };
 
 const TipoCompAlternadorView: React.FC = () => {
+  const formRef = React.useRef<HTMLFormElement>(null);
   const [tipos, setTipos] = useState<TipoCompAlternador[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string>('');
@@ -32,7 +32,6 @@ const TipoCompAlternadorView: React.FC = () => {
   const [editingId, setEditingId] = useState<number | null>(null);
   const [showForm, setShowForm] = useState<boolean>(false);
 
-  // Nuevas funcionalidades
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [itemsPerPage] = useState<number>(10);
@@ -64,14 +63,12 @@ const TipoCompAlternadorView: React.FC = () => {
     }
   };
 
-  // Filtrar y ordenar datos
   const filteredAndSortedTipos = useMemo(() => {
     let filtered = tipos.filter(tipo =>
       tipo.tipo_comp_alternador_32.toLowerCase().includes(searchTerm.toLowerCase()) ||
       tipo.id_tipo_comp_alternador_32.toString().includes(searchTerm)
     );
 
-    // Ordenar
     filtered.sort((a, b) => {
       const aValue = a[sortConfig.key];
       const bValue = b[sortConfig.key];
@@ -84,13 +81,11 @@ const TipoCompAlternadorView: React.FC = () => {
     return filtered;
   }, [tipos, searchTerm, sortConfig]);
 
-  // Paginación
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
   const currentTipos = filteredAndSortedTipos.slice(indexOfFirstItem, indexOfLastItem);
   const totalPages = Math.ceil(filteredAndSortedTipos.length / itemsPerPage);
 
-  // Resetear página al buscar
   useEffect(() => {
     setCurrentPage(1);
   }, [searchTerm]);
@@ -102,19 +97,19 @@ const TipoCompAlternadorView: React.FC = () => {
     }));
   };
 
-  const getSortIcon = (key: keyof TipoCompAlternador) => {
-    if (sortConfig.key !== key) return '⇅';
+  const getSortIndicator = (key: keyof TipoCompAlternador) => {
+    if (sortConfig.key !== key) return '↕️';
     return sortConfig.direction === 'asc' ? '↑' : '↓';
   };
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!tipoId || tipoId === 0) {
-      await showError('Validación', 'El ID del tipo de componente es requerido');
+      await showError('Campo requerido', 'El ID del tipo de componente es requerido');
       return;
     }
     if (!tipoNombre.trim()) {
-      await showError('Validación', 'El nombre del tipo de componente es requerido');
+      await showError('Campo requerido', 'El nombre del tipo de componente es requerido');
       return;
     }
 
@@ -123,7 +118,7 @@ const TipoCompAlternadorView: React.FC = () => {
       const response = await fetch(API_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
+        body: JSON.stringify({
           id_tipo_comp_alternador_32: tipoId,
           tipo_comp_alternador_32: tipoNombre.trim()
         })
@@ -133,12 +128,11 @@ const TipoCompAlternadorView: React.FC = () => {
 
       if (data.success) {
         await fetchTipos();
-        setTipoId(0);
-        setTipoNombre('');
-        setShowForm(false);
-        await showSuccess('¡Éxito!', 'Tipo de componente creado exitosamente');
+        resetForm();
+        await showSuccess('¡Tipo creado!', 'El tipo de componente ha sido registrado correctamente.');
       } else {
-        await showError('Error', data.error || 'Error al crear el tipo de componente');
+        await showError('Error al crear', data.error || 'Error al crear el tipo de componente');
+        setError(data.error || '');
       }
     } catch (err) {
       await showError('Error', 'Error al crear el tipo de componente');
@@ -148,7 +142,10 @@ const TipoCompAlternadorView: React.FC = () => {
 
   const handleUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!tipoNombre.trim() || editingId === null) return;
+    if (!tipoNombre.trim() || editingId === null) {
+      await showError('Campo requerido', 'El nombre del tipo es requerido');
+      return;
+    }
 
     try {
       setError('');
@@ -162,13 +159,11 @@ const TipoCompAlternadorView: React.FC = () => {
 
       if (data.success) {
         await fetchTipos();
-        setTipoId(0);
-        setTipoNombre('');
-        setEditingId(null);
-        setShowForm(false);
-        await showSuccess('¡Éxito!', 'Tipo de componente actualizado exitosamente');
+        resetForm();
+        await showSuccess('¡Tipo actualizado!', 'El tipo de componente ha sido actualizado correctamente.');
       } else {
-        await showError('Error', data.error || 'Error al actualizar el tipo de componente');
+        await showError('Error al actualizar', data.error || 'Error al actualizar el tipo de componente');
+        setError(data.error || '');
       }
     } catch (err) {
       await showError('Error', 'Error al actualizar el tipo de componente');
@@ -190,9 +185,9 @@ const TipoCompAlternadorView: React.FC = () => {
 
       if (data.success) {
         await fetchTipos();
-        await showSuccess('¡Éxito!', 'Tipo de componente eliminado exitosamente');
+        await showSuccess('¡Tipo eliminado!', 'El tipo de componente ha sido eliminado correctamente.');
       } else {
-        await showError('Error', data.error || 'Error al eliminar el tipo de componente');
+        await showError('Error al eliminar', data.error || 'Error al eliminar el tipo de componente');
       }
     } catch (err) {
       await showError('Error', 'Error al eliminar el tipo de componente');
@@ -208,7 +203,7 @@ const TipoCompAlternadorView: React.FC = () => {
     setError('');
   };
 
-  const cancelForm = () => {
+  const resetForm = () => {
     setTipoId(0);
     setTipoNombre('');
     setEditingId(null);
@@ -224,59 +219,66 @@ const TipoCompAlternadorView: React.FC = () => {
     setError('');
   };
 
+  const cancelForm = () => {
+    resetForm();
+  };
+
   const handleExport = async () => {
     const dataToExport = filteredAndSortedTipos.map(t => ({
       ID: t.id_tipo_comp_alternador_32,
       'Tipo Componente': t.tipo_comp_alternador_32
     }));
     exportToExcel(dataToExport, 'tipos-comp-alternador', 'Tipos de Componente Alternador');
-    await showSuccess('¡Éxito!', 'Datos exportados exitosamente');
+    await showSuccess('¡Exportación exitosa!', 'Los datos han sido exportados correctamente.');
   };
 
   return (
-    <div className="tipo-comp-alternador-container fade-in">
-      <div className="tipo-comp-alternador-header">
+    <div className="bodega-view">
+      <div className="view-header">
         <h2>🔧 Gestión de Tipos de Componente Alternador</h2>
-        <div className="header-actions">
-          {!showForm && (
-            <>
-              <button className="btn-export" onClick={handleExport} title="Exportar a Excel">
-                📊 Exportar
-              </button>
-              <button className="btn-primary" onClick={showCreateForm}>
-                ➕ Nuevo Tipo
-              </button>
-            </>
-          )}
+        <div style={{ display: 'flex', gap: '10px' }}>
+          <button
+            className="btn-primary"
+            onClick={showCreateForm}
+            style={{ backgroundColor: '#007bff' }}
+          >
+            ✏️ Nuevo
+          </button>
+          <button
+            className="btn-primary"
+            onClick={() => formRef.current?.requestSubmit()}
+            disabled={!showForm}
+            style={{ backgroundColor: '#28a745' }}
+            type="button"
+          >
+            💾 Guardar
+          </button>
+          <button
+            className="btn-primary"
+            onClick={handleExport}
+            style={{ backgroundColor: '#17a2b8' }}
+          >
+            📊 Exportar
+          </button>
+          <button className="btn-secondary" onClick={cancelForm}>
+            🚪 Salir
+          </button>
         </div>
       </div>
 
-      {!showForm && (
-        <div className="search-section">
-          <SearchBar
-            placeholder="Buscar por ID o nombre..."
-            value={searchTerm}
-            onChange={setSearchTerm}
-          />
-          <div className="results-info">
-            Mostrando {currentTipos.length} de {filteredAndSortedTipos.length} registros
-          </div>
-        </div>
-      )}
-
       {error && (
-        <div className="alert alert-error fade-in">
+        <div style={{ padding: '1rem', marginBottom: '1rem', background: '#FEE2E2', color: '#991B1B', borderRadius: '8px' }}>
           ⚠️ {error}
         </div>
       )}
 
       {showForm && (
-        <div className="form-card fade-in">
+        <div className="form-container">
           <h3>{editingId ? '✏️ Editar Tipo de Componente' : '➕ Nuevo Tipo de Componente'}</h3>
-          <form onSubmit={editingId ? handleUpdate : handleCreate}>
+          <form ref={formRef} onSubmit={editingId ? handleUpdate : handleCreate}>
             {!editingId && (
               <div className="form-group">
-                <label htmlFor="tipoId">ID del Tipo:</label>
+                <label htmlFor="tipoId">ID del Tipo: *</label>
                 <input
                   type="number"
                   id="tipoId"
@@ -284,17 +286,17 @@ const TipoCompAlternadorView: React.FC = () => {
                   value={tipoId || ''}
                   onChange={(e) => setTipoId(parseInt(e.target.value) || 0)}
                   placeholder="Ej: 1, 2, 3..."
-                  min="1"
+                  min={1}
                   required
                   autoFocus
                 />
-                <small className="form-hint">
+                <small style={{ display: 'block', marginTop: '4px', color: '#6c757d', fontSize: '0.85rem' }}>
                   💡 El ID debe ser único y no puede ser modificado después de crear
                 </small>
               </div>
             )}
             <div className="form-group">
-              <label htmlFor="tipoNombre">Nombre del Tipo:</label>
+              <label htmlFor="tipoNombre">Nombre del Tipo: *</label>
               <input
                 type="text"
                 id="tipoNombre"
@@ -319,81 +321,126 @@ const TipoCompAlternadorView: React.FC = () => {
         </div>
       )}
 
-      {loading ? (
-        <div className="loading">⏳ Cargando tipos de componente...</div>
-      ) : (
-        <>
-          <div className="table-container">
-            <table className="tipo-comp-alternador-table">
-              <thead>
-                <tr>
-                  <th 
-                    onClick={() => handleSort('id_tipo_comp_alternador_32')} 
-                    className={`sortable ${sortConfig.key === 'id_tipo_comp_alternador_32' ? (sortConfig.direction === 'asc' ? 'sort-asc' : 'sort-desc') : ''}`}
-                  >
-                    ID {getSortIcon('id_tipo_comp_alternador_32')}
-                  </th>
-                  <th 
-                    onClick={() => handleSort('tipo_comp_alternador_32')} 
-                    className={`sortable ${sortConfig.key === 'tipo_comp_alternador_32' ? (sortConfig.direction === 'asc' ? 'sort-asc' : 'sort-desc') : ''}`}
-                  >
-                    TIPO COMPONENTE {getSortIcon('tipo_comp_alternador_32')}
-                  </th>
-                  <th>ACCIONES</th>
-                </tr>
-              </thead>
-              <tbody>
-                {currentTipos.length === 0 ? (
-                  <tr>
-                    <td colSpan={3} className="no-data">
-                      {searchTerm
-                        ? `📋 No se encontraron tipos con "${searchTerm}"`
-                        : '📋 No hay tipos de componente registrados'
-                      }
-                    </td>
-                  </tr>
-                ) : (
-                  currentTipos.map((tipo) => (
-                    <tr key={tipo.id_tipo_comp_alternador_32} className="fade-in">
-                      <td>{tipo.id_tipo_comp_alternador_32}</td>
-                      <td className="tipo-name">{tipo.tipo_comp_alternador_32}</td>
-                      <td className="actions">
-                        <button
-                          className="btn-edit"
-                          onClick={() => startEdit(tipo)}
-                          title="Editar"
-                        >
-                          ✏️
-                        </button>
-                        <button
-                          className="btn-delete"
-                          onClick={() => handleDelete(tipo.id_tipo_comp_alternador_32)}
-                          title="Eliminar"
-                        >
-                          🗑️
-                        </button>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
+      <div className="form-container" style={{ marginBottom: '20px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+          <div style={{ color: '#6c757d', fontSize: '14px' }}>
+            Mostrando {currentTipos.length} de {filteredAndSortedTipos.length} registros
           </div>
+        </div>
+        <input
+          type="text"
+          placeholder="🔍 Buscar por ID o nombre..."
+          value={searchTerm}
+          onChange={(e) => {
+            setSearchTerm(e.target.value);
+            setCurrentPage(1);
+          }}
+          style={{ width: '100%', padding: '10px', fontSize: '14px', borderRadius: '4px', border: '1px solid #ced4da' }}
+          aria-label="Buscar tipo de componente"
+        />
+      </div>
 
-          {filteredAndSortedTipos.length > 0 && (
-            <Pagination
-              currentPage={currentPage}
-              totalPages={totalPages}
-              totalItems={filteredAndSortedTipos.length}
-              itemsPerPage={itemsPerPage}
-              onPageChange={setCurrentPage}
-            />
-          )}
-        </>
+      <div className="table-container">
+        <table className="data-table">
+          <thead>
+            <tr>
+              <th onClick={() => handleSort('id_tipo_comp_alternador_32')} className="sortable" style={{ cursor: 'pointer' }}>
+                ID {getSortIndicator('id_tipo_comp_alternador_32')}
+              </th>
+              <th onClick={() => handleSort('tipo_comp_alternador_32')} className="sortable" style={{ cursor: 'pointer' }}>
+                TIPO COMPONENTE {getSortIndicator('tipo_comp_alternador_32')}
+              </th>
+              <th>ACCIONES</th>
+            </tr>
+          </thead>
+          <tbody>
+            {loading && tipos.length === 0 ? (
+              <tr><td colSpan={3}>Cargando...</td></tr>
+            ) : currentTipos.length === 0 ? (
+              <tr>
+                <td colSpan={3} className="no-data">
+                  {searchTerm
+                    ? `📋 No se encontraron tipos con "${searchTerm}"`
+                    : '📋 No hay tipos de componente registrados'}
+                </td>
+              </tr>
+            ) : (
+              currentTipos.map((tipo) => (
+                <tr key={tipo.id_tipo_comp_alternador_32}>
+                  <td>{tipo.id_tipo_comp_alternador_32}</td>
+                  <td className="tipo-name">{tipo.tipo_comp_alternador_32}</td>
+                  <td className="actions">
+                    <button className="btn-edit" onClick={() => startEdit(tipo)} title="Editar" aria-label="Editar tipo">
+                      ✏️
+                    </button>
+                    <button className="btn-delete" onClick={() => handleDelete(tipo.id_tipo_comp_alternador_32)} title="Eliminar" aria-label="Eliminar tipo">
+                      🗑️
+                    </button>
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      {totalPages > 1 && (
+        <div style={{
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          gap: '10px',
+          marginTop: '20px',
+          padding: '15px',
+          backgroundColor: '#f8f9fa',
+          borderRadius: '8px'
+        }}>
+          <button
+            onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+            disabled={currentPage === 1}
+            className="btn-secondary"
+            style={{ padding: '8px 15px', cursor: currentPage === 1 ? 'not-allowed' : 'pointer', opacity: currentPage === 1 ? 0.5 : 1 }}
+            aria-label="Página anterior"
+          >
+            ← Anterior
+          </button>
+          <div style={{ display: 'flex', gap: '5px' }}>
+            {Array.from({ length: totalPages }, (_, i) => i + 1).map((numPagina) => (
+              <button
+                key={numPagina}
+                onClick={() => setCurrentPage(numPagina)}
+                style={{
+                  padding: '8px 12px',
+                  border: '1px solid #ced4da',
+                  borderRadius: '4px',
+                  backgroundColor: currentPage === numPagina ? '#007bff' : 'white',
+                  color: currentPage === numPagina ? 'white' : '#495057',
+                  cursor: 'pointer',
+                  fontWeight: currentPage === numPagina ? 'bold' : 'normal'
+                }}
+                aria-label={`Ir a página ${numPagina}`}
+                aria-current={currentPage === numPagina ? 'page' : undefined}
+              >
+                {numPagina}
+              </button>
+            ))}
+          </div>
+          <button
+            onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+            disabled={currentPage === totalPages}
+            className="btn-secondary"
+            style={{ padding: '8px 15px', cursor: currentPage === totalPages ? 'not-allowed' : 'pointer', opacity: currentPage === totalPages ? 0.5 : 1 }}
+            aria-label="Página siguiente"
+          >
+            Siguiente →
+          </button>
+          <div style={{ marginLeft: '15px', color: '#6c757d' }}>
+            Página {currentPage} de {totalPages}
+          </div>
+        </div>
       )}
     </div>
   );
 };
 
 export default TipoCompAlternadorView;
-

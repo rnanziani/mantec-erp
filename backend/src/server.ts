@@ -32,6 +32,10 @@ import intentoLoginRoutes from './routes/intentoLoginRoutes.js';
 import sesionViewRoutes from './routes/sesionViewRoutes.js';
 import parametrosRoutes from './routes/parametrosRoutes.js';
 import tipoCompAlternadorRoutes from './routes/tipoCompAlternadorRoutes.js';
+import categoriaRoutes from './routes/categoriaRoutes.js';
+import ccostoRoutes from './routes/ccostoRoutes.js';
+import insumoRoutes from './routes/insumoRoutes.js';
+import consumoInsumoRoutes from './routes/consumoInsumoRoutes.js';
 
 console.log('🔄 Servidor iniciando - Cargando rutas...');
 
@@ -105,6 +109,10 @@ app.use('/api/intentos-login', intentoLoginRoutes);
 app.use('/api/sesiones-view', sesionViewRoutes);
 app.use('/api/parametros', parametrosRoutes);
 app.use('/api/tipos-comp-alternador', tipoCompAlternadorRoutes);
+app.use('/api/categorias', categoriaRoutes);
+app.use('/api/ccostos', ccostoRoutes);
+app.use('/api/insumos', insumoRoutes);
+app.use('/api/consumo-insumos', consumoInsumoRoutes);
 
 console.log('✅ Todas las rutas cargadas');
 

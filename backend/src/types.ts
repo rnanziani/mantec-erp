@@ -206,6 +206,114 @@ export interface UpdateCargoDTO {
   cargo_14: string;
 }
 
+export interface Categoria {
+  id_categoria_42: number;
+  categoria_42: string;
+}
+
+export interface CreateCategoriaDTO {
+  categoria_42: string;
+}
+
+export interface UpdateCategoriaDTO {
+  categoria_42: string;
+}
+
+export interface Ccosto {
+  id_ccosto_45: number;
+  ccosto_45: string;
+  activo_45: boolean;
+  fecha_estado_45?: string;
+  usuario_estado_45?: string;
+}
+
+export interface CreateCcostoDTO {
+  ccosto_45: string;
+  activo_45?: boolean;
+}
+
+export interface UpdateCcostoDTO {
+  ccosto_45: string;
+  activo_45?: boolean;
+}
+
+export interface Insumo {
+  id_insumo_43: number;
+  descripcion_43: string;
+  precio_insumo_43: number;
+  id_categoria_43: number;
+  categoria_42?: string;
+}
+
+export interface CreateInsumoDTO {
+  descripcion_43?: string;
+  precio_insumo_43: number;
+  id_categoria_43: number;
+}
+
+export interface UpdateInsumoDTO {
+  descripcion_43?: string;
+  precio_insumo_43?: number;
+  id_categoria_43?: number;
+}
+
+/**
+ * Consumo de Insumos - Maestro (tbl_46_m_consumo_insumo)
+ */
+export interface MaestroConsumoInsumo {
+  id_m_consumo_insumo_46: number;
+  idtrabajador_46: number;
+  id_responsableentrega_46: number;
+  id_ccosto_46: number;
+  id_insumo_46: number;
+  cantidad_46: number;
+  fecha_46: string;
+  hora_46: string;
+  observacion_46?: string;
+  trabajador_nombre?: string;
+  responsable_nombre?: string;
+  ccosto_nombre?: string;
+  insumo_descripcion?: string;
+}
+
+/**
+ * Consumo de Insumos - Detalle (tbl_47_d_consumo_insumo)
+ */
+export interface DetalleConsumoInsumo {
+  id_d_consumo_insumo_47: number;
+  id_m_consumo_insumo_47: number;
+  id_insumo_47: number;
+  cantidad_47: number;
+  total_47: number;
+  observacion_47?: string;
+  insumo_descripcion?: string;
+  precio_insumo?: number;
+}
+
+export interface CreateMaestroConsumoInsumoDTO {
+  idtrabajador_46: number;
+  id_responsableentrega_46: number;
+  id_ccosto_46: number;
+  id_insumo_46: number;
+  cantidad_46: number;
+  fecha_46: string;
+  hora_46: string;
+  observacion_46?: string;
+  detalles?: Array<{ id_insumo_47: number; cantidad_47: number; observacion_47?: string }>;
+}
+
+export interface UpdateMaestroConsumoInsumoDTO {
+  idtrabajador_46?: number;
+  id_responsableentrega_46?: number;
+  id_ccosto_46?: number;
+  id_insumo_46?: number;
+  cantidad_46?: number;
+  fecha_46?: string;
+  hora_46?: string;
+  observacion_46?: string;
+  detalles?: Array<{ id_d_consumo_insumo_47?: number; id_insumo_47: number; cantidad_47: number; observacion_47?: string }>;
+}
+
 /**
  * Orden de Trabajo
  * Tabla: tbl_24_orden_trabajo
@@ -811,6 +919,12 @@ export interface LoginDTO {
  * DTO para cambiar contraseña
  */
 export interface ChangePasswordDTO {
+  password_actual: string;
+  password_nueva: string;
+}
+
+export interface ChangePasswordExpiredDTO {
+  email: string;
   password_actual: string;
   password_nueva: string;
 }

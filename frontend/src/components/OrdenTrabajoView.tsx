@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import './BodegaView.css';
 import './OrdenTrabajoView.css';
-import { useToast } from '../context/ToastContext';
-import SearchBar from './shared/SearchBar';
 import Pagination from './shared/Pagination';
 import { exportToExcel } from '../utils/exportUtils';
+import { showDeleteConfirm, showSuccess, showError } from '../utils/swal';
 
 interface OrdenTrabajo {
     id_orden_24: number;
@@ -50,6 +50,7 @@ type SortConfig = {
 };
 
 const OrdenTrabajoView: React.FC = () => {
+    const formRef = React.useRef<HTMLFormElement>(null);
     const [ordenes, setOrdenes] = useState<OrdenTrabajo[]>([]);
     const [alternadores, setAlternadores] = useState<Alternador[]>([]);
     const [maquinas, setMaquinas] = useState<Maquina[]>([]);
@@ -80,7 +81,6 @@ const OrdenTrabajoView: React.FC = () => {
     const [maquinaSearch, setMaquinaSearch] = useState<string>('');
     const [showMaquinaDropdown, setShowMaquinaDropdown] = useState<boolean>(false);
 
-    const { showToast } = useToast();
     const API_URL = 'http://localhost:3001/api/ordenes-trabajo';
 
     useEffect(() => {
@@ -193,15 +193,10 @@ const OrdenTrabajoView: React.FC = () => {
         }));
     };
 
-    const getSortIcon = (key: keyof OrdenTrabajo) => {
-        if (sortConfig.key !== key) return '⇅';
-        return sortConfig.direction === 'asc' ? '↑' : '↓';
-    };
-
     const handleCreate = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!idAlternador) {
-            showToast('Alternador es requerido', 'error');
+            await showError('Validación', 'Alternador es requerido');
             return;
         }
 
@@ -226,12 +221,12 @@ const OrdenTrabajoView: React.FC = () => {
             if (data.success) {
                 await fetchOrdenes();
                 resetForm();
-                showToast('Orden de trabajo creada exitosamente', 'success');
+                await showSuccess('¡Orden creada!', 'La orden de trabajo ha sido creada exitosamente.');
             } else {
-                showToast(data.error || 'Error al crear la orden de trabajo', 'error');
+                await showError('Error al crear', data.error || 'Error al crear la orden de trabajo');
             }
         } catch (err) {
-            showToast('Error al crear la orden de trabajo', 'error');
+            await showError('Error', 'Error al crear la orden de trabajo');
             console.error('Error:', err);
         }
     };
@@ -262,12 +257,12 @@ const OrdenTrabajoView: React.FC = () => {
             if (data.success) {
                 await fetchOrdenes();
                 resetForm();
-                showToast('Orden de trabajo actualizada exitosamente', 'success');
+                await showSuccess('¡Orden actualizada!', 'La orden de trabajo ha sido actualizada exitosamente.');
             } else {
-                showToast(data.error || 'Error al actualizar la orden de trabajo', 'error');
+                await showError('Error al actualizar', data.error || 'Error al actualizar la orden de trabajo');
             }
         } catch (err) {
-            showToast('Error al actualizar la orden de trabajo', 'error');
+            await showError('Error', 'Error al actualizar la orden de trabajo');
             console.error('Error:', err);
         }
     };
@@ -286,12 +281,12 @@ const OrdenTrabajoView: React.FC = () => {
 
             if (data.success) {
                 await fetchOrdenes();
-                showToast('Orden de trabajo eliminada exitosamente', 'success');
+                await showSuccess('¡Orden eliminada!', 'La orden de trabajo ha sido eliminada correctamente.');
             } else {
-                showToast(data.error || 'Error al eliminar la orden de trabajo', 'error');
+                await showError('Error al eliminar', data.error || 'Error al eliminar la orden de trabajo');
             }
         } catch (err) {
-            showToast('Error al eliminar la orden de trabajo', 'error');
+            await showError('Error', 'Error al eliminar la orden de trabajo');
             console.error('Error:', err);
         }
     };
@@ -331,7 +326,7 @@ const OrdenTrabajoView: React.FC = () => {
         setShowForm(true);
     };
 
-    const handleExport = () => {
+    const handleExport = async () => {
         const dataToExport = filteredAndSortedOrdenes.map(o => ({
             ID: o.id_orden_24,
             Alternador: o.cod_alternador_19 || '',
@@ -346,7 +341,7 @@ const OrdenTrabajoView: React.FC = () => {
             Técnico: o.tecnico_responsable_24 || '-'
         }));
         exportToExcel(dataToExport, 'ordenes-trabajo', 'Órdenes de Trabajo');
-        showToast('Datos exportados exitosamente', 'success');
+        await showSuccess('¡Exportación exitosa!', 'Los datos han sido exportados correctamente.');
     };
 
     const formatFecha = (fecha: string) => {
@@ -363,47 +358,49 @@ const OrdenTrabajoView: React.FC = () => {
     };
 
     return (
-        <div className="ordenes-container fade-in">
-            <div className="ordenes-header">
+        <div className="bodega-view">
+            <div className="view-header">
                 <h2>🔧 Gestión de Órdenes de Trabajo</h2>
-                <div className="header-actions">
-                    {!showForm && (
-                        <>
-                            <button className="btn-export" onClick={handleExport} title="Exportar a Excel">
-                                📊 Exportar
-                            </button>
-                            <button className="btn-primary" onClick={showCreateForm}>
-                                ➕ Nueva Orden
-                            </button>
-                        </>
-                    )}
+                <div style={{ display: 'flex', gap: '10px' }}>
+                    <button
+                        className="btn-primary"
+                        onClick={showCreateForm}
+                        style={{ backgroundColor: '#007bff' }}
+                    >
+                        ✏️ Nuevo
+                    </button>
+                    <button
+                        className="btn-primary"
+                        onClick={() => formRef.current?.requestSubmit()}
+                        disabled={!showForm}
+                        style={{ backgroundColor: '#28a745' }}
+                        type="button"
+                    >
+                        💾 Guardar
+                    </button>
+                    <button
+                        className="btn-primary"
+                        onClick={handleExport}
+                        style={{ backgroundColor: '#dc3545' }}
+                    >
+                        📊 Generar Reporte
+                    </button>
+                    <button className="btn-secondary" onClick={resetForm}>
+                        🚪 Salir
+                    </button>
                 </div>
             </div>
 
-            {!showForm && (
-                <div className="search-section">
-                    <SearchBar
-                        placeholder="Buscar por alternador, estado, técnico, máquina..."
-                        value={searchTerm}
-                        onChange={setSearchTerm}
-                    />
-                    <div className="results-info">
-                        {filteredAndSortedOrdenes.length} resultado{filteredAndSortedOrdenes.length !== 1 ? 's' : ''}
-                        {searchTerm && ` para "${searchTerm}"`}
-                    </div>
-                </div>
-            )}
-
             {error && (
-                <div className="alert alert-error fade-in">
+                <div style={{ padding: '1rem', marginBottom: '1rem', background: '#FEE2E2', color: '#991B1B', borderRadius: '8px' }}>
                     ⚠️ {error}
                 </div>
             )}
 
             {showForm && (
-                <div className="form-card fade-in">
+                <div className="form-container">
                     <h3>{editingId ? '✏️ Editar Orden de Trabajo' : '➕ Nueva Orden de Trabajo'}</h3>
-                    <form onSubmit={editingId ? handleUpdate : handleCreate}>
+                    <form ref={formRef} onSubmit={editingId ? handleUpdate : handleCreate}>
                         <div className="form-row">
                             <div className="form-group">
                                 <label htmlFor="alternador">Alternador: *</label>
@@ -459,41 +456,19 @@ const OrdenTrabajoView: React.FC = () => {
                                         autoComplete="off"
                                     />
                                     {showMaquinaDropdown && (
-                                        <div className="searchable-dropdown" style={{
-                                            position: 'absolute',
-                                            top: '100%',
-                                            left: 0,
-                                            right: 0,
-                                            maxHeight: '200px',
-                                            overflowY: 'auto',
-                                            backgroundColor: '#ffffff',
-                                            border: '2px solid var(--border-color)',
-                                            borderRadius: '8px',
-                                            marginTop: '4px',
-                                            zIndex: 9999,
-                                            boxShadow: '0 8px 24px rgba(0, 0, 0, 0.25)',
-                                            isolation: 'isolate'
-                                        }}>
+                                        <div className="searchable-dropdown">
                                             <div
                                                 className="dropdown-item"
-                                                style={{
-                                                    padding: '10px 12px',
-                                                    cursor: 'pointer',
-                                                    borderBottom: '1px solid var(--border-color)',
-                                                    transition: 'background-color 0.2s'
-                                                }}
                                                 onMouseDown={() => {
                                                     setIdMaquinaRetirado('');
                                                     setMaquinaSearch('');
                                                     setShowMaquinaDropdown(false);
                                                 }}
-                                                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--hover-bg)'}
-                                                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
                                             >
-                                                <em style={{ color: 'var(--text-secondary)' }}>Sin máquina asignada</em>
+                                                <em style={{ color: '#6c757d' }}>Sin máquina asignada</em>
                                             </div>
                                             {filteredMaquinas.length === 0 ? (
-                                                <div style={{ padding: '10px 12px', color: 'var(--text-secondary)', fontStyle: 'italic' }}>
+                                                <div style={{ padding: '10px 12px', color: '#6c757d', fontStyle: 'italic' }}>
                                                     No se encontraron máquinas
                                                 </div>
                                             ) : (
@@ -501,22 +476,14 @@ const OrdenTrabajoView: React.FC = () => {
                                                     <div
                                                         key={maq.idmaquina_11}
                                                         className="dropdown-item"
-                                                        style={{
-                                                            padding: '10px 12px',
-                                                            cursor: 'pointer',
-                                                            borderBottom: '1px solid var(--border-color)',
-                                                            transition: 'background-color 0.2s'
-                                                        }}
                                                         onMouseDown={() => {
                                                             setIdMaquinaRetirado(maq.idmaquina_11.toString());
                                                             setMaquinaSearch('');
                                                             setShowMaquinaDropdown(false);
                                                         }}
-                                                        onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--hover-bg)'}
-                                                        onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
                                                     >
                                                         <strong>{maq.numinterno_11}</strong> - {maq.ppu_11}
-                                                        <div style={{ fontSize: '0.85em', color: 'var(--text-secondary)', marginTop: '2px' }}>
+                                                        <div style={{ fontSize: '0.85em', color: '#6c757d', marginTop: '2px' }}>
                                                             {maq.descripcion_11}
                                                         </div>
                                                     </div>
@@ -596,9 +563,6 @@ const OrdenTrabajoView: React.FC = () => {
                         </div>
 
                         <div className="form-actions">
-                            <button type="submit" className="btn-success">
-                                {editingId ? '💾 Actualizar' : '➕ Crear'}
-                            </button>
                             <button type="button" className="btn-secondary" onClick={resetForm}>
                                 ❌ Cancelar
                             </button>
@@ -607,12 +571,35 @@ const OrdenTrabajoView: React.FC = () => {
                 </div>
             )}
 
-            {loading ? (
+            {!showForm && (
+                <div className="form-container" style={{ marginBottom: '20px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                        <div style={{ color: '#6c757d', fontSize: '14px' }}>
+                            📅 Mostrando órdenes (Total: {filteredAndSortedOrdenes.length})
+                        </div>
+                    </div>
+                    <input
+                        type="text"
+                        placeholder="🔍 Buscar por alternador, estado, técnico, máquina..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        style={{
+                            width: '100%',
+                            padding: '10px 12px 10px 40px',
+                            borderRadius: '4px',
+                            border: '1px solid #ced4da',
+                            fontSize: '14px'
+                        }}
+                    />
+                </div>
+            )}
+
+            {!showForm && (loading ? (
                 <div className="loading">⏳ Cargando órdenes de trabajo...</div>
             ) : (
                 <>
                     <div className="table-container">
-                        <table className="ordenes-table">
+                        <table className="data-table">
                             <thead>
                                 <tr>
                                     <th 
@@ -714,7 +701,7 @@ const OrdenTrabajoView: React.FC = () => {
                         />
                     )}
                 </>
-            )}
+            ))}
         </div>
     );
 };

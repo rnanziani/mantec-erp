@@ -32,6 +32,9 @@ import intentoLoginRoutes from './routes/intentoLoginRoutes.js';
 import sesionViewRoutes from './routes/sesionViewRoutes.js';
 import parametrosRoutes from './routes/parametrosRoutes.js';
 import tipoCompAlternadorRoutes from './routes/tipoCompAlternadorRoutes.js';
+import categoriaRoutes from './routes/categoriaRoutes.js';
+import ccostoRoutes from './routes/ccostoRoutes.js';
+import insumoRoutes from './routes/insumoRoutes.js';
 console.log('🔄 Servidor iniciando - Cargando rutas...');
 dotenv.config();
 const app = express();
@@ -97,6 +100,9 @@ app.use('/api/intentos-login', intentoLoginRoutes);
 app.use('/api/sesiones-view', sesionViewRoutes);
 app.use('/api/parametros', parametrosRoutes);
 app.use('/api/tipos-comp-alternador', tipoCompAlternadorRoutes);
+app.use('/api/categorias', categoriaRoutes);
+app.use('/api/ccostos', ccostoRoutes);
+app.use('/api/insumos', insumoRoutes);
 console.log('✅ Todas las rutas cargadas');
 // Iniciar servidor
 const startServer = async () => {

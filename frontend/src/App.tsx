@@ -32,20 +32,35 @@ import SesionView from './components/SesionView';
 import ParametrosView from './components/ParametrosView';
 import MaquinaView from './components/MaquinaView';
 import ResponsableEntregaView from './components/ResponsableEntregaView';
-import { useSessionMonitor } from './hooks/useSessionMonitor';
+import CategoriaView from './components/CategoriaView';
+import CcostoView from './components/CcostoView';
+import InsumoView from './components/InsumoView';
+import ConsumoInsumoView from './components/ConsumoInsumoView';
 import { useUserPermissions } from './hooks/useUserPermissions';
-import SessionWarningModal from './components/SessionWarningModal';
-import SessionExpiredModal from './components/SessionExpiredModal';
+import SessionInactivityModal from './components/SessionInactivityModal';
+import PasswordExpirationWarningModal from './components/PasswordExpirationWarningModal';
+import { useSessionMonitor } from './hooks/useSessionMonitor';
+import { loadSessionConfig, defaultSessionConfig } from './config/session.config';
+import type { SessionTimeoutConfig } from './config/session.config';
 import './utils/swal.css';
 
-function App() {
-  const [currentView, setCurrentView] = useState<string>('dashboard');
-  const [showWarningModal, setShowWarningModal] = useState<boolean>(false);
-  const [showExpiredModal, setShowExpiredModal] = useState<boolean>(false);
-  
-  // Monitorear sesión solo si está autenticado
+function getInitialView(): string {
+  const hash = window.location.hash.replace('#', '') || 'dashboard';
   const token = localStorage.getItem('token');
-  const { sessionStatus, refresh } = useSessionMonitor(!!token && currentView !== 'login' && currentView !== 'register');
+  if (!token && hash !== 'login' && hash !== 'register') return 'login';
+  return hash;
+}
+
+const DIAS_AVISO_PASSWORD = 5;
+
+function App() {
+  const [currentView, setCurrentView] = useState<string>(getInitialView);
+  const [inactivityConfig, setInactivityConfig] = useState<SessionTimeoutConfig | null>(null);
+  const [appReady, setAppReady] = useState(false);
+  const [passwordWarningDismissed, setPasswordWarningDismissed] = useState(false);
+
+  const token = localStorage.getItem('token');
+  const { sessionStatus } = useSessionMonitor(!!token && currentView !== 'login' && currentView !== 'register');
   
   // Obtener permisos del usuario
   const { hasPermission } = useUserPermissions(!!token && currentView !== 'login' && currentView !== 'register');
@@ -79,7 +94,11 @@ function App() {
     'productos-aseo': 'MENU_MANTENEDORES_PRODUCTOS_ASEO',
     'maquinas': 'MENU_MANTENEDORES_MAQUINAS',
     'responsables-entrega': 'MENU_MANTENEDORES',
-    'tipos-comp-alternador': 'MENU_MANTENEDORES'
+    'tipos-comp-alternador': 'MENU_MANTENEDORES',
+    'categorias': 'MENU_MANTENEDORES',
+    'ccostos': 'MENU_MANTENEDORES',
+    'insumos': 'MENU_MANTENEDORES',
+    'consumo-insumos': 'MENU_OPERACIONES'
   };
 
   // Función para verificar si el usuario tiene acceso a una ruta
@@ -103,6 +122,21 @@ function App() {
     // Verificar permiso
     return hasPermission(requiredPermission);
   };
+
+  // Recargar config de inactividad cuando hay token (tras login) para obtener SESSION_TIMEOUT_SECONDS correcto
+  useEffect(() => {
+    if (!token) {
+      setInactivityConfig(null);
+      setAppReady(true);
+      return;
+    }
+    let mounted = true;
+    loadSessionConfig()
+      .then(cfg => { if (mounted) setInactivityConfig(cfg); })
+      .catch(() => { if (mounted) setInactivityConfig(defaultSessionConfig); })
+      .finally(() => { if (mounted) setAppReady(true); });
+    return () => { mounted = false; };
+  }, [token]);
 
   useEffect(() => {
     // Leer el hash de la URL para determinar la vista
@@ -138,14 +172,12 @@ function App() {
   // Ocultar sidebar en login y register
   const showSidebar = currentView !== 'login' && currentView !== 'register';
 
-  // Manejar extensión de sesión
-  const handleExtendSession = async () => {
+  // Manejar extensión de sesión (llamado al reactivar o por actividad). Retorna true si OK.
+  const handleExtendSession = async (): Promise<boolean> => {
     try {
-      setShowWarningModal(false);
       const token = localStorage.getItem('token');
-      if (!token) return;
+      if (!token) return false;
 
-      // Llamar al endpoint específico para extender la sesión
       const response = await fetch('http://localhost:3001/api/auth/extend-session', {
         method: 'POST',
         headers: {
@@ -154,107 +186,69 @@ function App() {
         }
       });
 
-      if (response.ok) {
-        // Refrescar el estado de la sesión después de extender
-        setTimeout(() => {
-          refresh();
-        }, 500);
-      }
+      return response.ok;
     } catch (error) {
       console.error('Error al extender sesión:', error);
+      return false;
     }
   };
 
   // Manejar logout
   const handleLogout = async () => {
     try {
-      setShowWarningModal(false);
       const token = localStorage.getItem('token');
-      if (token) {
-        await fetch('http://localhost:3001/api/auth/logout', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        });
-      }
-    } catch (error) {
-      console.error('Error en logout:', error);
-    } finally {
       localStorage.removeItem('token');
       localStorage.removeItem('user');
       setCurrentView('login');
       window.location.hash = 'login';
+      // Luego notificar al backend (fire-and-forget)
+      if (token) {
+        fetch('http://localhost:3001/api/auth/logout', {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${token}` }
+        }).catch(() => {});
+      }
+    } catch (error) {
+      console.error('Error en logout:', error);
     }
   };
 
-  // Manejar reingreso después de sesión expirada
-  const handleReLogin = () => {
-    setShowExpiredModal(false);
-    handleLogout();
-  };
 
-  // Mostrar modal de advertencia cuando la sesión está por expirar
-  useEffect(() => {
-    if (!sessionStatus) return;
-
-    const segundos = sessionStatus.segundosRestantes;
-    console.log('🔍 Evaluando mostrar modal. Segundos restantes:', segundos, '| Expired:', sessionStatus.sessionExpired, '| Modal visible:', showWarningModal);
-
-    if (!sessionStatus.sessionExpired && segundos !== undefined && segundos !== null) {
-      // Mostrar modal si faltan 60 segundos o menos (siempre, independiente del parámetro SESSION_WARNING_MINUTES)
-      if (segundos <= 60 && segundos > 0) {
-        if (!showWarningModal) {
-          console.log('🔔 ✅ DECISIÓN: Mostrando modal de advertencia. Segundos restantes:', segundos);
-          setShowWarningModal(true);
-        }
-      } else if (segundos > 60) {
-        // Ocultar modal si quedan más de 60 segundos
-        if (showWarningModal) {
-          console.log('✅ Ocultando modal de advertencia. Segundos restantes:', segundos);
-          setShowWarningModal(false);
-        }
-      }
-    } else if (sessionStatus.sessionExpired || !sessionStatus) {
-      // Ocultar modal si la sesión expiró o no hay estado
-      if (showWarningModal) {
-        console.log('❌ Ocultando modal de advertencia. Sesión expirada o sin estado');
-        setShowWarningModal(false);
-      }
-    }
-  }, [sessionStatus, showWarningModal]);
-
-  // Mostrar modal de sesión expirada
-  useEffect(() => {
-    if (sessionStatus?.sessionExpired && !showExpiredModal) {
-      setShowWarningModal(false);
-      setShowExpiredModal(true);
-    }
-  }, [sessionStatus?.sessionExpired]);
 
   return (
     <ToastProvider>
       <div className="mantec-app">
         {showSidebar && <Sidebar onNavigate={setCurrentView} currentView={currentView} />}
         <ToastContainer />
-        
-        {/* Modales de sesión */}
-        {showWarningModal && sessionStatus && (
-          <>
-            {console.log('🎨 Renderizando SessionWarningModal. Segundos:', sessionStatus.segundosRestantes)}
-            <SessionWarningModal
-              segundosRestantes={sessionStatus.segundosRestantes}
-              onExtend={handleExtendSession}
-              onLogout={handleLogout}
+        {/* Sistema por INACTIVIDAD: contador y cierre de sesión tras X segundos sin actividad */}
+        {showSidebar && appReady && inactivityConfig && token && (
+          <SessionInactivityModal
+            config={inactivityConfig}
+            onExtend={handleExtendSession}
+            onLogout={handleLogout}
+            onActivity={() => { handleExtendSession(); }}
+          />
+        )}
+
+        {/* Aviso de contraseña por caducar (5 días antes) */}
+        {token && showSidebar && !passwordWarningDismissed && sessionStatus && currentView !== 'change-password' && (() => {
+          const dias = sessionStatus.diasRestantesPassword;
+          const expirada = sessionStatus.passwordExpired;
+          const debeMostrar = expirada || (dias !== undefined && dias <= DIAS_AVISO_PASSWORD);
+          if (!debeMostrar) return null;
+          return (
+            <PasswordExpirationWarningModal
+              key="pwd-warn"
+              diasRestantes={expirada ? 0 : (dias ?? 0)}
+              onCambiarPassword={() => {
+                setCurrentView('change-password');
+                window.location.hash = 'change-password';
+                setPasswordWarningDismissed(true);
+              }}
+              onCerrar={() => setPasswordWarningDismissed(true)}
             />
-          </>
-        )}
-        {showExpiredModal && (
-          <>
-            {console.log('🎨 Renderizando SessionExpiredModal')}
-            <SessionExpiredModal onReLogin={handleReLogin} />
-          </>
-        )}
+          );
+        })()}
         
         <div className="mantec-main-content" style={!showSidebar ? { marginLeft: 0 } : {}}>
           {/* Protección de rutas: si no tiene acceso, mostrar mensaje */}
@@ -340,6 +334,14 @@ function App() {
           {currentView === 'responsables-entrega' && hasRouteAccess('responsables-entrega') && <ResponsableEntregaView />}
 
           {currentView === 'tipos-comp-alternador' && hasRouteAccess('tipos-comp-alternador') && <TipoCompAlternadorView />}
+
+          {currentView === 'categorias' && hasRouteAccess('categorias') && <CategoriaView />}
+
+          {currentView === 'ccostos' && hasRouteAccess('ccostos') && <CcostoView />}
+
+          {currentView === 'insumos' && hasRouteAccess('insumos') && <InsumoView />}
+
+          {currentView === 'consumo-insumos' && hasRouteAccess('consumo-insumos') && <ConsumoInsumoView />}
 
           {currentView === 'login' && <LoginForm />}
 

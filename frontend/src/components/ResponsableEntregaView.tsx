@@ -1,10 +1,8 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import './CargoView.css';
-import { useToast } from '../context/ToastContext';
-import { showDeleteConfirm } from '../utils/swal';
-import SearchBar from './shared/SearchBar';
-import Pagination from './shared/Pagination';
+import './BodegaView.css';
+import './ResponsableEntregaView.css';
 import { exportToExcel } from '../utils/exportUtils';
+import { showDeleteConfirm, showSuccess, showError } from '../utils/swal';
 
 interface ResponsableEntrega {
   idresponsableentrega_08: number;
@@ -27,6 +25,7 @@ type SortConfig = {
 };
 
 const ResponsableEntregaView: React.FC = () => {
+  const formRef = React.useRef<HTMLFormElement>(null);
   const [responsables, setResponsables] = useState<ResponsableEntrega[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string>('');
@@ -41,7 +40,6 @@ const ResponsableEntregaView: React.FC = () => {
   const [itemsPerPage] = useState<number>(10);
   const [sortConfig, setSortConfig] = useState<SortConfig>({ key: 'idresponsableentrega_08', direction: 'asc' });
 
-  const { showToast } = useToast();
   const API_URL = 'http://localhost:3001/api/responsables-entrega';
 
   useEffect(() => {
@@ -111,10 +109,15 @@ const ResponsableEntregaView: React.FC = () => {
     }));
   };
 
+  const getSortIndicator = (key: keyof ResponsableEntrega) => {
+    if (sortConfig.key !== key) return '↕️';
+    return sortConfig.direction === 'asc' ? '↑' : '↓';
+  };
+
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!nombre.trim()) {
-      showToast('El nombre es requerido', 'error');
+      await showError('Campo requerido', 'El nombre es requerido');
       return;
     }
 
@@ -132,7 +135,7 @@ const ResponsableEntregaView: React.FC = () => {
 
       const data: ApiResponse = await response.json();
       if (!response.ok) {
-        showToast(data.error || 'Error al crear', 'error');
+        await showError('Error al crear', data.error || 'Error al crear');
         setError(data.error || '');
         return;
       }
@@ -140,19 +143,24 @@ const ResponsableEntregaView: React.FC = () => {
       if (data.success) {
         await fetchResponsables();
         resetForm();
-        showToast('Responsable creado exitosamente', 'success');
+        await showSuccess('¡Responsable creado!', 'El responsable ha sido registrado correctamente.');
       } else {
-        showToast(data.error || 'Error al crear', 'error');
+        await showError('Error al crear', data.error || 'Error al crear');
+        setError(data.error || '');
       }
     } catch (err) {
-      showToast('Error de conexión al crear', 'error');
+      await showError('Error', 'Error de conexión al crear');
+      setError('Error de conexión');
       console.error(err);
     }
   };
 
   const handleUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!nombre.trim() || editingId === null) return;
+    if (!nombre.trim() || editingId === null) {
+      await showError('Campo requerido', 'El nombre es requerido');
+      return;
+    }
 
     try {
       setError('');
@@ -168,7 +176,7 @@ const ResponsableEntregaView: React.FC = () => {
 
       const data: ApiResponse = await response.json();
       if (!response.ok) {
-        showToast(data.error || 'Error al actualizar', 'error');
+        await showError('Error al actualizar', data.error || 'Error al actualizar');
         setError(data.error || '');
         return;
       }
@@ -176,12 +184,14 @@ const ResponsableEntregaView: React.FC = () => {
       if (data.success) {
         await fetchResponsables();
         resetForm();
-        showToast('Responsable actualizado exitosamente', 'success');
+        await showSuccess('¡Responsable actualizado!', 'El responsable ha sido actualizado correctamente.');
       } else {
-        showToast(data.error || 'Error al actualizar', 'error');
+        await showError('Error al actualizar', data.error || 'Error al actualizar');
+        setError(data.error || '');
       }
     } catch (err) {
-      showToast('Error de conexión al actualizar', 'error');
+      await showError('Error', 'Error de conexión al actualizar');
+      setError('Error de conexión');
       console.error(err);
     }
   };
@@ -197,12 +207,12 @@ const ResponsableEntregaView: React.FC = () => {
 
       if (data.success) {
         await fetchResponsables();
-        showToast('Responsable eliminado exitosamente', 'success');
+        await showSuccess('¡Responsable eliminado!', 'El responsable ha sido eliminado correctamente.');
       } else {
-        showToast(data.error || 'Error al eliminar', 'error');
+        await showError('Error al eliminar', data.error || 'Error al eliminar');
       }
     } catch (err) {
-      showToast('Error al eliminar', 'error');
+      await showError('Error', 'Error al eliminar');
       console.error(err);
     }
   };
@@ -216,6 +226,15 @@ const ResponsableEntregaView: React.FC = () => {
     setError('');
   };
 
+  const showCreateForm = () => {
+    resetForm();
+    setShowForm(true);
+  };
+
+  const cancelForm = () => {
+    resetForm();
+  };
+
   const startEdit = (r: ResponsableEntrega) => {
     setEditingId(r.idresponsableentrega_08);
     setNombre(r.nombreresponsableentrega_08 || '');
@@ -225,7 +244,7 @@ const ResponsableEntregaView: React.FC = () => {
     setError('');
   };
 
-  const handleExport = () => {
+  const handleExport = async () => {
     const dataToExport = filteredAndSorted.map(r => ({
       ID: r.idresponsableentrega_08,
       Nombre: r.nombreresponsableentrega_08,
@@ -234,92 +253,98 @@ const ResponsableEntregaView: React.FC = () => {
       'Nombre Completo': getNombreCompleto(r)
     }));
     exportToExcel(dataToExport, 'responsables-entrega', 'Responsables de Entrega');
-    showToast('Datos exportados exitosamente', 'success');
+    await showSuccess('¡Exportación exitosa!', 'Los datos han sido exportados correctamente.');
   };
 
   return (
-    <div className="cargo-container fade-in">
-      <div className="cargo-header">
+    <div className="bodega-view">
+      <div className="view-header">
         <h2>📋 Responsables de Entrega</h2>
-        <div className="header-actions">
-          {!showForm && (
-            <>
-              <button className="btn-export" onClick={handleExport} title="Exportar a Excel">
-                📊 Exportar
-              </button>
-              <button className="btn-primary" onClick={() => { resetForm(); setShowForm(true); }}>
-                ➕ Nuevo Responsable
-              </button>
-            </>
-          )}
+        <div style={{ display: 'flex', gap: '10px' }}>
+          <button
+            className="btn-primary"
+            onClick={showCreateForm}
+            style={{ backgroundColor: '#007bff' }}
+          >
+            ✏️ Nuevo
+          </button>
+          <button
+            className="btn-primary"
+            onClick={() => formRef.current?.requestSubmit()}
+            disabled={!showForm}
+            style={{ backgroundColor: '#28a745' }}
+            type="button"
+          >
+            💾 Guardar
+          </button>
+          <button
+            className="btn-primary"
+            onClick={handleExport}
+            style={{ backgroundColor: '#17a2b8' }}
+          >
+            📊 Exportar
+          </button>
+          <button className="btn-secondary" onClick={cancelForm}>
+            🚪 Salir
+          </button>
         </div>
       </div>
 
-      {!showForm && (
-        <div className="search-section">
-          <SearchBar
-            placeholder="Buscar por nombre o apellidos..."
-            value={searchTerm}
-            onChange={setSearchTerm}
-          />
-          <div className="results-info">
-            {filteredAndSorted.length} resultado{filteredAndSorted.length !== 1 ? 's' : ''}
-            {searchTerm && ` para "${searchTerm}"`}
-          </div>
+      {error && (
+        <div style={{ padding: '1rem', marginBottom: '1rem', background: '#FEE2E2', color: '#991B1B', borderRadius: '8px' }}>
+          ⚠️ {error}
         </div>
       )}
 
-      {error && (
-        <div className="alert alert-error fade-in">⚠️ {error}</div>
-      )}
-
       {showForm && (
-        <div className="form-card fade-in">
+        <div className="form-container">
           <h3>{editingId ? '✏️ Editar Responsable' : '➕ Nuevo Responsable'}</h3>
-          <form onSubmit={editingId ? handleUpdate : handleCreate}>
-            <div className="form-group">
-              <label htmlFor="nombre">Nombre *</label>
-              <input
-                type="text"
-                id="nombre"
-                className="form-input"
-                value={nombre}
-                onChange={(e) => setNombre(e.target.value)}
-                placeholder="Ej: Juan"
-                required
-                autoFocus
-                maxLength={100}
-              />
-            </div>
-            <div className="form-group">
-              <label htmlFor="apaterno">Apellido Paterno</label>
-              <input
-                type="text"
-                id="apaterno"
-                className="form-input"
-                value={apaterno}
-                onChange={(e) => setAPaterno(e.target.value)}
-                placeholder="Ej: González"
-                maxLength={100}
-              />
-            </div>
-            <div className="form-group">
-              <label htmlFor="amaterno">Apellido Materno</label>
-              <input
-                type="text"
-                id="amaterno"
-                className="form-input"
-                value={amaterno}
-                onChange={(e) => setAMaterno(e.target.value)}
-                placeholder="Ej: Pérez"
-                maxLength={100}
-              />
+          <form ref={formRef} onSubmit={editingId ? handleUpdate : handleCreate}>
+            <div className="form-row">
+              <div className="form-group">
+                <label htmlFor="nombre">Nombre: *</label>
+                <input
+                  type="text"
+                  id="nombre"
+                  className="form-input"
+                  value={nombre}
+                  onChange={(e) => setNombre(e.target.value)}
+                  placeholder="Ej: Juan"
+                  required
+                  autoFocus
+                  maxLength={100}
+                />
+              </div>
+              <div className="form-group">
+                <label htmlFor="apaterno">Apellido Paterno:</label>
+                <input
+                  type="text"
+                  id="apaterno"
+                  className="form-input"
+                  value={apaterno}
+                  onChange={(e) => setAPaterno(e.target.value)}
+                  placeholder="Ej: González"
+                  maxLength={100}
+                />
+              </div>
+              <div className="form-group">
+                <label htmlFor="amaterno">Apellido Materno:</label>
+                <input
+                  type="text"
+                  id="amaterno"
+                  className="form-input"
+                  value={amaterno}
+                  onChange={(e) => setAMaterno(e.target.value)}
+                  placeholder="Ej: Pérez"
+                  maxLength={100}
+                />
+              </div>
             </div>
             <div className="form-actions">
               <button type="submit" className="btn-success">
                 {editingId ? '💾 Actualizar' : '➕ Crear'}
               </button>
-              <button type="button" className="btn-secondary" onClick={resetForm}>
+              <button type="button" className="btn-secondary" onClick={cancelForm}>
                 ❌ Cancelar
               </button>
             </div>
@@ -327,68 +352,131 @@ const ResponsableEntregaView: React.FC = () => {
         </div>
       )}
 
-      {loading ? (
-        <div className="loading">⏳ Cargando responsables...</div>
-      ) : (
-        <>
-          <div className="table-container">
-            <table className="cargo-table">
-              <thead>
-                <tr>
-                  <th
-                    onClick={() => handleSort('idresponsableentrega_08')}
-                    className={`sortable ${sortConfig.key === 'idresponsableentrega_08' ? (sortConfig.direction === 'asc' ? 'sort-asc' : 'sort-desc') : ''}`}
-                  >
-                    ID
-                  </th>
-                  <th
-                    onClick={() => handleSort('nombreresponsableentrega_08')}
-                    className={`sortable ${sortConfig.key === 'nombreresponsableentrega_08' ? (sortConfig.direction === 'asc' ? 'sort-asc' : 'sort-desc') : ''}`}
-                  >
-                    NOMBRE
-                  </th>
-                  <th>APELLIDO PATERNO</th>
-                  <th>APELLIDO MATERNO</th>
-                  <th>Acciones</th>
-                </tr>
-              </thead>
-              <tbody>
-                {currentItems.length === 0 ? (
-                  <tr>
-                    <td colSpan={5} className="no-data">
-                      {searchTerm
-                        ? `📋 No se encontraron responsables con "${searchTerm}"`
-                        : '📋 No hay responsables registrados'}
-                    </td>
-                  </tr>
-                ) : (
-                  currentItems.map((r) => (
-                    <tr key={r.idresponsableentrega_08} className="fade-in">
-                      <td>{r.idresponsableentrega_08}</td>
-                      <td className="cargo-name">{r.nombreresponsableentrega_08}</td>
-                      <td>{r.apaternoresponsableentrega_08 || '-'}</td>
-                      <td>{r.amaternoresponsableentrega_08 || '-'}</td>
-                      <td className="actions">
-                        <button className="btn-edit" onClick={() => startEdit(r)} title="Editar">✏️</button>
-                        <button className="btn-delete" onClick={() => handleDelete(r.idresponsableentrega_08)} title="Eliminar">🗑️</button>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
+      <div className="form-container" style={{ marginBottom: '20px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+          <div style={{ color: '#6c757d', fontSize: '14px' }}>
+            Mostrando {currentItems.length} de {filteredAndSorted.length} registros
           </div>
+        </div>
+        <input
+          type="text"
+          placeholder="🔍 Buscar por nombre o apellidos..."
+          value={searchTerm}
+          onChange={(e) => {
+            setSearchTerm(e.target.value);
+            setCurrentPage(1);
+          }}
+          style={{ width: '100%', padding: '10px', fontSize: '14px', borderRadius: '4px', border: '1px solid #ced4da' }}
+          aria-label="Buscar responsable"
+        />
+      </div>
 
-          {filteredAndSorted.length > 0 && (
-            <Pagination
-              currentPage={currentPage}
-              totalPages={totalPages}
-              totalItems={filteredAndSorted.length}
-              itemsPerPage={itemsPerPage}
-              onPageChange={setCurrentPage}
-            />
-          )}
-        </>
+      <div className="table-container">
+        <table className="data-table">
+          <thead>
+            <tr>
+              <th onClick={() => handleSort('idresponsableentrega_08')} className="sortable" style={{ cursor: 'pointer' }}>
+                ID {getSortIndicator('idresponsableentrega_08')}
+              </th>
+              <th onClick={() => handleSort('nombreresponsableentrega_08')} className="sortable" style={{ cursor: 'pointer' }}>
+                NOMBRE {getSortIndicator('nombreresponsableentrega_08')}
+              </th>
+              <th onClick={() => handleSort('apaternoresponsableentrega_08')} className="sortable" style={{ cursor: 'pointer' }}>
+                APELLIDO PATERNO {getSortIndicator('apaternoresponsableentrega_08')}
+              </th>
+              <th onClick={() => handleSort('amaternoresponsableentrega_08')} className="sortable" style={{ cursor: 'pointer' }}>
+                APELLIDO MATERNO {getSortIndicator('amaternoresponsableentrega_08')}
+              </th>
+              <th>ACCIONES</th>
+            </tr>
+          </thead>
+          <tbody>
+            {loading && responsables.length === 0 ? (
+              <tr><td colSpan={5}>Cargando...</td></tr>
+            ) : currentItems.length === 0 ? (
+              <tr>
+                <td colSpan={5} className="no-data">
+                  {searchTerm
+                    ? `📋 No se encontraron responsables con "${searchTerm}"`
+                    : '📋 No hay responsables registrados'}
+                </td>
+              </tr>
+            ) : (
+              currentItems.map((r) => (
+                <tr key={r.idresponsableentrega_08}>
+                  <td>{r.idresponsableentrega_08}</td>
+                  <td className="responsable-nombre">{r.nombreresponsableentrega_08}</td>
+                  <td>{r.apaternoresponsableentrega_08 || '-'}</td>
+                  <td>{r.amaternoresponsableentrega_08 || '-'}</td>
+                  <td className="actions">
+                    <button className="btn-edit" onClick={() => startEdit(r)} title="Editar" aria-label="Editar responsable">
+                      ✏️
+                    </button>
+                    <button className="btn-delete" onClick={() => handleDelete(r.idresponsableentrega_08)} title="Eliminar" aria-label="Eliminar responsable">
+                      🗑️
+                    </button>
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      {totalPages > 1 && (
+        <div style={{
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          gap: '10px',
+          marginTop: '20px',
+          padding: '15px',
+          backgroundColor: '#f8f9fa',
+          borderRadius: '8px'
+        }}>
+          <button
+            onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+            disabled={currentPage === 1}
+            className="btn-secondary"
+            style={{ padding: '8px 15px', cursor: currentPage === 1 ? 'not-allowed' : 'pointer', opacity: currentPage === 1 ? 0.5 : 1 }}
+            aria-label="Página anterior"
+          >
+            ← Anterior
+          </button>
+          <div style={{ display: 'flex', gap: '5px' }}>
+            {Array.from({ length: totalPages }, (_, i) => i + 1).map((numPagina) => (
+              <button
+                key={numPagina}
+                onClick={() => setCurrentPage(numPagina)}
+                style={{
+                  padding: '8px 12px',
+                  border: '1px solid #ced4da',
+                  borderRadius: '4px',
+                  backgroundColor: currentPage === numPagina ? '#007bff' : 'white',
+                  color: currentPage === numPagina ? 'white' : '#495057',
+                  cursor: 'pointer',
+                  fontWeight: currentPage === numPagina ? 'bold' : 'normal'
+                }}
+                aria-label={`Ir a página ${numPagina}`}
+                aria-current={currentPage === numPagina ? 'page' : undefined}
+              >
+                {numPagina}
+              </button>
+            ))}
+          </div>
+          <button
+            onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+            disabled={currentPage === totalPages}
+            className="btn-secondary"
+            style={{ padding: '8px 15px', cursor: currentPage === totalPages ? 'not-allowed' : 'pointer', opacity: currentPage === totalPages ? 0.5 : 1 }}
+            aria-label="Página siguiente"
+          >
+            Siguiente →
+          </button>
+          <div style={{ marginLeft: '15px', color: '#6c757d' }}>
+            Página {currentPage} de {totalPages}
+          </div>
+        </div>
       )}
     </div>
   );

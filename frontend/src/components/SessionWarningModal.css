@@ -40,23 +40,11 @@
   justify-content: center;
 }
 
-.session-warning-icon-orange {
-  width: 80px;
-  height: 80px;
-  border-radius: 50%;
-  background-color: #ff6b35;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 4px 12px rgba(255, 107, 53, 0.3);
-}
-
-.session-warning-exclamation {
-  font-size: 48px;
-  font-weight: bold;
-  color: white;
-  font-family: Arial, sans-serif;
-}
+.session-ring-wrapper { position: relative; width: 140px; height: 140px; }
+.session-ring { width: 140px; height: 140px; }
+.ring-bg { fill: none; stroke: #f1f5f9; stroke-width: 12; }
+.ring-fg { fill: none; stroke: url(#ringGradient); stroke-width: 12; stroke-linecap: round; transition: stroke-dashoffset 0.3s ease; filter: drop-shadow(0 4px 10px rgba(255,61,0,0.2)); }
+.ring-text { font-size: 28px; font-weight: 700; fill: #0f172a; font-family: Arial, sans-serif; }
 
 .session-warning-message {
   margin-bottom: 40px;

@@ -1,9 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import './BodegaView.css';
 import './EstadoAlternadorView.css';
-import { useToast } from '../context/ToastContext';
-import SearchBar from './shared/SearchBar';
-import Pagination from './shared/Pagination';
 import { exportToExcel } from '../utils/exportUtils';
+import { showDeleteConfirm, showSuccess, showError } from '../utils/swal';
 
 interface EstadoAlternador {
   id_estado_20: number;
@@ -25,6 +24,7 @@ type SortConfig = {
 };
 
 const EstadoAlternadorView: React.FC = () => {
+  const formRef = React.useRef<HTMLFormElement>(null);
   const [estados, setEstados] = useState<EstadoAlternador[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string>('');
@@ -39,7 +39,6 @@ const EstadoAlternadorView: React.FC = () => {
   const [itemsPerPage] = useState<number>(10);
   const [sortConfig, setSortConfig] = useState<SortConfig>({ key: 'id_estado_20', direction: 'asc' });
 
-  const { showToast } = useToast();
   const API_URL = 'http://localhost:3001/api/estados';
 
   useEffect(() => {
@@ -106,15 +105,15 @@ const EstadoAlternadorView: React.FC = () => {
     }));
   };
 
-  const getSortIcon = (key: keyof EstadoAlternador) => {
-    if (sortConfig.key !== key) return '⇅';
+  const getSortIndicator = (key: keyof EstadoAlternador) => {
+    if (sortConfig.key !== key) return '↕️';
     return sortConfig.direction === 'asc' ? '↑' : '↓';
   };
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!estadoName.trim()) {
-      showToast('El nombre del estado es requerido', 'error');
+      await showError('Campo requerido', 'El nombre del estado es requerido');
       return;
     }
 
@@ -136,19 +135,22 @@ const EstadoAlternadorView: React.FC = () => {
         setEstadoName('');
         setDescripcion('');
         setShowForm(false);
-        showToast('Estado creado exitosamente', 'success');
+        await showSuccess('¡Estado creado!', 'El estado ha sido registrado correctamente.');
       } else {
-        showToast(data.error || 'Error al crear el estado', 'error');
+        await showError('Error al crear', data.error || 'Error al crear el estado');
       }
     } catch (err) {
-      showToast('Error al crear el estado', 'error');
+      await showError('Error', 'Error al crear el estado');
       console.error('Error:', err);
     }
   };
 
   const handleUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!estadoName.trim() || editingId === null) return;
+    if (!estadoName.trim() || editingId === null) {
+      await showError('Campo requerido', 'El nombre del estado es requerido');
+      return;
+    }
 
     try {
       setError('');
@@ -169,12 +171,12 @@ const EstadoAlternadorView: React.FC = () => {
         setDescripcion('');
         setEditingId(null);
         setShowForm(false);
-        showToast('Estado actualizado exitosamente', 'success');
+        await showSuccess('¡Estado actualizado!', 'El estado ha sido actualizado correctamente.');
       } else {
-        showToast(data.error || 'Error al actualizar el estado', 'error');
+        await showError('Error al actualizar', data.error || 'Error al actualizar el estado');
       }
     } catch (err) {
-      showToast('Error al actualizar el estado', 'error');
+      await showError('Error', 'Error al actualizar el estado');
       console.error('Error:', err);
     }
   };
@@ -193,12 +195,12 @@ const EstadoAlternadorView: React.FC = () => {
 
       if (data.success) {
         await fetchEstados();
-        showToast('Estado eliminado exitosamente', 'success');
+        await showSuccess('¡Estado eliminado!', 'El estado ha sido eliminado correctamente.');
       } else {
-        showToast(data.error || 'Error al eliminar el estado', 'error');
+        await showError('Error al eliminar', data.error || 'Error al eliminar el estado');
       }
     } catch (err) {
-      showToast('Error al eliminar el estado', 'error');
+      await showError('Error', 'Error al eliminar el estado');
       console.error('Error:', err);
     }
   };
@@ -227,58 +229,60 @@ const EstadoAlternadorView: React.FC = () => {
     setError('');
   };
 
-  const handleExport = () => {
-    const dataToExport = filteredAndSortedEstados.map(e => ({
+  const handleExport = async () => {
+    const dataToExport = filteredAndSortedEstados.map((e) => ({
       ID: e.id_estado_20,
       Estado: e.estado_20,
       Descripción: e.descripcion_20 || ''
     }));
     exportToExcel(dataToExport, 'estados-alternador', 'Estados');
-    showToast('Datos exportados exitosamente', 'success');
+    await showSuccess('¡Exportación exitosa!', 'Los datos han sido exportados correctamente.');
   };
 
   return (
-    <div className="estados-container fade-in">
-      <div className="estados-header">
+    <div className="bodega-view">
+      <div className="view-header">
         <h2>🔄 Gestión de Estados de Alternador</h2>
-        <div className="header-actions">
-          {!showForm && (
-            <>
-              <button className="btn-export" onClick={handleExport} title="Exportar a Excel">
-                📊 Exportar
-              </button>
-              <button className="btn-primary" onClick={showCreateForm}>
-                ➕ Nuevo Estado
-              </button>
-            </>
-          )}
+        <div style={{ display: 'flex', gap: '10px' }}>
+          <button
+            className="btn-primary"
+            onClick={showCreateForm}
+            style={{ backgroundColor: '#007bff' }}
+          >
+            ✏️ Nuevo
+          </button>
+          <button
+            className="btn-primary"
+            onClick={() => formRef.current?.requestSubmit()}
+            disabled={!showForm}
+            style={{ backgroundColor: '#28a745' }}
+            type="button"
+          >
+            💾 Guardar
+          </button>
+          <button
+            className="btn-primary"
+            onClick={handleExport}
+            style={{ backgroundColor: '#17a2b8' }}
+          >
+            📊 Exportar
+          </button>
+          <button className="btn-secondary" onClick={cancelForm}>
+            🚪 Salir
+          </button>
         </div>
       </div>
 
-      {!showForm && (
-        <div className="search-section">
-          <SearchBar
-            placeholder="Buscar estado o descripción..."
-            value={searchTerm}
-            onChange={setSearchTerm}
-          />
-          <div className="results-info">
-            {filteredAndSortedEstados.length} resultado{filteredAndSortedEstados.length !== 1 ? 's' : ''}
-            {searchTerm && ` para "${searchTerm}"`}
-          </div>
-        </div>
-      )}
-
       {error && (
-        <div className="alert alert-error fade-in">
+        <div style={{ padding: '1rem', marginBottom: '1rem', background: '#FEE2E2', color: '#991B1B', borderRadius: '8px' }}>
           ⚠️ {error}
         </div>
       )}
 
       {showForm && (
-        <div className="form-card fade-in">
+        <div className="form-container">
           <h3>{editingId ? '✏️ Editar Estado' : '➕ Nuevo Estado'}</h3>
-          <form onSubmit={editingId ? handleUpdate : handleCreate}>
+          <form ref={formRef} onSubmit={editingId ? handleUpdate : handleCreate}>
             <div className="form-group">
               <label htmlFor="estado">Nombre del Estado: *</label>
               <input
@@ -296,11 +300,12 @@ const EstadoAlternadorView: React.FC = () => {
               <label htmlFor="descripcion">Descripción:</label>
               <textarea
                 id="descripcion"
-                className="form-textarea"
+                className="form-input"
                 value={descripcion}
                 onChange={(e) => setDescripcion(e.target.value)}
                 placeholder="Descripción opcional del estado..."
                 rows={3}
+                style={{ resize: 'vertical' }}
               />
             </div>
             <div className="form-actions">
@@ -315,84 +320,122 @@ const EstadoAlternadorView: React.FC = () => {
         </div>
       )}
 
-      {loading ? (
-        <div className="loading">⏳ Cargando estados...</div>
-      ) : (
-        <>
-          <div className="table-container">
-            <table className="estados-table">
-              <thead>
-                <tr>
-                  <th 
-                    onClick={() => handleSort('id_estado_20')} 
-                    className={`sortable ${sortConfig.key === 'id_estado_20' ? (sortConfig.direction === 'asc' ? 'sort-asc' : 'sort-desc') : ''}`}
-                  >
-                    ID
-                  </th>
-                  <th 
-                    onClick={() => handleSort('estado_20')} 
-                    className={`sortable ${sortConfig.key === 'estado_20' ? (sortConfig.direction === 'asc' ? 'sort-asc' : 'sort-desc') : ''}`}
-                  >
-                    ESTADO
-                  </th>
-                  <th 
-                    onClick={() => handleSort('descripcion_20')} 
-                    className={`sortable ${sortConfig.key === 'descripcion_20' ? (sortConfig.direction === 'asc' ? 'sort-asc' : 'sort-desc') : ''}`}
-                  >
-                    DESCRIPCIÓN
-                  </th>
-                  <th>ACCIONES</th>
-                </tr>
-              </thead>
-              <tbody>
-                {currentEstados.length === 0 ? (
-                  <tr>
-                    <td colSpan={4} className="no-data">
-                      {searchTerm
-                        ? `📋 No se encontraron estados con "${searchTerm}"`
-                        : '📋 No hay estados registrados'
-                      }
-                    </td>
-                  </tr>
-                ) : (
-                  currentEstados.map((estado) => (
-                    <tr key={estado.id_estado_20} className="fade-in">
-                      <td>{estado.id_estado_20}</td>
-                      <td className="estado-name">{estado.estado_20}</td>
-                      <td className="estado-descripcion">{estado.descripcion_20 || '-'}</td>
-                      <td className="actions">
-                        <button
-                          className="btn-edit"
-                          onClick={() => startEdit(estado)}
-                          title="Editar"
-                        >
-                          ✏️
-                        </button>
-                        <button
-                          className="btn-delete"
-                          onClick={() => handleDelete(estado.id_estado_20)}
-                          title="Eliminar"
-                        >
-                          🗑️
-                        </button>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
+      <div className="form-container" style={{ marginBottom: '20px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+          <div style={{ color: '#6c757d', fontSize: '14px' }}>
+            Mostrando {currentEstados.length} de {filteredAndSortedEstados.length} registros
           </div>
+        </div>
+        <input
+          type="text"
+          placeholder="🔍 Buscar estado o descripción..."
+          value={searchTerm}
+          onChange={(e) => {
+            setSearchTerm(e.target.value);
+            setCurrentPage(1);
+          }}
+          style={{ width: '100%', padding: '10px', fontSize: '14px', borderRadius: '4px', border: '1px solid #ced4da' }}
+        />
+      </div>
 
-          {filteredAndSortedEstados.length > 0 && (
-            <Pagination
-              currentPage={currentPage}
-              totalPages={totalPages}
-              totalItems={filteredAndSortedEstados.length}
-              itemsPerPage={itemsPerPage}
-              onPageChange={setCurrentPage}
-            />
-          )}
-        </>
+      <div className="table-container">
+        <table className="data-table">
+          <thead>
+            <tr>
+              <th onClick={() => handleSort('id_estado_20')} className="sortable" style={{ cursor: 'pointer' }}>
+                ID {getSortIndicator('id_estado_20')}
+              </th>
+              <th onClick={() => handleSort('estado_20')} className="sortable" style={{ cursor: 'pointer' }}>
+                ESTADO {getSortIndicator('estado_20')}
+              </th>
+              <th onClick={() => handleSort('descripcion_20')} className="sortable" style={{ cursor: 'pointer' }}>
+                DESCRIPCIÓN {getSortIndicator('descripcion_20')}
+              </th>
+              <th>ACCIONES</th>
+            </tr>
+          </thead>
+          <tbody>
+            {loading && estados.length === 0 ? (
+              <tr><td colSpan={4}>Cargando...</td></tr>
+            ) : currentEstados.length === 0 ? (
+              <tr>
+                <td colSpan={4} className="no-data">
+                  {searchTerm
+                    ? `📋 No se encontraron estados con "${searchTerm}"`
+                    : '📋 No hay estados registrados'}
+                </td>
+              </tr>
+            ) : (
+              currentEstados.map((estado) => (
+                <tr key={estado.id_estado_20}>
+                  <td>{estado.id_estado_20}</td>
+                  <td className="estado-name">{estado.estado_20}</td>
+                  <td className="estado-descripcion">{estado.descripcion_20 || '-'}</td>
+                  <td className="actions">
+                    <button className="btn-edit" onClick={() => startEdit(estado)} title="Editar">
+                      ✏️
+                    </button>
+                    <button className="btn-delete" onClick={() => handleDelete(estado.id_estado_20)} title="Eliminar">
+                      🗑️
+                    </button>
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      {totalPages > 1 && (
+        <div style={{
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          gap: '10px',
+          marginTop: '20px',
+          padding: '15px',
+          backgroundColor: '#f8f9fa',
+          borderRadius: '8px'
+        }}>
+          <button
+            onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+            disabled={currentPage === 1}
+            className="btn-secondary"
+            style={{ padding: '8px 15px', cursor: currentPage === 1 ? 'not-allowed' : 'pointer', opacity: currentPage === 1 ? 0.5 : 1 }}
+          >
+            ← Anterior
+          </button>
+          <div style={{ display: 'flex', gap: '5px' }}>
+            {Array.from({ length: totalPages }, (_, i) => i + 1).map((numPagina) => (
+              <button
+                key={numPagina}
+                onClick={() => setCurrentPage(numPagina)}
+                style={{
+                  padding: '8px 12px',
+                  border: '1px solid #ced4da',
+                  borderRadius: '4px',
+                  backgroundColor: currentPage === numPagina ? '#007bff' : 'white',
+                  color: currentPage === numPagina ? 'white' : '#495057',
+                  cursor: 'pointer',
+                  fontWeight: currentPage === numPagina ? 'bold' : 'normal'
+                }}
+              >
+                {numPagina}
+              </button>
+            ))}
+          </div>
+          <button
+            onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+            disabled={currentPage === totalPages}
+            className="btn-secondary"
+            style={{ padding: '8px 15px', cursor: currentPage === totalPages ? 'not-allowed' : 'pointer', opacity: currentPage === totalPages ? 0.5 : 1 }}
+          >
+            Siguiente →
+          </button>
+          <div style={{ marginLeft: '15px', color: '#6c757d' }}>
+            Página {currentPage} de {totalPages}
+          </div>
+        </div>
       )}
     </div>
   );

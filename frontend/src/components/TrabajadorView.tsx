@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import './TecnicoView.css'; // Reutilizamos los mismos estilos
+import './BodegaView.css';
+import './TecnicoView.css';
+import './TrabajadorView.css';
 import { showSuccess, showError, showDeleteConfirm } from '../utils/swal';
-import SearchBar from './shared/SearchBar';
-import Pagination from './shared/Pagination';
 import { exportToExcel } from '../utils/exportUtils';
 import { validateRut, formatRut } from '../utils/rutValidator';
 
@@ -44,6 +44,7 @@ type SortConfig = {
 };
 
 const TrabajadorView: React.FC = () => {
+  const formRef = React.useRef<HTMLFormElement>(null);
   const [trabajadores, setTrabajadores] = useState<Trabajador[]>([]);
   const [cargos, setCargos] = useState<Cargo[]>([]);
   const [empresas, setEmpresas] = useState<Empresa[]>([]);
@@ -51,7 +52,6 @@ const TrabajadorView: React.FC = () => {
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string>('');
 
-  // Form fields
   const [rut, setRut] = useState<string>('');
   const [nombre, setNombre] = useState<string>('');
   const [aPaterno, setAPaterno] = useState<string>('');
@@ -64,7 +64,6 @@ const TrabajadorView: React.FC = () => {
   const [showForm, setShowForm] = useState<boolean>(false);
   const [rutError, setRutError] = useState<string>('');
 
-  // Features
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [itemsPerPage] = useState<number>(10);
@@ -72,8 +71,7 @@ const TrabajadorView: React.FC = () => {
   const [filterEstado, setFilterEstado] = useState<string>('all');
   const [filterCargo, setFilterCargo] = useState<string>('all');
   const [filterEmpresa, setFilterEmpresa] = useState<string>('all');
-
-  // Buscador de trabajadores (similar a AsignacionProductosAseoView)
+  const [modoBusquedaNombre, setModoBusquedaNombre] = useState<'apellido' | 'nombre'>('apellido');
   const [buscarApellido, setBuscarApellido] = useState<string>('');
 
   const API_URL = 'http://localhost:3001/api/trabajadores';
@@ -89,12 +87,12 @@ const TrabajadorView: React.FC = () => {
   const fetchTrabajadores = async () => {
     try {
       setLoading(true);
+      setError('');
       const response = await fetch(API_URL);
       const data: ApiResponse = await response.json();
 
       if (data.success && Array.isArray(data.data)) {
         setTrabajadores(data.data as Trabajador[]);
-        setError('');
       } else {
         setError(data.error || 'Error al cargar trabajadores');
       }
@@ -138,8 +136,7 @@ const TrabajadorView: React.FC = () => {
   const handleRutBlur = () => {
     if (rut.trim()) {
       if (validateRut(rut)) {
-        const formatted = formatRut(rut);
-        setRut(formatted);
+        setRut(formatRut(rut));
         setRutError('');
       } else {
         setRutError('RUT inválido');
@@ -150,10 +147,9 @@ const TrabajadorView: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Validar RUT
     if (!validateRut(rut)) {
       setRutError('RUT inválido');
-      showError('Error de validación', 'Por favor ingrese un RUT válido');
+      await showError('Campo requerido', 'Por favor ingrese un RUT válido');
       return;
     }
 
@@ -168,6 +164,7 @@ const TrabajadorView: React.FC = () => {
     };
 
     try {
+      setError('');
       const url = editingId ? `${API_URL}/${editingId}` : API_URL;
       const method = editingId ? 'PUT' : 'POST';
 
@@ -180,16 +177,19 @@ const TrabajadorView: React.FC = () => {
       const data: ApiResponse = await response.json();
 
       if (data.success) {
-        showSuccess(
-          editingId ? 'Trabajador actualizado exitosamente' : 'Trabajador creado exitosamente'
-        );
+        await fetchTrabajadores();
         resetForm();
-        fetchTrabajadores();
+        await showSuccess(
+          editingId ? '¡Trabajador actualizado!' : '¡Trabajador creado!',
+          editingId ? 'El trabajador ha sido actualizado correctamente.' : 'El trabajador ha sido registrado correctamente.'
+        );
       } else {
-        showError('Error al guardar trabajador', data.error || 'No se pudo guardar el trabajador');
+        await showError('Error al guardar', data.error || 'No se pudo guardar el trabajador');
+        setError(data.error || '');
       }
     } catch (err) {
-      showError('Error de conexión', 'Error de conexión con el servidor');
+      await showError('Error', 'Error de conexión con el servidor');
+      setError('Error de conexión');
       console.error(err);
     }
   };
@@ -205,15 +205,15 @@ const TrabajadorView: React.FC = () => {
     setEditingId(trabajador.idtrabajador_06);
     setShowForm(true);
     setRutError('');
+    setError('');
   };
 
   const handleDelete = async (id: number) => {
     const confirmed = await showDeleteConfirm('este trabajador');
-    if (!confirmed) {
-      return;
-    }
+    if (!confirmed) return;
 
     try {
+      setError('');
       const response = await fetch(`${API_URL}/${id}`, {
         method: 'DELETE'
       });
@@ -221,13 +221,13 @@ const TrabajadorView: React.FC = () => {
       const data: ApiResponse = await response.json();
 
       if (data.success) {
-        showSuccess('Trabajador eliminado exitosamente');
-        fetchTrabajadores();
+        await fetchTrabajadores();
+        await showSuccess('¡Trabajador eliminado!', 'El trabajador ha sido eliminado correctamente.');
       } else {
-        showError('Error al eliminar trabajador', data.error || 'No se pudo eliminar el trabajador');
+        await showError('Error al eliminar', data.error || 'No se pudo eliminar el trabajador');
       }
     } catch (err) {
-      showError('Error de conexión', 'Error de conexión con el servidor');
+      await showError('Error', 'Error de conexión con el servidor');
       console.error(err);
     }
   };
@@ -244,14 +244,32 @@ const TrabajadorView: React.FC = () => {
     setShowForm(false);
     setRutError('');
     setBuscarApellido('');
+    setModoBusquedaNombre('apellido');
+    setError('');
   };
 
-  // Buscador estricto: primero apellido paterno (empiece por lo escrito), luego materno
-  const trabajadoresFiltradosPorApellido = useMemo(() => {
+  const showCreateForm = () => {
+    resetForm();
+    setShowForm(true);
+  };
+
+  const cancelForm = () => {
+    resetForm();
+  };
+
+  const trabajadoresFiltradosPorNombreOApellido = useMemo(() => {
     if (!buscarApellido || buscarApellido.trim() === '') {
       return trabajadores;
     }
     const busqueda = buscarApellido.trim();
+    const termino = busqueda.toLowerCase();
+
+    if (modoBusquedaNombre === 'nombre') {
+      return trabajadores.filter(t =>
+        t.nombre_06 != null && t.nombre_06.toLowerCase().startsWith(termino)
+      );
+    }
+
     const apellidos = busqueda.split(/\s+/).map(a => a.toLowerCase());
     if (apellidos.length === 1) {
       const word = apellidos[0];
@@ -274,41 +292,34 @@ const TrabajadorView: React.FC = () => {
         const cmpP = (a.apaterno_06 || '').localeCompare(b.apaterno_06 || '');
         return cmpP !== 0 ? cmpP : (a.amaterno_06 || '').localeCompare(b.amaterno_06 || '');
       });
-  }, [trabajadores, buscarApellido]);
+  }, [trabajadores, buscarApellido, modoBusquedaNombre]);
 
-  // Filtering and sorting
   const filteredTrabajadores = useMemo(() => {
-    return trabajadoresFiltradosPorApellido.filter(trabajador => {
-      // Filtro de búsqueda general
+    return trabajadoresFiltradosPorNombreOApellido.filter(trabajador => {
       const matchesSearch = searchTerm.trim() === '' ||
         trabajador.ruttrabajador_06?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         trabajador.nombre_06?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         trabajador.apaterno_06?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         trabajador.amaterno_06?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (trabajador.nombre_cargo?.toLowerCase().includes(searchTerm.toLowerCase()) || false) ||
-        (trabajador.nombre_empresa?.toLowerCase().includes(searchTerm.toLowerCase()) || false);
+        (trabajador.nombre_cargo?.toLowerCase().includes(searchTerm.toLowerCase()) ?? false) ||
+        (trabajador.nombre_empresa?.toLowerCase().includes(searchTerm.toLowerCase()) ?? false);
 
-      // Filtro por estado
       const matchesEstado =
         filterEstado === 'all' ||
         (filterEstado === 'active' && trabajador.estado_06 === true) ||
         (filterEstado === 'inactive' && trabajador.estado_06 === false);
 
-      // Filtro por cargo - comparar como string
       const matchesCargo =
         filterCargo === 'all' ||
-        (trabajador.idcargo_06 !== null && trabajador.idcargo_06 !== undefined && 
-         String(trabajador.idcargo_06) === filterCargo);
+        (trabajador.idcargo_06 != null && String(trabajador.idcargo_06) === filterCargo);
 
-      // Filtro por empresa - comparar como string
       const matchesEmpresa =
         filterEmpresa === 'all' ||
-        (trabajador.idempresa_06 !== null && trabajador.idempresa_06 !== undefined && 
-         String(trabajador.idempresa_06) === filterEmpresa);
+        (trabajador.idempresa_06 != null && String(trabajador.idempresa_06) === filterEmpresa);
 
       return matchesSearch && matchesEstado && matchesCargo && matchesEmpresa;
     });
-  }, [trabajadoresFiltradosPorApellido, searchTerm, filterEstado, filterCargo, filterEmpresa]);
+  }, [trabajadoresFiltradosPorNombreOApellido, searchTerm, filterEstado, filterCargo, filterEmpresa]);
 
   const sortedTrabajadores = useMemo(() => {
     const sorted = [...filteredTrabajadores];
@@ -326,10 +337,14 @@ const TrabajadorView: React.FC = () => {
     return sorted;
   }, [filteredTrabajadores, sortConfig]);
 
-  const paginatedTrabajadores = useMemo(() => {
-    const startIndex = (currentPage - 1) * itemsPerPage;
-    return sortedTrabajadores.slice(startIndex, startIndex + itemsPerPage);
-  }, [sortedTrabajadores, currentPage, itemsPerPage]);
+  const indexOfLastItem = currentPage * itemsPerPage;
+  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+  const paginatedTrabajadores = sortedTrabajadores.slice(indexOfFirstItem, indexOfLastItem);
+  const totalPages = Math.ceil(sortedTrabajadores.length / itemsPerPage);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, filterEstado, filterCargo, filterEmpresa, buscarApellido]);
 
   const handleSort = (key: keyof Trabajador) => {
     setSortConfig(prev => ({
@@ -338,7 +353,12 @@ const TrabajadorView: React.FC = () => {
     }));
   };
 
-  const handleExport = () => {
+  const getSortIndicator = (key: keyof Trabajador) => {
+    if (sortConfig.key !== key) return '↕️';
+    return sortConfig.direction === 'asc' ? '↑' : '↓';
+  };
+
+  const handleExport = async () => {
     const exportData = sortedTrabajadores.map(t => ({
       'RUT': t.ruttrabajador_06,
       'Nombre': t.nombre_06,
@@ -348,43 +368,66 @@ const TrabajadorView: React.FC = () => {
       'Empresa': t.nombre_empresa || '',
       'Estado': t.estado_06 ? 'Activo' : 'Inactivo'
     }));
-    exportToExcel(exportData, 'trabajadores');
-    showSuccess('Datos exportados exitosamente');
+    exportToExcel(exportData, 'trabajadores', 'Trabajadores');
+    await showSuccess('¡Exportación exitosa!', 'Los datos han sido exportados correctamente.');
   };
 
-  if (loading) {
-    return <div className="loading">Cargando trabajadores...</div>;
-  }
+  const getCargoLabel = (cargo: Cargo) => cargo.nombrecargo_14 || cargo.cargo_14 || '';
 
   return (
-    <div className="tecnicos-container fade-in">
-      <div className="tecnicos-header">
+    <div className="bodega-view">
+      <div className="view-header">
         <h2>👥 Gestión de Trabajadores</h2>
-        <div className="header-actions">
-          <button className="btn-export" onClick={handleExport}>
-            📊 Exportar Excel
+        <div style={{ display: 'flex', gap: '10px' }}>
+          <button
+            className="btn-primary"
+            onClick={showCreateForm}
+            style={{ backgroundColor: '#007bff' }}
+          >
+            ✏️ Nuevo
           </button>
-          <button className="btn-primary" onClick={() => setShowForm(!showForm)}>
-            {showForm ? '✕ Cancelar' : '+ Nuevo Trabajador'}
+          <button
+            className="btn-primary"
+            onClick={() => formRef.current?.requestSubmit()}
+            disabled={!showForm}
+            style={{ backgroundColor: '#28a745' }}
+            type="button"
+          >
+            💾 Guardar
+          </button>
+          <button
+            className="btn-primary"
+            onClick={handleExport}
+            style={{ backgroundColor: '#17a2b8' }}
+          >
+            📊 Exportar
+          </button>
+          <button className="btn-secondary" onClick={cancelForm}>
+            🚪 Salir
           </button>
         </div>
       </div>
 
-      {error && <div className="alert alert-error">{error}</div>}
+      {error && (
+        <div style={{ padding: '1rem', marginBottom: '1rem', background: '#FEE2E2', color: '#991B1B', borderRadius: '8px' }}>
+          ⚠️ {error}
+        </div>
+      )}
 
       {showForm && (
-        <div className="form-card">
-          <h3>{editingId ? 'Editar Trabajador' : 'Nuevo Trabajador'}</h3>
-          <form onSubmit={handleSubmit}>
-            <div className="form-row">
+        <div className="form-container">
+          <h3>{editingId ? '✏️ Editar Trabajador' : '➕ Nuevo Trabajador'}</h3>
+          <form ref={formRef} onSubmit={handleSubmit}>
+            <div className="form-row" style={{ gridTemplateColumns: '1fr 1fr 1fr auto', alignItems: 'end' }}>
               <div className="form-group">
                 <label htmlFor="empresa">Empresa: *</label>
                 <select
                   id="empresa"
-                  className="form-select"
+                  className="form-input"
                   value={idEmpresa}
                   onChange={(e) => setIdEmpresa(e.target.value)}
                   required
+                  aria-label="Seleccionar empresa"
                 >
                   <option value="">Seleccione una empresa</option>
                   {empresas.map(empresa => (
@@ -394,7 +437,6 @@ const TrabajadorView: React.FC = () => {
                   ))}
                 </select>
               </div>
-
               <div className="form-group">
                 <label htmlFor="rut">RUT: *</label>
                 <input
@@ -406,8 +448,41 @@ const TrabajadorView: React.FC = () => {
                   onBlur={handleRutBlur}
                   placeholder="12.345.678-9"
                   required
+                  aria-invalid={!!rutError}
+                  aria-describedby={rutError ? 'rut-error' : undefined}
                 />
-                {rutError && <span className="error-text">{rutError}</span>}
+                {rutError && <span id="rut-error" className="error-text">{rutError}</span>}
+              </div>
+              <div className="form-group">
+                <label htmlFor="cargo">Cargo: *</label>
+                <select
+                  id="cargo"
+                  className="form-input"
+                  value={idCargo}
+                  onChange={(e) => setIdCargo(e.target.value)}
+                  required
+                  aria-label="Seleccionar cargo"
+                >
+                  <option value="">Seleccione un cargo</option>
+                  {cargos.map(cargo => (
+                    <option key={cargo.idcargo_14} value={cargo.idcargo_14}>
+                      {getCargoLabel(cargo)}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="form-group checkbox-group">
+                <label htmlFor="estado" style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', marginBottom: 0 }}>
+                  <input
+                    type="checkbox"
+                    id="estado"
+                    checked={estado}
+                    onChange={(e) => setEstado(e.target.checked)}
+                    style={{ width: '20px', height: '20px', cursor: 'pointer' }}
+                    aria-label="Estado activo"
+                  />
+                  Activo
+                </label>
               </div>
             </div>
 
@@ -424,7 +499,6 @@ const TrabajadorView: React.FC = () => {
                   required
                 />
               </div>
-
               <div className="form-group">
                 <label htmlFor="aPaterno">Apellido Paterno: *</label>
                 <input
@@ -437,9 +511,6 @@ const TrabajadorView: React.FC = () => {
                   required
                 />
               </div>
-            </div>
-
-            <div className="form-row">
               <div className="form-group">
                 <label htmlFor="aMaterno">Apellido Materno:</label>
                 <input
@@ -451,119 +522,134 @@ const TrabajadorView: React.FC = () => {
                   style={{ textTransform: 'uppercase' }}
                 />
               </div>
-
-              <div className="form-group">
-                <label htmlFor="cargo">Cargo: *</label>
-                <select
-                  id="cargo"
-                  className="form-select"
-                  value={idCargo}
-                  onChange={(e) => setIdCargo(e.target.value)}
-                  required
-                >
-                  <option value="">Seleccione un cargo</option>
-                  {cargos.map(cargo => (
-                    <option key={cargo.idcargo_14} value={cargo.idcargo_14}>
-                      {cargo.nombrecargo_14 || cargo.cargo_14}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            <div className="form-row">
-              <div className="form-group">
-                <label htmlFor="estado">Estado:</label>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <input
-                    type="checkbox"
-                    id="estado"
-                    checked={estado}
-                    onChange={(e) => setEstado(e.target.checked)}
-                    style={{ width: '20px', height: '20px', cursor: 'pointer' }}
-                  />
-                  <label htmlFor="estado" style={{ margin: 0, cursor: 'pointer' }}>
-                    Activo
-                  </label>
-                </div>
-              </div>
             </div>
 
             <div className="form-actions">
               <button type="submit" className="btn-success">
-                {editingId ? '💾 Actualizar' : '+ Crear'}
+                {editingId ? '💾 Actualizar' : '➕ Crear'}
               </button>
               <button type="button" className="btn-secondary" onClick={resetForm}>
-                ✕ Cancelar
+                ❌ Cancelar
               </button>
             </div>
           </form>
         </div>
       )}
 
-      <div className="search-section">
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', marginBottom: '15px' }}>
-          <div>
-            <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>
-              Buscar por Nombre o Apellido:
+      <div className="form-container" style={{ marginBottom: '20px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px', flexWrap: 'wrap', gap: '10px' }}>
+          <div style={{ color: '#6c757d', fontSize: '14px' }}>
+            Mostrando {paginatedTrabajadores.length} de {sortedTrabajadores.length} registros
+          </div>
+        </div>
+
+        <div className="trabajador-search-grid">
+          <div className="trabajador-search-block">
+            <div className="search-mode-toggles">
+              <span style={{ fontWeight: 600, marginRight: '8px' }}>Buscar por:</span>
+              <button
+                type="button"
+                onClick={() => setModoBusquedaNombre('apellido')}
+                className={`search-mode-btn ${modoBusquedaNombre === 'apellido' ? 'active' : ''}`}
+                aria-pressed={modoBusquedaNombre === 'apellido'}
+                aria-label="Buscar por apellido"
+              >
+                Apellido
+              </button>
+              <button
+                type="button"
+                onClick={() => setModoBusquedaNombre('nombre')}
+                className={`search-mode-btn ${modoBusquedaNombre === 'nombre' ? 'active' : ''}`}
+                aria-pressed={modoBusquedaNombre === 'nombre'}
+                aria-label="Buscar por nombre"
+              >
+                Nombre
+              </button>
+            </div>
+            <label htmlFor="buscar-apellido" className="search-label">
+              {modoBusquedaNombre === 'apellido' ? 'Buscar por Apellido:' : 'Buscar por Nombre:'}
             </label>
             <input
+              id="buscar-apellido"
               type="text"
               value={buscarApellido}
               onChange={(e) => setBuscarApellido(e.target.value.toUpperCase())}
-              placeholder="Ej: GONZALEZ o GONZALEZ PEREZ"
-              style={{ 
-                width: '100%', 
-                padding: '8px 12px', 
-                borderRadius: '4px', 
-                border: '1px solid #ced4da',
-                textTransform: 'uppercase'
-              }}
+              placeholder={
+                modoBusquedaNombre === 'apellido'
+                  ? 'Ej: GONZALEZ o GONZALEZ PEREZ'
+                  : 'Ej: JUAN o JUAN PABLO'
+              }
+              className="search-input"
+              style={{ textTransform: 'uppercase' }}
+              aria-label={modoBusquedaNombre === 'apellido' ? 'Buscar por apellido' : 'Buscar por nombre'}
             />
           </div>
-          <div>
-            <SearchBar 
-              value={searchTerm} 
-              onChange={setSearchTerm} 
-              placeholder="Buscar por RUT, nombre, cargo o empresa..." 
+          <div className="trabajador-search-block">
+            <label htmlFor="search-general" className="search-label">Búsqueda general:</label>
+            <input
+              id="search-general"
+              type="text"
+              placeholder="🔍 Buscar por RUT, nombre, cargo o empresa..."
+              value={searchTerm}
+              onChange={(e) => {
+                setSearchTerm(e.target.value);
+                setCurrentPage(1);
+              }}
+              className="search-input"
+              aria-label="Buscar trabajador"
             />
           </div>
         </div>
-        
-        <div className="filter-group" style={{ display: 'flex', gap: '15px', flexWrap: 'wrap', alignItems: 'center' }}>
-          <div>
-            <label>Estado:</label>
+
+        <div className="trabajador-filters">
+          <div className="filter-item">
+            <label htmlFor="filter-estado">Estado:</label>
             <select
-              className="filter-select"
+              id="filter-estado"
               value={filterEstado}
-              onChange={(e) => setFilterEstado(e.target.value)}
+              onChange={(e) => {
+                setFilterEstado(e.target.value);
+                setCurrentPage(1);
+              }}
+              className="filter-select"
+              aria-label="Filtrar por estado"
             >
               <option value="all">Todos</option>
               <option value="active">Solo Activos</option>
               <option value="inactive">Solo Inactivos</option>
             </select>
           </div>
-          <div>
-            <label>Filtrar por Cargo:</label>
+          <div className="filter-item">
+            <label htmlFor="filter-cargo">Filtrar por Cargo:</label>
             <select
-              className="filter-select"
+              id="filter-cargo"
               value={filterCargo}
-              onChange={(e) => setFilterCargo(e.target.value)}
+              onChange={(e) => {
+                setFilterCargo(e.target.value);
+                setCurrentPage(1);
+              }}
+              className="filter-select"
+              aria-label="Filtrar por cargo"
             >
               <option value="all">Todos los cargos</option>
               {cargos.map(cargo => (
                 <option key={cargo.idcargo_14} value={String(cargo.idcargo_14)}>
-                  {cargo.nombrecargo_14 || cargo.cargo_14}
+                  {getCargoLabel(cargo)}
                 </option>
               ))}
             </select>
           </div>
-          <div>
-            <label>Filtrar por Empresa:</label>
+          <div className="filter-item">
+            <label htmlFor="filter-empresa">Filtrar por Empresa:</label>
             <select
-              className="filter-select"
+              id="filter-empresa"
               value={filterEmpresa}
-              onChange={(e) => setFilterEmpresa(e.target.value)}
+              onChange={(e) => {
+                setFilterEmpresa(e.target.value);
+                setCurrentPage(1);
+              }}
+              className="filter-select"
+              aria-label="Filtrar por empresa"
             >
               <option value="all">Todas las empresas</option>
               {empresas.map(empresa => (
@@ -573,55 +659,43 @@ const TrabajadorView: React.FC = () => {
               ))}
             </select>
           </div>
-          <div className="results-info">
-            Mostrando {paginatedTrabajadores.length} de {filteredTrabajadores.length} trabajadores
-          </div>
         </div>
       </div>
 
-      <div className="table-container">
-        <table className="tecnicos-table">
+      <div className="table-container trabajador-table-container">
+        <table className="data-table trabajador-table">
           <thead>
             <tr>
-              <th 
-                className={`sortable ${sortConfig.key === 'ruttrabajador_06' ? (sortConfig.direction === 'asc' ? 'sort-asc' : 'sort-desc') : ''}`}
-                onClick={() => handleSort('ruttrabajador_06')}
-              >
-                RUT
+              <th onClick={() => handleSort('ruttrabajador_06')} className="sortable" style={{ cursor: 'pointer' }}>
+                RUT {getSortIndicator('ruttrabajador_06')}
               </th>
-              <th 
-                className={`sortable ${sortConfig.key === 'nombre_06' ? (sortConfig.direction === 'asc' ? 'sort-asc' : 'sort-desc') : ''}`}
-                onClick={() => handleSort('nombre_06')}
-              >
-                NOMBRES
+              <th onClick={() => handleSort('nombre_06')} className="sortable" style={{ cursor: 'pointer' }}>
+                NOMBRES {getSortIndicator('nombre_06')}
               </th>
-              <th 
-                className={`sortable ${sortConfig.key === 'apaterno_06' ? (sortConfig.direction === 'asc' ? 'sort-asc' : 'sort-desc') : ''}`}
-                onClick={() => handleSort('apaterno_06')}
-              >
-                APELLIDO PATERNO
+              <th onClick={() => handleSort('apaterno_06')} className="sortable" style={{ cursor: 'pointer' }}>
+                APELLIDO PATERNO {getSortIndicator('apaterno_06')}
               </th>
-              <th 
-                className={`sortable ${sortConfig.key === 'amaterno_06' ? (sortConfig.direction === 'asc' ? 'sort-asc' : 'sort-desc') : ''}`}
-                onClick={() => handleSort('amaterno_06')}
-              >
-                APELLIDO MATERNO
+              <th onClick={() => handleSort('amaterno_06')} className="sortable" style={{ cursor: 'pointer' }}>
+                APELLIDO MATERNO {getSortIndicator('amaterno_06')}
               </th>
               <th>CARGO</th>
-              <th>ESTADO</th>
-              <th 
-                className={`sortable ${sortConfig.key === 'estado_06' ? (sortConfig.direction === 'asc' ? 'sort-asc' : 'sort-desc') : ''}`}
-                onClick={() => handleSort('estado_06')}
-              >
-                ESTADO
+              <th>EMPRESA</th>
+              <th onClick={() => handleSort('estado_06')} className="sortable" style={{ cursor: 'pointer' }}>
+                ESTADO {getSortIndicator('estado_06')}
               </th>
               <th>ACCIONES</th>
             </tr>
           </thead>
           <tbody>
-            {paginatedTrabajadores.length === 0 ? (
+            {loading && trabajadores.length === 0 ? (
+              <tr><td colSpan={9}>Cargando...</td></tr>
+            ) : paginatedTrabajadores.length === 0 ? (
               <tr>
-                <td colSpan={8} className="no-data">No se encontraron trabajadores</td>
+                <td colSpan={9} className="no-data">
+                  {searchTerm || filterEstado !== 'all' || filterCargo !== 'all' || filterEmpresa !== 'all' || buscarApellido
+                    ? '📋 No se encontraron trabajadores con los filtros aplicados'
+                    : '📋 No hay trabajadores registrados'}
+                </td>
               </tr>
             ) : (
               paginatedTrabajadores.map(trabajador => (
@@ -634,14 +708,14 @@ const TrabajadorView: React.FC = () => {
                   <td>{trabajador.nombre_empresa || 'Sin empresa'}</td>
                   <td>
                     <span className={`badge ${trabajador.estado_06 ? 'badge-activo' : 'badge-inactivo'}`}>
-                      {trabajador.estado_06 ? 'Activo' : 'Inactivo'}
+                      {trabajador.estado_06 ? 'ACTIVO' : 'INACTIVO'}
                     </span>
                   </td>
                   <td className="actions">
-                    <button className="btn-edit" onClick={() => handleEdit(trabajador)} title="Editar">
+                    <button className="btn-edit" onClick={() => handleEdit(trabajador)} title="Editar" aria-label="Editar trabajador">
                       ✏️
                     </button>
-                    <button className="btn-delete" onClick={() => handleDelete(trabajador.idtrabajador_06)} title="Eliminar">
+                    <button className="btn-delete" onClick={() => handleDelete(trabajador.idtrabajador_06)} title="Eliminar" aria-label="Eliminar trabajador">
                       🗑️
                     </button>
                   </td>
@@ -652,16 +726,88 @@ const TrabajadorView: React.FC = () => {
         </table>
       </div>
 
-      <Pagination
-        currentPage={currentPage}
-        totalPages={Math.ceil(filteredTrabajadores.length / itemsPerPage)}
-        totalItems={filteredTrabajadores.length}
-        itemsPerPage={itemsPerPage}
-        onPageChange={setCurrentPage}
-      />
+      {totalPages > 1 && (
+        <div style={{
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          gap: '10px',
+          marginTop: '20px',
+          padding: '15px',
+          backgroundColor: '#f8f9fa',
+          borderRadius: '8px'
+        }}>
+          <button
+            onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+            disabled={currentPage === 1}
+            className="btn-secondary"
+            style={{ padding: '8px 15px', cursor: currentPage === 1 ? 'not-allowed' : 'pointer', opacity: currentPage === 1 ? 0.5 : 1 }}
+            aria-label="Página anterior"
+          >
+            ← Anterior
+          </button>
+          <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap' }}>
+            {(() => {
+              const maxVisible = 7;
+              const pages: (number | 'ellipsis')[] = [];
+              if (totalPages <= maxVisible) {
+                for (let j = 1; j <= totalPages; j++) pages.push(j);
+              } else if (currentPage <= 4) {
+                for (let j = 1; j <= 5; j++) pages.push(j);
+                pages.push('ellipsis');
+                pages.push(totalPages);
+              } else if (currentPage >= totalPages - 3) {
+                pages.push(1);
+                pages.push('ellipsis');
+                for (let j = totalPages - 4; j <= totalPages; j++) pages.push(j);
+              } else {
+                pages.push(1);
+                pages.push('ellipsis');
+                for (let j = currentPage - 1; j <= currentPage + 1; j++) pages.push(j);
+                pages.push('ellipsis');
+                pages.push(totalPages);
+              }
+              return pages.map((numPagina, idx) =>
+                numPagina === 'ellipsis' ? (
+                  <span key={`ellipsis-${idx}`} style={{ padding: '8px 4px', color: '#6c757d' }}>...</span>
+                ) : (
+                  <button
+                    key={numPagina}
+                    onClick={() => setCurrentPage(numPagina)}
+                    style={{
+                      padding: '8px 12px',
+                      border: '1px solid #ced4da',
+                      borderRadius: '4px',
+                      backgroundColor: currentPage === numPagina ? '#007bff' : 'white',
+                      color: currentPage === numPagina ? 'white' : '#495057',
+                      cursor: 'pointer',
+                      fontWeight: currentPage === numPagina ? 'bold' : 'normal'
+                    }}
+                    aria-label={`Ir a página ${numPagina}`}
+                    aria-current={currentPage === numPagina ? 'page' : undefined}
+                  >
+                    {numPagina}
+                  </button>
+                )
+              );
+            })()}
+          </div>
+          <button
+            onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+            disabled={currentPage === totalPages}
+            className="btn-secondary"
+            style={{ padding: '8px 15px', cursor: currentPage === totalPages ? 'not-allowed' : 'pointer', opacity: currentPage === totalPages ? 0.5 : 1 }}
+            aria-label="Página siguiente"
+          >
+            Siguiente →
+          </button>
+          <div style={{ marginLeft: '15px', color: '#6c757d' }}>
+            Página {currentPage} de {totalPages}
+          </div>
+        </div>
+      )}
     </div>
   );
 };
 
 export default TrabajadorView;
-

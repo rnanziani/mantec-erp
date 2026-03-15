@@ -1,0 +1,30 @@
+/* Estilos complementarios para Consumo de Insumos (detalle y formulario) */
+.form-group-flex { flex: 1; }
+.form-input { width: 100%; padding: 8px 12px; border: 1px solid #ced4da; border-radius: 4px; font-size: 14px; box-sizing: border-box; }
+.form-input-sm { padding: .5rem .75rem; font-size: .9rem; }
+
+.detalle-section { margin-top: 2rem; margin-bottom: 1.5rem; }
+.detalle-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; gap: .5rem; }
+.detalle-header h4 { margin: 0; color: #334155; font-size: 1.1rem; }
+.btn-add-line { background: #28a745; color: #fff; border: 0; padding: .5rem 1rem; border-radius: 4px; cursor: pointer; font-weight: 600; font-size: .9rem; }
+.btn-add-line:hover { background: #218838; }
+.detalle-table-wrapper { overflow-x: auto; border: 1px solid #dee2e6; border-radius: 4px; }
+.detalle-table { width: 100%; border-collapse: collapse; }
+.detalle-table th, .detalle-table td { padding: .75rem; text-align: left; border-bottom: 1px solid #dee2e6; }
+.detalle-table thead th { background: #f8f9fa; color: #495057; font-weight: 700; font-size: .85rem; }
+.detalle-table tbody tr:hover { background: #f8f9fa; }
+.td-precio, .td-total { font-weight: 600; color: #007bff; }
+.btn-delete-line { background: transparent; border: 0; cursor: pointer; padding: .25rem; font-size: 1rem; opacity: .8; }
+.btn-delete-line:hover:not(:disabled) { opacity: 1; }
+.btn-delete-line:disabled { opacity: .4; cursor: not-allowed; }
+
+.td-cantidad { font-weight: 600; }
+.bodega-view .data-table tbody tr:nth-child(even) { background: #f9f9f9; }
+.bodega-view .data-table tbody tr:nth-child(odd) { background: #fff; }
+.bodega-view .data-table tbody tr:hover { background: #f8f9fa !important; }
+.no-data { text-align: center; padding: 3rem; color: #6c757d; font-size: 1.1rem; }
+.loading { padding: 2rem; text-align: center; color: #64748B; }
+
+@media (max-width: 768px) {
+  .detalle-table th:nth-child(n+4), .detalle-table td:nth-child(n+4) { display: none; }
+}

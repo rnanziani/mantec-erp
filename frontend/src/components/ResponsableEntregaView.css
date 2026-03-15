@@ -1,0 +1,7 @@
+/* Estilos específicos para Responsables de Entrega (complementa BodegaView.css) */
+
+.responsable-nombre {
+    font-weight: 600;
+    color: var(--mantec-blue, #1e3a5f);
+    font-size: 1rem;
+}

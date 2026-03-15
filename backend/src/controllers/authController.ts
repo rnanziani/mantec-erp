@@ -13,7 +13,7 @@ import {
   verificarExpiracionPassword,
   obtenerIpCliente
 } from '../utils/authUtils.js';
-import { CreateUsuarioDTO, LoginDTO, ChangePasswordDTO } from '../types.js';
+import { CreateUsuarioDTO, LoginDTO, ChangePasswordDTO, ChangePasswordExpiredDTO } from '../types.js';
 
 /**
  * @route   POST /api/auth/register
@@ -194,11 +194,13 @@ export const login = async (req: Request, res: Response) => {
     });
 
     // Crear sesión en base de datos con tiempo configurable
-    const { obtenerParametroNumero: obtenerParametroNumeroSesion } = await import('../utils/parametrosUtils.js');
-    const minutosSesion = await obtenerParametroNumeroSesion('SESSION_TIMEOUT_MINUTES', 30);
+    const { obtenerTiempoSesionSegundos, invalidarCacheParametros } = await import('../utils/parametrosUtils.js');
+    invalidarCacheParametros(); // Leer SESSION_TIMEOUT_SECONDS fresco al crear sesión
+    const segundosSesion = await obtenerTiempoSesionSegundos(30 * 60);
+    console.log('[Login] Sesión creada con expiración en', segundosSesion, 'segundos');
     const idSesion = `sesion_${usuario.id_usuario_00}_${Date.now()}`;
     const fechaExpiracion = new Date();
-    fechaExpiracion.setMinutes(fechaExpiracion.getMinutes() + minutosSesion);
+    fechaExpiracion.setSeconds(fechaExpiracion.getSeconds() + segundosSesion);
 
     await pool.query(
       `INSERT INTO tbl_03_sesion 
@@ -344,6 +346,106 @@ export const changePassword = async (req: Request, res: Response) => {
 };
 
 /**
+ * @route   POST /api/auth/change-password-expired
+ * @desc    Cambiar contraseña cuando está expirada (sin token, desde login)
+ * @access  Public
+ */
+export const changePasswordExpired = async (req: Request, res: Response) => {
+  try {
+    const { email, password_actual, password_nueva }: ChangePasswordExpiredDTO = req.body;
+
+    if (!email || !password_actual || !password_nueva) {
+      return res.status(400).json({
+        success: false,
+        error: 'Email, contraseña actual y nueva son requeridas'
+      });
+    }
+
+    const result = await pool.query(
+      `SELECT id_usuario_00, password_hash, password_expires_at FROM tbl_00_usuario 
+       WHERE LOWER(email) = LOWER($1) AND is_active = true`,
+      [email.trim()]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(401).json({
+        success: false,
+        error: 'Credenciales inválidas'
+      });
+    }
+
+    const usuario = result.rows[0];
+
+    const passwordValida = await verifyPassword(password_actual, usuario.password_hash);
+    if (!passwordValida) {
+      return res.status(401).json({
+        success: false,
+        error: 'Contraseña actual incorrecta'
+      });
+    }
+
+    const expiracion = verificarExpiracionPassword(new Date(usuario.password_expires_at));
+    if (!expiracion.expirada) {
+      return res.status(400).json({
+        success: false,
+        error: 'Su contraseña no ha expirado. Use la opción "Cambiar contraseña" dentro del sistema.'
+      });
+    }
+
+    const validacion = validarComplejidadPassword(password_nueva);
+    if (!validacion.valido) {
+      return res.status(400).json({
+        success: false,
+        error: validacion.errores.join(', ')
+      });
+    }
+
+    const esReutilizada = await verificarReutilizacionPassword(usuario.id_usuario_00, password_nueva);
+    if (esReutilizada) {
+      return res.status(400).json({
+        success: false,
+        error: 'No puede reutilizar contraseñas anteriores. Por favor, elija una nueva.'
+      });
+    }
+
+    const nuevoHash = await hashPassword(password_nueva);
+
+    await pool.query(
+      `INSERT INTO tbl_01_historial_contrasena 
+       (id_usuario_01, hashed_password_01, fecha_cambio_01)
+       VALUES ($1, $2, NOW())`,
+      [usuario.id_usuario_00, usuario.password_hash]
+    );
+
+    const { obtenerParametroNumero } = await import('../utils/parametrosUtils.js');
+    const diasExpiracion = await obtenerParametroNumero('PASSWORD_EXPIRATION_DAYS', 91);
+    const nuevaFechaExpiracion = new Date();
+    nuevaFechaExpiracion.setDate(nuevaFechaExpiracion.getDate() + diasExpiracion);
+
+    await pool.query(
+      `UPDATE tbl_00_usuario 
+       SET password_hash = $1, 
+           last_password_change_at = NOW(),
+           password_expires_at = $2
+       WHERE id_usuario_00 = $3`,
+      [nuevoHash, nuevaFechaExpiracion, usuario.id_usuario_00]
+    );
+
+    res.json({
+      success: true,
+      message: 'Contraseña actualizada. Ya puede iniciar sesión con su nueva contraseña.'
+    });
+  } catch (error: any) {
+    console.error('Error en changePasswordExpired:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Error al cambiar contraseña',
+      details: error.message
+    });
+  }
+};
+
+/**
  * @route   GET /api/auth/me
  * @desc    Obtener información del usuario actual
  * @access  Private
@@ -366,18 +468,8 @@ export const getMe = async (req: Request, res: Response) => {
       });
     }
 
-    // Extender sesión automáticamente al hacer cualquier petición autenticada
-    const { obtenerParametroNumero } = await import('../utils/parametrosUtils.js');
-    const minutosSesion = await obtenerParametroNumero('SESSION_TIMEOUT_MINUTES', 30);
-    const nuevaFechaExpiracion = new Date();
-    nuevaFechaExpiracion.setMinutes(nuevaFechaExpiracion.getMinutes() + minutosSesion);
-
-    await pool.query(
-      `UPDATE tbl_03_sesion 
-       SET fecha_expiracion_03 = $1 
-       WHERE token_sesion_03 = $2 AND fecha_expiracion_03 > NOW()`,
-      [nuevaFechaExpiracion, token]
-    );
+    // No extender sesión aquí: la expiración se controla por SESSION_TIMEOUT_SECONDS
+    // y solo se extiende explícitamente con POST /api/auth/extend-session
 
     const result = await pool.query(
       `SELECT id_usuario_00, username, email, nombre_completo_00, is_active, 
@@ -564,9 +656,9 @@ export const getSessionStatus = async (req: Request, res: Response) => {
     );
 
     if (sesionResult.rows.length === 0) {
-      return res.status(404).json({
+      return res.status(401).json({
         success: false,
-        error: 'Sesión no encontrada',
+        error: 'Sesión expirada o no encontrada',
         sessionExpired: true
       });
     }
@@ -585,8 +677,21 @@ export const getSessionStatus = async (req: Request, res: Response) => {
     // Calcular segundos totales restantes
     const segundosTotalesRestantes = minutosRestantes * 60 + segundosRestantes;
     
-    // Advertir si quedan menos minutos que el parámetro, O si quedan 60 segundos o menos (siempre)
-    const debeAdvertir = (minutosRestantes <= minutosAdvertencia && minutosRestantes > 0) || segundosTotalesRestantes <= 60;
+    // Advertir si quedan menos minutos que el parámetro, O si quedan 30 segundos o menos (siempre)
+    const debeAdvertir = (minutosRestantes <= minutosAdvertencia && minutosRestantes > 0) || segundosTotalesRestantes <= 30;
+
+    // Obtener días restantes de contraseña para aviso de caducidad (5 días antes)
+    let diasRestantesPassword: number | undefined;
+    let passwordExpired = false;
+    const userResult = await pool.query(
+      'SELECT password_expires_at FROM tbl_00_usuario WHERE id_usuario_00 = $1',
+      [decoded.id]
+    );
+    if (userResult.rows.length > 0) {
+      const expiracionPwd = verificarExpiracionPassword(new Date(userResult.rows[0].password_expires_at));
+      passwordExpired = expiracionPwd.expirada;
+      diasRestantesPassword = expiracionPwd.diasRestantes;
+    }
 
     res.json({
       success: true,
@@ -596,7 +701,9 @@ export const getSessionStatus = async (req: Request, res: Response) => {
         segundosRestantes,
         fechaExpiracion: fechaExpiracion.toISOString(),
         debeAdvertir,
-        minutosAdvertencia
+        minutosAdvertencia,
+        diasRestantesPassword,
+        passwordExpired
       }
     });
   } catch (error: any) {
@@ -633,16 +740,19 @@ export const extendSession = async (req: Request, res: Response) => {
     }
 
     // Obtener tiempo de sesión desde parámetros
-    const { obtenerParametroNumero } = await import('../utils/parametrosUtils.js');
-    const minutosSesion = await obtenerParametroNumero('SESSION_TIMEOUT_MINUTES', 30);
+    const { obtenerTiempoSesionSegundos } = await import('../utils/parametrosUtils.js');
+    const segundosSesion = await obtenerTiempoSesionSegundos(30 * 60);
+    // Añadir buffer del countdown para que la sesión siga válida cuando el usuario pulse "Reactivar"
+    const countdownBuffer = Math.min(30, Math.max(5, Math.floor(segundosSesion / 2)));
+    const segundosTotales = segundosSesion + countdownBuffer;
     const nuevaFechaExpiracion = new Date();
-    nuevaFechaExpiracion.setMinutes(nuevaFechaExpiracion.getMinutes() + minutosSesion);
+    nuevaFechaExpiracion.setSeconds(nuevaFechaExpiracion.getSeconds() + segundosTotales);
 
-    // Actualizar fecha de expiración de la sesión
+    // Actualizar sesión por token (permite "resucitar" sesiones expiradas al reactivar)
     const result = await pool.query(
       `UPDATE tbl_03_sesion 
        SET fecha_expiracion_03 = $1 
-       WHERE token_sesion_03 = $2 AND fecha_expiracion_03 > NOW()
+       WHERE token_sesion_03 = $2
        RETURNING fecha_expiracion_03`,
       [nuevaFechaExpiracion, token]
     );
@@ -659,7 +769,7 @@ export const extendSession = async (req: Request, res: Response) => {
       message: 'Sesión extendida exitosamente',
       data: {
         nuevaFechaExpiracion: nuevaFechaExpiracion.toISOString(),
-        minutosSesion
+        segundosSesion: segundosTotales
       }
     });
   } catch (error: any) {
@@ -701,9 +811,6 @@ export const logout = async (req: Request, res: Response) => {
     });
   }
 };
-
-
-
 
 
 

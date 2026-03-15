@@ -1,10 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import './BodegaView.css';
 import './MarcasAlternador.css';
-import { useToast } from '../context/ToastContext';
-import SearchBar from './shared/SearchBar';
-import Pagination from './shared/Pagination';
 import { exportToExcel } from '../utils/exportUtils';
-import { showDeleteConfirm } from '../utils/swal';
+import { showDeleteConfirm, showSuccess, showError } from '../utils/swal';
 
 interface MarcaAlternador {
   id_marca_18: number;
@@ -25,6 +23,7 @@ type SortConfig = {
 };
 
 const MarcasAlternador: React.FC = () => {
+  const formRef = React.useRef<HTMLFormElement>(null);
   const [marcas, setMarcas] = useState<MarcaAlternador[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string>('');
@@ -38,7 +37,6 @@ const MarcasAlternador: React.FC = () => {
   const [itemsPerPage] = useState<number>(10);
   const [sortConfig, setSortConfig] = useState<SortConfig>({ key: 'id_marca_18', direction: 'asc' });
 
-  const { showToast } = useToast();
   const API_URL = 'http://localhost:3001/api/marcas';
 
   useEffect(() => {
@@ -102,15 +100,10 @@ const MarcasAlternador: React.FC = () => {
     }));
   };
 
-  const getSortIcon = (key: keyof MarcaAlternador) => {
-    if (sortConfig.key !== key) return '⇅';
-    return sortConfig.direction === 'asc' ? '↑' : '↓';
-  };
-
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!marcaName.trim()) {
-      showToast('El nombre de la marca es requerido', 'error');
+      await showError('Campo requerido', 'El nombre de la marca es requerido');
       return;
     }
 
@@ -128,19 +121,22 @@ const MarcasAlternador: React.FC = () => {
         await fetchMarcas();
         setMarcaName('');
         setShowForm(false);
-        showToast('Marca creada exitosamente', 'success');
+        await showSuccess('¡Marca creada!', 'La marca ha sido registrada correctamente.');
       } else {
-        showToast(data.error || 'Error al crear la marca', 'error');
+        await showError('Error al crear', data.error || 'Error al crear la marca');
       }
     } catch (err) {
-      showToast('Error al crear la marca', 'error');
+      await showError('Error', 'Error al crear la marca');
       console.error('Error:', err);
     }
   };
 
   const handleUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!marcaName.trim() || editingId === null) return;
+    if (!marcaName.trim() || editingId === null) {
+      await showError('Campo requerido', 'El nombre de la marca es requerido');
+      return;
+    }
 
     try {
       setError('');
@@ -157,12 +153,12 @@ const MarcasAlternador: React.FC = () => {
         setMarcaName('');
         setEditingId(null);
         setShowForm(false);
-        showToast('Marca actualizada exitosamente', 'success');
+        await showSuccess('¡Marca actualizada!', 'La marca ha sido actualizada correctamente.');
       } else {
-        showToast(data.error || 'Error al actualizar la marca', 'error');
+        await showError('Error al actualizar', data.error || 'Error al actualizar la marca');
       }
     } catch (err) {
-      showToast('Error al actualizar la marca', 'error');
+      await showError('Error', 'Error al actualizar la marca');
       console.error('Error:', err);
     }
   };
@@ -181,12 +177,12 @@ const MarcasAlternador: React.FC = () => {
 
       if (data.success) {
         await fetchMarcas();
-        showToast('Marca eliminada exitosamente', 'success');
+        await showSuccess('¡Marca eliminada!', 'La marca ha sido eliminada correctamente.');
       } else {
-        showToast(data.error || 'Error al eliminar la marca', 'error');
+        await showError('Error al eliminar', data.error || 'Error al eliminar la marca');
       }
     } catch (err) {
-      showToast('Error al eliminar la marca', 'error');
+      await showError('Error', 'Error al eliminar la marca');
       console.error('Error:', err);
     }
   };
@@ -212,56 +208,64 @@ const MarcasAlternador: React.FC = () => {
     setError('');
   };
 
-  const handleExport = () => {
-    const dataToExport = filteredAndSortedMarcas.map(m => ({
+  const handleExport = async () => {
+    const dataToExport = filteredAndSortedMarcas.map((m) => ({
       ID: m.id_marca_18,
       Marca: m.marca_18
     }));
     exportToExcel(dataToExport, 'marcas-alternadores', 'Marcas');
-    showToast('Datos exportados exitosamente', 'success');
+    await showSuccess('¡Exportación exitosa!', 'Los datos han sido exportados correctamente.');
+  };
+
+  const getSortIndicator = (key: keyof MarcaAlternador) => {
+    if (sortConfig.key !== key) return '↕️';
+    return sortConfig.direction === 'asc' ? '↑' : '↓';
   };
 
   return (
-    <div className="marcas-container fade-in">
-      <div className="marcas-header">
-        <h2>🔧 Gestión de Marcas de Alternadores</h2>
-        <div className="header-actions">
-          {!showForm && (
-            <>
-              <button className="btn-export" onClick={handleExport} title="Exportar a Excel">
-                📊 Exportar
-              </button>
-              <button className="btn-primary" onClick={showCreateForm}>
-                ➕ Nueva Marca
-              </button>
-            </>
-          )}
+    <div className="bodega-view">
+      <div className="view-header">
+        <h2>⚙️ Gestión de Marcas de Alternadores</h2>
+        <div style={{ display: 'flex', gap: '10px' }}>
+          <button
+            className="btn-primary"
+            onClick={() => { cancelForm(); setShowForm(true); setError(''); }}
+            style={{ backgroundColor: '#007bff' }}
+          >
+            ✏️ Nuevo
+          </button>
+          <button
+            className="btn-primary"
+            onClick={() => formRef.current?.requestSubmit()}
+            disabled={!showForm}
+            style={{ backgroundColor: '#28a745' }}
+            type="button"
+          >
+            💾 Guardar
+          </button>
+          <button
+            className="btn-primary"
+            onClick={handleExport}
+            style={{ backgroundColor: '#17a2b8' }}
+          >
+            📊 Exportar
+          </button>
+          <button className="btn-secondary" onClick={cancelForm}>
+            🚪 Salir
+          </button>
         </div>
       </div>
 
-      {!showForm && (
-        <div className="search-section">
-          <SearchBar
-            placeholder="Buscar marca..."
-            value={searchTerm}
-            onChange={setSearchTerm}
-          />
-          <div className="results-info">
-            Mostrando {currentMarcas.length} de {filteredAndSortedMarcas.length} registros
-          </div>
-        </div>
-      )}
-
       {error && (
-        <div className="alert alert-error fade-in">
+        <div style={{ padding: '1rem', marginBottom: '1rem', background: '#FEE2E2', color: '#991B1B', borderRadius: '8px' }}>
           ⚠️ {error}
         </div>
       )}
 
       {showForm && (
-        <div className="form-card fade-in">
+        <div className="form-container">
           <h3>{editingId ? '✏️ Editar Marca' : '➕ Nueva Marca'}</h3>
-          <form onSubmit={editingId ? handleUpdate : handleCreate}>
+          <form ref={formRef} onSubmit={editingId ? handleUpdate : handleCreate}>
             <div className="form-group">
               <label htmlFor="marca">Nombre de la Marca:</label>
               <input
@@ -288,77 +292,119 @@ const MarcasAlternador: React.FC = () => {
         </div>
       )}
 
-      {loading ? (
-        <div className="loading">⏳ Cargando marcas...</div>
-      ) : (
-        <>
-          <div className="table-container">
-            <table className="marcas-table">
-              <thead>
-                <tr>
-                  <th 
-                    onClick={() => handleSort('id_marca_18')} 
-                    className={`sortable ${sortConfig.key === 'id_marca_18' ? (sortConfig.direction === 'asc' ? 'sort-asc' : 'sort-desc') : ''}`}
-                  >
-                    ID
-                  </th>
-                  <th 
-                    onClick={() => handleSort('marca_18')} 
-                    className={`sortable ${sortConfig.key === 'marca_18' ? (sortConfig.direction === 'asc' ? 'sort-asc' : 'sort-desc') : ''}`}
-                  >
-                    MARCA
-                  </th>
-                  <th>ACCIONES</th>
-                </tr>
-              </thead>
-              <tbody>
-                {currentMarcas.length === 0 ? (
-                  <tr>
-                    <td colSpan={3} className="no-data">
-                      {searchTerm
-                        ? `📋 No se encontraron marcas con "${searchTerm}"`
-                        : '📋 No hay marcas registradas'
-                      }
-                    </td>
-                  </tr>
-                ) : (
-                  currentMarcas.map((marca) => (
-                    <tr key={marca.id_marca_18} className="fade-in">
-                      <td>{marca.id_marca_18}</td>
-                      <td className="marca-name">{marca.marca_18}</td>
-                      <td className="actions">
-                        <button
-                          className="btn-edit"
-                          onClick={() => startEdit(marca)}
-                          title="Editar"
-                        >
-                          ✏️
-                        </button>
-                        <button
-                          className="btn-delete"
-                          onClick={() => handleDelete(marca.id_marca_18)}
-                          title="Eliminar"
-                        >
-                          🗑️
-                        </button>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
+      {/* Buscador y tabla */}
+      <div className="form-container" style={{ marginBottom: '20px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+          <div style={{ color: '#6c757d', fontSize: '14px' }}>
+            Mostrando {currentMarcas.length} de {filteredAndSortedMarcas.length} registros
           </div>
+        </div>
+        <input
+          type="text"
+          placeholder="🔍 Buscar marca..."
+          value={searchTerm}
+          onChange={(e) => {
+            setSearchTerm(e.target.value.toUpperCase());
+            setCurrentPage(1);
+          }}
+          style={{ width: '100%', padding: '10px', fontSize: '14px', borderRadius: '4px', border: '1px solid #ced4da', textTransform: 'uppercase' }}
+        />
+      </div>
 
-          {filteredAndSortedMarcas.length > 0 && (
-            <Pagination
-              currentPage={currentPage}
-              totalPages={totalPages}
-              totalItems={filteredAndSortedMarcas.length}
-              itemsPerPage={itemsPerPage}
-              onPageChange={setCurrentPage}
-            />
-          )}
-        </>
+      <div className="table-container">
+        <table className="data-table">
+          <thead>
+            <tr>
+              <th onClick={() => handleSort('id_marca_18')} className="sortable" style={{ cursor: 'pointer' }}>
+                ID {getSortIndicator('id_marca_18')}
+              </th>
+              <th onClick={() => handleSort('marca_18')} className="sortable" style={{ cursor: 'pointer' }}>
+                MARCA {getSortIndicator('marca_18')}
+              </th>
+              <th>ACCIONES</th>
+            </tr>
+          </thead>
+          <tbody>
+            {loading && marcas.length === 0 ? (
+              <tr><td colSpan={3}>Cargando...</td></tr>
+            ) : currentMarcas.length === 0 ? (
+              <tr>
+                <td colSpan={3} className="no-data">
+                  {searchTerm
+                    ? `📋 No se encontraron marcas con "${searchTerm}"`
+                    : '📋 No hay marcas registradas'}
+                </td>
+              </tr>
+            ) : (
+              currentMarcas.map((marca) => (
+                <tr key={marca.id_marca_18}>
+                  <td>{marca.id_marca_18}</td>
+                  <td className="marca-name">{marca.marca_18}</td>
+                  <td className="actions">
+                    <button className="btn-edit" onClick={() => startEdit(marca)} title="Editar">
+                      ✏️
+                    </button>
+                    <button className="btn-delete" onClick={() => handleDelete(marca.id_marca_18)} title="Eliminar">
+                      🗑️
+                    </button>
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      {totalPages > 1 && (
+        <div style={{
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          gap: '10px',
+          marginTop: '20px',
+          padding: '15px',
+          backgroundColor: '#f8f9fa',
+          borderRadius: '8px'
+        }}>
+          <button
+            onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+            disabled={currentPage === 1}
+            className="btn-secondary"
+            style={{ padding: '8px 15px', cursor: currentPage === 1 ? 'not-allowed' : 'pointer', opacity: currentPage === 1 ? 0.5 : 1 }}
+          >
+            ← Anterior
+          </button>
+          <div style={{ display: 'flex', gap: '5px' }}>
+            {Array.from({ length: totalPages }, (_, i) => i + 1).map((numPagina) => (
+              <button
+                key={numPagina}
+                onClick={() => setCurrentPage(numPagina)}
+                style={{
+                  padding: '8px 12px',
+                  border: '1px solid #ced4da',
+                  borderRadius: '4px',
+                  backgroundColor: currentPage === numPagina ? '#007bff' : 'white',
+                  color: currentPage === numPagina ? 'white' : '#495057',
+                  cursor: 'pointer',
+                  fontWeight: currentPage === numPagina ? 'bold' : 'normal'
+                }}
+              >
+                {numPagina}
+              </button>
+            ))}
+          </div>
+          <button
+            onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+            disabled={currentPage === totalPages}
+            className="btn-secondary"
+            style={{ padding: '8px 15px', cursor: currentPage === totalPages ? 'not-allowed' : 'pointer', opacity: currentPage === totalPages ? 0.5 : 1 }}
+          >
+            Siguiente →
+          </button>
+          <div style={{ marginLeft: '15px', color: '#6c757d' }}>
+            Página {currentPage} de {totalPages}
+          </div>
+        </div>
       )}
     </div>
   );

@@ -1,0 +1,7 @@
+/* Estilos específicos para Categorías (complementa BodegaView.css) */
+
+.categoria-name {
+    font-weight: 600;
+    color: var(--mantec-blue, #1e3a5f);
+    font-size: 1rem;
+}

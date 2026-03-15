@@ -1,9 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import './BodegaView.css';
 import './CargoView.css';
-import { useToast } from '../context/ToastContext';
-import SearchBar from './shared/SearchBar';
-import Pagination from './shared/Pagination';
 import { exportToExcel } from '../utils/exportUtils';
+import { showDeleteConfirm, showSuccess, showError } from '../utils/swal';
 
 interface Cargo {
   idcargo_14: number;
@@ -24,6 +23,7 @@ type SortConfig = {
 };
 
 const CargoView: React.FC = () => {
+  const formRef = React.useRef<HTMLFormElement>(null);
   const [cargos, setCargos] = useState<Cargo[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string>('');
@@ -31,20 +31,15 @@ const CargoView: React.FC = () => {
   const [editingId, setEditingId] = useState<number | null>(null);
   const [showForm, setShowForm] = useState<boolean>(false);
 
-  // Nuevas funcionalidades
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [itemsPerPage] = useState<number>(10);
   const [sortConfig, setSortConfig] = useState<SortConfig>({ key: 'idcargo_14', direction: 'asc' });
 
-  const { showToast } = useToast();
   const API_URL = 'http://localhost:3001/api/cargos';
 
-  // Verificar que el componente se monte correctamente
   useEffect(() => {
-    console.log('CargoView montado');
     fetchCargos();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const fetchCargos = async () => {
@@ -52,16 +47,15 @@ const CargoView: React.FC = () => {
       setLoading(true);
       setError('');
       const response = await fetch(API_URL);
-      
+
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
-      
+
       const data: ApiResponse = await response.json();
 
       if (data.success && Array.isArray(data.data)) {
-        // Normalizar los datos por si vienen con nombrecargo_14 como alias
-        const normalizedData = data.data.map((cargo: any) => ({
+        const normalizedData = data.data.map((cargo: { idcargo_14: number; cargo_14?: string; nombrecargo_14?: string }) => ({
           idcargo_14: cargo.idcargo_14,
           cargo_14: cargo.cargo_14 || cargo.nombrecargo_14 || ''
         }));
@@ -79,13 +73,11 @@ const CargoView: React.FC = () => {
     }
   };
 
-  // Filtrar y ordenar datos
   const filteredAndSortedCargos = useMemo(() => {
     let filtered = cargos.filter(cargo =>
       cargo.cargo_14.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
-    // Ordenar
     filtered.sort((a, b) => {
       const aValue = a[sortConfig.key];
       const bValue = b[sortConfig.key];
@@ -98,13 +90,11 @@ const CargoView: React.FC = () => {
     return filtered;
   }, [cargos, searchTerm, sortConfig]);
 
-  // Paginación
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
   const currentCargos = filteredAndSortedCargos.slice(indexOfFirstItem, indexOfLastItem);
   const totalPages = Math.ceil(filteredAndSortedCargos.length / itemsPerPage);
 
-  // Resetear página al buscar
   useEffect(() => {
     setCurrentPage(1);
   }, [searchTerm]);
@@ -116,15 +106,15 @@ const CargoView: React.FC = () => {
     }));
   };
 
-  const getSortIcon = (key: keyof Cargo) => {
-    if (sortConfig.key !== key) return '⇅';
+  const getSortIndicator = (key: keyof Cargo) => {
+    if (sortConfig.key !== key) return '↕️';
     return sortConfig.direction === 'asc' ? '↑' : '↓';
   };
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!cargoName.trim()) {
-      showToast('El nombre del cargo es requerido', 'error');
+      await showError('Campo requerido', 'El nombre del cargo es requerido');
       return;
     }
 
@@ -136,11 +126,10 @@ const CargoView: React.FC = () => {
         body: JSON.stringify({ cargo_14: cargoName.trim() })
       });
 
-      // Verificar si la respuesta es exitosa antes de parsear JSON
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
         const errorMessage = errorData.error || errorData.message || `Error HTTP: ${response.status}`;
-        showToast(errorMessage, 'error');
+        await showError('Error al crear', errorMessage);
         setError(errorMessage);
         return;
       }
@@ -151,15 +140,15 @@ const CargoView: React.FC = () => {
         await fetchCargos();
         setCargoName('');
         setShowForm(false);
-        showToast('Cargo creado exitosamente', 'success');
+        await showSuccess('¡Cargo creado!', 'El cargo ha sido registrado correctamente.');
       } else {
         const errorMessage = data.error || data.message || 'Error al crear el cargo';
-        showToast(errorMessage, 'error');
+        await showError('Error al crear', errorMessage);
         setError(errorMessage);
       }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Error de conexión al crear el cargo';
-      showToast(errorMessage, 'error');
+      await showError('Error', errorMessage);
       setError(errorMessage);
       console.error('Error al crear cargo:', err);
     }
@@ -167,7 +156,10 @@ const CargoView: React.FC = () => {
 
   const handleUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!cargoName.trim() || editingId === null) return;
+    if (!cargoName.trim() || editingId === null) {
+      await showError('Campo requerido', 'El nombre del cargo es requerido');
+      return;
+    }
 
     try {
       setError('');
@@ -177,11 +169,10 @@ const CargoView: React.FC = () => {
         body: JSON.stringify({ cargo_14: cargoName.trim() })
       });
 
-      // Verificar si la respuesta es exitosa antes de parsear JSON
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
         const errorMessage = errorData.error || errorData.message || `Error HTTP: ${response.status}`;
-        showToast(errorMessage, 'error');
+        await showError('Error al actualizar', errorMessage);
         setError(errorMessage);
         return;
       }
@@ -193,15 +184,15 @@ const CargoView: React.FC = () => {
         setCargoName('');
         setEditingId(null);
         setShowForm(false);
-        showToast('Cargo actualizado exitosamente', 'success');
+        await showSuccess('¡Cargo actualizado!', 'El cargo ha sido actualizado correctamente.');
       } else {
         const errorMessage = data.error || data.message || 'Error al actualizar el cargo';
-        showToast(errorMessage, 'error');
+        await showError('Error al actualizar', errorMessage);
         setError(errorMessage);
       }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Error de conexión al actualizar el cargo';
-      showToast(errorMessage, 'error');
+      await showError('Error', errorMessage);
       setError(errorMessage);
       console.error('Error al actualizar cargo:', err);
     }
@@ -221,12 +212,12 @@ const CargoView: React.FC = () => {
 
       if (data.success) {
         await fetchCargos();
-        showToast('Cargo eliminado exitosamente', 'success');
+        await showSuccess('¡Cargo eliminado!', 'El cargo ha sido eliminado correctamente.');
       } else {
-        showToast(data.error || 'Error al eliminar el cargo', 'error');
+        await showError('Error al eliminar', data.error || 'Error al eliminar el cargo');
       }
     } catch (err) {
-      showToast('Error al eliminar el cargo', 'error');
+      await showError('Error', 'Error al eliminar el cargo');
       console.error('Error:', err);
     }
   };
@@ -252,59 +243,61 @@ const CargoView: React.FC = () => {
     setError('');
   };
 
-  const handleExport = () => {
+  const handleExport = async () => {
     const dataToExport = filteredAndSortedCargos.map(c => ({
       ID: c.idcargo_14,
       Cargo: c.cargo_14
     }));
     exportToExcel(dataToExport, 'cargos', 'Cargos');
-    showToast('Datos exportados exitosamente', 'success');
+    await showSuccess('¡Exportación exitosa!', 'Los datos han sido exportados correctamente.');
   };
 
   return (
-    <div className="cargo-container fade-in">
-      <div className="cargo-header">
+    <div className="bodega-view">
+      <div className="view-header">
         <h2>👔 Gestión de Cargos</h2>
-        <div className="header-actions">
-          {!showForm && (
-            <>
-              <button className="btn-export" onClick={handleExport} title="Exportar a Excel">
-                📊 Exportar
-              </button>
-              <button className="btn-primary" onClick={showCreateForm}>
-                ➕ Nuevo Cargo
-              </button>
-            </>
-          )}
+        <div style={{ display: 'flex', gap: '10px' }}>
+          <button
+            className="btn-primary"
+            onClick={showCreateForm}
+            style={{ backgroundColor: '#007bff' }}
+          >
+            ✏️ Nuevo
+          </button>
+          <button
+            className="btn-primary"
+            onClick={() => formRef.current?.requestSubmit()}
+            disabled={!showForm}
+            style={{ backgroundColor: '#28a745' }}
+            type="button"
+          >
+            💾 Guardar
+          </button>
+          <button
+            className="btn-primary"
+            onClick={handleExport}
+            style={{ backgroundColor: '#17a2b8' }}
+          >
+            📊 Exportar
+          </button>
+          <button className="btn-secondary" onClick={cancelForm}>
+            🚪 Salir
+          </button>
         </div>
       </div>
 
-      {!showForm && (
-        <div className="search-section">
-          <SearchBar
-            placeholder="Buscar cargo..."
-            value={searchTerm}
-            onChange={setSearchTerm}
-          />
-          <div className="results-info">
-            {filteredAndSortedCargos.length} resultado{filteredAndSortedCargos.length !== 1 ? 's' : ''}
-            {searchTerm && ` para "${searchTerm}"`}
-          </div>
-        </div>
-      )}
-
       {error && (
-        <div className="alert alert-error fade-in">
+        <div style={{ padding: '1rem', marginBottom: '1rem', background: '#FEE2E2', color: '#991B1B', borderRadius: '8px' }}>
           ⚠️ {error}
         </div>
       )}
 
       {showForm && (
-        <div className="form-card fade-in">
+        <div className="form-container">
           <h3>{editingId ? '✏️ Editar Cargo' : '➕ Nuevo Cargo'}</h3>
-          <form onSubmit={editingId ? handleUpdate : handleCreate}>
+          <form ref={formRef} onSubmit={editingId ? handleUpdate : handleCreate}>
             <div className="form-group">
-              <label htmlFor="cargo">Nombre del Cargo:</label>
+              <label htmlFor="cargo">Nombre del Cargo: *</label>
               <input
                 type="text"
                 id="cargo"
@@ -329,81 +322,126 @@ const CargoView: React.FC = () => {
         </div>
       )}
 
-      {loading ? (
-        <div className="loading">⏳ Cargando cargos...</div>
-      ) : (
-        <>
-          <div className="table-container">
-            <table className="cargo-table">
-              <thead>
-                <tr>
-                  <th 
-                    onClick={() => handleSort('idcargo_14')} 
-                    className={`sortable ${sortConfig.key === 'idcargo_14' ? (sortConfig.direction === 'asc' ? 'sort-asc' : 'sort-desc') : ''}`}
-                  >
-                    ID
-                  </th>
-                  <th 
-                    onClick={() => handleSort('cargo_14')} 
-                    className={`sortable ${sortConfig.key === 'cargo_14' ? (sortConfig.direction === 'asc' ? 'sort-asc' : 'sort-desc') : ''}`}
-                  >
-                    CARGO
-                  </th>
-                  <th>Acciones</th>
-                </tr>
-              </thead>
-              <tbody>
-                {currentCargos.length === 0 ? (
-                  <tr>
-                    <td colSpan={3} className="no-data">
-                      {searchTerm
-                        ? `📋 No se encontraron cargos con "${searchTerm}"`
-                        : '📋 No hay cargos registrados'
-                      }
-                    </td>
-                  </tr>
-                ) : (
-                  currentCargos.map((cargo) => (
-                    <tr key={cargo.idcargo_14} className="fade-in">
-                      <td>{cargo.idcargo_14}</td>
-                      <td className="cargo-name">{cargo.cargo_14}</td>
-                      <td className="actions">
-                        <button
-                          className="btn-edit"
-                          onClick={() => startEdit(cargo)}
-                          title="Editar"
-                        >
-                          ✏️
-                        </button>
-                        <button
-                          className="btn-delete"
-                          onClick={() => handleDelete(cargo.idcargo_14)}
-                          title="Eliminar"
-                        >
-                          🗑️
-                        </button>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
+      <div className="form-container" style={{ marginBottom: '20px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+          <div style={{ color: '#6c757d', fontSize: '14px' }}>
+            Mostrando {currentCargos.length} de {filteredAndSortedCargos.length} registros
           </div>
+        </div>
+        <input
+          type="text"
+          placeholder="🔍 Buscar cargo..."
+          value={searchTerm}
+          onChange={(e) => {
+            setSearchTerm(e.target.value);
+            setCurrentPage(1);
+          }}
+          style={{ width: '100%', padding: '10px', fontSize: '14px', borderRadius: '4px', border: '1px solid #ced4da' }}
+          aria-label="Buscar cargo"
+        />
+      </div>
 
-          {filteredAndSortedCargos.length > 0 && (
-            <Pagination
-              currentPage={currentPage}
-              totalPages={totalPages}
-              totalItems={filteredAndSortedCargos.length}
-              itemsPerPage={itemsPerPage}
-              onPageChange={setCurrentPage}
-            />
-          )}
-        </>
+      <div className="table-container">
+        <table className="data-table">
+          <thead>
+            <tr>
+              <th onClick={() => handleSort('idcargo_14')} className="sortable" style={{ cursor: 'pointer' }}>
+                ID {getSortIndicator('idcargo_14')}
+              </th>
+              <th onClick={() => handleSort('cargo_14')} className="sortable" style={{ cursor: 'pointer' }}>
+                CARGO {getSortIndicator('cargo_14')}
+              </th>
+              <th>ACCIONES</th>
+            </tr>
+          </thead>
+          <tbody>
+            {loading && cargos.length === 0 ? (
+              <tr><td colSpan={3}>Cargando...</td></tr>
+            ) : currentCargos.length === 0 ? (
+              <tr>
+                <td colSpan={3} className="no-data">
+                  {searchTerm
+                    ? `📋 No se encontraron cargos con "${searchTerm}"`
+                    : '📋 No hay cargos registrados'}
+                </td>
+              </tr>
+            ) : (
+              currentCargos.map((cargo) => (
+                <tr key={cargo.idcargo_14}>
+                  <td>{cargo.idcargo_14}</td>
+                  <td className="cargo-name">{cargo.cargo_14}</td>
+                  <td className="actions">
+                    <button className="btn-edit" onClick={() => startEdit(cargo)} title="Editar" aria-label="Editar cargo">
+                      ✏️
+                    </button>
+                    <button className="btn-delete" onClick={() => handleDelete(cargo.idcargo_14)} title="Eliminar" aria-label="Eliminar cargo">
+                      🗑️
+                    </button>
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      {totalPages > 1 && (
+        <div style={{
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          gap: '10px',
+          marginTop: '20px',
+          padding: '15px',
+          backgroundColor: '#f8f9fa',
+          borderRadius: '8px'
+        }}>
+          <button
+            onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+            disabled={currentPage === 1}
+            className="btn-secondary"
+            style={{ padding: '8px 15px', cursor: currentPage === 1 ? 'not-allowed' : 'pointer', opacity: currentPage === 1 ? 0.5 : 1 }}
+            aria-label="Página anterior"
+          >
+            ← Anterior
+          </button>
+          <div style={{ display: 'flex', gap: '5px' }}>
+            {Array.from({ length: totalPages }, (_, i) => i + 1).map((numPagina) => (
+              <button
+                key={numPagina}
+                onClick={() => setCurrentPage(numPagina)}
+                style={{
+                  padding: '8px 12px',
+                  border: '1px solid #ced4da',
+                  borderRadius: '4px',
+                  backgroundColor: currentPage === numPagina ? '#007bff' : 'white',
+                  color: currentPage === numPagina ? 'white' : '#495057',
+                  cursor: 'pointer',
+                  fontWeight: currentPage === numPagina ? 'bold' : 'normal'
+                }}
+                aria-label={`Ir a página ${numPagina}`}
+                aria-current={currentPage === numPagina ? 'page' : undefined}
+              >
+                {numPagina}
+              </button>
+            ))}
+          </div>
+          <button
+            onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+            disabled={currentPage === totalPages}
+            className="btn-secondary"
+            style={{ padding: '8px 15px', cursor: currentPage === totalPages ? 'not-allowed' : 'pointer', opacity: currentPage === totalPages ? 0.5 : 1 }}
+            aria-label="Página siguiente"
+          >
+            Siguiente →
+          </button>
+          <div style={{ marginLeft: '15px', color: '#6c757d' }}>
+            Página {currentPage} de {totalPages}
+          </div>
+        </div>
       )}
     </div>
   );
 };
 
 export default CargoView;
-

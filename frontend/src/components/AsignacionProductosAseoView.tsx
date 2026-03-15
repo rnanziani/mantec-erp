@@ -688,8 +688,15 @@ const AsignacionProductosAseoView: React.FC = () => {
         <div className="form-container">
           <h3>Datos de la Asignación</h3>
           
-          {/* Primera fila: Buscar Patente | Seleccionar Máquina */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '20px' }}>
+          {/* Fila única: Buscar Patente | Seleccionar Máquina | Buscar Trabajador | Seleccionar Trabajador */}
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: '1fr 1fr 1fr 1fr',
+              gap: '20px',
+              marginBottom: '20px'
+            }}
+          >
             <div className="form-group">
               <label>Buscar Por Patente</label>
               <input
@@ -697,52 +704,64 @@ const AsignacionProductosAseoView: React.FC = () => {
                 value={buscarPatente}
                 onChange={(e) => setBuscarPatente(e.target.value.toUpperCase())}
                 placeholder="INGRESE PATENTE O NÚMERO INTERNO"
-                style={{ width: '100%', padding: '8px 12px', borderRadius: '4px', border: '1px solid #ced4da', textTransform: 'uppercase' }}
+                style={{
+                  width: '100%',
+                  padding: '8px 12px',
+                  borderRadius: '4px',
+                  border: '1px solid #ced4da',
+                  textTransform: 'uppercase'
+                }}
               />
             </div>
 
             <div className="form-group">
-            <label>Seleccionar Máquina *</label>
-            <div style={{ 
-              maxHeight: '150px', 
-              overflowY: 'auto', 
-              border: '1px solid #ced4da', 
-              borderRadius: '4px',
-              padding: '10px'
-            }}>
-              {maquinasFiltradas.length > 0 ? (
-                maquinasFiltradas.map(maq => (
+              <label>Seleccionar Máquina *</label>
+              <div
+                style={{
+                  maxHeight: '150px',
+                  overflowY: 'auto',
+                  border: '1px solid #ced4da',
+                  borderRadius: '4px',
+                  padding: '10px'
+                }}
+              >
+                {maquinasFiltradas.length > 0 ? (
+                  maquinasFiltradas.map((maq) => (
+                    <div
+                      key={maq.idmaquina_11}
+                      onClick={() => setMaquinaSeleccionada(maq)}
+                      style={{
+                        padding: '8px',
+                        cursor: 'pointer',
+                        backgroundColor:
+                          maquinaSeleccionada?.idmaquina_11 === maq.idmaquina_11 ? '#007bff' : 'transparent',
+                        color: maquinaSeleccionada?.idmaquina_11 === maq.idmaquina_11 ? 'white' : 'black',
+                        marginBottom: '5px',
+                        borderRadius: '4px',
+                        border:
+                          maquinaSeleccionada?.idmaquina_11 === maq.idmaquina_11
+                            ? '2px solid #0056b3'
+                            : '1px solid #ced4da'
+                      }}
+                    >
+                      <strong>{maq.ppu_11 || 'N/A'}</strong> - {maq.numinterno_11 || 'N/A'}{' '}
+                      {maq.descripcion_11 ? `(${maq.descripcion_11})` : ''}
+                    </div>
+                  ))
+                ) : (
                   <div
-                    key={maq.idmaquina_11}
-                    onClick={() => setMaquinaSeleccionada(maq)}
                     style={{
-                      padding: '8px',
-                      cursor: 'pointer',
-                      backgroundColor: maquinaSeleccionada?.idmaquina_11 === maq.idmaquina_11 ? '#007bff' : 'transparent',
-                      color: maquinaSeleccionada?.idmaquina_11 === maq.idmaquina_11 ? 'white' : 'black',
-                      marginBottom: '5px',
-                      borderRadius: '4px',
-                      border: maquinaSeleccionada?.idmaquina_11 === maq.idmaquina_11 ? '2px solid #0056b3' : '1px solid #ced4da'
+                      textAlign: 'center',
+                      color: '#6c757d',
+                      padding: '10px'
                     }}
                   >
-                    <strong>{maq.ppu_11 || 'N/A'}</strong> - {maq.numinterno_11 || 'N/A'} {maq.descripcion_11 ? `(${maq.descripcion_11})` : ''}
+                    {maquinas.length === 0 ? 'Cargando máquinas...' : 'No se encontraron máquinas con ese criterio'}
                   </div>
-                ))
-              ) : (
-                <div style={{ 
-                  textAlign: 'center', 
-                  color: '#6c757d', 
-                  padding: '10px' 
-                }}>
-                  {maquinas.length === 0 ? 'Cargando máquinas...' : 'No se encontraron máquinas con ese criterio'}
-                </div>
-              )}
+                )}
               </div>
             </div>
-          </div>
 
-          {/* Segunda fila: Buscar Trabajador Por Apellido | Seleccionar Trabajador */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '20px' }}>
             <div className="form-group">
               <label>Buscar Trabajador Por Apellido</label>
               <input
@@ -750,49 +769,69 @@ const AsignacionProductosAseoView: React.FC = () => {
                 value={buscarApellido}
                 onChange={(e) => setBuscarApellido(e.target.value.toUpperCase())}
                 placeholder="EJ: GONZALEZ O GONZALEZ PEREZ"
-                style={{ width: '100%', padding: '8px 12px', borderRadius: '4px', border: '1px solid #ced4da', textTransform: 'uppercase' }}
+                style={{
+                  width: '100%',
+                  padding: '8px 12px',
+                  borderRadius: '4px',
+                  border: '1px solid #ced4da',
+                  textTransform: 'uppercase'
+                }}
               />
               <small style={{ color: '#6c757d', fontSize: '0.85em' }}>
-                💡 Tip: Una palabra busca por apellido paterno primero, luego materno (empieza con). Dos palabras: paterno y materno en ese orden.
+                💡 Tip: Una palabra busca por apellido paterno primero, luego materno (empieza con). Dos
+                palabras: paterno y materno en ese orden.
               </small>
             </div>
 
             <div className="form-group">
-            <label>Seleccionar Trabajador *</label>
-            <div style={{ 
-              maxHeight: '150px', 
-              overflowY: 'auto', 
-              border: '1px solid #ced4da', 
-              borderRadius: '4px',
-              padding: '10px'
-            }}>
-              {trabajadoresFiltrados.length > 0 ? (
-                trabajadoresFiltrados.map(trab => (
+              <label>Seleccionar Trabajador *</label>
+              <div
+                style={{
+                  maxHeight: '150px',
+                  overflowY: 'auto',
+                  border: '1px solid #ced4da',
+                  borderRadius: '4px',
+                  padding: '10px'
+                }}
+              >
+                {trabajadoresFiltrados.length > 0 ? (
+                  trabajadoresFiltrados.map((trab) => (
+                    <div
+                      key={trab.idtrabajador_06}
+                      onClick={() => setTrabajadorSeleccionado(trab)}
+                      style={{
+                        padding: '8px',
+                        cursor: 'pointer',
+                        backgroundColor:
+                          trabajadorSeleccionado?.idtrabajador_06 === trab.idtrabajador_06
+                            ? '#007bff'
+                            : 'transparent',
+                        color: trabajadorSeleccionado?.idtrabajador_06 === trab.idtrabajador_06 ? 'white' : 'black',
+                        marginBottom: '5px',
+                        borderRadius: '4px',
+                        border:
+                          trabajadorSeleccionado?.idtrabajador_06 === trab.idtrabajador_06
+                            ? '2px solid #0056b3'
+                            : '1px solid #ced4da'
+                      }}
+                    >
+                      <strong>{trab.apaterno_06 || ''} {trab.amaterno_06 || ''}</strong> {trab.nombre_06 || ''} -{' '}
+                      <span style={{ fontSize: '0.9em', opacity: 0.8 }}>{trab.ruttrabajador_06 || ''}</span>
+                    </div>
+                  ))
+                ) : (
                   <div
-                    key={trab.idtrabajador_06}
-                    onClick={() => setTrabajadorSeleccionado(trab)}
                     style={{
-                      padding: '8px',
-                      cursor: 'pointer',
-                      backgroundColor: trabajadorSeleccionado?.idtrabajador_06 === trab.idtrabajador_06 ? '#007bff' : 'transparent',
-                      color: trabajadorSeleccionado?.idtrabajador_06 === trab.idtrabajador_06 ? 'white' : 'black',
-                      marginBottom: '5px',
-                      borderRadius: '4px',
-                      border: trabajadorSeleccionado?.idtrabajador_06 === trab.idtrabajador_06 ? '2px solid #0056b3' : '1px solid #ced4da'
+                      textAlign: 'center',
+                      color: '#6c757d',
+                      padding: '10px'
                     }}
                   >
-                    <strong>{trab.apaterno_06 || ''} {trab.amaterno_06 || ''}</strong> {trab.nombre_06 || ''} - <span style={{ fontSize: '0.9em', opacity: 0.8 }}>{trab.ruttrabajador_06 || ''}</span>
+                    {trabajadores.length === 0
+                      ? 'Cargando trabajadores...'
+                      : 'No se encontraron trabajadores con ese criterio'}
                   </div>
-                ))
-              ) : (
-                <div style={{ 
-                  textAlign: 'center', 
-                  color: '#6c757d', 
-                  padding: '10px' 
-                }}>
-                  {trabajadores.length === 0 ? 'Cargando trabajadores...' : 'No se encontraron trabajadores con ese criterio'}
-                </div>
-              )}
+                )}
               </div>
             </div>
           </div>

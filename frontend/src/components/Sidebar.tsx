@@ -60,7 +60,8 @@ const Sidebar: React.FC<SidebarProps> = ({ onNavigate, currentView }) => {
             children: [
                 { id: 'ordenes-trabajo', label: 'Órdenes de Trabajo', icon: '🔧', path: 'ordenes-trabajo', permissionRequired: 'MENU_OPERACIONES_ORDENES_TRABAJO' },
                 { id: 'asignacion-productos-aseo', label: 'Asignación Productos Aseo', icon: '📋', path: 'asignacion-productos-aseo', permissionRequired: 'MENU_OPERACIONES_ASIGNACION_ASEO' },
-                { id: 'asignacion-prendas', label: 'Asignación de Prendas', icon: '👔', path: 'asignacion-prendas', permissionRequired: 'MENU_OPERACIONES_ASIGNACION_PRENDAS' }
+                { id: 'asignacion-prendas', label: 'Asignación de Prendas', icon: '👔', path: 'asignacion-prendas', permissionRequired: 'MENU_OPERACIONES_ASIGNACION_PRENDAS' },
+                { id: 'consumo-insumos', label: 'Consumo Insumos', icon: '📦', path: 'consumo-insumos', permissionRequired: 'MENU_OPERACIONES' }
             ]
         },
         {
@@ -69,6 +70,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onNavigate, currentView }) => {
             icon: '📦',
             permissionRequired: 'MENU_INVENTARIO',
             children: [
+                { id: 'alternadores', label: 'Alternadores', icon: '⚡', path: 'lista-alternadores', permissionRequired: 'MENU_MANTENEDORES_ALTERNADORES' },
                 { id: 'bodegas', label: 'Bodegas', icon: '🏢', path: 'bodegas', permissionRequired: 'MENU_INVENTARIO_BODEGAS' },
                 { id: 'tipos-transaccion', label: 'Tipos de Transacción', icon: '🔄', path: 'tipos-transaccion', permissionRequired: 'MENU_INVENTARIO_TIPOS_TRANSACCION' },
                 { id: 'transacciones', label: 'Movimientos', icon: '📝', path: 'transacciones', permissionRequired: 'MENU_INVENTARIO_TRANSACCIONES' },
@@ -89,7 +91,6 @@ const Sidebar: React.FC<SidebarProps> = ({ onNavigate, currentView }) => {
             permissionRequired: 'MENU_MANTENEDORES',
             children: [
                 { id: 'marcas', label: 'Marcas', icon: '🏷️', path: 'alternadores', permissionRequired: 'MENU_MANTENEDORES_MARCAS' },
-                { id: 'alternadores', label: 'Alternadores', icon: '⚡', path: 'lista-alternadores', permissionRequired: 'MENU_MANTENEDORES_ALTERNADORES' },
                 { id: 'estados', label: 'Estados', icon: '📊', path: 'estados', permissionRequired: 'MENU_MANTENEDORES_ESTADOS' },
                 { id: 'cargos', label: 'Cargos', icon: '👔', path: 'cargos', permissionRequired: 'MENU_MANTENEDORES_CARGOS' },
                 { id: 'tecnicos', label: 'Técnicos', icon: '👷', path: 'tecnicos', permissionRequired: 'MENU_MANTENEDORES_TECNICOS' },
@@ -97,7 +98,10 @@ const Sidebar: React.FC<SidebarProps> = ({ onNavigate, currentView }) => {
                 { id: 'productos-aseo', label: 'Productos de Aseo', icon: '🧼', path: 'productos-aseo', permissionRequired: 'MENU_MANTENEDORES_PRODUCTOS_ASEO' },
                 { id: 'maquinas', label: 'Máquinas', icon: '🔧', path: 'maquinas', permissionRequired: 'MENU_MANTENEDORES_MAQUINAS' },
                 { id: 'responsables-entrega', label: 'Responsables de Entrega', icon: '📋', path: 'responsables-entrega', permissionRequired: 'MENU_MANTENEDORES' },
-                { id: 'tipos-comp-alternador', label: 'Tipos Componente', icon: '⚙️', path: 'tipos-comp-alternador', permissionRequired: 'MENU_MANTENEDORES' }
+                { id: 'tipos-comp-alternador', label: 'Tipos Componente', icon: '⚙️', path: 'tipos-comp-alternador', permissionRequired: 'MENU_MANTENEDORES' },
+                { id: 'categorias', label: 'Categorías', icon: '🗂️', path: 'categorias', permissionRequired: 'MENU_MANTENEDORES' },
+                { id: 'ccostos', label: 'Centros de Costo', icon: '🏷️', path: 'ccostos', permissionRequired: 'MENU_MANTENEDORES' },
+                { id: 'insumos', label: 'Insumos', icon: '🧾', path: 'insumos', permissionRequired: 'MENU_MANTENEDORES' }
             ]
         }
     ];
@@ -252,6 +256,28 @@ const Sidebar: React.FC<SidebarProps> = ({ onNavigate, currentView }) => {
             </nav>
 
             <div className="sidebar-footer">
+                <button
+                    className="sidebar-item"
+                    onClick={() => handleNavigate('change-password')}
+                    style={{
+                        width: '100%',
+                        padding: '10px',
+                        marginTop: '10px',
+                        background: '#2563eb',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '5px',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '10px',
+                        justifyContent: isCollapsed ? 'center' : 'flex-start'
+                    }}
+                    title="Cambiar contraseña"
+                >
+                    <span>🔑</span>
+                    {!isCollapsed && <span>Cambiar contraseña</span>}
+                </button>
                 <button
                     className="sidebar-item"
                     onClick={async () => {

@@ -99,6 +99,18 @@ export async function obtenerTodosParametros(): Promise<any[]> {
 }
 
 /**
+ * Obtener tiempo de sesión en segundos con compatibilidad hacia atrás
+ * - Si existe SESSION_TIMEOUT_SECONDS (>0), usarlo
+ * - Si no, usar SESSION_TIMEOUT_MINUTES * 60
+ */
+export async function obtenerTiempoSesionSegundos(defectoSegundos: number = 30 * 60): Promise<number> {
+  const seg = await obtenerParametroNumero('SESSION_TIMEOUT_SECONDS', -1);
+  if (seg > 0) return seg;
+  const min = await obtenerParametroNumero('SESSION_TIMEOUT_MINUTES', Math.floor(defectoSegundos / 60));
+  return min * 60;
+}
+
+/**
  * Actualizar un parámetro del sistema
  * @param idParametro - ID del parámetro a actualizar
  * @param valorParametro - Nuevo valor del parámetro

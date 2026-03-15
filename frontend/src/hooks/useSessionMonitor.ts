@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 
 interface SessionStatus {
   sessionExpired: boolean;
@@ -6,6 +6,9 @@ interface SessionStatus {
   segundosRestantes: number;
   debeAdvertir: boolean;
   minutosAdvertencia: number;
+  fechaExpiracion?: string;
+  diasRestantesPassword?: number;
+  passwordExpired?: boolean;
 }
 
 const API_URL = 'http://localhost:3001/api/auth/session-status';
@@ -14,6 +17,11 @@ export const useSessionMonitor = (enabled: boolean = true) => {
   const [sessionStatus, setSessionStatus] = useState<SessionStatus | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const activeRef = useRef(true);
+  useEffect(() => {
+    return () => { activeRef.current = false; };
+  }, []);
 
   const checkSessionStatus = useCallback(async () => {
     try {
@@ -32,8 +40,8 @@ export const useSessionMonitor = (enabled: boolean = true) => {
       });
 
       if (!response.ok) {
-        if (response.status === 401) {
-          // Sesión expirada
+        if (response.status === 401 || response.status === 404) {
+          // Sesión expirada o no encontrada (404 = sesión ya expiró en BD)
           setSessionStatus({
             sessionExpired: true,
             minutosRestantes: 0,
@@ -47,6 +55,7 @@ export const useSessionMonitor = (enabled: boolean = true) => {
       }
 
       const data = await response.json();
+      if (!activeRef.current) return;
       if (data.success) {
         // Calcular segundos totales restantes (minutos * 60 + segundos)
         const segundosTotales = (data.data.minutosRestantes * 60) + data.data.segundosRestantes;
@@ -55,14 +64,6 @@ export const useSessionMonitor = (enabled: boolean = true) => {
           segundosRestantes: segundosTotales
         };
         setSessionStatus(newStatus);
-        console.log('📊 Estado de sesión actualizado:', {
-          minutosRestantes: data.data.minutosRestantes,
-          segundosParciales: data.data.segundosRestantes,
-          segundosTotales,
-          debeAdvertir: data.data.debeAdvertir,
-          sessionExpired: data.data.sessionExpired,
-          mostrarModalEn: segundosTotales > 60 ? `En ${segundosTotales - 60} segundos` : 'AHORA'
-        });
         setError(null);
       } else {
         throw new Error(data.error || 'Error desconocido');
@@ -75,45 +76,62 @@ export const useSessionMonitor = (enabled: boolean = true) => {
     }
   }, []);
 
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const adjustRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const initialTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const statusRef = useRef<SessionStatus | null>(null);
   useEffect(() => {
-    if (!enabled) return;
+    statusRef.current = sessionStatus;
+  }, [sessionStatus]);
 
-    let interval: ReturnType<typeof setInterval> | null = null;
+  const clearTimers = () => {
+    if (intervalRef.current) { clearInterval(intervalRef.current); intervalRef.current = null; }
+    if (adjustRef.current) { clearInterval(adjustRef.current); adjustRef.current = null; }
+    if (initialTimeoutRef.current) { clearTimeout(initialTimeoutRef.current); initialTimeoutRef.current = null; }
+  };
+
+  useEffect(() => {
+    // Siempre limpiar timers cuando cambie enabled
+    clearTimers();
+    if (!enabled) return;
 
     // Verificar inmediatamente
     checkSessionStatus();
 
     const setupCheck = () => {
       // Limpiar intervalo anterior si existe
-      if (interval) {
-        clearInterval(interval);
-        interval = null;
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
       }
 
       // Determinar intervalo basado en el estado actual
-      const currentStatus = sessionStatus;
+      const currentStatus = statusRef.current;
       
       if (!currentStatus || currentStatus.sessionExpired) {
         // Sin estado o expirado: verificar cada 10 segundos
-        interval = setInterval(() => {
+        intervalRef.current = setInterval(() => {
           checkSessionStatus();
         }, 10000);
       } else if (currentStatus.segundosRestantes !== undefined) {
         if (currentStatus.segundosRestantes <= 60) {
           // Cerca de expirar (60 segundos o menos): verificar cada segundo
-          console.log('⏱️ Configurando intervalo de 1 segundo. Segundos restantes:', currentStatus.segundosRestantes);
-          interval = setInterval(() => {
+          intervalRef.current = setInterval(() => {
             checkSessionStatus();
           }, 1000);
+        } else if (currentStatus.segundosRestantes <= 120) {
+          // Sesión muy corta (≤2 min): verificar cada 2 segundos
+          intervalRef.current = setInterval(() => {
+            checkSessionStatus();
+          }, 2000);
         } else if (currentStatus.segundosRestantes <= 300) {
-          // Menos de 5 minutos: verificar cada 3 segundos (más frecuente para sesiones cortas)
-          console.log('⏱️ Configurando intervalo de 3 segundos. Segundos restantes:', currentStatus.segundosRestantes);
-          interval = setInterval(() => {
+          // Menos de 5 minutos: verificar cada 3 segundos
+          intervalRef.current = setInterval(() => {
             checkSessionStatus();
           }, 3000);
         } else {
           // Sesión larga: verificar cada 10 segundos
-          interval = setInterval(() => {
+          intervalRef.current = setInterval(() => {
             checkSessionStatus();
           }, 10000);
         }
@@ -121,28 +139,26 @@ export const useSessionMonitor = (enabled: boolean = true) => {
     };
 
     // Configurar intervalo inicial después de un pequeño delay para tener el estado
-    const initialTimeout = setTimeout(() => {
-      setupCheck();
-    }, 1000);
+    initialTimeoutRef.current = setTimeout(() => { setupCheck(); }, 1000);
 
     // También configurar un intervalo que se ajuste dinámicamente cada 2 segundos
-    const adjustInterval = setInterval(() => {
-      setupCheck();
-    }, 2000);
+    adjustRef.current = setInterval(() => { setupCheck(); }, 2000);
 
     return () => {
-      if (interval) clearInterval(interval);
-      clearInterval(adjustInterval);
-      clearTimeout(initialTimeout);
+      clearTimers();
     };
-  }, [enabled, checkSessionStatus, sessionStatus?.segundosRestantes, sessionStatus?.sessionExpired]);
+  }, [enabled, checkSessionStatus]);
+
+  const clearSessionStatus = useCallback(() => {
+    setSessionStatus(null);
+    setError(null);
+  }, []);
 
   return {
     sessionStatus,
     loading,
     error,
-    refresh: checkSessionStatus
+    refresh: checkSessionStatus,
+    clearSessionStatus
   };
 };
-
-

@@ -119,6 +119,7 @@ const TransaccionView: React.FC = () => {
   const [reportIdMarca, setReportIdMarca] = useState<string>('');
   const [reportIdDestino, setReportIdDestino] = useState<string>('');
   const [reportIdMaquina, setReportIdMaquina] = useState<string>('');
+  const [reportIdAlternador, setReportIdAlternador] = useState<string>('');
 
   // Estados para el modal de reporte de cantidad de componentes
   const [showCantComponentesModal, setShowCantComponentesModal] = useState<boolean>(false);
@@ -129,6 +130,7 @@ const TransaccionView: React.FC = () => {
   const [cantCompIdDestino, setCantCompIdDestino] = useState<string>('');
   const [cantCompIdMaquina, setCantCompIdMaquina] = useState<string>('');
   const [cantCompIdTipoComp, setCantCompIdTipoComp] = useState<string>('');
+  const [cantCompIdAlternador, setCantCompIdAlternador] = useState<string>('');
 
   // Búsqueda y ordenamiento (igual que TipoTransaccionView)
   const [filtro, setFiltro] = useState<string>('');
@@ -358,7 +360,8 @@ const TransaccionView: React.FC = () => {
         await fetchTransacciones();
         resetForm();
       } else {
-        await showError('Error', data.error || 'Error al crear la transacción');
+        const mensaje = [data.error, data.message].filter(Boolean).join(': ') || 'Error al crear la transacción';
+        await showError('Error', mensaje);
       }
     } catch (err) {
       await showError('Error', 'Error al crear la transacción');
@@ -463,6 +466,9 @@ const TransaccionView: React.FC = () => {
       if (reportIdMaquina) {
         params.append('id_maquina', reportIdMaquina);
       }
+      if (reportIdAlternador) {
+        params.append('id_alternador', reportIdAlternador);
+      }
 
       const response = await fetch(`http://localhost:3001/api/transacciones/filtradas?${params.toString()}`);
       const data: ApiResponse = await response.json();
@@ -508,6 +514,9 @@ const TransaccionView: React.FC = () => {
     if (reportIdMaquina) {
       params.append('id_maquina', reportIdMaquina);
     }
+    if (reportIdAlternador) {
+      params.append('id_alternador', reportIdAlternador);
+    }
 
     // Abrir el reporte en una nueva ventana para descargar
     const reportUrl = `http://localhost:3001/api/transacciones/reporte/pdf?${params.toString()}`;
@@ -524,6 +533,7 @@ const TransaccionView: React.FC = () => {
     setReportIdMarca('');
     setReportIdDestino('');
     setReportIdMaquina('');
+    setReportIdAlternador('');
   };
 
   return (
@@ -901,6 +911,22 @@ const TransaccionView: React.FC = () => {
                 </select>
               </div>
 
+              <div className="form-group">
+                <label>Código de alternador (componente)</label>
+                <select
+                  value={reportIdAlternador}
+                  onChange={(e) => setReportIdAlternador(e.target.value)}
+                  style={{ width: '100%', padding: '8px 12px', borderRadius: '4px', border: '1px solid #ced4da' }}
+                >
+                  <option value="">Todos los componentes</option>
+                  {alternadores.map(alt => (
+                    <option key={alt.id_alternador_19} value={alt.id_alternador_19}>
+                      {alt.cod_alternador_19} - {alt.marca_18 || 'Sin marca'}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
               <div className="form-actions">
                 <button 
                   type="button" 
@@ -931,6 +957,7 @@ const TransaccionView: React.FC = () => {
                     setReportIdMarca('');
                     setReportIdDestino('');
                     setReportIdMaquina('');
+                    setReportIdAlternador('');
                     setPreviewData([]);
                   }}
                 >
@@ -1306,6 +1333,22 @@ const TransaccionView: React.FC = () => {
                 </select>
               </div>
 
+              <div className="form-group">
+                <label>Componente (código de alternador)</label>
+                <select
+                  value={cantCompIdAlternador}
+                  onChange={(e) => setCantCompIdAlternador(e.target.value)}
+                  style={{ width: '100%', padding: '8px 12px', borderRadius: '4px', border: '1px solid #ced4da' }}
+                >
+                  <option value="">Todos los componentes</option>
+                  {alternadores.map(alt => (
+                    <option key={alt.id_alternador_19} value={alt.id_alternador_19}>
+                      {alt.cod_alternador_19} - {alt.marca_18 || 'Sin marca'}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
               <div className="form-actions">
                 <button 
                   type="button" 
@@ -1339,6 +1382,9 @@ const TransaccionView: React.FC = () => {
                     if (cantCompIdTipoComp) {
                       params.append('id_tipo_comp_alternador', cantCompIdTipoComp);
                     }
+                    if (cantCompIdAlternador) {
+                      params.append('id_alternador', cantCompIdAlternador);
+                    }
 
                     // Abrir el reporte en una nueva ventana para descargar
                     const reportUrl = `http://localhost:3001/api/transacciones/reporte-cantidad-componentes/pdf?${params.toString()}`;
@@ -1355,6 +1401,7 @@ const TransaccionView: React.FC = () => {
                     setCantCompIdDestino('');
                     setCantCompIdMaquina('');
                     setCantCompIdTipoComp('');
+                    setCantCompIdAlternador('');
                   }}
                   style={{ backgroundColor: '#28a745' }}
                 >
@@ -1372,6 +1419,7 @@ const TransaccionView: React.FC = () => {
                     setCantCompIdDestino('');
                     setCantCompIdMaquina('');
                     setCantCompIdTipoComp('');
+                    setCantCompIdAlternador('');
                   }}
                 >
                   Cancelar

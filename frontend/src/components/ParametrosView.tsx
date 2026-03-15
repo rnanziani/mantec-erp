@@ -269,7 +269,7 @@ const ParametrosView: React.FC = () => {
       <div className="mantec-info-box" style={{ marginTop: '20px', padding: '15px', backgroundColor: '#f0f7ff', borderRadius: '5px' }}>
         <h3 style={{ marginTop: 0, marginBottom: '10px' }}>ℹ️ Información</h3>
         <ul style={{ margin: 0, paddingLeft: '20px' }}>
-          <li><strong>SESSION_TIMEOUT_MINUTES:</strong> Tiempo en minutos que dura una sesión antes de expirar.</li>
+          <li><strong>SESSION_TIMEOUT_SECONDS:</strong> Tiempo en segundos que dura una sesión antes de expirar. Si no existe, se usa SESSION_TIMEOUT_MINUTES × 60.</li>
           <li><strong>PASSWORD_EXPIRATION_DAYS:</strong> Número de días antes de que una contraseña expire.</li>
           <li><strong>JWT_EXPIRATION_MINUTES:</strong> Tiempo en minutos que dura un token JWT antes de expirar.</li>
         </ul>
@@ -283,7 +283,6 @@ const ParametrosView: React.FC = () => {
 };
 
 export default ParametrosView;
-
 
 
 

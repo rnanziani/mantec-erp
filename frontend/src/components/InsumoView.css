@@ -1,0 +1,16 @@
+/* Estilos específicos para Insumos (complementa BodegaView.css) */
+
+.insumo-desc {
+    font-weight: 500;
+    color: #334155;
+}
+
+.insumo-price {
+    font-weight: 600;
+    color: var(--mantec-blue, #1e3a5f);
+}
+
+.insumo-cat {
+    color: #64748b;
+    font-size: 0.9rem;
+}

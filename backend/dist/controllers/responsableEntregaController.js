@@ -169,8 +169,7 @@ export const deleteResponsable = async (req, res) => {
                 error: 'No se puede eliminar porque está siendo utilizado en asignaciones de prendas'
             });
             return;
-        }
-        // Verificar si está en uso en asignación de productos aseo
+        } // Verificar si está en uso en asignación de productos aseo
         const checkAseo = await pool.query('SELECT idproductomain_12 FROM tbl_12_productomain WHERE idresponsableentrega_12 = $1 LIMIT 1', [id]);
         if (checkAseo.rowCount && checkAseo.rowCount > 0) {
             res.status(400).json({

@@ -183,11 +183,12 @@ export const createTransaccion = async (req, res) => {
         res.status(201).json(response);
     }
     catch (error) {
+        const msg = error instanceof Error ? error.message : 'Error desconocido';
         console.error('Error al crear transacción:', error);
         const response = {
             success: false,
             error: 'Error al crear la transacción',
-            message: error instanceof Error ? error.message : 'Error desconocido'
+            message: msg
         };
         res.status(500).json(response);
     }
@@ -324,7 +325,7 @@ export const deleteTransaccion = async (req, res) => {
  */
 export const getTransaccionesFiltradas = async (req, res) => {
     try {
-        const { fecha_desde, fecha_hasta, id_tipo_transaccion, id_marca, id_destino, id_maquina } = req.query;
+        const { fecha_desde, fecha_hasta, id_tipo_transaccion, id_marca, id_destino, id_maquina, id_alternador } = req.query;
         // Validar que las fechas sean requeridas
         if (!fecha_desde || !fecha_hasta) {
             const response = {
@@ -387,6 +388,10 @@ export const getTransaccionesFiltradas = async (req, res) => {
             query += ` AND t.id_maquina_28 = $${paramCount++}`;
             params.push(id_maquina);
         }
+        if (id_alternador) {
+            query += ` AND t.id_alternador_28 = $${paramCount++}`;
+            params.push(id_alternador);
+        }
         query += ` ORDER BY t.fecha_28 DESC, t.hora_28 DESC, t.id_transaccion_28 DESC`;
         const result = await pool.query(query, params);
         const response = {
@@ -410,7 +415,7 @@ export const getTransaccionesFiltradas = async (req, res) => {
  */
 export const generarReportePDF = async (req, res) => {
     try {
-        const { fecha_desde, fecha_hasta, id_tipo_transaccion, id_marca, id_destino, id_maquina } = req.query;
+        const { fecha_desde, fecha_hasta, id_tipo_transaccion, id_marca, id_destino, id_maquina, id_alternador } = req.query;
         // Validar que las fechas sean requeridas
         if (!fecha_desde || !fecha_hasta) {
             const response = {
@@ -473,11 +478,22 @@ export const generarReportePDF = async (req, res) => {
             query += ` AND t.id_maquina_28 = $${paramCount++}`;
             params.push(id_maquina);
         }
+        if (id_alternador) {
+            query += ` AND t.id_alternador_28 = $${paramCount++}`;
+            params.push(id_alternador);
+        }
         query += ` ORDER BY t.fecha_28 DESC, t.hora_28 DESC, t.id_transaccion_28 DESC`;
         const result = await pool.query(query, params);
         const transacciones = result.rows;
         // Obtener información de filtros aplicados para el reporte
         let filtrosAplicados = [];
+        if (id_alternador) {
+            const altResult = await pool.query('SELECT a.cod_alternador_19, m.marca_18 FROM tbl_19_alternador a LEFT JOIN tbl_18_marca_alternador m ON a.id_marca_19 = m.id_marca_18 WHERE a.id_alternador_19 = $1', [id_alternador]);
+            if (altResult.rows.length > 0) {
+                const row = altResult.rows[0];
+                filtrosAplicados.push(`Alternador: ${row.cod_alternador_19 || ''} - ${row.marca_18 || 'Sin marca'}`);
+            }
+        }
         if (id_tipo_transaccion) {
             const tipoResult = await pool.query('SELECT descripcion_25 FROM tbl_25_tipo_transaccion WHERE id_tipo_transaccion_25 = $1', [id_tipo_transaccion]);
             if (tipoResult.rows.length > 0) {
@@ -749,7 +765,7 @@ export const generarReportePDF = async (req, res) => {
  */
 export const generarReporteCantidadComponentesPDF = async (req, res) => {
     try {
-        const { fecha_desde, fecha_hasta, id_tipo_transaccion, id_marca, id_destino, id_maquina, id_tipo_comp_alternador } = req.query;
+        const { fecha_desde, fecha_hasta, id_tipo_transaccion, id_marca, id_destino, id_maquina, id_tipo_comp_alternador, id_alternador } = req.query;
         // Validar que las fechas sean requeridas
         if (!fecha_desde || !fecha_hasta) {
             const response = {
@@ -805,6 +821,11 @@ export const generarReporteCantidadComponentesPDF = async (req, res) => {
             params.push(tipoCompId);
             paramCount++;
         }
+        if (id_alternador) {
+            query += ` AND t.id_alternador_28 = $${paramCount}`;
+            params.push(id_alternador);
+            paramCount++;
+        }
         query += ` GROUP BY tc.tipo_comp_alternador_32, tc.id_tipo_comp_alternador_32 ORDER BY tc.tipo_comp_alternador_32`;
         // Log para depuración
         console.log('=== REPORTE CANTIDAD COMPONENTES ===');
@@ -823,6 +844,13 @@ export const generarReporteCantidadComponentesPDF = async (req, res) => {
         }
         // Construir filtros aplicados para mostrar en el reporte
         const filtrosAplicados = [];
+        if (id_alternador) {
+            const altResult = await pool.query('SELECT a.cod_alternador_19, m.marca_18 FROM tbl_19_alternador a LEFT JOIN tbl_18_marca_alternador m ON a.id_marca_19 = m.id_marca_18 WHERE a.id_alternador_19 = $1', [id_alternador]);
+            if (altResult.rows.length > 0) {
+                const row = altResult.rows[0];
+                filtrosAplicados.push(`Componente: ${row.cod_alternador_19 || ''} - ${row.marca_18 || 'Sin marca'}`);
+            }
+        }
         if (id_tipo_transaccion) {
             const tipoResult = await pool.query('SELECT descripcion_25 FROM tbl_25_tipo_transaccion WHERE id_tipo_transaccion_25 = $1', [id_tipo_transaccion]);
             if (tipoResult.rows.length > 0) {

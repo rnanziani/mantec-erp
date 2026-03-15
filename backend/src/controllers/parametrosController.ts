@@ -164,14 +164,19 @@ export const updateParametro = async (req: Request, res: Response) => {
  */
 export const getValoresActuales = async (req: Request, res: Response) => {
   try {
-    const sessionTimeout = await obtenerParametroNumero('SESSION_TIMEOUT_MINUTES', 30);
+    // Preferir segundos; si no existe, convertir desde minutos
+    let sessionTimeoutSeconds = await obtenerParametroNumero('SESSION_TIMEOUT_SECONDS', -1);
+    if (sessionTimeoutSeconds <= 0) {
+      const sessionTimeoutMinutes = await obtenerParametroNumero('SESSION_TIMEOUT_MINUTES', 30);
+      sessionTimeoutSeconds = sessionTimeoutMinutes * 60;
+    }
     const passwordExpiration = await obtenerParametroNumero('PASSWORD_EXPIRATION_DAYS', 91);
     const jwtExpiration = await obtenerParametroNumero('JWT_EXPIRATION_MINUTES', 30);
 
     res.json({
       success: true,
       data: {
-        SESSION_TIMEOUT_MINUTES: sessionTimeout,
+        SESSION_TIMEOUT_SECONDS: sessionTimeoutSeconds,
         PASSWORD_EXPIRATION_DAYS: passwordExpiration,
         JWT_EXPIRATION_MINUTES: jwtExpiration
       }
@@ -185,7 +190,6 @@ export const getValoresActuales = async (req: Request, res: Response) => {
     });
   }
 };
-
 
 
 

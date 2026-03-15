@@ -55,18 +55,30 @@ export async function middleware(request: NextRequest) {
 
       // Actualizar timestamp de actividad con tiempo configurable
       // Obtener parámetro de tiempo de sesión
-      const parametro = await db.tbl_000_parametros_sistema.findUnique({
-        where: { codigo_parametro_000: 'SESSION_TIMEOUT_MINUTES' },
+      // Intentar segundos primero; si no existe, convertir desde minutos
+      const paramSeg = await db.tbl_000_parametros_sistema.findUnique({
+        where: { codigo_parametro_000: 'SESSION_TIMEOUT_SECONDS' },
         select: { valor_parametro_000: true, activo_000: true }
       });
-
-      const minutosSesion = parametro && parametro.activo_000 
-        ? parseInt(parametro.valor_parametro_000, 10) || 30
-        : 30;
+      let segundosSesion: number | null = null;
+      if (paramSeg && paramSeg.activo_000) {
+        const v = parseInt(paramSeg.valor_parametro_000, 10);
+        segundosSesion = isNaN(v) ? null : v;
+      }
+      if (segundosSesion === null) {
+        const parametroMin = await db.tbl_000_parametros_sistema.findUnique({
+          where: { codigo_parametro_000: 'SESSION_TIMEOUT_MINUTES' },
+          select: { valor_parametro_000: true, activo_000: true }
+        });
+        const minutosSesion = parametroMin && parametroMin.activo_000 
+          ? parseInt(parametroMin.valor_parametro_000, 10) || 30
+          : 30;
+        segundosSesion = minutosSesion * 60;
+      }
 
       await db.tbl_03_sesion.update({
         where: { id_sesion_03: sesion.id_sesion_03 },
-        data: { fecha_expiracion_03: new Date(Date.now() + minutosSesion * 60 * 1000) }
+        data: { fecha_expiracion_03: new Date(Date.now() + (segundosSesion! * 1000)) }
       });
 
     } catch (error) {
