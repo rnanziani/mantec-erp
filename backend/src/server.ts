@@ -36,6 +36,14 @@ import categoriaRoutes from './routes/categoriaRoutes.js';
 import ccostoRoutes from './routes/ccostoRoutes.js';
 import insumoRoutes from './routes/insumoRoutes.js';
 import consumoInsumoRoutes from './routes/consumoInsumoRoutes.js';
+import marcaNeumaticoRoutes from './routes/marcaNeumaticoRoutes.js';
+import neumaticoRoutes from './routes/neumaticoRoutes.js';
+import estadoNeumaticoRoutes from './routes/estadoNeumaticoRoutes.js';
+import historialNeumaticoRoutes from './routes/historialNeumaticoRoutes.js';
+import patronRotacionRoutes from './routes/patronRotacionRoutes.js';
+import tallaRoutes from './routes/tallaRoutes.js';
+import prendaRoutes from './routes/prendaRoutes.js';
+import llantaRoutes from './routes/llantaRoutes.js';
 
 console.log('🔄 Servidor iniciando - Cargando rutas...');
 
@@ -113,6 +121,14 @@ app.use('/api/categorias', categoriaRoutes);
 app.use('/api/ccostos', ccostoRoutes);
 app.use('/api/insumos', insumoRoutes);
 app.use('/api/consumo-insumos', consumoInsumoRoutes);
+app.use('/api/marcas-neumatico', marcaNeumaticoRoutes);
+app.use('/api/neumaticos', neumaticoRoutes);
+app.use('/api/estados-neumatico', estadoNeumaticoRoutes);
+app.use('/api/historial-neumatico', historialNeumaticoRoutes);
+app.use('/api/patrones-rotacion', patronRotacionRoutes);
+app.use('/api/tallas', tallaRoutes);
+app.use('/api/prendas', prendaRoutes);
+app.use('/api/llantas', llantaRoutes);
 
 console.log('✅ Todas las rutas cargadas');
 

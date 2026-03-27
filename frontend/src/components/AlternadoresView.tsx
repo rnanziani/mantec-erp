@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import './BodegaView.css';
 import './AlternadoresView.css';
 import { showSuccess, showError, showDeleteConfirm } from '../utils/swal';
 import SearchBar from './shared/SearchBar';
@@ -21,8 +22,8 @@ interface Marca {
 }
 
 interface TipoCompAlternador {
-  id_tipo_comp_alternador_32: number;
-  tipo_comp_alternador_32: string;
+  id_tipo_comp_alternador_30: number;
+  tipo_comp_alternador_30: string;
 }
 
 interface ApiResponse {
@@ -301,61 +302,65 @@ const AlternadoresView: React.FC = () => {
   };
 
   return (
-    <div className="alternadores-container fade-in">
-      <div className="alternadores-header">
+    <div className="bodega-view alternadores-view">
+      <header className="view-header">
         <h2>⚡ Gestión de Alternadores</h2>
         <div className="header-actions">
           {!showForm && (
             <>
-              <button className="btn-export" onClick={handleExport} title="Exportar a Excel">
+              <button
+                type="button"
+                className="btn-export"
+                onClick={handleExport}
+                title="Exportar a Excel"
+                aria-label="Exportar alternadores a Excel"
+              >
                 📊 Exportar
               </button>
-              <button className="btn-primary" onClick={showCreateForm}>
+              <button
+                type="button"
+                className="btn-primary alternadores-btn-new"
+                onClick={showCreateForm}
+                aria-label="Crear nuevo alternador"
+              >
                 ➕ Nuevo Alternador
               </button>
             </>
           )}
         </div>
-      </div>
+      </header>
 
       {!showForm && (
-        <div className="search-section">
-          <div style={{ display: 'flex', gap: '15px', alignItems: 'flex-end', flexWrap: 'nowrap', width: '100%' }}>
-            <div style={{ flex: '1', minWidth: '250px' }}>
+        <div className="form-container alternadores-search-section">
+          <div className="alternadores-filters-row">
+            <div className="alternadores-search-wrap">
               <SearchBar
                 placeholder="Buscar por código o marca..."
                 value={searchTerm}
                 onChange={setSearchTerm}
+                ariaLabel="Buscar alternadores por código o marca"
               />
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: '220px' }}>
-              <label htmlFor="filter-tipo-comp" style={{ fontSize: '14px', fontWeight: '500', color: '#333', whiteSpace: 'nowrap' }}>
+            <div className="alternadores-filter-wrap">
+              <label htmlFor="filter-tipo-comp" className="alternadores-filter-label">
                 Filtrar por Tipo:
               </label>
               <select
                 id="filter-tipo-comp"
                 value={filterTipoComp}
                 onChange={(e) => setFilterTipoComp(parseInt(e.target.value))}
-                style={{
-                  flex: '1',
-                  padding: '8px 12px',
-                  borderRadius: '4px',
-                  border: '1px solid #ced4da',
-                  fontSize: '14px',
-                  backgroundColor: 'white',
-                  cursor: 'pointer',
-                  minWidth: '150px'
-                }}
+                className="alternadores-filter-select"
+                aria-label="Filtrar alternadores por tipo de componente"
               >
                 <option value={0}>Todos los tipos</option>
                 {tiposComp.map(tipo => (
-                  <option key={tipo.id_tipo_comp_alternador_32} value={tipo.id_tipo_comp_alternador_32}>
-                    {tipo.tipo_comp_alternador_32}
+                  <option key={tipo.id_tipo_comp_alternador_30} value={tipo.id_tipo_comp_alternador_30}>
+                    {tipo.tipo_comp_alternador_30}
                   </option>
                 ))}
               </select>
             </div>
-            <div className="results-info" style={{ whiteSpace: 'nowrap', marginLeft: 'auto' }}>
+            <div className="alternadores-results-info">
               Mostrando {currentAlternadores.length} de {filteredAndSortedAlternadores.length} registros
             </div>
           </div>
@@ -363,13 +368,13 @@ const AlternadoresView: React.FC = () => {
       )}
 
       {error && (
-        <div className="alert alert-error fade-in">
+        <div className="alternadores-alert-error" role="alert">
           ⚠️ {error}
         </div>
       )}
 
       {showForm && (
-        <div className="form-card fade-in">
+        <div className="form-container alternadores-form-card">
           <h3>{editingId ? '✏️ Editar Alternador' : '➕ Nuevo Alternador'}</h3>
           <form onSubmit={editingId ? handleUpdate : handleCreate}>
             <div className="form-group">
@@ -418,8 +423,8 @@ const AlternadoresView: React.FC = () => {
               >
                 <option value="0">-- Seleccione un tipo --</option>
                 {tiposComp.map((tipo) => (
-                  <option key={tipo.id_tipo_comp_alternador_32} value={tipo.id_tipo_comp_alternador_32}>
-                    {tipo.tipo_comp_alternador_32}
+                  <option key={tipo.id_tipo_comp_alternador_30} value={tipo.id_tipo_comp_alternador_30}>
+                    {tipo.tipo_comp_alternador_30}
                   </option>
                 ))}
               </select>
@@ -428,10 +433,19 @@ const AlternadoresView: React.FC = () => {
               </small>
             </div>
             <div className="form-actions">
-              <button type="submit" className="btn-success">
+              <button
+                type="submit"
+                className="btn-success"
+                aria-label={editingId ? 'Guardar cambios del alternador' : 'Crear nuevo alternador'}
+              >
                 {editingId ? '💾 Actualizar' : '➕ Crear'}
               </button>
-              <button type="button" className="btn-secondary" onClick={cancelForm}>
+              <button
+                type="button"
+                className="btn-secondary"
+                onClick={cancelForm}
+                aria-label="Cancelar y cerrar formulario"
+              >
                 ❌ Cancelar
               </button>
             </div>
@@ -444,40 +458,50 @@ const AlternadoresView: React.FC = () => {
       ) : (
         <>
           <div className="table-container">
-            <table className="alternadores-table">
+            <table className="data-table alternadores-table" role="grid" aria-label="Lista de alternadores">
               <thead>
                 <tr>
-                  <th 
-                    onClick={() => handleSort('id_alternador_19')} 
+                  <th
+                    onClick={() => handleSort('id_alternador_19')}
                     className={`sortable ${sortConfig.key === 'id_alternador_19' ? (sortConfig.direction === 'asc' ? 'sort-asc' : 'sort-desc') : ''}`}
+                    scope="col"
+                    aria-sort={sortConfig.key === 'id_alternador_19' ? (sortConfig.direction === 'asc' ? 'ascending' : 'descending') : undefined}
                   >
                     ID
                   </th>
-                  <th 
-                    onClick={() => handleSort('cod_alternador_19')} 
+                  <th
+                    onClick={() => handleSort('cod_alternador_19')}
                     className={`sortable ${sortConfig.key === 'cod_alternador_19' ? (sortConfig.direction === 'asc' ? 'sort-asc' : 'sort-desc') : ''}`}
+                    scope="col"
+                    aria-sort={sortConfig.key === 'cod_alternador_19' ? (sortConfig.direction === 'asc' ? 'ascending' : 'descending') : undefined}
                   >
                     CÓDIGO
                   </th>
-                  <th 
-                    onClick={() => handleSort('marca_18')} 
+                  <th
+                    onClick={() => handleSort('marca_18')}
                     className={`sortable ${sortConfig.key === 'marca_18' ? (sortConfig.direction === 'asc' ? 'sort-asc' : 'sort-desc') : ''}`}
+                    scope="col"
+                    aria-sort={sortConfig.key === 'marca_18' ? (sortConfig.direction === 'asc' ? 'ascending' : 'descending') : undefined}
                   >
                     MARCA
                   </th>
-                  <th 
-                    onClick={() => handleSort('estado_ubicacion')} 
+                  <th
+                    onClick={() => handleSort('estado_ubicacion')}
                     className={`sortable ${sortConfig.key === 'estado_ubicacion' ? (sortConfig.direction === 'asc' ? 'sort-asc' : 'sort-desc') : ''}`}
+                    scope="col"
+                    aria-sort={sortConfig.key === 'estado_ubicacion' ? (sortConfig.direction === 'asc' ? 'ascending' : 'descending') : undefined}
                   >
                     ESTADO UBICACIÓN
                   </th>
-                  <th 
-                    onClick={() => handleSort('tipo_comp_descripcion')} 
+                  <th
+                    onClick={() => handleSort('tipo_comp_descripcion')}
                     className={`sortable ${sortConfig.key === 'tipo_comp_descripcion' ? (sortConfig.direction === 'asc' ? 'sort-asc' : 'sort-desc') : ''}`}
+                    scope="col"
+                    aria-sort={sortConfig.key === 'tipo_comp_descripcion' ? (sortConfig.direction === 'asc' ? 'ascending' : 'descending') : undefined}
                   >
                     TIPO COMPONENTE
                   </th>
-                  <th>ACCIONES</th>
+                  <th scope="col">ACCIONES</th>
                 </tr>
               </thead>
               <tbody>
@@ -500,16 +524,20 @@ const AlternadoresView: React.FC = () => {
                       <td className="tipo-comp">{alternador.tipo_comp_descripcion || 'Tipo ' + (alternador.id_tipo_comp_alternador_19 || 1)}</td>
                       <td className="actions">
                         <button
+                          type="button"
                           className="btn-edit"
                           onClick={() => startEdit(alternador)}
-                          title="Editar"
+                          title="Editar alternador"
+                          aria-label={`Editar alternador con código ${alternador.cod_alternador_19}`}
                         >
                           ✏️
                         </button>
                         <button
+                          type="button"
                           className="btn-delete"
                           onClick={() => handleDelete(alternador.id_alternador_19)}
-                          title="Eliminar"
+                          title="Eliminar alternador"
+                          aria-label={`Eliminar alternador con código ${alternador.cod_alternador_19}`}
                         >
                           🗑️
                         </button>

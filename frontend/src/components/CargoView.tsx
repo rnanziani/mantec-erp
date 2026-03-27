@@ -303,7 +303,7 @@ const CargoView: React.FC = () => {
                 id="cargo"
                 className="form-input"
                 value={cargoName}
-                onChange={(e) => setCargoName(e.target.value)}
+                onChange={(e) => setCargoName(e.target.value.toUpperCase())}
                 placeholder="Ej: Mecánico, Supervisor, Jefe de Taller..."
                 required
                 autoFocus
@@ -333,7 +333,7 @@ const CargoView: React.FC = () => {
           placeholder="🔍 Buscar cargo..."
           value={searchTerm}
           onChange={(e) => {
-            setSearchTerm(e.target.value);
+            setSearchTerm(e.target.value.toUpperCase());
             setCurrentPage(1);
           }}
           style={{ width: '100%', padding: '10px', fontSize: '14px', borderRadius: '4px', border: '1px solid #ced4da' }}

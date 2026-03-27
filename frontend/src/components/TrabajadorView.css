@@ -1,5 +1,16 @@
 /* Estilos específicos para Trabajadores (complementa BodegaView.css y TecnicoView.css) */
 
+/* Fila de 3 columnas: Nombre, Apellido Paterno, Apellido Materno */
+.form-row-3 {
+    grid-template-columns: 1fr 1fr 1fr;
+}
+
+@media (max-width: 768px) {
+    .form-row-3 {
+        grid-template-columns: 1fr;
+    }
+}
+
 /* Grid de búsqueda: apellido/nombre + búsqueda general */
 .trabajador-search-grid {
     display: grid;

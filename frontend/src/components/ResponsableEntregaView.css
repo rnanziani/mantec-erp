@@ -1,5 +1,16 @@
 /* Estilos específicos para Responsables de Entrega (complementa BodegaView.css) */
 
+/* Fila de 3 columnas: Nombre, Apellido Paterno, Apellido Materno */
+.form-row-3 {
+    grid-template-columns: 1fr 1fr 1fr;
+}
+
+@media (max-width: 768px) {
+    .form-row-3 {
+        grid-template-columns: 1fr;
+    }
+}
+
 .responsable-nombre {
     font-weight: 600;
     color: var(--mantec-blue, #1e3a5f);

@@ -4,9 +4,10 @@ import './CategoriaView.css';
 import { exportToExcel } from '../utils/exportUtils';
 import { showDeleteConfirm, showSuccess, showError } from '../utils/swal';
 
-interface Categoria {
-  id_categoria_42: number;
-  categoria_42: string;
+interface Talla {
+  id_16: number;
+  talla_16: string;
+  tipo_16?: string | null;
 }
 
 interface ApiResponse<T = unknown> {
@@ -17,14 +18,21 @@ interface ApiResponse<T = unknown> {
   error?: string;
 }
 
-type SortKey = keyof Categoria;
+type SortKey = keyof Talla;
 
-const CategoriaView: React.FC = () => {
+const tipoLabel = (t: string | null | undefined): string => {
+  if (t === 'alfabetica') return 'Alfabética';
+  if (t === 'numerica') return 'Numérica';
+  return '—';
+};
+
+const TallaView: React.FC = () => {
   const formRef = React.useRef<HTMLFormElement>(null);
-  const [categorias, setCategorias] = useState<Categoria[]>([]);
+  const [tallas, setTallas] = useState<Talla[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string>('');
-  const [categoryName, setCategoryName] = useState<string>('');
+  const [tallaNombre, setTallaNombre] = useState<string>('');
+  const [tipo, setTipo] = useState<string>('');
   const [editingId, setEditingId] = useState<number | null>(null);
   const [showForm, setShowForm] = useState<boolean>(false);
 
@@ -32,26 +40,26 @@ const CategoriaView: React.FC = () => {
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [itemsPerPage] = useState<number>(10);
   const [sortConfig, setSortConfig] = useState<{ key: SortKey; direction: 'asc' | 'desc' }>({
-    key: 'id_categoria_42',
+    key: 'id_16',
     direction: 'asc'
   });
 
-  const API_URL = 'http://localhost:3001/api/categorias';
+  const API_URL = 'http://localhost:3001/api/tallas';
 
   useEffect(() => {
-    fetchCategorias();
+    fetchTallas();
   }, []);
 
-  const fetchCategorias = async () => {
+  const fetchTallas = async () => {
     try {
       setLoading(true);
       setError('');
       const res = await fetch(API_URL);
-      const data: ApiResponse<Categoria[]> = await res.json();
+      const data: ApiResponse<Talla[]> = await res.json();
       if (data.success && Array.isArray(data.data)) {
-        setCategorias(data.data);
+        setTallas(data.data);
       } else {
-        setError('Error al cargar las categorías');
+        setError('Error al cargar las tallas');
       }
     } catch {
       setError('Error de conexión con el servidor');
@@ -61,18 +69,23 @@ const CategoriaView: React.FC = () => {
   };
 
   const filteredAndSorted = useMemo(() => {
-    const list = categorias.filter(c =>
-      c.categoria_42.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    const q = searchTerm.trim().toLowerCase();
+    const list = tallas.filter((t) => {
+      const tallaOk = t.talla_16.toLowerCase().includes(q);
+      const tipoOk = (t.tipo_16 || '').toLowerCase().includes(q);
+      return tallaOk || tipoOk;
+    });
     list.sort((a, b) => {
-      const aValue = a[sortConfig.key];
-      const bValue = b[sortConfig.key];
-      if (aValue < bValue) return sortConfig.direction === 'asc' ? -1 : 1;
-      if (aValue > bValue) return sortConfig.direction === 'asc' ? 1 : -1;
+      const av = a[sortConfig.key];
+      const bv = b[sortConfig.key];
+      const aVal = av === null || av === undefined ? '' : av;
+      const bVal = bv === null || bv === undefined ? '' : bv;
+      if (aVal < bVal) return sortConfig.direction === 'asc' ? -1 : 1;
+      if (aVal > bVal) return sortConfig.direction === 'asc' ? 1 : -1;
       return 0;
     });
     return list;
-  }, [categorias, searchTerm, sortConfig]);
+  }, [tallas, searchTerm, sortConfig]);
 
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
@@ -84,7 +97,7 @@ const CategoriaView: React.FC = () => {
   }, [searchTerm]);
 
   const handleSort = (key: SortKey) => {
-    setSortConfig(prev => ({
+    setSortConfig((prev) => ({
       key,
       direction: prev.key === key && prev.direction === 'asc' ? 'desc' : 'asc'
     }));
@@ -97,8 +110,8 @@ const CategoriaView: React.FC = () => {
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!categoryName.trim()) {
-      await showError('Campo requerido', 'El nombre de la categoría es requerido');
+    if (!tallaNombre.trim()) {
+      await showError('Campo requerido', 'La talla es requerida');
       return;
     }
     try {
@@ -106,27 +119,30 @@ const CategoriaView: React.FC = () => {
       const res = await fetch(API_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ categoria_42: categoryName.trim().toUpperCase() })
+        body: JSON.stringify({
+          talla_16: tallaNombre.trim(),
+          tipo_16: tipo || null
+        })
       });
-      const data: ApiResponse<Categoria> = await res.json();
+      const data: ApiResponse<Talla> = await res.json();
       if (data.success) {
-        await fetchCategorias();
+        await fetchTallas();
         resetForm();
-        await showSuccess('¡Categoría creada!', 'La categoría ha sido registrada correctamente.');
+        await showSuccess('¡Talla creada!', 'La talla ha sido registrada correctamente.');
       } else {
-        await showError('Error al crear', data.error || 'Error al crear la categoría');
+        await showError('Error al crear', data.error || 'Error al crear la talla');
         setError(data.error || '');
       }
     } catch {
-      await showError('Error', 'Error al crear la categoría');
+      await showError('Error', 'Error al crear la talla');
       setError('Error de conexión');
     }
   };
 
   const handleUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!categoryName.trim() || editingId === null) {
-      await showError('Campo requerido', 'El nombre de la categoría es requerido');
+    if (!tallaNombre.trim() || editingId === null) {
+      await showError('Campo requerido', 'La talla es requerida');
       return;
     }
     try {
@@ -134,50 +150,55 @@ const CategoriaView: React.FC = () => {
       const res = await fetch(`${API_URL}/${editingId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ categoria_42: categoryName.trim().toUpperCase() })
+        body: JSON.stringify({
+          talla_16: tallaNombre.trim(),
+          tipo_16: tipo || null
+        })
       });
-      const data: ApiResponse<Categoria> = await res.json();
+      const data: ApiResponse<Talla> = await res.json();
       if (data.success) {
-        await fetchCategorias();
+        await fetchTallas();
         resetForm();
-        await showSuccess('¡Categoría actualizada!', 'La categoría ha sido actualizada correctamente.');
+        await showSuccess('¡Talla actualizada!', 'La talla ha sido actualizada correctamente.');
       } else {
-        await showError('Error al actualizar', data.error || 'Error al actualizar la categoría');
+        await showError('Error al actualizar', data.error || 'Error al actualizar la talla');
         setError(data.error || '');
       }
     } catch {
-      await showError('Error', 'Error al actualizar la categoría');
+      await showError('Error', 'Error al actualizar la talla');
       setError('Error de conexión');
     }
   };
 
   const handleDelete = async (id: number) => {
-    const confirmed = await showDeleteConfirm('esta categoría');
+    const confirmed = await showDeleteConfirm('esta talla');
     if (!confirmed) return;
     try {
       setError('');
       const res = await fetch(`${API_URL}/${id}`, { method: 'DELETE' });
       const data: ApiResponse = await res.json();
       if (data.success) {
-        await fetchCategorias();
-        await showSuccess('¡Categoría eliminada!', 'La categoría ha sido eliminada correctamente.');
+        await fetchTallas();
+        await showSuccess('¡Talla eliminada!', 'La talla ha sido eliminada correctamente.');
       } else {
-        await showError('Error al eliminar', data.error || 'Error al eliminar la categoría');
+        await showError('Error al eliminar', data.error || 'Error al eliminar la talla');
       }
     } catch {
-      await showError('Error', 'Error al eliminar la categoría');
+      await showError('Error', 'Error al eliminar la talla');
     }
   };
 
-  const startEdit = (c: Categoria) => {
-    setEditingId(c.id_categoria_42);
-    setCategoryName(c.categoria_42);
+  const startEdit = (t: Talla) => {
+    setEditingId(t.id_16);
+    setTallaNombre(t.talla_16);
+    setTipo(t.tipo_16 || '');
     setShowForm(true);
     setError('');
   };
 
   const resetForm = () => {
-    setCategoryName('');
+    setTallaNombre('');
+    setTipo('');
     setEditingId(null);
     setShowForm(false);
     setError('');
@@ -193,20 +214,22 @@ const CategoriaView: React.FC = () => {
   };
 
   const handleExport = async () => {
-    const dataToExport = filteredAndSorted.map(c => ({
-      ID: c.id_categoria_42,
-      Categoria: c.categoria_42
+    const dataToExport = filteredAndSorted.map((t) => ({
+      ID: t.id_16,
+      Talla: t.talla_16,
+      Tipo: tipoLabel(t.tipo_16)
     }));
-    exportToExcel(dataToExport, 'categorias', 'Categorias');
+    exportToExcel(dataToExport, 'tallas', 'Tallas');
     await showSuccess('¡Exportación exitosa!', 'Los datos han sido exportados correctamente.');
   };
 
   return (
     <div className="bodega-view">
       <div className="view-header">
-        <h2>🗂️ Gestión de Categorías</h2>
-        <div style={{ display: 'flex', gap: '10px' }}>
+        <h2>📏 Gestión de Tallas</h2>
+        <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
           <button
+            type="button"
             className="btn-primary"
             onClick={showCreateForm}
             style={{ backgroundColor: '#007bff' }}
@@ -214,22 +237,23 @@ const CategoriaView: React.FC = () => {
             ✏️ Nuevo
           </button>
           <button
+            type="button"
             className="btn-primary"
             onClick={() => formRef.current?.requestSubmit()}
             disabled={!showForm}
             style={{ backgroundColor: '#28a745' }}
-            type="button"
           >
             💾 Guardar
           </button>
           <button
+            type="button"
             className="btn-primary"
             onClick={handleExport}
             style={{ backgroundColor: '#17a2b8' }}
           >
             📊 Exportar
           </button>
-          <button className="btn-secondary" onClick={cancelForm}>
+          <button type="button" className="btn-secondary" onClick={cancelForm}>
             🚪 Salir
           </button>
         </div>
@@ -243,23 +267,40 @@ const CategoriaView: React.FC = () => {
 
       {showForm && (
         <div className="form-container">
-          <h3>{editingId ? '✏️ Editar Categoría' : '➕ Nueva Categoría'}</h3>
+          <h3>{editingId ? '✏️ Editar Talla' : '➕ Nueva Talla'}</h3>
           <form ref={formRef} onSubmit={editingId ? handleUpdate : handleCreate}>
-            <div className="form-group">
-              <label htmlFor="categoria">Nombre de la categoría: *</label>
-              <input
-                type="text"
-                id="categoria"
-                className="form-input"
-                value={categoryName}
-                onChange={(e) => setCategoryName(e.target.value.toUpperCase())}
-                placeholder="Ej: INSUMOS, REPUESTOS..."
-                style={{ textTransform: 'uppercase' }}
-                required
-                autoFocus
-              />
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px' }}>
+              <div className="form-group">
+                <label htmlFor="talla-nombre">Talla *</label>
+                <input
+                  type="text"
+                  id="talla-nombre"
+                  className="form-input"
+                  value={tallaNombre}
+                  onChange={(e) => setTallaNombre(e.target.value)}
+                  placeholder="Ej: M, 42, XL..."
+                  maxLength={10}
+                  required
+                  autoFocus
+                  aria-required="true"
+                />
+              </div>
+              <div className="form-group">
+                <label htmlFor="talla-tipo">Tipo</label>
+                <select
+                  id="talla-tipo"
+                  value={tipo}
+                  onChange={(e) => setTipo(e.target.value)}
+                  title="Opcional: alfabetica o numerica según restricción CHECK en base de datos"
+                  aria-label="Tipo de talla"
+                >
+                  <option value="">Sin clasificar</option>
+                  <option value="alfabetica">alfabetica</option>
+                  <option value="numerica">numerica</option>
+                </select>
+              </div>
             </div>
-            <div className="form-actions">
+            <div className="form-actions" style={{ marginTop: '12px' }}>
               <button type="submit" className="btn-success">
                 {editingId ? '💾 Actualizar' : '➕ Crear'}
               </button>
@@ -278,15 +319,15 @@ const CategoriaView: React.FC = () => {
           </div>
         </div>
         <input
-          type="text"
-          placeholder="🔍 Buscar categoría..."
+          type="search"
+          placeholder="🔍 Buscar por talla o tipo..."
           value={searchTerm}
           onChange={(e) => {
-            setSearchTerm(e.target.value.toUpperCase());
+            setSearchTerm(e.target.value);
             setCurrentPage(1);
           }}
-          style={{ width: '100%', padding: '10px', fontSize: '14px', borderRadius: '4px', border: '1px solid #ced4da', textTransform: 'uppercase' }}
-          aria-label="Buscar categoría"
+          style={{ width: '100%', padding: '10px', fontSize: '14px', borderRadius: '4px', border: '1px solid #ced4da' }}
+          aria-label="Buscar talla"
         />
       </div>
 
@@ -294,40 +335,53 @@ const CategoriaView: React.FC = () => {
         <table className="data-table">
           <thead>
             <tr>
-              <th onClick={() => handleSort('id_categoria_42')} className="sortable" style={{ cursor: 'pointer' }}>
-                ID {getSortIndicator('id_categoria_42')}
+              <th onClick={() => handleSort('id_16')} className="sortable" style={{ cursor: 'pointer' }}>
+                ID {getSortIndicator('id_16')}
               </th>
-              <th onClick={() => handleSort('categoria_42')} className="sortable" style={{ cursor: 'pointer' }}>
-                CATEGORÍA {getSortIndicator('categoria_42')}
+              <th onClick={() => handleSort('talla_16')} className="sortable" style={{ cursor: 'pointer' }}>
+                TALLA {getSortIndicator('talla_16')}
+              </th>
+              <th onClick={() => handleSort('tipo_16')} className="sortable" style={{ cursor: 'pointer' }}>
+                TIPO {getSortIndicator('tipo_16')}
               </th>
               <th>ACCIONES</th>
             </tr>
           </thead>
           <tbody>
-            {loading && categorias.length === 0 ? (
-              <tr><td colSpan={3}>Cargando...</td></tr>
+            {loading && tallas.length === 0 ? (
+              <tr>
+                <td colSpan={4}>Cargando...</td>
+              </tr>
             ) : currentItems.length === 0 ? (
               <tr>
-                <td colSpan={3} className="no-data">
+                <td colSpan={4} className="no-data">
                   {searchTerm
-                    ? `📋 No se encontraron categorías con "${searchTerm}"`
-                    : '📋 No hay categorías registradas'}
+                    ? `📋 No se encontraron tallas con "${searchTerm}"`
+                    : '📋 No hay tallas registradas'}
                 </td>
               </tr>
             ) : (
-              currentItems.map((c) => (
-                <tr key={c.id_categoria_42}>
-                  <td>{c.id_categoria_42}</td>
-                  <td className="categoria-name">{c.categoria_42}</td>
+              currentItems.map((t) => (
+                <tr key={t.id_16}>
+                  <td>{t.id_16}</td>
+                  <td className="categoria-name">{t.talla_16}</td>
+                  <td>{tipoLabel(t.tipo_16)}</td>
                   <td className="actions">
-                    <button className="btn-edit" onClick={() => startEdit(c)} title="Editar" aria-label="Editar categoría">
+                    <button
+                      type="button"
+                      className="btn-edit"
+                      onClick={() => startEdit(t)}
+                      title="Editar"
+                      aria-label="Editar talla"
+                    >
                       ✏️
                     </button>
                     <button
+                      type="button"
                       className="btn-delete"
-                      onClick={() => handleDelete(c.id_categoria_42)}
+                      onClick={() => handleDelete(t.id_16)}
                       title="Eliminar"
-                      aria-label="Eliminar categoría"
+                      aria-label="Eliminar talla"
                     >
                       🗑️
                     </button>
@@ -340,21 +394,28 @@ const CategoriaView: React.FC = () => {
       </div>
 
       {totalPages > 1 && (
-        <div style={{
-          display: 'flex',
-          justifyContent: 'center',
-          alignItems: 'center',
-          gap: '10px',
-          marginTop: '20px',
-          padding: '15px',
-          backgroundColor: '#f8f9fa',
-          borderRadius: '8px'
-        }}>
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            gap: '10px',
+            marginTop: '20px',
+            padding: '15px',
+            backgroundColor: '#f8f9fa',
+            borderRadius: '8px'
+          }}
+        >
           <button
+            type="button"
             onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
             disabled={currentPage === 1}
             className="btn-secondary"
-            style={{ padding: '8px 15px', cursor: currentPage === 1 ? 'not-allowed' : 'pointer', opacity: currentPage === 1 ? 0.5 : 1 }}
+            style={{
+              padding: '8px 15px',
+              cursor: currentPage === 1 ? 'not-allowed' : 'pointer',
+              opacity: currentPage === 1 ? 0.5 : 1
+            }}
             aria-label="Página anterior"
           >
             ← Anterior
@@ -362,6 +423,7 @@ const CategoriaView: React.FC = () => {
           <div style={{ display: 'flex', gap: '5px' }}>
             {Array.from({ length: totalPages }, (_, i) => i + 1).map((numPagina) => (
               <button
+                type="button"
                 key={numPagina}
                 onClick={() => setCurrentPage(numPagina)}
                 style={{
@@ -381,10 +443,15 @@ const CategoriaView: React.FC = () => {
             ))}
           </div>
           <button
+            type="button"
             onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
             disabled={currentPage === totalPages}
             className="btn-secondary"
-            style={{ padding: '8px 15px', cursor: currentPage === totalPages ? 'not-allowed' : 'pointer', opacity: currentPage === totalPages ? 0.5 : 1 }}
+            style={{
+              padding: '8px 15px',
+              cursor: currentPage === totalPages ? 'not-allowed' : 'pointer',
+              opacity: currentPage === totalPages ? 0.5 : 1
+            }}
             aria-label="Página siguiente"
           >
             Siguiente →
@@ -398,4 +465,4 @@ const CategoriaView: React.FC = () => {
   );
 };
 
-export default CategoriaView;
+export default TallaView;

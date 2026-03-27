@@ -1,37 +1,28 @@
-/* Estilos específicos para Alternadores (complementa BodegaView.css) */
+/* Estilos específicos para Neumáticos (complementa BodegaView.css) */
 
-/* Contenedor y layout */
-.alternadores-view .view-header {
+.neumatico-view .view-header {
   border-bottom: 3px solid var(--mantec-blue);
   padding-bottom: 1rem;
 }
 
-.alternadores-view .view-header h2 {
+.neumatico-view .view-header h2 {
   color: var(--mantec-blue);
   font-size: 1.8rem;
 }
 
-.header-actions {
-  display: flex;
-  gap: 0.75rem;
-  flex-wrap: wrap;
-}
-
-/* Botón Nuevo Alternador - azul primario */
-.alternadores-btn-new {
+.neumatico-btn-new {
   background: var(--mantec-blue) !important;
 }
 
-.alternadores-btn-new:hover {
+.neumatico-btn-new:hover {
   background: #1E4A76 !important;
 }
 
-/* Sección de búsqueda y filtros */
-.alternadores-search-section {
+.neumatico-search-section {
   margin-bottom: 1.5rem;
 }
 
-.alternadores-filters-row {
+.neumatico-filters-row {
   display: flex;
   gap: 1rem;
   align-items: flex-end;
@@ -39,26 +30,26 @@
   width: 100%;
 }
 
-.alternadores-search-wrap {
+.neumatico-search-wrap {
   flex: 1;
   min-width: 250px;
 }
 
-.alternadores-filter-wrap {
+.neumatico-filter-wrap {
   display: flex;
   align-items: center;
   gap: 0.5rem;
   min-width: 220px;
 }
 
-.alternadores-filter-label {
+.neumatico-filter-label {
   font-size: 0.875rem;
   font-weight: 500;
   color: var(--mantec-gray);
   white-space: nowrap;
 }
 
-.alternadores-filter-select {
+.neumatico-filter-select {
   flex: 1;
   padding: 0.5rem 0.75rem;
   border-radius: 6px;
@@ -69,12 +60,12 @@
   min-width: 150px;
 }
 
-.alternadores-filter-select:focus {
+.neumatico-filter-select:focus {
   outline: none;
   border-color: var(--mantec-blue);
 }
 
-.alternadores-results-info {
+.neumatico-results-info {
   color: var(--mantec-gray);
   font-weight: 600;
   font-size: 0.9rem;
@@ -82,8 +73,7 @@
   margin-left: auto;
 }
 
-/* Alerta de error */
-.alternadores-alert-error {
+.neumatico-alert-error {
   padding: 1rem;
   border-radius: 8px;
   margin-bottom: 1rem;
@@ -93,12 +83,25 @@
   border-left: 4px solid #DC2626;
 }
 
-/* Formulario de creación/edición */
-.alternadores-form-card {
+.neumatico-form-card {
   border-left: 4px solid var(--mantec-orange);
 }
 
-.alternadores-form-card .form-hint {
+/* Fila de 3 columnas: Marca, Fecha, Observaciones */
+.neumatico-form-row-3 {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 15px;
+  margin-bottom: 15px;
+}
+
+@media (max-width: 768px) {
+  .neumatico-form-row-3 {
+    grid-template-columns: 1fr;
+  }
+}
+
+.neumatico-form-card .form-hint {
   display: block;
   margin-top: 0.5rem;
   color: #6B7280;
@@ -106,8 +109,12 @@
   font-style: italic;
 }
 
-/* Celdas de tabla específicas */
-.codigo-alternador {
+.form-textarea {
+  resize: vertical;
+  min-height: 80px;
+}
+
+.codigo-neumatico {
   font-family: 'Courier New', monospace;
   font-weight: 700;
   color: var(--mantec-orange);
@@ -121,78 +128,43 @@
   font-size: 1rem;
 }
 
-.estado-ubicacion {
-  font-weight: 500;
-  color: #334155;
+.observaciones-cell {
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.tipo-comp {
-  color: #64748b;
-  font-size: 0.9rem;
-}
-
-/* Mensaje sin datos */
-.alternadores-table .no-data {
-  text-align: center;
-  padding: 3rem;
-  color: var(--mantec-gray);
-  font-size: 1.1rem;
-}
-
-/* Loading */
-.alternadores-view .loading {
+.neumatico-view .loading {
   text-align: center;
   padding: 3rem;
   font-size: 1.2rem;
   color: var(--mantec-gray);
 }
 
-/* Responsive */
 @media (max-width: 768px) {
-  .alternadores-view .view-header {
-    flex-direction: column;
-    align-items: flex-start;
-  }
-
-  .header-actions {
-    width: 100%;
-    flex-direction: column;
-  }
-
-  .header-actions button {
-    width: 100%;
-  }
-
-  .alternadores-filters-row {
+  .neumatico-filters-row {
     flex-direction: column;
     align-items: stretch;
   }
 
-  .alternadores-search-wrap {
+  .neumatico-search-wrap {
     min-width: 100%;
   }
 
-  .alternadores-filter-wrap {
+  .neumatico-filter-wrap {
     min-width: 100%;
   }
 
-  .alternadores-results-info {
+  .neumatico-results-info {
     margin-left: 0;
   }
 
-  .alternadores-table th,
-  .alternadores-table td {
-    padding: 0.75rem 0.5rem;
-    font-size: 0.85rem;
-  }
-
-  /* Tabla responsive: scroll horizontal en móvil */
-  .alternadores-view .table-container {
+  .neumatico-view .table-container {
     overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
   }
 
-  .alternadores-table {
+  .neumatico-table {
     min-width: 600px;
   }
 }

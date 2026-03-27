@@ -5,8 +5,8 @@ import { exportToExcel } from '../utils/exportUtils';
 import { showDeleteConfirm, showSuccess, showError } from '../utils/swal';
 
 interface TipoCompAlternador {
-  id_tipo_comp_alternador_32: number;
-  tipo_comp_alternador_32: string;
+  id_tipo_comp_alternador_30: number;
+  tipo_comp_alternador_30: string;
 }
 
 interface ApiResponse {
@@ -35,7 +35,7 @@ const TipoCompAlternadorView: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [itemsPerPage] = useState<number>(10);
-  const [sortConfig, setSortConfig] = useState<SortConfig>({ key: 'id_tipo_comp_alternador_32', direction: 'asc' });
+  const [sortConfig, setSortConfig] = useState<SortConfig>({ key: 'id_tipo_comp_alternador_30', direction: 'asc' });
 
   const API_URL = 'http://localhost:3001/api/tipos-comp-alternador';
 
@@ -65,8 +65,8 @@ const TipoCompAlternadorView: React.FC = () => {
 
   const filteredAndSortedTipos = useMemo(() => {
     let filtered = tipos.filter(tipo =>
-      tipo.tipo_comp_alternador_32.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      tipo.id_tipo_comp_alternador_32.toString().includes(searchTerm)
+      tipo.tipo_comp_alternador_30.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      tipo.id_tipo_comp_alternador_30.toString().includes(searchTerm)
     );
 
     filtered.sort((a, b) => {
@@ -119,8 +119,8 @@ const TipoCompAlternadorView: React.FC = () => {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          id_tipo_comp_alternador_32: tipoId,
-          tipo_comp_alternador_32: tipoNombre.trim()
+          id_tipo_comp_alternador_30: tipoId,
+          tipo_comp_alternador_30: tipoNombre.trim()
         })
       });
 
@@ -152,7 +152,7 @@ const TipoCompAlternadorView: React.FC = () => {
       const response = await fetch(`${API_URL}/${editingId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ tipo_comp_alternador_32: tipoNombre.trim() })
+        body: JSON.stringify({ tipo_comp_alternador_30: tipoNombre.trim() })
       });
 
       const data: ApiResponse = await response.json();
@@ -196,9 +196,9 @@ const TipoCompAlternadorView: React.FC = () => {
   };
 
   const startEdit = (tipo: TipoCompAlternador) => {
-    setEditingId(tipo.id_tipo_comp_alternador_32);
-    setTipoId(tipo.id_tipo_comp_alternador_32);
-    setTipoNombre(tipo.tipo_comp_alternador_32);
+    setEditingId(tipo.id_tipo_comp_alternador_30);
+    setTipoId(tipo.id_tipo_comp_alternador_30);
+    setTipoNombre(tipo.tipo_comp_alternador_30);
     setShowForm(true);
     setError('');
   };
@@ -225,8 +225,8 @@ const TipoCompAlternadorView: React.FC = () => {
 
   const handleExport = async () => {
     const dataToExport = filteredAndSortedTipos.map(t => ({
-      ID: t.id_tipo_comp_alternador_32,
-      'Tipo Componente': t.tipo_comp_alternador_32
+      ID: t.id_tipo_comp_alternador_30,
+      'Tipo Componente': t.tipo_comp_alternador_30
     }));
     exportToExcel(dataToExport, 'tipos-comp-alternador', 'Tipos de Componente Alternador');
     await showSuccess('¡Exportación exitosa!', 'Los datos han sido exportados correctamente.');
@@ -344,11 +344,11 @@ const TipoCompAlternadorView: React.FC = () => {
         <table className="data-table">
           <thead>
             <tr>
-              <th onClick={() => handleSort('id_tipo_comp_alternador_32')} className="sortable" style={{ cursor: 'pointer' }}>
-                ID {getSortIndicator('id_tipo_comp_alternador_32')}
+              <th onClick={() => handleSort('id_tipo_comp_alternador_30')} className="sortable" style={{ cursor: 'pointer' }}>
+                ID {getSortIndicator('id_tipo_comp_alternador_30')}
               </th>
-              <th onClick={() => handleSort('tipo_comp_alternador_32')} className="sortable" style={{ cursor: 'pointer' }}>
-                TIPO COMPONENTE {getSortIndicator('tipo_comp_alternador_32')}
+              <th onClick={() => handleSort('tipo_comp_alternador_30')} className="sortable" style={{ cursor: 'pointer' }}>
+                TIPO COMPONENTE {getSortIndicator('tipo_comp_alternador_30')}
               </th>
               <th>ACCIONES</th>
             </tr>
@@ -366,14 +366,14 @@ const TipoCompAlternadorView: React.FC = () => {
               </tr>
             ) : (
               currentTipos.map((tipo) => (
-                <tr key={tipo.id_tipo_comp_alternador_32}>
-                  <td>{tipo.id_tipo_comp_alternador_32}</td>
-                  <td className="tipo-name">{tipo.tipo_comp_alternador_32}</td>
+                <tr key={tipo.id_tipo_comp_alternador_30}>
+                  <td>{tipo.id_tipo_comp_alternador_30}</td>
+                  <td className="tipo-name">{tipo.tipo_comp_alternador_30}</td>
                   <td className="actions">
                     <button className="btn-edit" onClick={() => startEdit(tipo)} title="Editar" aria-label="Editar tipo">
                       ✏️
                     </button>
-                    <button className="btn-delete" onClick={() => handleDelete(tipo.id_tipo_comp_alternador_32)} title="Eliminar" aria-label="Eliminar tipo">
+                    <button className="btn-delete" onClick={() => handleDelete(tipo.id_tipo_comp_alternador_30)} title="Eliminar" aria-label="Eliminar tipo">
                       🗑️
                     </button>
                   </td>

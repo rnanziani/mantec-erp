@@ -65,6 +65,20 @@ const Sidebar: React.FC<SidebarProps> = ({ onNavigate, currentView }) => {
             ]
         },
         {
+            id: 'neumaticos',
+            label: 'Neumáticos',
+            icon: '🛞',
+            permissionRequired: 'MENU_OPERACIONES',
+            children: [
+                { id: 'neumaticos', label: 'Neumáticos', icon: '🛞', path: 'neumaticos', permissionRequired: 'MENU_OPERACIONES' },
+                { id: 'marcas-neumatico', label: 'Marcas', icon: '🏷️', path: 'marcas-neumatico', permissionRequired: 'MENU_OPERACIONES' },
+                { id: 'estados-neumatico', label: 'Estados', icon: '📊', path: 'estados-neumatico', permissionRequired: 'MENU_OPERACIONES' },
+                { id: 'historial-neumatico', label: 'Historial', icon: '📋', path: 'historial-neumatico', permissionRequired: 'MENU_OPERACIONES' },
+                { id: 'patrones-rotacion', label: 'Patrones de Rotación', icon: '🔄', path: 'patrones-rotacion', permissionRequired: 'MENU_OPERACIONES' },
+                { id: 'llantas', label: 'Llantas', icon: '⭕', path: 'llantas', permissionRequired: 'MENU_OPERACIONES' }
+            ]
+        },
+        {
             id: 'inventario',
             label: 'Gestion Alternadores',
             icon: '📦',
@@ -100,6 +114,8 @@ const Sidebar: React.FC<SidebarProps> = ({ onNavigate, currentView }) => {
                 { id: 'responsables-entrega', label: 'Responsables de Entrega', icon: '📋', path: 'responsables-entrega', permissionRequired: 'MENU_MANTENEDORES' },
                 { id: 'tipos-comp-alternador', label: 'Tipos Componente', icon: '⚙️', path: 'tipos-comp-alternador', permissionRequired: 'MENU_MANTENEDORES' },
                 { id: 'categorias', label: 'Categorías', icon: '🗂️', path: 'categorias', permissionRequired: 'MENU_MANTENEDORES' },
+                { id: 'tallas', label: 'Tallas', icon: '📏', path: 'tallas', permissionRequired: 'MENU_MANTENEDORES' },
+                { id: 'prendas', label: 'Prendas', icon: '👕', path: 'prendas', permissionRequired: 'MENU_MANTENEDORES' },
                 { id: 'ccostos', label: 'Centros de Costo', icon: '🏷️', path: 'ccostos', permissionRequired: 'MENU_MANTENEDORES' },
                 { id: 'insumos', label: 'Insumos', icon: '🧾', path: 'insumos', permissionRequired: 'MENU_MANTENEDORES' }
             ]

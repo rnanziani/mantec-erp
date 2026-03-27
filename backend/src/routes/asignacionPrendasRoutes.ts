@@ -7,12 +7,13 @@ import {
   updateAsignacion,
   deleteAsignacion,
   getAllPrendas,
-  getAllTallas,
   getActaDatos,
   generarActaEntregaPDF,
   getReporteDatos,
-  generarReportePDF
+  generarReportePDF,
+  getReporteMaestro
 } from '../controllers/asignacionPrendasController.js';
+import { getAllTallas } from '../controllers/tallaController.js';
 
 const router = Router();
 
@@ -29,6 +30,13 @@ router.get('/prendas', getAllPrendas);
  * @access  Public
  */
 router.get('/tallas', getAllTallas);
+
+/**
+ * @route   GET /api/asignaciones-prendas/reporte-maestro
+ * @desc    Reporte maestro (solo asignación principal) - filtros: fechaDesde, fechaHasta, idTrabajador?, entregado?(true|false)
+ * @access  Public
+ */
+router.get('/reporte-maestro', getReporteMaestro);
 
 /**
  * @route   GET /api/asignaciones-prendas/reporte/datos

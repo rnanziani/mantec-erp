@@ -25,26 +25,26 @@ export interface UpdateMarcaAlternadorDTO {
 
 /**
  * Tipo de Componente Alternador
- * Tabla: tbl_32_tipo_comp_alternador
+ * Tabla: tbl_30_tipo_comp_alternador
  */
 export interface TipoCompAlternador {
-  id_tipo_comp_alternador_32: number;
-  tipo_comp_alternador_32: string;
+  id_tipo_comp_alternador_30: number;
+  tipo_comp_alternador_30: string;
 }
 
 /**
  * DTO para crear un nuevo tipo de componente alternador
  */
 export interface CreateTipoCompAlternadorDTO {
-  id_tipo_comp_alternador_32: number;
-  tipo_comp_alternador_32: string;
+  id_tipo_comp_alternador_30: number;
+  tipo_comp_alternador_30: string;
 }
 
 /**
  * DTO para actualizar un tipo de componente alternador
  */
 export interface UpdateTipoCompAlternadorDTO {
-  tipo_comp_alternador_32: string;
+  tipo_comp_alternador_30: string;
 }
 
 /**
@@ -104,6 +104,42 @@ export interface CreateEstadoAlternadorDTO {
 export interface UpdateEstadoAlternadorDTO {
   estado_20: string;
   descripcion_20?: string;
+}
+
+/**
+ * Estado de Neumático
+ * Tabla: tbl_33_estado_neumatico
+ */
+export interface EstadoNeumatico {
+  id_estado_33: number;
+  estado_33: string;
+  descripcion_33?: string;
+  activo_33: boolean;
+  orden_33: number;
+  color_33?: string;
+  fecha_creacion_33?: string;
+}
+
+/**
+ * DTO para crear un nuevo estado de neumático
+ */
+export interface CreateEstadoNeumaticoDTO {
+  estado_33: string;
+  descripcion_33?: string;
+  activo_33?: boolean;
+  orden_33?: number;
+  color_33?: string;
+}
+
+/**
+ * DTO para actualizar un estado de neumático
+ */
+export interface UpdateEstadoNeumaticoDTO {
+  estado_33: string;
+  descripcion_33?: string;
+  activo_33?: boolean;
+  orden_33?: number;
+  color_33?: string;
 }
 
 /**
@@ -235,6 +271,131 @@ export interface CreateCcostoDTO {
 export interface UpdateCcostoDTO {
   ccosto_45: string;
   activo_45?: boolean;
+}
+
+/**
+ * Marca de Neumático
+ * Tabla: tbl_32_marca_neumatico
+ */
+export interface MarcaNeumatico {
+  id_marca_32: number;
+  marca_32: string;
+  diametro_32: number;
+  estado_32: boolean;
+  fecha_creacion_32?: string;
+}
+
+export interface CreateMarcaNeumaticoDTO {
+  marca_32: string;
+  diametro_32: number;
+  estado_32?: boolean;
+}
+
+export interface UpdateMarcaNeumaticoDTO {
+  marca_32: string;
+  diametro_32: number;
+  estado_32?: boolean;
+}
+
+/**
+ * Neumático
+ * Tabla: tbl_31_neumatico
+ * cod_neumatico_31 se genera por trigger si es null
+ */
+export interface Neumatico {
+  id_neumatico_31: number;
+  cod_neumatico_31: string;
+  id_marca_31: number;
+  fecha_ingreso_31?: string;
+  observaciones_31?: string;
+  marca_32?: string; // JOIN desde tbl_32_marca_neumatico
+}
+
+export interface CreateNeumaticoDTO {
+  id_marca_31: number;
+  fecha_ingreso_31?: string;
+  observaciones_31?: string;
+}
+
+export interface UpdateNeumaticoDTO {
+  id_marca_31?: number;
+  fecha_ingreso_31?: string;
+  observaciones_31?: string;
+}
+
+/**
+ * Patrón de Rotación
+ * Tabla: tbl_35_patron_rotacion
+ */
+export interface PatronRotacion {
+  id_patron_35: number;
+  codigo_patron_35: string;
+  descripcion_patron_35: string;
+  posiciones_origen_35: number[];
+  posiciones_destino_35: number[];
+  activo_35: boolean;
+  fecha_creacion_35?: string;
+  fecha_modificacion_35?: string;
+  usuario_creacion_35?: string;
+}
+
+export interface CreatePatronRotacionDTO {
+  codigo_patron_35: string;
+  descripcion_patron_35: string;
+  posiciones_origen_35: number[];
+  posiciones_destino_35: number[];
+  activo_35?: boolean;
+  usuario_creacion_35?: string;
+}
+
+export interface UpdatePatronRotacionDTO {
+  codigo_patron_35?: string;
+  descripcion_patron_35?: string;
+  posiciones_origen_35?: number[];
+  posiciones_destino_35?: number[];
+  activo_35?: boolean;
+}
+
+/**
+ * Historial de Neumático
+ * Tabla: tbl_34_historial_neumatico
+ */
+export interface HistorialNeumatico {
+  id_historial_34: number;
+  cod_neumatico_34: string;
+  id_conductor_34?: number;
+  id_maquina_34?: number;
+  kilometraje_34?: number;
+  id_tecnico_34?: number;
+  balanceo_34: boolean;
+  fecha_movimiento_34: string;
+  observaciones_34?: string;
+  conductor_nombre?: string;
+  maquina_numinterno?: string;
+  maquina_ppu?: string;
+  tecnico_nombre?: string;
+}
+
+export interface CreateHistorialNeumaticoDTO {
+  cod_neumatico_34: string;
+  id_conductor_34?: number;
+  id_maquina_34?: number;
+  kilometraje_34?: number;
+  id_tecnico_34?: number;
+  balanceo_34?: boolean;
+  fecha_movimiento_34?: string;
+  observaciones_34?: string;
+}
+
+export interface UpdateHistorialNeumaticoDTO {
+  cod_neumatico_34: string;
+  id_conductor_34?: number;
+  id_maquina_34?: number;
+  kilometraje_34?: number;
+  id_tecnico_34?: number;
+  balanceo_34?: boolean;
+  fecha_movimiento_34?: string;
+  observaciones_34?: string;
 }
 
 export interface Insumo {
@@ -799,6 +960,7 @@ export interface AsignacionPrenda {
   idresponsableentrega_09: number;
   idempresa_09?: number | null;
   observaciones_09?: string | null;
+  entregado: boolean;
   created_at?: Date;
   updated_at?: Date;
   // Campos JOINed
@@ -817,6 +979,7 @@ export interface DetalleAsignacionPrenda {
   idprenda_10: number;
   talla_10: string;
   cantidad_10: number;
+  entregado_10: boolean;
   // Campos JOINed
   prenda_nombre?: string;
   talla_descripcion?: string;
@@ -832,10 +995,12 @@ export interface CreateAsignacionPrendaDTO {
   idresponsableentrega_09: number;
   idempresa_09?: number | null;
   observaciones_09?: string | null;
+  entregado?: boolean;
   detalles: Array<{
     idprenda_10: number;
     talla_10: string;
     cantidad_10: number;
+    entregado_10?: boolean;
   }>;
 }
 
@@ -849,10 +1014,12 @@ export interface UpdateAsignacionPrendaDTO {
   idresponsableentrega_09?: number;
   idempresa_09?: number | null;
   observaciones_09?: string | null;
+  entregado?: boolean;
   detalles?: Array<{
     idprenda_10: number;
     talla_10: string;
     cantidad_10: number;
+    entregado_10?: boolean;
   }>;
 }
 
@@ -866,13 +1033,54 @@ export interface Prenda {
 }
 
 /**
+ * DTO para crear una prenda
+ */
+export interface CreatePrendaDTO {
+  prenda_07: string;
+}
+
+/**
+ * DTO para actualizar una prenda
+ */
+export interface UpdatePrendaDTO {
+  prenda_07: string;
+}
+
+/**
  * Talla
  * Tabla: tbl_16_tallas
  */
 export interface Talla {
   id_16: number;
   talla_16: string;
-  tipo_16?: string;
+  tipo_16?: string | null;
+}
+
+export interface CreateTallaDTO {
+  talla_16: string;
+  tipo_16?: string | null;
+}
+
+export interface UpdateTallaDTO {
+  talla_16: string;
+  tipo_16?: string | null;
+}
+
+/**
+ * Llanta (catálogo)
+ * Tabla: tbl_36_llanta
+ */
+export interface Llanta {
+  id_llanta_36: number;
+  descripcion_llanta_36: string;
+}
+
+export interface CreateLlantaDTO {
+  descripcion_llanta_36: string;
+}
+
+export interface UpdateLlantaDTO {
+  descripcion_llanta_36: string;
 }
 
 // ============================================

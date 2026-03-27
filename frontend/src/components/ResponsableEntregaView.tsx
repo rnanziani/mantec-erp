@@ -300,7 +300,7 @@ const ResponsableEntregaView: React.FC = () => {
         <div className="form-container">
           <h3>{editingId ? '✏️ Editar Responsable' : '➕ Nuevo Responsable'}</h3>
           <form ref={formRef} onSubmit={editingId ? handleUpdate : handleCreate}>
-            <div className="form-row">
+            <div className="form-row form-row-3">
               <div className="form-group">
                 <label htmlFor="nombre">Nombre: *</label>
                 <input
@@ -308,11 +308,12 @@ const ResponsableEntregaView: React.FC = () => {
                   id="nombre"
                   className="form-input"
                   value={nombre}
-                  onChange={(e) => setNombre(e.target.value)}
+                  onChange={(e) => setNombre(e.target.value.toUpperCase())}
                   placeholder="Ej: Juan"
                   required
                   autoFocus
                   maxLength={100}
+                  style={{ textTransform: 'uppercase' }}
                 />
               </div>
               <div className="form-group">
@@ -322,9 +323,10 @@ const ResponsableEntregaView: React.FC = () => {
                   id="apaterno"
                   className="form-input"
                   value={apaterno}
-                  onChange={(e) => setAPaterno(e.target.value)}
+                  onChange={(e) => setAPaterno(e.target.value.toUpperCase())}
                   placeholder="Ej: González"
                   maxLength={100}
+                  style={{ textTransform: 'uppercase' }}
                 />
               </div>
               <div className="form-group">
@@ -334,9 +336,10 @@ const ResponsableEntregaView: React.FC = () => {
                   id="amaterno"
                   className="form-input"
                   value={amaterno}
-                  onChange={(e) => setAMaterno(e.target.value)}
+                  onChange={(e) => setAMaterno(e.target.value.toUpperCase())}
                   placeholder="Ej: Pérez"
                   maxLength={100}
+                  style={{ textTransform: 'uppercase' }}
                 />
               </div>
             </div>

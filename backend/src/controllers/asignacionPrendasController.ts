@@ -6,7 +6,6 @@ import {
   AsignacionPrenda,
   DetalleAsignacionPrenda,
   Prenda,
-  Talla,
   CreateAsignacionPrendaDTO,
   UpdateAsignacionPrendaDTO,
   ApiResponse
@@ -35,6 +34,7 @@ export const getAllAsignaciones = async (req: Request, res: Response): Promise<v
         am.idresponsableentrega_09,
         am.idempresa_09,
         am.observaciones_09,
+        COALESCE(am.entregado, false) as entregado,
         t.nombre_06 || ' ' || COALESCE(t.apaterno_06, '') || ' ' || COALESCE(t.amaterno_06, '') as trabajador_nombre,
         r.nombreresponsableentrega_08 || ' ' || COALESCE(r.apaternoresponsableentrega_08, '') || ' ' || COALESCE(r.amaternoresponsableentrega_08, '') as responsable_nombre,
         e.nombreempresa_15 as empresa_nombre
@@ -80,6 +80,7 @@ export const getAsignacionById = async (req: Request, res: Response): Promise<vo
         am.idresponsableentrega_09,
         am.idempresa_09,
         am.observaciones_09,
+        COALESCE(am.entregado, false) as entregado,
         t.nombre_06 || ' ' || COALESCE(t.apaterno_06, '') || ' ' || COALESCE(t.amaterno_06, '') as trabajador_nombre,
         r.nombreresponsableentrega_08 || ' ' || COALESCE(r.apaternoresponsableentrega_08, '') || ' ' || COALESCE(r.amaternoresponsableentrega_08, '') as responsable_nombre,
         e.nombreempresa_15 as empresa_nombre
@@ -132,6 +133,7 @@ export const getDetallesAsignacion = async (req: Request, res: Response): Promis
         ad.idprenda_10,
         ad.talla_10,
         ad.cantidad_10,
+        COALESCE(ad.entregado_10, false) as entregado_10,
         p.prenda_07 as prenda_nombre,
         COALESCE(t.talla_16, ad.talla_10::text) as talla_descripcion
       FROM ${TABLA_DETALLE} ad
@@ -176,6 +178,7 @@ export const createAsignacion = async (req: Request, res: Response): Promise<voi
       idresponsableentrega_09,
       idempresa_09,
       observaciones_09,
+      entregado,
       detalles
     }: CreateAsignacionPrendaDTO = req.body;
 
@@ -202,8 +205,8 @@ export const createAsignacion = async (req: Request, res: Response): Promise<voi
 
     // Insertar asignación principal
     const asignacionQuery = `
-      INSERT INTO ${TABLA_ASIGNACION} (idtrabajador_09, fecha_09, hora_09, idresponsableentrega_09, idempresa_09, observaciones_09)
-      VALUES ($1, $2, $3, $4, $5, $6)
+      INSERT INTO ${TABLA_ASIGNACION} (idtrabajador_09, fecha_09, hora_09, idresponsableentrega_09, idempresa_09, observaciones_09, entregado)
+      VALUES ($1, $2, $3, $4, $5, $6, $7)
       RETURNING idasignacionmain_09
     `;
 
@@ -213,22 +216,25 @@ export const createAsignacion = async (req: Request, res: Response): Promise<voi
       hora_09,
       idresponsableentrega_09,
       idempresa_09 || null,
-      observaciones_09 || null
+      observaciones_09 || null,
+      entregado === true
     ]);
 
     const idAsignacion = asignacionResult.rows[0].idasignacionmain_09;
 
     // Insertar detalles
     for (const detalle of detalles) {
+      const entregado = detalle.entregado_10 === true;
       const detalleQuery = `
-        INSERT INTO ${TABLA_DETALLE} (idasignacionmain_10, idprenda_10, talla_10, cantidad_10)
-        VALUES ($1, $2, $3, $4)
+        INSERT INTO ${TABLA_DETALLE} (idasignacionmain_10, idprenda_10, talla_10, cantidad_10, entregado_10)
+        VALUES ($1, $2, $3, $4, $5)
       `;
       await client.query(detalleQuery, [
         idAsignacion,
         detalle.idprenda_10,
         detalle.talla_10,
-        detalle.cantidad_10
+        detalle.cantidad_10,
+        entregado
       ]);
     }
 
@@ -244,6 +250,7 @@ export const createAsignacion = async (req: Request, res: Response): Promise<voi
         am.idresponsableentrega_09,
         am.idempresa_09,
         am.observaciones_09,
+        COALESCE(am.entregado, false) as entregado,
         t.nombre_06 || ' ' || COALESCE(t.apaterno_06, '') || ' ' || COALESCE(t.amaterno_06, '') as trabajador_nombre,
         r.nombreresponsableentrega_08 || ' ' || COALESCE(r.apaternoresponsableentrega_08, '') || ' ' || COALESCE(r.amaternoresponsableentrega_08, '') as responsable_nombre,
         e.nombreempresa_15 as empresa_nombre
@@ -264,12 +271,13 @@ export const createAsignacion = async (req: Request, res: Response): Promise<voi
 
     res.status(201).json(response);
   } catch (error) {
-    await client.query('ROLLBACK');
+    await client.query('ROLLBACK').catch(() => {});
     console.error('Error al crear asignación:', error);
+    const pgMessage = error instanceof Error ? error.message : 'Error desconocido';
     const response: ApiResponse<null> = {
       success: false,
       error: 'Error al crear la asignación',
-      message: error instanceof Error ? error.message : 'Error desconocido'
+      message: pgMessage
     };
     res.status(500).json(response);
   } finally {
@@ -294,6 +302,7 @@ export const updateAsignacion = async (req: Request, res: Response): Promise<voi
       idresponsableentrega_09,
       idempresa_09,
       observaciones_09,
+      entregado,
       detalles
     }: UpdateAsignacionPrendaDTO = req.body;
 
@@ -312,7 +321,7 @@ export const updateAsignacion = async (req: Request, res: Response): Promise<voi
     }
 
     // Actualizar asignación principal si se proporcionan campos
-    if (idtrabajador_09 !== undefined || fecha_09 !== undefined || hora_09 !== undefined || idresponsableentrega_09 !== undefined || idempresa_09 !== undefined || observaciones_09 !== undefined) {
+    if (idtrabajador_09 !== undefined || fecha_09 !== undefined || hora_09 !== undefined || idresponsableentrega_09 !== undefined || idempresa_09 !== undefined || observaciones_09 !== undefined || entregado !== undefined) {
       const updates: string[] = [];
       const values: any[] = [];
       let paramCount = 1;
@@ -353,11 +362,17 @@ export const updateAsignacion = async (req: Request, res: Response): Promise<voi
         paramCount++;
       }
 
+      if (entregado !== undefined) {
+        updates.push(`entregado = $${paramCount}`);
+        values.push(entregado === true);
+        paramCount++;
+      }
+
       if (updates.length > 0) {
         values.push(id);
         const updateQuery = `
           UPDATE ${TABLA_ASIGNACION}
-          SET ${updates.join(', ')}, updated_at = CURRENT_TIMESTAMP
+          SET ${updates.join(', ')}
           WHERE idasignacionmain_09 = $${paramCount}
         `;
         await client.query(updateQuery, values);
@@ -371,15 +386,17 @@ export const updateAsignacion = async (req: Request, res: Response): Promise<voi
 
       // Insertar nuevos detalles
       for (const detalle of detalles) {
+        const entregado = detalle.entregado_10 === true;
         const detalleQuery = `
-          INSERT INTO ${TABLA_DETALLE} (idasignacionmain_10, idprenda_10, talla_10, cantidad_10)
-          VALUES ($1, $2, $3, $4)
+          INSERT INTO ${TABLA_DETALLE} (idasignacionmain_10, idprenda_10, talla_10, cantidad_10, entregado_10)
+          VALUES ($1, $2, $3, $4, $5)
         `;
         await client.query(detalleQuery, [
           id,
           detalle.idprenda_10,
           detalle.talla_10,
-          detalle.cantidad_10
+          detalle.cantidad_10,
+          entregado
         ]);
       }
     }
@@ -396,6 +413,7 @@ export const updateAsignacion = async (req: Request, res: Response): Promise<voi
         am.idresponsableentrega_09,
         am.idempresa_09,
         am.observaciones_09,
+        COALESCE(am.entregado, false) as entregado,
         t.nombre_06 || ' ' || COALESCE(t.apaterno_06, '') || ' ' || COALESCE(t.amaterno_06, '') as trabajador_nombre,
         r.nombreresponsableentrega_08 || ' ' || COALESCE(r.apaternoresponsableentrega_08, '') || ' ' || COALESCE(r.amaternoresponsableentrega_08, '') as responsable_nombre,
         e.nombreempresa_15 as empresa_nombre
@@ -867,17 +885,28 @@ export const generarActaEntregaPDF = async (req: Request, res: Response): Promis
 };
 
 /**
- * Obtener datos del reporte de asignaciones por intervalo de fechas, trabajador y prenda
- * Query params: fechaDesde (YYYY-MM-DD), fechaHasta (YYYY-MM-DD), idTrabajador (opcional), idPrenda (opcional)
+ * Obtener datos del reporte de asignaciones por intervalo de fechas, trabajador, prenda e ID de asignación
+ * Query params: fechaDesde, fechaHasta, idTrabajador?, idPrenda?, idDesde?, idHasta? (rango de idasignacionmain_09)
  */
 export const getReporteDatos = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { fechaDesde, fechaHasta, idTrabajador, idPrenda } = req.query;
+    const { fechaDesde, fechaHasta, idTrabajador, idPrenda, idDesde, idHasta } = req.query;
 
     if (!fechaDesde || !fechaHasta) {
       const response: ApiResponse<null> = {
         success: false,
         error: 'Los parámetros fechaDesde y fechaHasta son requeridos (formato YYYY-MM-DD)'
+      };
+      res.status(400).json(response);
+      return;
+    }
+
+    const nd = idDesde !== undefined && idDesde !== '' ? Number(idDesde) : NaN;
+    const nh = idHasta !== undefined && idHasta !== '' ? Number(idHasta) : NaN;
+    if (!Number.isNaN(nd) && !Number.isNaN(nh) && nd > nh) {
+      const response: ApiResponse<null> = {
+        success: false,
+        error: 'El ID inicial debe ser menor o igual al ID final'
       };
       res.status(400).json(response);
       return;
@@ -897,6 +926,16 @@ export const getReporteDatos = async (req: Request, res: Response): Promise<void
       params.push(Number(idPrenda));
       paramIdx++;
     }
+    if (!Number.isNaN(nd)) {
+      whereClause += ` AND am.idasignacionmain_09 >= $${paramIdx}`;
+      params.push(nd);
+      paramIdx++;
+    }
+    if (!Number.isNaN(nh)) {
+      whereClause += ` AND am.idasignacionmain_09 <= $${paramIdx}`;
+      params.push(nh);
+      paramIdx++;
+    }
 
     const query = `
       SELECT 
@@ -910,7 +949,8 @@ export const getReporteDatos = async (req: Request, res: Response): Promise<void
         p.prenda_07 as prenda_nombre,
         p.idprenda_07,
         ad.talla_10,
-        ad.cantidad_10
+        ad.cantidad_10,
+        COALESCE(ad.entregado_10, false) as entregado_10
       FROM ${TABLA_ASIGNACION} am
       INNER JOIN ${TABLA_TRABAJADOR} t ON am.idtrabajador_09 = t.idtrabajador_06
       INNER JOIN ${TABLA_RESPONSABLE} r ON am.idresponsableentrega_09 = r.idresponsableentrega_08
@@ -918,7 +958,7 @@ export const getReporteDatos = async (req: Request, res: Response): Promise<void
       INNER JOIN ${TABLA_DETALLE} ad ON am.idasignacionmain_09 = ad.idasignacionmain_10
       INNER JOIN ${TABLA_PRENDA} p ON ad.idprenda_10 = p.idprenda_07
       ${whereClause}
-      ORDER BY am.fecha_09 ASC, t.apaterno_06 ASC, p.prenda_07 ASC
+      ORDER BY am.idasignacionmain_09 DESC, p.prenda_07 ASC
     `;
 
     const result = await pool.query(query, params);
@@ -941,17 +981,102 @@ export const getReporteDatos = async (req: Request, res: Response): Promise<void
 };
 
 /**
+ * Reporte maestro de asignaciones (solo tabla principal)
+ * Query params: fechaDesde, fechaHasta, idTrabajador?, entregado? (true|false)
+ */
+export const getReporteMaestro = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { fechaDesde, fechaHasta, idTrabajador, entregado } = req.query;
+
+    if (!fechaDesde || !fechaHasta) {
+      const response: ApiResponse<null> = {
+        success: false,
+        error: 'Los parámetros fechaDesde y fechaHasta son requeridos (formato YYYY-MM-DD)'
+      };
+      res.status(400).json(response);
+      return;
+    }
+
+    const params: (string | number | boolean)[] = [fechaDesde, fechaHasta];
+    let paramIdx = 3;
+
+    let whereClause = `WHERE am.fecha_09 >= $1::date AND am.fecha_09 <= $2::date`;
+
+    if (idTrabajador) {
+      whereClause += ` AND am.idtrabajador_09 = $${paramIdx}`;
+      params.push(Number(idTrabajador));
+      paramIdx++;
+    }
+
+    if (entregado === 'true' || entregado === 'false') {
+      whereClause += ` AND am.entregado = $${paramIdx}`;
+      params.push(entregado === 'true');
+      paramIdx++;
+    }
+
+    const query = `
+      SELECT
+        am.idasignacionmain_09,
+        am.fecha_09,
+        am.hora_09,
+        am.idtrabajador_09,
+        am.idresponsableentrega_09,
+        am.idempresa_09,
+        am.observaciones_09,
+        COALESCE(am.entregado, false) AS entregado,
+        t.nombre_06 || ' ' || COALESCE(t.apaterno_06, '') || ' ' || COALESCE(t.amaterno_06, '') AS trabajador_nombre,
+        r.nombreresponsableentrega_08 || ' ' || COALESCE(r.apaternoresponsableentrega_08, '') || ' ' || COALESCE(r.amaternoresponsableentrega_08, '') AS responsable_nombre,
+        e.nombreempresa_15 AS empresa_nombre
+      FROM ${TABLA_ASIGNACION} am
+      INNER JOIN ${TABLA_TRABAJADOR} t ON am.idtrabajador_09 = t.idtrabajador_06
+      INNER JOIN ${TABLA_RESPONSABLE} r ON am.idresponsableentrega_09 = r.idresponsableentrega_08
+      LEFT JOIN ${TABLA_EMPRESA} e ON am.idempresa_09 = e.idempresa_15
+      ${whereClause}
+      ORDER BY am.idasignacionmain_09 DESC
+    `;
+
+    const result = await pool.query(query, params);
+
+    const response: ApiResponse<object[]> = {
+      success: true,
+      data: result.rows
+    };
+
+    res.json(response);
+  } catch (error) {
+    console.error('Error al obtener reporte maestro:', error);
+    const response: ApiResponse<null> = {
+      success: false,
+      error: 'Error al obtener el reporte maestro',
+      message: error instanceof Error ? error.message : 'Error desconocido'
+    };
+    res.status(500).json(response);
+  }
+};
+
+/**
  * Generar PDF del reporte de asignaciones (formato carta, horizontal)
- * Query params: fechaDesde, fechaHasta, idTrabajador (opcional), idPrenda (opcional)
+ * Query params: fechaDesde, fechaHasta, idTrabajador?, idPrenda?, idDesde?, idHasta?, usuario?
  */
 export const generarReportePDF = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { fechaDesde, fechaHasta, idTrabajador, idPrenda, usuario } = req.query;
+    const { fechaDesde, fechaHasta, idTrabajador, idPrenda, idDesde, idHasta, usuario } = req.query;
 
     if (!fechaDesde || !fechaHasta) {
       const response: ApiResponse<null> = {
         success: false,
         error: 'Los parámetros fechaDesde y fechaHasta son requeridos'
+      };
+      res.status(400).json(response);
+      return;
+    }
+
+    const nd = idDesde !== undefined && idDesde !== '' ? Number(idDesde) : NaN;
+    const nh = idHasta !== undefined && idHasta !== '' ? Number(idHasta) : NaN;
+    if (!Number.isNaN(nd) && !Number.isNaN(nh) && nd > nh) {
+      const response: ApiResponse<null> = {
+        success: false,
+        error: 'El ID inicial debe ser menor o igual al ID final'
       };
       res.status(400).json(response);
       return;
@@ -971,6 +1096,16 @@ export const generarReportePDF = async (req: Request, res: Response): Promise<vo
       params.push(Number(idPrenda));
       paramIdx++;
     }
+    if (!Number.isNaN(nd)) {
+      whereClause += ` AND am.idasignacionmain_09 >= $${paramIdx}`;
+      params.push(nd);
+      paramIdx++;
+    }
+    if (!Number.isNaN(nh)) {
+      whereClause += ` AND am.idasignacionmain_09 <= $${paramIdx}`;
+      params.push(nh);
+      paramIdx++;
+    }
 
     const query = `
       SELECT 
@@ -982,7 +1117,8 @@ export const generarReportePDF = async (req: Request, res: Response): Promise<vo
         e.nombreempresa_15 as empresa_nombre,
         p.prenda_07 as prenda_nombre,
         ad.talla_10,
-        ad.cantidad_10
+        ad.cantidad_10,
+        COALESCE(ad.entregado_10, false) as entregado_10
       FROM ${TABLA_ASIGNACION} am
       INNER JOIN ${TABLA_TRABAJADOR} t ON am.idtrabajador_09 = t.idtrabajador_06
       INNER JOIN ${TABLA_RESPONSABLE} r ON am.idresponsableentrega_09 = r.idresponsableentrega_08
@@ -990,7 +1126,7 @@ export const generarReportePDF = async (req: Request, res: Response): Promise<vo
       INNER JOIN ${TABLA_DETALLE} ad ON am.idasignacionmain_09 = ad.idasignacionmain_10
       INNER JOIN ${TABLA_PRENDA} p ON ad.idprenda_10 = p.idprenda_07
       ${whereClause}
-      ORDER BY am.fecha_09 ASC, t.apaterno_06 ASC, p.prenda_07 ASC
+      ORDER BY am.idasignacionmain_09 DESC, p.prenda_07 ASC
     `;
 
     const result = await pool.query(query, params);
@@ -1015,8 +1151,31 @@ export const generarReportePDF = async (req: Request, res: Response): Promise<vo
       minute: '2-digit'
     });
 
+    const tituloReporte = `REPORTE DE ASIGNACIÓN DE PRENDAS — ${fechaHoraImpresion}`;
+    const stampArchivo = (() => {
+      const d = new Date();
+      const fecha = `${String(d.getDate()).padStart(2, '0')}-${String(d.getMonth() + 1).padStart(2, '0')}-${d.getFullYear()}`;
+      const hora = `${String(d.getHours()).padStart(2, '0')}-${String(d.getMinutes()).padStart(2, '0')}-${String(d.getSeconds()).padStart(2, '0')}`;
+      return `impresion_${fecha}_${hora}`;
+    })();
+
+    const subtituloRangoId =
+      !Number.isNaN(nd) && !Number.isNaN(nh)
+        ? `Rango de ID asignación: ${nd} – ${nh}`
+        : !Number.isNaN(nd)
+          ? `ID asignación desde: ${nd}`
+          : !Number.isNaN(nh)
+            ? `ID asignación hasta: ${nh}`
+            : '';
+
     // Agrupar por asignación (maestro-detalle)
-    const grupos = new Map<number, { maestro: Record<string, unknown>; detalles: Array<{ prenda_nombre: string; talla_10: string; cantidad_10: number }> }>();
+    const grupos = new Map<
+      number,
+      {
+        maestro: Record<string, unknown>;
+        detalles: Array<{ prenda_nombre: string; talla_10: string; cantidad_10: number; entregado_10: boolean }>;
+      }
+    >();
     filas.forEach((f) => {
       const id = f.idasignacionmain_09;
       if (!grupos.has(id)) {
@@ -1028,7 +1187,8 @@ export const generarReportePDF = async (req: Request, res: Response): Promise<vo
       grupos.get(id)!.detalles.push({
         prenda_nombre: String(f.prenda_nombre || 'N/A'),
         talla_10: String(f.talla_10 || 'N/A'),
-        cantidad_10: Number(f.cantidad_10 ?? 0)
+        cantidad_10: Number(f.cantidad_10 ?? 0),
+        entregado_10: Boolean(f.entregado_10)
       });
     });
 
@@ -1044,38 +1204,45 @@ export const generarReportePDF = async (req: Request, res: Response): Promise<vo
     const printer = new PdfPrinter(fonts);
 
     const tableHeaderRow = [
+      { text: 'ID', style: 'tableHeader', alignment: 'center' },
       { text: 'Fecha', style: 'tableHeader', alignment: 'center' },
       { text: 'Hora', style: 'tableHeader', alignment: 'center' },
       { text: 'Trabajador', style: 'tableHeader', alignment: 'center' },
       { text: 'Prenda', style: 'tableHeader', alignment: 'center' },
       { text: 'Talla', style: 'tableHeader', alignment: 'center' },
       { text: 'Cantidad', style: 'tableHeader', alignment: 'center' },
+      { text: 'Entregado', style: 'tableHeader', alignment: 'center' },
       { text: 'Responsable', style: 'tableHeader', alignment: 'center' },
       { text: 'Empresa', style: 'tableHeader', alignment: 'center' }
     ];
 
     const tableBody: any[] = [tableHeaderRow];
 
-    Array.from(grupos.values()).forEach(({ maestro, detalles }) => {
+    Array.from(grupos.values())
+      .sort((a, b) => Number(b.maestro.idasignacionmain_09) - Number(a.maestro.idasignacionmain_09))
+      .forEach(({ maestro, detalles }) => {
       detalles.forEach((det, dIdx) => {
         if (dIdx === 0) {
           tableBody.push([
+            { text: String(maestro.idasignacionmain_09 ?? ''), style: 'tableCell', alignment: 'center', fontSize: 8, rowSpan: detalles.length },
             { text: formatDate(maestro.fecha_09 as string), style: 'tableCell', fontSize: 8, rowSpan: detalles.length },
             { text: formatHora(maestro.hora_09 as string), style: 'tableCell', alignment: 'center', fontSize: 8, rowSpan: detalles.length },
             { text: String(maestro.trabajador_nombre || 'N/A'), style: 'tableCell', fontSize: 8, rowSpan: detalles.length },
             { text: det.prenda_nombre, style: 'tableCell', fontSize: 8 },
             { text: det.talla_10, style: 'tableCell', alignment: 'center', fontSize: 8 },
             { text: String(det.cantidad_10), style: 'tableCell', alignment: 'center', fontSize: 8 },
+            { text: det.entregado_10 ? 'Verdadero' : 'Falso', style: 'tableCell', alignment: 'center', fontSize: 8 },
             { text: String(maestro.responsable_nombre || 'N/A'), style: 'tableCell', fontSize: 8, rowSpan: detalles.length },
             { text: String(maestro.empresa_nombre || 'N/A'), style: 'tableCell', fontSize: 8, rowSpan: detalles.length }
           ]);
         } else {
-          // Celdas vacías para las 5 columnas con rowSpan (Fecha, Hora, Trabajador, Responsable, Empresa)
+          // Celdas vacías para columnas con rowSpan (ID, Fecha, Hora, Trabajador, Responsable, Empresa)
           tableBody.push([
-            '', '', '',
+            '', '', '', '',
             { text: det.prenda_nombre, style: 'tableCell', fontSize: 8 },
             { text: det.talla_10, style: 'tableCell', alignment: 'center', fontSize: 8 },
             { text: String(det.cantidad_10), style: 'tableCell', alignment: 'center', fontSize: 8 },
+            { text: det.entregado_10 ? 'Verdadero' : 'Falso', style: 'tableCell', alignment: 'center', fontSize: 8 },
             '', ''
           ]);
         }
@@ -1088,18 +1255,21 @@ export const generarReportePDF = async (req: Request, res: Response): Promise<vo
       pageMargins: [30, 50, 30, 30],
       header: (currentPage: number) => (currentPage > 1 ? {
         stack: [
-          { text: 'REPORTE DE ASIGNACIÓN DE PRENDAS', style: 'title', alignment: 'center', margin: [0, 0, 0, 2] },
+          { text: tituloReporte, style: 'title', alignment: 'center', margin: [0, 0, 0, 2] },
           { text: `Período: ${formatDate(fechaDesde as string)} - ${formatDate(fechaHasta as string)}`, style: 'subtitle', alignment: 'center', margin: [0, 0, 0, 2] },
+          ...(subtituloRangoId
+            ? [{ text: subtituloRangoId, style: 'subtitle', alignment: 'center', margin: [0, 0, 0, 2] }]
+            : []),
           {
             columns: [
               { text: usuario ? `Usuario: ${String(usuario)}` : '', style: 'subtitle', width: '*' },
-              { text: `Fecha y hora de impresión: ${fechaHoraImpresion}`, style: 'subtitle', alignment: 'right', width: 'auto' }
+              { text: '', style: 'subtitle', width: 'auto' }
             ],
             margin: [0, 0, 0, 4]
           },
           {
             table: {
-              widths: [55, 35, '*', '*', 40, 45, '*', '*'],
+              widths: [32, 55, 35, '*', '*', 40, 45, 55, '*', '*'],
               body: [tableHeaderRow]
             },
             layout: { hLineWidth: () => 0.5, vLineWidth: () => 0.5 }
@@ -1109,7 +1279,7 @@ export const generarReportePDF = async (req: Request, res: Response): Promise<vo
       } : {}),
       content: [
         {
-          text: 'REPORTE DE ASIGNACIÓN DE PRENDAS',
+          text: tituloReporte,
           style: 'title',
           alignment: 'center',
           margin: [0, 0, 0, 4]
@@ -1120,17 +1290,27 @@ export const generarReportePDF = async (req: Request, res: Response): Promise<vo
           alignment: 'center',
           margin: [0, 0, 0, 4]
         },
+        ...(subtituloRangoId
+          ? [
+              {
+                text: subtituloRangoId,
+                style: 'subtitle',
+                alignment: 'center',
+                margin: [0, 0, 0, 4]
+              }
+            ]
+          : []),
         {
           columns: [
             { text: usuario ? `Usuario: ${String(usuario)}` : '', style: 'subtitle', width: '*' },
-            { text: `Fecha y hora de impresión: ${fechaHoraImpresion}`, style: 'subtitle', alignment: 'right', width: 'auto' }
+            { text: '', style: 'subtitle', width: 'auto' }
           ],
           margin: [0, 0, 0, 12]
         },
         {
           table: {
             headerRows: 1,
-            widths: [55, 35, '*', '*', 40, 45, '*', '*'],
+              widths: [32, 55, 35, '*', '*', 40, 45, 55, '*', '*'],
             body: tableBody
           },
           layout: {
@@ -1150,7 +1330,10 @@ export const generarReportePDF = async (req: Request, res: Response): Promise<vo
 
     const pdfDoc = printer.createPdfKitDocument(docDefinition);
     res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `attachment; filename=reporte-asignacion-prendas-${fechaDesde}-${fechaHasta}.pdf`);
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename=reporte-asignacion-prendas-${fechaDesde}-${fechaHasta}_${stampArchivo}.pdf`
+    );
     pdfDoc.pipe(res);
     pdfDoc.end();
   } catch (error) {
@@ -1193,38 +1376,6 @@ export const getAllPrendas = async (req: Request, res: Response): Promise<void> 
     res.status(500).json(response);
   }
 };
-
-/**
- * Obtener todas las tallas
- */
-export const getAllTallas = async (req: Request, res: Response): Promise<void> => {
-  try {
-    const query = `
-      SELECT id_16, talla_16, tipo_16
-      FROM ${TABLA_TALLA}
-      ORDER BY tipo_16, talla_16 ASC
-    `;
-
-    const result = await pool.query<Talla>(query);
-
-    const response: ApiResponse<Talla[]> = {
-      success: true,
-      data: result.rows
-    };
-
-    res.json(response);
-  } catch (error) {
-    console.error('Error al obtener tallas:', error);
-    const response: ApiResponse<null> = {
-      success: false,
-      error: 'Error al obtener las tallas',
-      message: error instanceof Error ? error.message : 'Error desconocido'
-    };
-    res.status(500).json(response);
-  }
-};
-
-
 
 
 

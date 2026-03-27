@@ -486,7 +486,7 @@ const TrabajadorView: React.FC = () => {
               </div>
             </div>
 
-            <div className="form-row">
+            <div className="form-row form-row-3">
               <div className="form-group">
                 <label htmlFor="nombre">Nombre: *</label>
                 <input

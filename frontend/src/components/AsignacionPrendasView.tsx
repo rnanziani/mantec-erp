@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import './BodegaView.css'; // Reutilizamos los mismos estilos
+import './AsignacionPrendasView.css';
 import { showSuccess, showError, showDeleteConfirm } from '../utils/swal';
 import { exportReporteMaestroDetalleToExcel } from '../utils/exportUtils';
 
@@ -11,6 +12,7 @@ interface AsignacionPrenda {
   idresponsableentrega_09: number;
   idempresa_09?: number | null;
   observaciones_09?: string | null;
+  entregado: boolean;
   trabajador_nombre?: string;
   responsable_nombre?: string;
   empresa_nombre?: string;
@@ -27,6 +29,7 @@ interface DetalleAsignacionPrenda {
   idprenda_10: number;
   talla_10: string;
   cantidad_10: number;
+  entregado_10: boolean;
   prenda_nombre?: string;
   talla_descripcion?: string;
 }
@@ -66,6 +69,27 @@ interface ApiResponse {
   error?: string;
 }
 
+const formatApiError = (data: ApiResponse, fallback: string): string => {
+  const parts = [data.error, data.message].filter((p): p is string => Boolean(p && String(p).trim()));
+  return parts.length ? parts.join('\n\n') : fallback;
+};
+
+/** Compara ids de detalle (API puede devolver number o string en algunos casos). */
+const idDetalleEq = (a: number, b: number): boolean => Number(a) === Number(b);
+
+/** Etiqueta de estado de entrega para tablas (evita Verdadero/Falso). */
+const formatEstadoEntrega = (entregado: boolean): string =>
+  entregado ? 'entregado' : 'pendiente';
+
+const EstadoEntregaLabel: React.FC<{ entregado: boolean }> = ({ entregado }) => (
+  <span
+    className={entregado ? 'estado-entrega-entregado' : 'estado-entrega-pendiente'}
+    title={formatEstadoEntrega(entregado)}
+  >
+    {formatEstadoEntrega(entregado)}
+  </span>
+);
+
 type SortConfig = {
   key: keyof AsignacionPrenda;
   direction: 'asc' | 'desc';
@@ -88,17 +112,25 @@ const AsignacionPrendasView: React.FC = () => {
   const [idResponsable, setIdResponsable] = useState<string>('');
   const [idEmpresa, setIdEmpresa] = useState<string>('');
   const [observaciones, setObservaciones] = useState<string>('');
+  const [entregado, setEntregado] = useState<boolean>(false);
   const [fecha, setFecha] = useState<string>(new Date().toISOString().split('T')[0]);
   const [hora, setHora] = useState<string>(new Date().toTimeString().split(' ')[0].substring(0, 5));
   
   // Detalle de prendas
   const [detallePrendas, setDetallePrendas] = useState<DetalleAsignacionPrenda[]>([]);
   const [trabajadorSeleccionado, setTrabajadorSeleccionado] = useState<Trabajador | null>(null);
+
+  // Selección y edición masiva (detalle)
+  type EditModeDetalle = 'single' | 'bulk';
+  const [editModeDetalle, setEditModeDetalle] = useState<EditModeDetalle>('single');
+  const [selectedDetalleIds, setSelectedDetalleIds] = useState<Set<number>>(new Set());
+  const [bulkEntregado, setBulkEntregado] = useState<'keep' | 'true' | 'false'>('keep');
   
   // Formulario de detalle
   const [prendaSeleccionada, setPrendaSeleccionada] = useState<Prenda | null>(null);
   const [tallaSeleccionada, setTallaSeleccionada] = useState<string>('');
   const [cantidad, setCantidad] = useState<number>(1);
+  const [entregadoDetalle, setEntregadoDetalle] = useState<boolean>(false);
   const [idDetalleEditando, setIdDetalleEditando] = useState<number | null>(null);
 
   // Vista previa del acta
@@ -109,6 +141,8 @@ const AsignacionPrendasView: React.FC = () => {
 
   // Modo reporte
   const [modoReporte, setModoReporte] = useState<boolean>(false);
+  type TipoReporte = 'detalle' | 'maestro';
+  const [tipoReporte, setTipoReporte] = useState<TipoReporte>('detalle');
   const [fechaDesdeReporte, setFechaDesdeReporte] = useState<string>(() => {
     const d = new Date();
     d.setMonth(d.getMonth() - 1);
@@ -117,11 +151,21 @@ const AsignacionPrendasView: React.FC = () => {
   const [fechaHastaReporte, setFechaHastaReporte] = useState<string>(new Date().toISOString().split('T')[0]);
   const [idTrabajadorReporte, setIdTrabajadorReporte] = useState<string>('');
   const [idPrendaReporte, setIdPrendaReporte] = useState<string>('');
+  const [idDesdeReporte, setIdDesdeReporte] = useState<string>('');
+  const [idHastaReporte, setIdHastaReporte] = useState<string>('');
   const [datosReporte, setDatosReporte] = useState<any[]>([]);
+  const [datosReporteMaestro, setDatosReporteMaestro] = useState<any[]>([]);
+  const [filtroEntregadoReporte, setFiltroEntregadoReporte] = useState<string>('');
   const [loadingReporte, setLoadingReporte] = useState<boolean>(false);
   const [showPreviewReporte, setShowPreviewReporte] = useState<boolean>(false);
   const [fechaHoraImpresion, setFechaHoraImpresion] = useState<string>('');
   const reportePreviewRef = useRef<HTMLDivElement>(null);
+
+  const API_URL = 'http://localhost:3001/api/asignaciones-prendas';
+  const TALLAS_API_URL = 'http://localhost:3001/api/tallas';
+  const TRABAJADORES_URL = 'http://localhost:3001/api/trabajadores';
+  const RESPONSABLES_URL = 'http://localhost:3001/api/responsables-entrega';
+  const EMPRESAS_URL = 'http://localhost:3001/api/empresas';
 
   // Definir funciones fetch antes del useEffect
   const fetchAsignaciones = useCallback(async () => {
@@ -158,7 +202,7 @@ const AsignacionPrendasView: React.FC = () => {
 
   const fetchTallas = useCallback(async () => {
     try {
-      const response = await fetch(`${API_URL}/tallas`);
+      const response = await fetch(TALLAS_API_URL);
       const data: ApiResponse = await response.json();
       if (data.success && Array.isArray(data.data)) {
         setTallas(data.data);
@@ -209,16 +253,13 @@ const AsignacionPrendasView: React.FC = () => {
 
   // Búsqueda y ordenamiento
   const [filtro, setFiltro] = useState<string>('');
+  const [filtroFechaDesde, setFiltroFechaDesde] = useState<string>('');
+  const [filtroFechaHasta, setFiltroFechaHasta] = useState<string>('');
   const [sortConfig, setSortConfig] = useState<SortConfig | null>(null);
   
   // Paginación
   const [paginaActual, setPaginaActual] = useState<number>(1);
   const registrosPorPagina = 10;
-
-  const API_URL = 'http://localhost:3001/api/asignaciones-prendas';
-  const TRABAJADORES_URL = 'http://localhost:3001/api/trabajadores';
-  const RESPONSABLES_URL = 'http://localhost:3001/api/responsables-entrega';
-  const EMPRESAS_URL = 'http://localhost:3001/api/empresas';
 
   useEffect(() => {
     fetchAsignaciones();
@@ -237,15 +278,147 @@ const AsignacionPrendasView: React.FC = () => {
     }
   }, [idAsignacionSeleccionada]);
 
+  useEffect(() => {
+    // Si cambian los detalles, limpiamos selecciones que ya no existen
+    setSelectedDetalleIds((prev) => {
+      if (prev.size === 0) return prev;
+      const idsActuales = new Set(detallePrendas.map((d) => Number(d.idasignaciondetail_10)));
+      const next = new Set<number>();
+      prev.forEach((id) => {
+        if (idsActuales.has(Number(id))) next.add(Number(id));
+      });
+      return next.size === prev.size ? prev : next;
+    });
+  }, [detallePrendas]);
+
+  const toggleSeleccionDetalle = (idDetalle: number) => {
+    const idN = Number(idDetalle);
+    setSelectedDetalleIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(idN)) next.delete(idN);
+      else next.add(idN);
+      return next;
+    });
+  };
+
+  const seleccionarTodosDetalles = () => {
+    setSelectedDetalleIds(new Set(detallePrendas.map((d) => Number(d.idasignaciondetail_10))));
+  };
+
+  const deseleccionarTodosDetalles = () => setSelectedDetalleIds(new Set());
+
+  const applyBulkUpdate = async () => {
+    if (selectedDetalleIds.size === 0) {
+      await showError('Validación', 'Seleccione al menos una prenda del detalle para actualizar.');
+      return;
+    }
+
+    if (bulkEntregado === 'keep') {
+      await showError('Validación', 'Seleccione una opción en “Entrega” para aplicar a las filas seleccionadas.');
+      return;
+    }
+
+    const nuevosDetalles = detallePrendas.map((d) => {
+      const idD = Number(d.idasignaciondetail_10);
+      if (!selectedDetalleIds.has(idD)) return d;
+      return {
+        ...d,
+        entregado_10: bulkEntregado === 'true'
+      };
+    });
+
+    setDetallePrendas(nuevosDetalles);
+
+    // Persistencia: para asignación existente hacemos 1 PUT (reemplaza todos los detalles)
+    if (idAsignacionSeleccionada) {
+      const ok = await persistirAsignacionExistente(nuevosDetalles, { silent: false });
+      if (!ok) await fetchDetallesAsignacion(idAsignacionSeleccionada);
+    }
+  };
+
   const fetchDetallesAsignacion = async (id: number) => {
     try {
       const response = await fetch(`${API_URL}/${id}/detalles`);
       const data: ApiResponse = await response.json();
       if (data.success && Array.isArray(data.data)) {
-        setDetallePrendas(data.data);
+        setDetallePrendas(
+          data.data.map((row: DetalleAsignacionPrenda) => ({
+            ...row,
+            entregado_10: row.entregado_10 === true
+          }))
+        );
       }
     } catch (err) {
       console.error('Error al cargar detalles:', err);
+    }
+  };
+
+  const buildAsignacionPayload = (detallesRows: DetalleAsignacionPrenda[]) => {
+    const idResp = parseInt(idResponsable, 10);
+    return {
+      idtrabajador_09: trabajadorSeleccionado!.idtrabajador_06,
+      fecha_09: fecha,
+      hora_09: hora,
+      idresponsableentrega_09: idResp,
+      idempresa_09: idEmpresa ? parseInt(idEmpresa, 10) : null,
+      observaciones_09: observaciones.trim() || null,
+      entregado,
+      detalles: detallesRows.map((d) => ({
+        idprenda_10: d.idprenda_10,
+        talla_10: d.talla_10,
+        cantidad_10: d.cantidad_10,
+        entregado_10: d.entregado_10 === true
+      }))
+    };
+  };
+
+  /** PUT al servidor: usado al guardar y al corregir filas cuando la asignación ya existe (el backend reemplaza todos los detalles). */
+  const persistirAsignacionExistente = async (
+    detallesRows: DetalleAsignacionPrenda[],
+    options?: { silent?: boolean }
+  ): Promise<boolean> => {
+    if (!idAsignacionSeleccionada) return false;
+    if (!trabajadorSeleccionado || !idResponsable || !fecha || !hora) {
+      await showError(
+        'Validación',
+        'Complete trabajador, responsable, fecha y hora para guardar los cambios de la grilla en el servidor.'
+      );
+      return false;
+    }
+    if (detallesRows.length === 0) {
+      await showError('Validación', 'Debe quedar al menos una prenda.');
+      return false;
+    }
+    const idResp = parseInt(idResponsable, 10);
+    if (Number.isNaN(idResp)) {
+      await showError('Validación', 'Responsable no válido.');
+      return false;
+    }
+    const asignacionData = buildAsignacionPayload(detallesRows);
+    setLoading(true);
+    try {
+      const response = await fetch(`${API_URL}/${idAsignacionSeleccionada}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(asignacionData)
+      });
+      const data: ApiResponse = await response.json();
+      if (data.success) {
+        await fetchDetallesAsignacion(idAsignacionSeleccionada);
+        await fetchAsignaciones();
+        if (!options?.silent) {
+          await showSuccess('Guardado', data.message || 'Cambios guardados en el servidor.');
+        }
+        return true;
+      }
+      await showError('Error', formatApiError(data, 'Error al guardar la asignación'));
+      return false;
+    } catch (err) {
+      console.error(err);
+      await showError('Error', 'Error al guardar la asignación');
+      return false;
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -268,32 +441,22 @@ const AsignacionPrendasView: React.FC = () => {
       return;
     }
 
+    setError('');
+
+    if (idAsignacionSeleccionada) {
+      const ok = await persistirAsignacionExistente(detallePrendas, { silent: true });
+      if (ok) {
+        await showSuccess('¡Éxito!', 'Asignación guardada exitosamente');
+        resetForm();
+      }
+      return;
+    }
+
     setLoading(true);
-
     try {
-      setError('');
-      
-      const asignacionData = {
-        idtrabajador_09: trabajadorSeleccionado.idtrabajador_06,
-        fecha_09: fecha,
-        hora_09: hora,
-        idresponsableentrega_09: parseInt(idResponsable),
-        idempresa_09: idEmpresa ? parseInt(idEmpresa) : null,
-        observaciones_09: observaciones.trim() || null,
-        detalles: detallePrendas.map(d => ({
-          idprenda_10: d.idprenda_10,
-          talla_10: d.talla_10,
-          cantidad_10: d.cantidad_10
-        }))
-      };
-
-      const method = idAsignacionSeleccionada ? 'PUT' : 'POST';
-      const url = idAsignacionSeleccionada 
-        ? `${API_URL}/${idAsignacionSeleccionada}`
-        : API_URL;
-
-      const response = await fetch(url, {
-        method,
+      const asignacionData = buildAsignacionPayload(detallePrendas);
+      const response = await fetch(API_URL, {
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(asignacionData)
       });
@@ -305,7 +468,7 @@ const AsignacionPrendasView: React.FC = () => {
         await fetchAsignaciones();
         resetForm();
       } else {
-        await showError('Error', data.error || 'Error al guardar la asignación');
+        await showError('Error', formatApiError(data, 'Error al guardar la asignación'));
       }
     } catch (err) {
       await showError('Error', 'Error al guardar la asignación');
@@ -343,50 +506,77 @@ const AsignacionPrendasView: React.FC = () => {
     }
   };
 
-  const handleAgregarPrenda = () => {
+  const handleAgregarPrenda = async () => {
     if (!prendaSeleccionada || !tallaSeleccionada || cantidad < 1) {
       showError('Validación', 'Debe seleccionar una prenda, talla y cantidad válida');
       return;
     }
 
-    if (idDetalleEditando) {
-      // Actualizar detalle existente
-      setDetallePrendas(prev => prev.map(d => 
-        d.idasignaciondetail_10 === idDetalleEditando
-          ? { ...d, idprenda_10: prendaSeleccionada.idprenda_07, talla_10: tallaSeleccionada, cantidad_10: cantidad, prenda_nombre: prendaSeleccionada.prenda_07 }
+    if (idDetalleEditando !== null) {
+      const nuevosDetalles = detallePrendas.map((d) =>
+        idDetalleEq(d.idasignaciondetail_10, idDetalleEditando)
+          ? {
+              ...d,
+              idprenda_10: prendaSeleccionada.idprenda_07,
+              talla_10: tallaSeleccionada,
+              talla_descripcion: tallaSeleccionada,
+              cantidad_10: cantidad,
+              entregado_10: entregadoDetalle,
+              prenda_nombre: prendaSeleccionada.prenda_07
+            }
           : d
-      ));
+      );
+      setDetallePrendas(nuevosDetalles);
       setIdDetalleEditando(null);
+      if (idAsignacionSeleccionada) {
+        const ok = await persistirAsignacionExistente(nuevosDetalles, { silent: false });
+        if (!ok) await fetchDetallesAsignacion(idAsignacionSeleccionada);
+      }
     } else {
-      // Agregar nuevo detalle
       const nuevoDetalle: DetalleAsignacionPrenda = {
-        idasignaciondetail_10: Date.now(), // ID temporal
+        idasignaciondetail_10: Date.now(),
         idasignacionmain_10: idAsignacionSeleccionada || 0,
         idprenda_10: prendaSeleccionada.idprenda_07,
         talla_10: tallaSeleccionada,
         cantidad_10: cantidad,
+        entregado_10: entregadoDetalle,
         prenda_nombre: prendaSeleccionada.prenda_07,
         talla_descripcion: tallaSeleccionada
       };
-      setDetallePrendas(prev => [...prev, nuevoDetalle]);
+      const conNuevo = [...detallePrendas, nuevoDetalle];
+      setDetallePrendas(conNuevo);
+      if (idAsignacionSeleccionada) {
+        const ok = await persistirAsignacionExistente(conNuevo, { silent: false });
+        if (!ok) await fetchDetallesAsignacion(idAsignacionSeleccionada);
+      }
     }
 
-    // Limpiar formulario de detalle
     setPrendaSeleccionada(null);
     setTallaSeleccionada(tallas.length > 0 ? tallas[0].talla_16 : '');
     setCantidad(1);
+    setEntregadoDetalle(false);
   };
 
-  const handleEliminarDetalle = (idDetalle: number) => {
-    setDetallePrendas(prev => prev.filter(d => d.idasignaciondetail_10 !== idDetalle));
+  const handleEliminarDetalle = async (idDetalle: number) => {
+    if (idAsignacionSeleccionada && detallePrendas.length <= 1) {
+      await showError('Validación', 'Debe quedar al menos una prenda en la asignación.');
+      return;
+    }
+    const nuevos = detallePrendas.filter((d) => !idDetalleEq(d.idasignaciondetail_10, idDetalle));
+    setDetallePrendas(nuevos);
+    if (idAsignacionSeleccionada && nuevos.length > 0) {
+      const ok = await persistirAsignacionExistente(nuevos, { silent: true });
+      if (!ok) await fetchDetallesAsignacion(idAsignacionSeleccionada);
+    }
   };
 
   const handleEditarDetalle = (detalle: DetalleAsignacionPrenda) => {
-    const prenda = prendas.find(p => p.idprenda_07 === detalle.idprenda_10);
+    const prenda = prendas.find((p) => p.idprenda_07 === detalle.idprenda_10);
     setPrendaSeleccionada(prenda || null);
     setTallaSeleccionada(detalle.talla_10);
     setCantidad(detalle.cantidad_10);
-    setIdDetalleEditando(detalle.idasignaciondetail_10);
+    setEntregadoDetalle(detalle.entregado_10 === true);
+    setIdDetalleEditando(Number(detalle.idasignaciondetail_10));
   };
 
   const resetForm = () => {
@@ -397,13 +587,18 @@ const AsignacionPrendasView: React.FC = () => {
     setIdResponsable('');
     setIdEmpresa('');
     setObservaciones('');
+    setEntregado(false);
     setFecha(new Date().toISOString().split('T')[0]);
     setHora(new Date().toTimeString().split(' ')[0].substring(0, 5));
     setDetallePrendas([]);
     setPrendaSeleccionada(null);
     setTallaSeleccionada(tallas.length > 0 ? tallas[0].talla_16 : '');
     setCantidad(1);
+    setEntregadoDetalle(false);
     setIdDetalleEditando(null);
+    setEditModeDetalle('single');
+    setSelectedDetalleIds(new Set());
+    setBulkEntregado('keep');
     setError('');
   };
 
@@ -414,12 +609,16 @@ const AsignacionPrendasView: React.FC = () => {
     setIdResponsable(asignacion.idresponsableentrega_09.toString());
     setIdEmpresa(asignacion.idempresa_09 ? asignacion.idempresa_09.toString() : '');
     setObservaciones(asignacion.observaciones_09 || '');
+    setEntregado(asignacion.entregado === true);
     
     // Buscar trabajador
     const trabajador = trabajadores.find(t => t.idtrabajador_06 === asignacion.idtrabajador_09);
     setTrabajadorSeleccionado(trabajador || null);
     
     setShowForm(true);
+    setEditModeDetalle('single');
+    setSelectedDetalleIds(new Set());
+    setBulkEntregado('keep');
   };
 
   // Filtrar trabajadores por apellido
@@ -461,6 +660,16 @@ const AsignacionPrendasView: React.FC = () => {
       );
     }
 
+    if (filtroFechaDesde || filtroFechaHasta) {
+      data = data.filter((a) => {
+        if (!a.fecha_09) return false;
+        const fechaAsignacion = String(a.fecha_09).split('T')[0];
+        if (filtroFechaDesde && fechaAsignacion < filtroFechaDesde) return false;
+        if (filtroFechaHasta && fechaAsignacion > filtroFechaHasta) return false;
+        return true;
+      });
+    }
+
     if (sortConfig) {
       data.sort((a, b) => {
         const aValue = a[sortConfig.key];
@@ -486,7 +695,7 @@ const AsignacionPrendasView: React.FC = () => {
     }
 
     return data;
-  }, [asignaciones, filtro, sortConfig]);
+  }, [asignaciones, filtro, filtroFechaDesde, filtroFechaHasta, sortConfig]);
 
   const asignacionesPaginadas = useMemo(() => {
     const inicio = (paginaActual - 1) * registrosPorPagina;
@@ -533,6 +742,20 @@ const AsignacionPrendasView: React.FC = () => {
       await showError('Validación', 'Debe indicar el intervalo de fechas');
       return;
     }
+    const idD = idDesdeReporte.trim() ? parseInt(idDesdeReporte, 10) : NaN;
+    const idH = idHastaReporte.trim() ? parseInt(idHastaReporte, 10) : NaN;
+    if (idDesdeReporte.trim() && Number.isNaN(idD)) {
+      await showError('Validación', 'ID inicial debe ser un número válido');
+      return;
+    }
+    if (idHastaReporte.trim() && Number.isNaN(idH)) {
+      await showError('Validación', 'ID final debe ser un número válido');
+      return;
+    }
+    if (!Number.isNaN(idD) && !Number.isNaN(idH) && idD > idH) {
+      await showError('Validación', 'El ID inicial debe ser menor o igual al ID final');
+      return;
+    }
     setLoadingReporte(true);
     setShowPreviewReporte(false);
     try {
@@ -542,6 +765,8 @@ const AsignacionPrendasView: React.FC = () => {
       });
       if (idTrabajadorReporte) params.append('idTrabajador', idTrabajadorReporte);
       if (idPrendaReporte) params.append('idPrenda', idPrendaReporte);
+      if (!Number.isNaN(idD)) params.append('idDesde', String(idD));
+      if (!Number.isNaN(idH)) params.append('idHasta', String(idH));
       const response = await fetch(`${API_URL}/reporte/datos?${params}`);
       const data: ApiResponse = await response.json();
       if (!response.ok) {
@@ -565,7 +790,55 @@ const AsignacionPrendasView: React.FC = () => {
     } finally {
       setLoadingReporte(false);
     }
-  }, [fechaDesdeReporte, fechaHastaReporte, idTrabajadorReporte, idPrendaReporte]);
+  }, [fechaDesdeReporte, fechaHastaReporte, idTrabajadorReporte, idPrendaReporte, idDesdeReporte, idHastaReporte]);
+
+  // Reporte maestro (solo encabezado de asignación)
+  const fetchReporteMaestro = useCallback(async () => {
+    if (!fechaDesdeReporte || !fechaHastaReporte) {
+      await showError('Validación', 'Debe indicar el intervalo de fechas');
+      return;
+    }
+    setLoadingReporte(true);
+    setShowPreviewReporte(false);
+    try {
+      const params = new URLSearchParams({
+        fechaDesde: fechaDesdeReporte,
+        fechaHasta: fechaHastaReporte
+      });
+      if (idTrabajadorReporte) params.append('idTrabajador', idTrabajadorReporte);
+      if (filtroEntregadoReporte) params.append('entregado', filtroEntregadoReporte);
+
+      const response = await fetch(`${API_URL}/reporte-maestro?${params}`);
+      const data: ApiResponse = await response.json();
+      if (!response.ok) {
+        await showError('Error', data.error || `Error del servidor (${response.status})`);
+        return;
+      }
+      if (data.success) {
+        const rows = Array.isArray(data.data) ? data.data : [];
+        setDatosReporteMaestro(rows);
+        setShowPreviewReporte(true);
+        setFechaHoraImpresion(
+          new Date().toLocaleString('es-CL', {
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+          })
+        );
+        setTimeout(() => {
+          reportePreviewRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }, 100);
+      } else {
+        await showError('Error', data.error || 'No se pudieron cargar los datos del reporte maestro');
+      }
+    } catch (err) {
+      await showError('Error', 'Error de conexión al cargar el reporte maestro');
+    } finally {
+      setLoadingReporte(false);
+    }
+  }, [fechaDesdeReporte, fechaHastaReporte, idTrabajadorReporte, filtroEntregadoReporte]);
 
   const getReportePDFUrl = useCallback(() => {
     const params = new URLSearchParams({
@@ -574,10 +847,14 @@ const AsignacionPrendasView: React.FC = () => {
     });
     if (idTrabajadorReporte) params.append('idTrabajador', idTrabajadorReporte);
     if (idPrendaReporte) params.append('idPrenda', idPrendaReporte);
+    const idD = idDesdeReporte.trim() ? parseInt(idDesdeReporte, 10) : NaN;
+    const idH = idHastaReporte.trim() ? parseInt(idHastaReporte, 10) : NaN;
+    if (!Number.isNaN(idD)) params.append('idDesde', String(idD));
+    if (!Number.isNaN(idH)) params.append('idHasta', String(idH));
     const usuario = getUsuarioConectado();
     if (usuario) params.append('usuario', usuario);
     return `${API_URL}/reporte/pdf?${params}`;
-  }, [fechaDesdeReporte, fechaHastaReporte, idTrabajadorReporte, idPrendaReporte]);
+  }, [fechaDesdeReporte, fechaHastaReporte, idTrabajadorReporte, idPrendaReporte, idDesdeReporte, idHastaReporte]);
 
   const formatDateReporte = (date: string) => {
     if (!date) return 'N/A';
@@ -603,6 +880,51 @@ const AsignacionPrendasView: React.FC = () => {
     return 'Usuario';
   };
 
+  /** Título del reporte con fecha y hora de impresión (vista previa, Excel). */
+  const getTituloReportePrendas = (): string => {
+    const fh =
+      fechaHoraImpresion ||
+      new Date().toLocaleString('es-CL', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    return `REPORTE DE ASIGNACIÓN DE PRENDAS — ${fh}`;
+  };
+
+  /**
+   * Nombre de archivo Excel/PDF: período del filtro + fecha y hora de impresión (exportación) legibles.
+   * Sin dos puntos ni caracteres prohibidos en Windows.
+   */
+  const getNombreArchivoReportePrendas = (): string => {
+    const d = new Date();
+    const fechaImpresion = `${String(d.getDate()).padStart(2, '0')}-${String(d.getMonth() + 1).padStart(2, '0')}-${d.getFullYear()}`;
+    const horaImpresion = `${String(d.getHours()).padStart(2, '0')}-${String(d.getMinutes()).padStart(2, '0')}-${String(d.getSeconds()).padStart(2, '0')}`;
+    const idD = idDesdeReporte.trim() ? parseInt(idDesdeReporte, 10) : NaN;
+    const idH = idHastaReporte.trim() ? parseInt(idHastaReporte, 10) : NaN;
+    const sufijoId =
+      !Number.isNaN(idD) && !Number.isNaN(idH)
+        ? `_ID_${idD}-${idH}`
+        : !Number.isNaN(idD)
+          ? `_IDdesde_${idD}`
+          : !Number.isNaN(idH)
+            ? `_IDhasta_${idH}`
+            : '';
+    return `reporte-asignacion-prendas-${fechaDesdeReporte}-${fechaHastaReporte}${sufijoId}_impresion_${fechaImpresion}_${horaImpresion}`;
+  };
+
+  /** Texto opcional para vista previa / coherencia con PDF */
+  const getSubtituloRangoIdReporte = (): string => {
+    const idD = idDesdeReporte.trim() ? parseInt(idDesdeReporte, 10) : NaN;
+    const idH = idHastaReporte.trim() ? parseInt(idHastaReporte, 10) : NaN;
+    if (!Number.isNaN(idD) && !Number.isNaN(idH)) return `Rango de ID asignación: ${idD} – ${idH}`;
+    if (!Number.isNaN(idD)) return `ID asignación desde: ${idD}`;
+    if (!Number.isNaN(idH)) return `ID asignación hasta: ${idH}`;
+    return '';
+  };
+
   // Agrupar reporte por asignación (maestro-detalle)
   const reporteAgrupado = useMemo(() => {
     if (!datosReporte || datosReporte.length === 0) return [];
@@ -613,7 +935,7 @@ const AsignacionPrendasView: React.FC = () => {
       trabajador_nombre: string;
       responsable_nombre: string;
       empresa_nombre: string;
-      detalles: Array<{ prenda_nombre: string; talla_10: string; cantidad_10: number }>;
+      detalles: Array<{ prenda_nombre: string; talla_10: string; cantidad_10: number; entregado_10: boolean }>;
     }>();
     datosReporte.forEach((row: any) => {
       const id = row.idasignacionmain_09;
@@ -631,10 +953,13 @@ const AsignacionPrendasView: React.FC = () => {
       grupos.get(id)!.detalles.push({
         prenda_nombre: row.prenda_nombre || 'N/A',
         talla_10: row.talla_10 || 'N/A',
-        cantidad_10: row.cantidad_10 ?? 0
+        cantidad_10: row.cantidad_10 ?? 0,
+        entregado_10: row.entregado_10 === true
       });
     });
-    return Array.from(grupos.values());
+    return Array.from(grupos.values()).sort(
+      (a, b) => b.idasignacionmain_09 - a.idasignacionmain_09
+    );
   }, [datosReporte]);
 
   const handleSort = (key: keyof AsignacionPrenda) => {
@@ -645,11 +970,69 @@ const AsignacionPrendasView: React.FC = () => {
     setSortConfig({ key, direction });
   };
 
+  /** Nombre del trabajador junto al título principal (formulario abierto). */
+  const nombreTrabajadorTitulo = useMemo(() => {
+    if (trabajadorSeleccionado) {
+      const partes = [
+        trabajadorSeleccionado.nombre_06,
+        trabajadorSeleccionado.apaterno_06,
+        trabajadorSeleccionado.amaterno_06
+      ].filter((p): p is string => Boolean(p && String(p).trim()));
+      const armado = partes.join(' ').trim();
+      if (armado) return armado;
+    }
+    if (idAsignacionSeleccionada) {
+      const asign = asignaciones.find((a) => a.idasignacionmain_09 === idAsignacionSeleccionada);
+      const nombre = asign?.trabajador_nombre?.trim();
+      if (nombre) return nombre;
+    }
+    return '';
+  }, [trabajadorSeleccionado, idAsignacionSeleccionada, asignaciones]);
+
   return (
     <div className="bodega-view">
-      <div className="view-header">
-        <h2>👔 Asignación de Prendas</h2>
-        <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+      <div
+        className="view-header"
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'auto minmax(0, 1fr) auto',
+          alignItems: 'center',
+          gap: '12px',
+          width: '100%'
+        }}
+      >
+        <h2 style={{ margin: 0 }}>👔 Asignación de Prendas</h2>
+        <div
+          style={{
+            justifySelf: 'center',
+            textAlign: 'center',
+            minWidth: 0,
+            width: '100%',
+            padding: '0 8px'
+          }}
+          aria-live="polite"
+        >
+          {showForm && nombreTrabajadorTitulo ? (
+            <span
+              style={{
+                display: 'inline-block',
+                maxWidth: '100%',
+                fontSize: 'clamp(0.95rem, 2.5vw, 1.15rem)',
+                fontWeight: 700,
+                color: '#0d47a1',
+                letterSpacing: '0.02em',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+                verticalAlign: 'bottom'
+              }}
+              title={nombreTrabajadorTitulo}
+            >
+              {nombreTrabajadorTitulo}
+            </span>
+          ) : null}
+        </div>
+        <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
           {!modoReporte && (
             <>
               <button
@@ -700,6 +1083,8 @@ const AsignacionPrendasView: React.FC = () => {
                 setModoReporte(false);
                 setShowPreviewReporte(false);
                 setDatosReporte([]);
+                setIdDesdeReporte('');
+                setIdHastaReporte('');
               }}
             >
               ← Volver
@@ -719,8 +1104,41 @@ const AsignacionPrendasView: React.FC = () => {
         <div className="form-container reporte-section" style={{ marginBottom: '20px' }}>
           <div className="no-print">
           <h3>📊 Reporte de Asignación de Prendas</h3>
-          <p style={{ color: '#6c757d', marginBottom: '16px', fontSize: '0.95em' }}>
-            Filtre por intervalo de fechas y opcionalmente por trabajador o prenda. Formato: Carta, horizontal.
+          <p style={{ color: '#6c757d', marginBottom: '8px', fontSize: '0.95em' }}>
+            Elija entre reporte maestro (solo asignación principal) o detalle (con prendas).
+          </p>
+          <div style={{ marginBottom: '16px', display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
+            <label style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}>
+              <input
+                type="radio"
+                name="tipo-reporte"
+                value="detalle"
+                checked={tipoReporte === 'detalle'}
+                onChange={() => {
+                  setTipoReporte('detalle');
+                  setShowPreviewReporte(false);
+                  setDatosReporteMaestro([]);
+                }}
+              />
+              <span>Detalle (maestro + prendas)</span>
+            </label>
+            <label style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}>
+              <input
+                type="radio"
+                name="tipo-reporte"
+                value="maestro"
+                checked={tipoReporte === 'maestro'}
+                onChange={() => {
+                  setTipoReporte('maestro');
+                  setShowPreviewReporte(false);
+                  setDatosReporte([]);
+                }}
+              />
+              <span>Solo maestro (una fila por asignación)</span>
+            </label>
+          </div>
+          <p style={{ color: '#6c757d', marginBottom: '16px', fontSize: '0.9em' }}>
+            Filtre por intervalo de fechas. En modo detalle puede acotar por rango de ID y prenda; en modo maestro puede filtrar por estado entregado.
           </p>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '16px', marginBottom: '20px' }}>
             <div className="form-group">
@@ -773,6 +1191,7 @@ const AsignacionPrendasView: React.FC = () => {
                 onChange={(e) => setIdPrendaReporte(e.target.value)}
                 style={{ width: '100%', padding: '8px 12px', borderRadius: '4px', border: '1px solid #ced4da', fontSize: '14px' }}
                 aria-describedby="prenda-reporte-desc"
+                disabled={tipoReporte === 'maestro'}
               >
                 <option value="">Todas las prendas</option>
                 {prendas.map(p => (
@@ -781,11 +1200,57 @@ const AsignacionPrendasView: React.FC = () => {
               </select>
               <span id="prenda-reporte-desc" className="sr-only">Filtrar por prenda específica</span>
             </div>
+            <div className="form-group">
+              <label htmlFor="id-desde-reporte">ID asignación desde (opcional)</label>
+              <input
+                id="id-desde-reporte"
+                type="number"
+                min={1}
+                step={1}
+                value={idDesdeReporte}
+                onChange={(e) => setIdDesdeReporte(e.target.value)}
+                placeholder="Ej: 200"
+                style={{ width: '100%', padding: '8px 12px', borderRadius: '4px', border: '1px solid #ced4da', fontSize: '14px' }}
+                aria-describedby="id-desde-reporte-desc"
+              />
+              <span id="id-desde-reporte-desc" className="sr-only">Incluir asignaciones con ID mayor o igual a este valor</span>
+            </div>
+            <div className="form-group">
+              <label htmlFor="id-hasta-reporte">ID asignación hasta (opcional)</label>
+              <input
+                id="id-hasta-reporte"
+                type="number"
+                min={1}
+                step={1}
+                value={idHastaReporte}
+                onChange={(e) => setIdHastaReporte(e.target.value)}
+                placeholder="Ej: 250"
+                style={{ width: '100%', padding: '8px 12px', borderRadius: '4px', border: '1px solid #ced4da', fontSize: '14px' }}
+                aria-describedby="id-hasta-reporte-desc"
+              />
+              <span id="id-hasta-reporte-desc" className="sr-only">Incluir asignaciones con ID menor o igual a este valor</span>
+            </div>
+            <div className="form-group">
+              <label htmlFor="entregado-reporte">Entregado (solo maestro)</label>
+              <select
+                id="entregado-reporte"
+                value={filtroEntregadoReporte}
+                onChange={(e) => setFiltroEntregadoReporte(e.target.value)}
+                style={{ width: '100%', padding: '8px 12px', borderRadius: '4px', border: '1px solid #ced4da', fontSize: '14px' }}
+                aria-describedby="entregado-reporte-desc"
+                disabled={tipoReporte === 'detalle'}
+              >
+                <option value="">Todos</option>
+                <option value="true">Solo entregados</option>
+                <option value="false">Solo pendientes</option>
+              </select>
+              <span id="entregado-reporte-desc" className="sr-only">Filtrar por estado de entrega en el maestro</span>
+            </div>
           </div>
           <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
             <button
               className="btn-primary"
-              onClick={fetchReporte}
+              onClick={tipoReporte === 'detalle' ? fetchReporte : fetchReporteMaestro}
               disabled={loadingReporte}
               style={{ backgroundColor: '#17a2b8' }}
             >
@@ -794,7 +1259,7 @@ const AsignacionPrendasView: React.FC = () => {
             <button
               className="btn-primary"
               onClick={() => window.open(getReportePDFUrl(), '_blank')}
-              disabled={!fechaDesdeReporte || !fechaHastaReporte}
+              disabled={!fechaDesdeReporte || !fechaHastaReporte || tipoReporte === 'maestro'}
               style={{ backgroundColor: '#28a745' }}
               title="Descargar PDF (formato carta, horizontal)"
             >
@@ -803,14 +1268,22 @@ const AsignacionPrendasView: React.FC = () => {
             <button
               className="btn-primary"
               onClick={() => {
-                if (reporteAgrupado.length > 0) {
-                  const filename = `reporte-asignacion-prendas-${fechaDesdeReporte}-${fechaHastaReporte}`;
+                if (tipoReporte === 'detalle' && reporteAgrupado.length > 0) {
+                  const filename = getNombreArchivoReportePrendas();
                   const fechaImp = new Date().toLocaleString('es-CL', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
-                  exportReporteMaestroDetalleToExcel(reporteAgrupado, filename, formatDateReporte, formatHoraReporte, fechaImp, getUsuarioConectado());
+                  exportReporteMaestroDetalleToExcel(
+                    reporteAgrupado,
+                    filename,
+                    formatDateReporte,
+                    formatHoraReporte,
+                    fechaImp,
+                    getUsuarioConectado(),
+                    getTituloReportePrendas()
+                  );
                   showSuccess('Exportado', 'El reporte se ha exportado a Excel correctamente.');
                 }
               }}
-              disabled={reporteAgrupado.length === 0}
+              disabled={tipoReporte === 'maestro' || reporteAgrupado.length === 0}
               style={{ backgroundColor: '#218838' }}
               title="Exportar a Excel (formato maestro-detalle)"
             >
@@ -833,12 +1306,20 @@ const AsignacionPrendasView: React.FC = () => {
                   <button
                     className="btn-primary"
                     onClick={() => {
-                      const filename = `reporte-asignacion-prendas-${fechaDesdeReporte}-${fechaHastaReporte}`;
+                      const filename = getNombreArchivoReportePrendas();
                       const fechaImp = new Date().toLocaleString('es-CL', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
-                      exportReporteMaestroDetalleToExcel(reporteAgrupado, filename, formatDateReporte, formatHoraReporte, fechaImp, getUsuarioConectado());
+                      exportReporteMaestroDetalleToExcel(
+                        reporteAgrupado,
+                        filename,
+                        formatDateReporte,
+                        formatHoraReporte,
+                        fechaImp,
+                        getUsuarioConectado(),
+                        getTituloReportePrendas()
+                      );
                       showSuccess('Exportado', 'El reporte se ha exportado a Excel correctamente.');
                     }}
-                    style={{ backgroundColor: '#218838' }}
+                    style={{ backgroundColor: '#218838', display: tipoReporte === 'detalle' ? 'inline-flex' : 'none' }}
                   >
                     📊 Exportar Excel
                   </button>
@@ -864,34 +1345,41 @@ const AsignacionPrendasView: React.FC = () => {
                   backgroundColor: '#fff'
                 }}
               >
-                {reporteAgrupado.length > 0 ? (
+                {tipoReporte === 'detalle' ? (
+                  reporteAgrupado.length > 0 ? (
                   <table className="data-table reporte-maestro-detalle" style={{ width: '100%', fontSize: '12px' }}>
                     <thead>
                       <tr>
-                        <td colSpan={8} style={{ border: 'none', padding: '0 0 8px 0', textAlign: 'center', fontWeight: 'bold', fontSize: '14px' }}>
-                          REPORTE DE ASIGNACIÓN DE PRENDAS
+                        <td colSpan={10} style={{ border: 'none', padding: '0 0 8px 0', textAlign: 'center', fontWeight: 'bold', fontSize: '14px' }}>
+                          {getTituloReportePrendas()}
                         </td>
                       </tr>
                       <tr>
-                        <td colSpan={8} style={{ border: 'none', padding: '0 0 4px 0', textAlign: 'center', fontSize: '0.9em', color: '#555' }}>
+                        <td colSpan={10} style={{ border: 'none', padding: '0 0 4px 0', textAlign: 'center', fontSize: '0.9em', color: '#ffffff' }}>
                           Período: {formatDateReporte(fechaDesdeReporte)} - {formatDateReporte(fechaHastaReporte)}
                         </td>
                       </tr>
+                      {getSubtituloRangoIdReporte() && (
+                        <tr>
+                          <td colSpan={10} style={{ border: 'none', padding: '0 0 4px 0', textAlign: 'center', fontSize: '0.9em', color: '#ffffff' }}>
+                            {getSubtituloRangoIdReporte()}
+                          </td>
+                        </tr>
+                      )}
                       <tr>
-                        <td colSpan={8} style={{ border: 'none', padding: '0 0 8px 0', fontSize: '0.85em', color: '#666' }}>
+                        <td colSpan={10} style={{ border: 'none', padding: '0 0 8px 0', fontSize: '0.85em', color: '#ffffff' }}>
                           <span>Usuario: {getUsuarioConectado()}</span>
-                          {fechaHoraImpresion && (
-                            <span style={{ float: 'right' }}>Fecha y hora de impresión: {fechaHoraImpresion}</span>
-                          )}
                         </td>
                       </tr>
                       <tr>
+                        <th>ID</th>
                         <th>Fecha</th>
                         <th>Hora</th>
                         <th>Trabajador</th>
                         <th>Prenda</th>
                         <th>Talla</th>
                         <th>Cantidad</th>
+                        <th>Estado</th>
                         <th>Responsable</th>
                         <th>Empresa</th>
                       </tr>
@@ -905,6 +1393,9 @@ const AsignacionPrendasView: React.FC = () => {
                           >
                             {dIdx === 0 ? (
                               <>
+                                <td rowSpan={grupo.detalles.length} style={{ verticalAlign: 'top', textAlign: 'center' }}>
+                                  {grupo.idasignacionmain_09}
+                                </td>
                                 <td rowSpan={grupo.detalles.length} style={{ verticalAlign: 'top' }}>
                                   {formatDateReporte(grupo.fecha_09)}
                                 </td>
@@ -917,6 +1408,9 @@ const AsignacionPrendasView: React.FC = () => {
                                 <td>{det.prenda_nombre}</td>
                                 <td>{det.talla_10}</td>
                                 <td>{det.cantidad_10}</td>
+                                <td style={{ textAlign: 'center' }}>
+                                  <EstadoEntregaLabel entregado={det.entregado_10 === true} />
+                                </td>
                                 <td rowSpan={grupo.detalles.length} style={{ verticalAlign: 'top' }}>
                                   {grupo.responsable_nombre}
                                 </td>
@@ -929,6 +1423,9 @@ const AsignacionPrendasView: React.FC = () => {
                                 <td>{det.prenda_nombre}</td>
                                 <td>{det.talla_10}</td>
                                 <td>{det.cantidad_10}</td>
+                                <td style={{ textAlign: 'center' }}>
+                                  <EstadoEntregaLabel entregado={det.entregado_10 === true} />
+                                </td>
                               </>
                             )}
                           </tr>
@@ -936,10 +1433,64 @@ const AsignacionPrendasView: React.FC = () => {
                       )}
                     </tbody>
                   </table>
+                  ) : (
+                    <p style={{ textAlign: 'center', padding: '24px', color: '#6c757d' }}>
+                      No hay registros para el período y filtros seleccionados.
+                    </p>
+                  )
                 ) : (
-                  <p style={{ textAlign: 'center', padding: '24px', color: '#6c757d' }}>
-                    No hay registros para el período y filtros seleccionados.
-                  </p>
+                  // Vista previa maestro (solo encabezado por asignación)
+                  <table className="data-table" style={{ width: '100%', fontSize: '12px' }}>
+                    <thead>
+                      <tr>
+                        <td colSpan={7} style={{ border: 'none', padding: '0 0 8px 0', textAlign: 'center', fontWeight: 'bold', fontSize: '14px' }}>
+                          {getTituloReportePrendas()}
+                        </td>
+                      </tr>
+                      <tr>
+                        <td colSpan={7} style={{ border: 'none', padding: '0 0 4px 0', textAlign: 'center', fontSize: '0.9em', color: '#ffffff' }}>
+                          Período: {formatDateReporte(fechaDesdeReporte)} - {formatDateReporte(fechaHastaReporte)}
+                        </td>
+                      </tr>
+                      <tr>
+                        <td colSpan={7} style={{ border: 'none', padding: '0 0 8px 0', fontSize: '0.85em', color: '#ffffff' }}>
+                          <span>Usuario: {getUsuarioConectado()}</span>
+                        </td>
+                      </tr>
+                      <tr>
+                        <th>ID</th>
+                        <th>Fecha</th>
+                        <th>Hora</th>
+                        <th>Trabajador</th>
+                        <th>Responsable</th>
+                        <th>Empresa</th>
+                        <th>Estado</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {datosReporteMaestro.length > 0 ? (
+                        datosReporteMaestro.map((row: any) => (
+                          <tr key={row.idasignacionmain_09}>
+                            <td>{row.idasignacionmain_09}</td>
+                            <td>{formatDateReporte(row.fecha_09)}</td>
+                            <td>{formatHoraReporte(row.hora_09)}</td>
+                            <td>{row.trabajador_nombre || 'N/A'}</td>
+                            <td>{row.responsable_nombre || 'N/A'}</td>
+                            <td>{row.empresa_nombre || 'N/A'}</td>
+                            <td>
+                              <EstadoEntregaLabel entregado={row.entregado === true} />
+                            </td>
+                          </tr>
+                        ))
+                      ) : (
+                        <tr>
+                          <td colSpan={7} style={{ textAlign: 'center', padding: '24px', color: '#6c757d' }}>
+                            No hay registros para el período y filtros seleccionados.
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
                 )}
               </div>
             </div>
@@ -1022,8 +1573,8 @@ const AsignacionPrendasView: React.FC = () => {
             </div>
           </div>
 
-          {/* Segunda fila: Responsable | Empresa | Fecha | Hora */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '15px', marginBottom: '20px' }}>
+          {/* Segunda fila: Responsable | Empresa | Fecha | Hora | Estado de Entrega */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr 1fr', gap: '15px', marginBottom: '20px' }}>
             <div className="form-group">
               <label>Responsable *</label>
               <select
@@ -1078,6 +1629,31 @@ const AsignacionPrendasView: React.FC = () => {
                 style={{ width: '100%', padding: '8px 12px', borderRadius: '4px', border: '1px solid #ced4da', fontSize: '14px' }}
               />
             </div>
+
+            <div className="form-group">
+              <label id="label-entregado-main">Estado de Entrega (Maestro)</label>
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  minHeight: '38px',
+                  padding: '4px 0'
+                }}
+              >
+                <input
+                  type="checkbox"
+                  id="entregado-main"
+                  checked={entregado}
+                  onChange={(e) => setEntregado(e.target.checked)}
+                  aria-labelledby="label-entregado-main"
+                  aria-describedby="entregado-main-desc"
+                />
+                <span id="entregado-main-desc" style={{ fontSize: '13px' }}>
+                  <EstadoEntregaLabel entregado={entregado} />
+                </span>
+              </div>
+            </div>
           </div>
 
           {/* Observaciones */}
@@ -1095,7 +1671,7 @@ const AsignacionPrendasView: React.FC = () => {
           {/* Formulario para agregar prendas */}
           <div style={{ marginBottom: '20px', padding: '15px', border: '1px solid #ced4da', borderRadius: '4px', backgroundColor: '#f8f9fa' }}>
             <h4 style={{ marginTop: 0, marginBottom: '15px' }}>Agregar Prenda</h4>
-            <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr auto', gap: '10px', alignItems: 'end' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr auto auto', gap: '10px', alignItems: 'end' }}>
               <div className="form-group" style={{ marginBottom: 0 }}>
                 <label>Prenda *</label>
                 <select
@@ -1141,6 +1717,31 @@ const AsignacionPrendasView: React.FC = () => {
                 />
               </div>
 
+              <div className="form-group" style={{ marginBottom: 0 }}>
+                <label id="label-entregado-detalle">Entrega</label>
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    minHeight: '38px',
+                    padding: '4px 0'
+                  }}
+                >
+                  <input
+                    type="checkbox"
+                    id="entregado-detalle"
+                    checked={entregadoDetalle}
+                    onChange={(e) => setEntregadoDetalle(e.target.checked)}
+                    aria-labelledby="label-entregado-detalle"
+                    aria-describedby="entregado-detalle-desc"
+                  />
+                  <span id="entregado-detalle-desc" style={{ fontSize: '13px' }}>
+                    <EstadoEntregaLabel entregado={entregadoDetalle} />
+                  </span>
+                </div>
+              </div>
+
               <button
                 type="button"
                 className={idDetalleEditando ? "btn-success" : "btn-primary"}
@@ -1159,6 +1760,7 @@ const AsignacionPrendasView: React.FC = () => {
                   setPrendaSeleccionada(null);
                   setTallaSeleccionada(tallas.length > 0 ? tallas[0].talla_16 : '');
                   setCantidad(1);
+                  setEntregadoDetalle(false);
                 }}
                 style={{ marginTop: '10px', padding: '6px 12px' }}
               >
@@ -1169,38 +1771,179 @@ const AsignacionPrendasView: React.FC = () => {
 
           {/* Tabla de detalles */}
           <div style={{ marginTop: '20px' }}>
-            <label style={{ display: 'block', marginBottom: '10px', fontWeight: 'bold' }}>Prendas Asignadas</label>
+            <label style={{ display: 'block', marginBottom: '10px', fontWeight: 'bold' }}>
+              Prendas Asignadas
+            </label>
+
+            {/* Controles de edición (individual vs masiva) */}
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: '12px',
+                flexWrap: 'wrap',
+                marginBottom: '10px'
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+                <span style={{ fontSize: '13px', color: '#444', fontWeight: 600 }}>Modo edición:</span>
+                <label style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}>
+                  <input
+                    type="radio"
+                    name="detalle-edit-mode"
+                    value="single"
+                    checked={editModeDetalle === 'single'}
+                    onChange={() => setEditModeDetalle('single')}
+                  />
+                  <span>Prenda a prenda</span>
+                </label>
+                <label style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}>
+                  <input
+                    type="radio"
+                    name="detalle-edit-mode"
+                    value="bulk"
+                    checked={editModeDetalle === 'bulk'}
+                    onChange={() => {
+                      setEditModeDetalle('bulk');
+                      setIdDetalleEditando(null);
+                    }}
+                  />
+                  <span>Actualización masiva</span>
+                </label>
+              </div>
+
+              {editModeDetalle === 'bulk' && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                  <button
+                    type="button"
+                    className="btn-secondary"
+                    onClick={seleccionarTodosDetalles}
+                    disabled={detallePrendas.length === 0}
+                    style={{ padding: '6px 10px' }}
+                  >
+                    Seleccionar todo
+                  </button>
+                  <button
+                    type="button"
+                    className="btn-secondary"
+                    onClick={deseleccionarTodosDetalles}
+                    disabled={selectedDetalleIds.size === 0}
+                    style={{ padding: '6px 10px' }}
+                  >
+                    Limpiar selección
+                  </button>
+                  <span style={{ fontSize: '12px', color: '#555' }}>
+                    Seleccionadas: <strong>{selectedDetalleIds.size}</strong>
+                  </span>
+                </div>
+              )}
+            </div>
+
+            {editModeDetalle === 'bulk' && (
+              <div
+                style={{
+                  border: '1px solid #ced4da',
+                  borderRadius: '6px',
+                  padding: '12px',
+                  backgroundColor: '#f8f9fa',
+                  marginBottom: '12px'
+                }}
+              >
+                <div
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+                    gap: '10px',
+                    alignItems: 'end'
+                  }}
+                >
+                  <div className="form-group" style={{ marginBottom: 0 }}>
+                    <label htmlFor="bulk-entregado">Entrega *</label>
+                    <select
+                      id="bulk-entregado"
+                      value={bulkEntregado}
+                      onChange={(e) => setBulkEntregado(e.target.value as 'keep' | 'true' | 'false')}
+                      style={{ width: '100%', padding: '8px 12px', borderRadius: '4px', border: '1px solid #ced4da', fontSize: '14px' }}
+                    >
+                      <option value="keep">Seleccione…</option>
+                      <option value="true">Marcar como entregado</option>
+                      <option value="false">Marcar como pendiente</option>
+                    </select>
+                  </div>
+
+                  <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                    <button type="button" className="btn-primary" onClick={applyBulkUpdate} style={{ padding: '8px 16px' }}>
+                      Aplicar a seleccionadas
+                    </button>
+                    <button
+                      type="button"
+                      className="btn-secondary"
+                      onClick={() => {
+                        setBulkEntregado('keep');
+                      }}
+                      style={{ padding: '8px 16px' }}
+                    >
+                      Limpiar campos
+                    </button>
+                  </div>
+                </div>
+
+                <small style={{ display: 'block', marginTop: '8px', color: '#6c757d' }}>
+                  💡 Consejo: selecciona filas (checkbox) y luego marca estado entregado o pendiente para aplicarlo a todas las seleccionadas.
+                </small>
+              </div>
+            )}
+
             <div className="table-container">
               <table className="data-table">
                 <thead>
                   <tr>
+                    {editModeDetalle === 'bulk' && <th style={{ width: '42px' }}>Sel.</th>}
                     <th>Prenda</th>
                     <th>Talla</th>
                     <th>Cantidad</th>
+                    <th>Estado</th>
                     <th>Acciones</th>
                   </tr>
                 </thead>
                 <tbody>
                   {detallePrendas.length === 0 ? (
                     <tr>
-                      <td colSpan={4} style={{ textAlign: 'center', color: '#999' }}>
+                      <td colSpan={editModeDetalle === 'bulk' ? 6 : 5} style={{ textAlign: 'center', color: '#999' }}>
                         No hay prendas asignadas
                       </td>
                     </tr>
                   ) : (
                     detallePrendas.map((detalle) => {
                       const prenda = prendas.find(p => p.idprenda_07 === detalle.idprenda_10);
+                      const idDet = Number(detalle.idasignaciondetail_10);
+                      const isSelected = selectedDetalleIds.has(idDet);
                       return (
                         <tr key={detalle.idasignaciondetail_10}>
+                          {editModeDetalle === 'bulk' && (
+                            <td style={{ textAlign: 'center' }}>
+                              <input
+                                type="checkbox"
+                                checked={isSelected}
+                                onChange={() => toggleSeleccionDetalle(idDet)}
+                                aria-label={`Seleccionar ${prenda?.prenda_07 || detalle.prenda_nombre || 'prenda'}`}
+                              />
+                            </td>
+                          )}
                           <td>{prenda?.prenda_07 || detalle.prenda_nombre || 'N/A'}</td>
                           <td>{detalle.talla_descripcion || detalle.talla_10}</td>
                           <td>{detalle.cantidad_10}</td>
+                          <td>
+                            <EstadoEntregaLabel entregado={detalle.entregado_10 === true} />
+                          </td>
                           <td className="actions">
                             <button
                               className="btn-edit"
                               onClick={() => handleEditarDetalle(detalle)}
                               title="Editar"
                               style={{ marginRight: '5px' }}
+                              disabled={editModeDetalle === 'bulk'}
                             >
                               ✏️
                             </button>
@@ -1208,6 +1951,7 @@ const AsignacionPrendasView: React.FC = () => {
                               className="btn-delete"
                               onClick={() => handleEliminarDetalle(detalle.idasignaciondetail_10)}
                               title="Eliminar"
+                              disabled={editModeDetalle === 'bulk'}
                             >
                               🗑️
                             </button>
@@ -1227,13 +1971,39 @@ const AsignacionPrendasView: React.FC = () => {
       {!showForm && !modoReporte && (
         <>
           <div className="form-container" style={{ marginBottom: '20px' }}>
-            <input
-              type="text"
-              placeholder="🔍 Buscar asignación..."
-              value={filtro}
-              onChange={(e) => setFiltro(e.target.value)}
-              style={{ width: '100%', padding: '10px', fontSize: '14px', borderRadius: '4px', border: '1px solid #ced4da' }}
-            />
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'minmax(220px, 1fr) minmax(180px, 240px)',
+                gap: '10px'
+              }}
+            >
+              <input
+                type="text"
+                placeholder="🔍 Buscar asignación..."
+                value={filtro}
+                onChange={(e) => setFiltro(e.target.value)}
+                style={{ width: '100%', padding: '10px', fontSize: '14px', borderRadius: '4px', border: '1px solid #ced4da' }}
+              />
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <input
+                  type="date"
+                  value={filtroFechaDesde}
+                  onChange={(e) => setFiltroFechaDesde(e.target.value)}
+                  style={{ width: '100%', padding: '10px', fontSize: '14px', borderRadius: '4px', border: '1px solid #ced4da' }}
+                  aria-label="Filtrar desde fecha de asignación"
+                  title="Filtrar desde fecha"
+                />
+                <input
+                  type="date"
+                  value={filtroFechaHasta}
+                  onChange={(e) => setFiltroFechaHasta(e.target.value)}
+                  style={{ width: '100%', padding: '10px', fontSize: '14px', borderRadius: '4px', border: '1px solid #ced4da' }}
+                  aria-label="Filtrar hasta fecha de asignación"
+                  title="Filtrar hasta fecha"
+                />
+              </div>
+            </div>
           </div>
 
           <div className="table-container">
@@ -1270,14 +2040,15 @@ const AsignacionPrendasView: React.FC = () => {
                   >
                     RESPONSABLE
                   </th>
+                  <th>ESTADO</th>
                   <th>ACCIONES</th>
                 </tr>
               </thead>
               <tbody>
                 {loading && asignaciones.length === 0 ? (
-                  <tr><td colSpan={6}>Cargando...</td></tr>
+                  <tr><td colSpan={7}>Cargando...</td></tr>
                 ) : asignacionesPaginadas.length === 0 ? (
-                  <tr><td colSpan={6}>No hay asignaciones registradas</td></tr>
+                  <tr><td colSpan={7}>No hay asignaciones registradas</td></tr>
                 ) : (
                   asignacionesPaginadas.map((asignacion) => (
                     <tr 
@@ -1290,6 +2061,9 @@ const AsignacionPrendasView: React.FC = () => {
                       <td>{asignacion.fecha_09}</td>
                       <td>{asignacion.hora_09}</td>
                       <td>{asignacion.responsable_nombre || 'N/A'}</td>
+                      <td>
+                        <EstadoEntregaLabel entregado={asignacion.entregado === true} />
+                      </td>
                       <td className="actions" onClick={(e) => e.stopPropagation()}>
                         <button
                           className="btn-primary"

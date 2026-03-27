@@ -376,10 +376,10 @@ const InsumoView: React.FC = () => {
           placeholder="🔍 Buscar por categoría o precio..."
           value={searchTerm}
           onChange={(e) => {
-            setSearchTerm(e.target.value);
+            setSearchTerm(e.target.value.toUpperCase());
             setCurrentPage(1);
           }}
-          style={{ width: '100%', padding: '10px', fontSize: '14px', borderRadius: '4px', border: '1px solid #ced4da' }}
+          style={{ width: '100%', padding: '10px', fontSize: '14px', borderRadius: '4px', border: '1px solid #ced4da', textTransform: 'uppercase' }}
           aria-label="Buscar insumo"
         />
       </div>

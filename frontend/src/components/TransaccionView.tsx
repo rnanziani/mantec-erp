@@ -1326,8 +1326,8 @@ const TransaccionView: React.FC = () => {
                 >
                   <option value="">Todos los tipos</option>
                   {tiposComp.map(tipo => (
-                    <option key={tipo.id_tipo_comp_alternador_32} value={tipo.id_tipo_comp_alternador_32}>
-                      {tipo.tipo_comp_alternador_32}
+                    <option key={tipo.id_tipo_comp_alternador_30} value={tipo.id_tipo_comp_alternador_30}>
+                      {tipo.tipo_comp_alternador_30}
                     </option>
                   ))}
                 </select>

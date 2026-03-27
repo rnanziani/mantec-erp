@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { showSuccess, showError, showDeleteConfirm } from '../utils/swal';
+import Pagination from './shared/Pagination';
 import './BodegaView.css';
 
 interface NivelPermiso {
@@ -35,6 +36,8 @@ const NivelPermisoView: React.FC = () => {
     // Estados para búsqueda y ordenamiento
     const [filtro, setFiltro] = useState('');
     const [sortConfig, setSortConfig] = useState<{ key: keyof NivelPermiso; direction: 'asc' | 'desc' } | null>(null);
+    const [currentPage, setCurrentPage] = useState(1);
+    const [itemsPerPage] = useState(10);
 
     const API_URL = 'http://localhost:3001/api/nivel-permisos';
     const NIVELES_URL = 'http://localhost:3001/api/niveles-usuario';
@@ -165,7 +168,7 @@ const NivelPermisoView: React.FC = () => {
     };
 
     // Lógica de Filtrado y Ordenamiento Combinada
-    const processedRelaciones = React.useMemo(() => {
+    const processedRelaciones = useMemo(() => {
         let data = [...relaciones];
 
         // 1. Filtrar
@@ -203,6 +206,22 @@ const NivelPermisoView: React.FC = () => {
         return data;
     }, [relaciones, filtro, sortConfig]);
 
+    const indexOfLastItem = currentPage * itemsPerPage;
+    const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+    const relacionesPaginadas = processedRelaciones.slice(indexOfFirstItem, indexOfLastItem);
+    const totalPages = Math.ceil(processedRelaciones.length / itemsPerPage) || 1;
+
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [filtro, sortConfig]);
+
+    useEffect(() => {
+        setCurrentPage((p) => {
+            const tp = Math.ceil(processedRelaciones.length / itemsPerPage) || 1;
+            return p > tp ? tp : p;
+        });
+    }, [processedRelaciones.length, itemsPerPage]);
+
     // Obtener permisos disponibles para un nivel (no asignados)
     const getPermisosDisponibles = (nivelId: number) => {
         const permisosAsignados = relaciones
@@ -227,49 +246,60 @@ const NivelPermisoView: React.FC = () => {
                 <div className="form-container">
                     <h3>Nueva Asignación Permiso-Nivel</h3>
                     <form onSubmit={handleSubmit}>
-                        <div className="form-group">
-                            <label>Nivel de Acceso *</label>
-                            <select
-                                value={selectedNivel}
-                                onChange={(e) => setSelectedNivel(e.target.value ? parseInt(e.target.value) : '')}
-                                required
-                                style={{ width: '100%', padding: '8px 12px', borderRadius: '4px', border: '1px solid #ced4da' }}
-                            >
-                                <option value="">Seleccione un nivel</option>
-                                {niveles.map(nivel => (
-                                    <option key={nivel.id_nivel_04} value={nivel.id_nivel_04}>
-                                        {nivel.nombre_nivel_04}
-                                    </option>
-                                ))}
-                            </select>
-                        </div>
-                        <div className="form-group">
-                            <label>Permiso *</label>
-                            <select
-                                value={selectedPermiso}
-                                onChange={(e) => setSelectedPermiso(e.target.value ? parseInt(e.target.value) : '')}
-                                required
-                                style={{ width: '100%', padding: '8px 12px', borderRadius: '4px', border: '1px solid #ced4da' }}
-                            >
-                                <option value="">Seleccione un permiso</option>
-                                {selectedNivel 
-                                    ? getPermisosDisponibles(selectedNivel as number).map(permiso => (
-                                        <option key={permiso.id_permiso_05} value={permiso.id_permiso_05}>
-                                            {permiso.nombre_permiso_05}
+                        <div
+                            style={{
+                                display: 'grid',
+                                gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
+                                gap: '15px',
+                                marginBottom: '16px',
+                                alignItems: 'start'
+                            }}
+                        >
+                            <div className="form-group" style={{ marginBottom: 0 }}>
+                                <label htmlFor="nivel-permiso-nivel">Nivel de Acceso *</label>
+                                <select
+                                    id="nivel-permiso-nivel"
+                                    value={selectedNivel}
+                                    onChange={(e) => setSelectedNivel(e.target.value ? parseInt(e.target.value) : '')}
+                                    required
+                                    style={{ width: '100%', padding: '8px 12px', borderRadius: '4px', border: '1px solid #ced4da', fontSize: '14px' }}
+                                >
+                                    <option value="">Seleccione un nivel</option>
+                                    {niveles.map(nivel => (
+                                        <option key={nivel.id_nivel_04} value={nivel.id_nivel_04}>
+                                            {nivel.nombre_nivel_04}
                                         </option>
-                                    ))
-                                    : permisos.map(permiso => (
-                                        <option key={permiso.id_permiso_05} value={permiso.id_permiso_05}>
-                                            {permiso.nombre_permiso_05}
-                                        </option>
-                                    ))
-                                }
-                            </select>
-                            {selectedNivel && getPermisosDisponibles(selectedNivel as number).length === 0 && (
-                                <small style={{ color: '#dc3545', display: 'block', marginTop: '5px' }}>
-                                    Este nivel ya tiene todos los permisos asignados
-                                </small>
-                            )}
+                                    ))}
+                                </select>
+                            </div>
+                            <div className="form-group" style={{ marginBottom: 0 }}>
+                                <label htmlFor="nivel-permiso-permiso">Permiso *</label>
+                                <select
+                                    id="nivel-permiso-permiso"
+                                    value={selectedPermiso}
+                                    onChange={(e) => setSelectedPermiso(e.target.value ? parseInt(e.target.value) : '')}
+                                    required
+                                    style={{ width: '100%', padding: '8px 12px', borderRadius: '4px', border: '1px solid #ced4da', fontSize: '14px' }}
+                                >
+                                    <option value="">Seleccione un permiso</option>
+                                    {selectedNivel
+                                        ? getPermisosDisponibles(selectedNivel as number).map(permiso => (
+                                            <option key={permiso.id_permiso_05} value={permiso.id_permiso_05}>
+                                                {permiso.nombre_permiso_05}
+                                            </option>
+                                        ))
+                                        : permisos.map(permiso => (
+                                            <option key={permiso.id_permiso_05} value={permiso.id_permiso_05}>
+                                                {permiso.nombre_permiso_05}
+                                            </option>
+                                        ))}
+                                </select>
+                                {selectedNivel && getPermisosDisponibles(selectedNivel as number).length === 0 && (
+                                    <small style={{ color: '#dc3545', display: 'block', marginTop: '5px' }}>
+                                        Este nivel ya tiene todos los permisos asignados
+                                    </small>
+                                )}
+                            </div>
                         </div>
                         <div className="form-actions">
                             <button type="submit" className="btn-primary" disabled={loading || !selectedNivel || !selectedPermiso}>
@@ -321,7 +351,7 @@ const NivelPermisoView: React.FC = () => {
                         ) : processedRelaciones.length === 0 ? (
                             <tr><td colSpan={5}>No hay relaciones nivel-permiso registradas</td></tr>
                         ) : (
-                            processedRelaciones.map((relacion) => (
+                            relacionesPaginadas.map((relacion) => (
                                 <tr key={`${relacion.id_nivel_04}-${relacion.id_permiso_05}`}>
                                     <td>
                                         <strong>{relacion.nombre_nivel_04 || `ID: ${relacion.id_nivel_04}`}</strong>
@@ -346,6 +376,16 @@ const NivelPermisoView: React.FC = () => {
                     </tbody>
                 </table>
             </div>
+
+            {processedRelaciones.length > 0 && (
+                <Pagination
+                    currentPage={currentPage}
+                    totalPages={totalPages}
+                    totalItems={processedRelaciones.length}
+                    itemsPerPage={itemsPerPage}
+                    onPageChange={setCurrentPage}
+                />
+            )}
         </div>
     );
 };

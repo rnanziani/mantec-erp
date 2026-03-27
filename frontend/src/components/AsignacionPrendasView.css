@@ -1,0 +1,10 @@
+/* Estado de entrega: colores semánticos (accesibles sobre fondo claro) */
+.estado-entrega-entregado {
+  color: #2e7d32;
+  font-weight: 600;
+}
+
+.estado-entrega-pendiente {
+  color: #c62828;
+  font-weight: 600;
+}

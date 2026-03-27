@@ -1,0 +1,39 @@
+/* Estilos específicos para Estados de Neumático (complementa BodegaView.css) */
+
+/* Fila de 4 columnas: Estado, Orden, Color, Activo */
+.form-row-4 {
+  grid-template-columns: 1fr 1fr 1fr auto;
+}
+
+@media (max-width: 1024px) {
+  .form-row-4 {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 768px) {
+  .form-row-4 {
+    grid-template-columns: 1fr;
+  }
+}
+
+.estado-name {
+  font-weight: 600;
+  color: var(--mantec-blue, #1e3a5f);
+  font-size: 1rem;
+}
+
+.estado-descripcion {
+  color: var(--mantec-gray, #6c757d);
+  font-style: italic;
+  max-width: 200px;
+}
+
+.estado-color-badge {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 4px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+}

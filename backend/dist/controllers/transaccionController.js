@@ -28,7 +28,7 @@ export const getAllTransacciones = async (req, res) => {
         CONCAT(tec.nombres_21, ' ', tec.a_paterno_21, ' ', tec.a_materno_21) AS tecnico_nombre,
         maq.numinterno_11 AS maquina_numinterno,
         maq.ppu_11 AS maquina_ppu,
-        tc.tipo_comp_alternador_32 AS tipo_comp_descripcion
+        tc.tipo_comp_alternador_30 AS tipo_comp_descripcion
       FROM tbl_28_transaccion t
       INNER JOIN tbl_19_alternador a ON t.id_alternador_28 = a.id_alternador_19
       LEFT JOIN tbl_18_marca_alternador m ON a.id_marca_19 = m.id_marca_18
@@ -37,7 +37,7 @@ export const getAllTransacciones = async (req, res) => {
       INNER JOIN tbl_25_tipo_transaccion tt ON t.id_tipo_transaccion_28 = tt.id_tipo_transaccion_25
       LEFT JOIN tbl_21_tecnico tec ON t.id_tecnico_28 = tec.id_tecnico_21
       LEFT JOIN tbl_11_maquina maq ON t.id_maquina_28 = maq.idmaquina_11
-      LEFT JOIN tbl_32_tipo_comp_alternador tc ON a.id_tipo_comp_alternador_19 = tc.id_tipo_comp_alternador_32
+      LEFT JOIN tbl_30_tipo_comp_alternador tc ON a.id_tipo_comp_alternador_19 = tc.id_tipo_comp_alternador_30
       ORDER BY t.fecha_28 DESC, t.hora_28 DESC, t.id_transaccion_28 DESC
     `;
         const result = await pool.query(query);
@@ -86,7 +86,7 @@ export const getTransaccionById = async (req, res) => {
         CONCAT(tec.nombres_21, ' ', tec.a_paterno_21, ' ', tec.a_materno_21) AS tecnico_nombre,
         maq.numinterno_11 AS maquina_numinterno,
         maq.ppu_11 AS maquina_ppu,
-        tc.tipo_comp_alternador_32 AS tipo_comp_descripcion
+        tc.tipo_comp_alternador_30 AS tipo_comp_descripcion
       FROM tbl_28_transaccion t
       INNER JOIN tbl_19_alternador a ON t.id_alternador_28 = a.id_alternador_19
       LEFT JOIN tbl_18_marca_alternador m ON a.id_marca_19 = m.id_marca_18
@@ -95,7 +95,7 @@ export const getTransaccionById = async (req, res) => {
       INNER JOIN tbl_25_tipo_transaccion tt ON t.id_tipo_transaccion_28 = tt.id_tipo_transaccion_25
       LEFT JOIN tbl_21_tecnico tec ON t.id_tecnico_28 = tec.id_tecnico_21
       LEFT JOIN tbl_11_maquina maq ON t.id_maquina_28 = maq.idmaquina_11
-      LEFT JOIN tbl_32_tipo_comp_alternador tc ON a.id_tipo_comp_alternador_19 = tc.id_tipo_comp_alternador_32
+      LEFT JOIN tbl_30_tipo_comp_alternador tc ON a.id_tipo_comp_alternador_19 = tc.id_tipo_comp_alternador_30
       WHERE t.id_transaccion_28 = $1
     `;
         const result = await pool.query(query, [id]);
@@ -447,7 +447,7 @@ export const generarReportePDF = async (req, res) => {
         CONCAT(tec.nombres_21, ' ', tec.a_paterno_21, ' ', tec.a_materno_21) AS tecnico_nombre,
         maq.numinterno_11 AS maquina_numinterno,
         maq.ppu_11 AS maquina_ppu,
-        tc.tipo_comp_alternador_32 AS tipo_comp_descripcion
+        tc.tipo_comp_alternador_30 AS tipo_comp_descripcion
       FROM tbl_28_transaccion t
       INNER JOIN tbl_19_alternador a ON t.id_alternador_28 = a.id_alternador_19
       LEFT JOIN tbl_18_marca_alternador m ON a.id_marca_19 = m.id_marca_18
@@ -456,7 +456,7 @@ export const generarReportePDF = async (req, res) => {
       INNER JOIN tbl_25_tipo_transaccion tt ON t.id_tipo_transaccion_28 = tt.id_tipo_transaccion_25
       LEFT JOIN tbl_21_tecnico tec ON t.id_tecnico_28 = tec.id_tecnico_21
       LEFT JOIN tbl_11_maquina maq ON t.id_maquina_28 = maq.idmaquina_11
-      LEFT JOIN tbl_32_tipo_comp_alternador tc ON a.id_tipo_comp_alternador_19 = tc.id_tipo_comp_alternador_32
+      LEFT JOIN tbl_30_tipo_comp_alternador tc ON a.id_tipo_comp_alternador_19 = tc.id_tipo_comp_alternador_30
       WHERE t.fecha_28 >= $1 AND t.fecha_28 <= $2
     `;
         const params = [fecha_desde, fecha_hasta];
@@ -778,14 +778,14 @@ export const generarReporteCantidadComponentesPDF = async (req, res) => {
         // Query para obtener cantidad de componentes agrupados por tipo de componente
         let query = `
       SELECT 
-        COALESCE(tc.tipo_comp_alternador_32, 'Sin tipo') AS tipo_componente,
+        COALESCE(tc.tipo_comp_alternador_30, 'Sin tipo') AS tipo_componente,
         COUNT(DISTINCT t.id_alternador_28) AS cantidad_alternadores,
         COUNT(t.id_transaccion_28) AS cantidad_transacciones,
         SUM(CASE WHEN tt.valor_accion_25 = 1 THEN 1 ELSE 0 END) AS entradas,
         SUM(CASE WHEN tt.valor_accion_25 = -1 THEN 1 ELSE 0 END) AS salidas
       FROM tbl_28_transaccion t
       INNER JOIN tbl_19_alternador a ON t.id_alternador_28 = a.id_alternador_19
-      LEFT JOIN tbl_32_tipo_comp_alternador tc ON a.id_tipo_comp_alternador_19 = tc.id_tipo_comp_alternador_32
+      LEFT JOIN tbl_30_tipo_comp_alternador tc ON a.id_tipo_comp_alternador_19 = tc.id_tipo_comp_alternador_30
       LEFT JOIN tbl_18_marca_alternador m ON a.id_marca_19 = m.id_marca_18
       INNER JOIN tbl_27_ubicacion ud ON t.id_ubicacion_destino_28 = ud.id_ubicacion_27
       INNER JOIN tbl_25_tipo_transaccion tt ON t.id_tipo_transaccion_28 = tt.id_tipo_transaccion_25
@@ -826,7 +826,7 @@ export const generarReporteCantidadComponentesPDF = async (req, res) => {
             params.push(id_alternador);
             paramCount++;
         }
-        query += ` GROUP BY tc.tipo_comp_alternador_32, tc.id_tipo_comp_alternador_32 ORDER BY tc.tipo_comp_alternador_32`;
+        query += ` GROUP BY tc.tipo_comp_alternador_30, tc.id_tipo_comp_alternador_30 ORDER BY tc.tipo_comp_alternador_30`;
         // Log para depuración
         console.log('=== REPORTE CANTIDAD COMPONENTES ===');
         console.log('Query:', query);
@@ -876,9 +876,9 @@ export const generarReporteCantidadComponentesPDF = async (req, res) => {
             }
         }
         if (id_tipo_comp_alternador) {
-            const tipoCompResult = await pool.query('SELECT tipo_comp_alternador_32 FROM tbl_32_tipo_comp_alternador WHERE id_tipo_comp_alternador_32 = $1', [id_tipo_comp_alternador]);
+            const tipoCompResult = await pool.query('SELECT tipo_comp_alternador_30 FROM tbl_30_tipo_comp_alternador WHERE id_tipo_comp_alternador_30 = $1', [id_tipo_comp_alternador]);
             if (tipoCompResult.rows.length > 0) {
-                filtrosAplicados.push(`Tipo Componente: ${tipoCompResult.rows[0].tipo_comp_alternador_32}`);
+                filtrosAplicados.push(`Tipo Componente: ${tipoCompResult.rows[0].tipo_comp_alternador_30}`);
             }
         }
         // Configurar fuentes para pdfmake

@@ -110,10 +110,14 @@ const ConsumoInsumoView: React.FC = () => {
   const [itemsPerPage] = useState(10);
   const [diasFiltro] = useState(7);
   const [sortConfig, setSortConfig] = useState<{ key: keyof MaestroConsumo; direction: 'asc' | 'desc' } | null>(null);
+  const [selectedConsumoId, setSelectedConsumoId] = useState<number | null>(null);
+  const [detalleConsumo, setDetalleConsumo] = useState<{ maestro: MaestroConsumo; detalles: DetalleConsumo[] } | null>(null);
+  const [loadingDetalle, setLoadingDetalle] = useState(false);
 
   const [buscarApellido, setBuscarApellido] = useState('');
   const [idTrabajador, setIdTrabajador] = useState('');
   const [idResponsable, setIdResponsable] = useState('');
+  const [buscarCcosto, setBuscarCcosto] = useState('');
   const [idCcosto, setIdCcosto] = useState('');
   const [fecha, setFecha] = useState(new Date().toISOString().split('T')[0]);
   const [hora, setHora] = useState(new Date().toTimeString().slice(0, 5));
@@ -293,6 +297,12 @@ const ConsumoInsumoView: React.FC = () => {
       });
   }, [trabajadores, buscarApellido]);
 
+  const ccostosFiltrados = useMemo(() => {
+    if (!buscarCcosto || buscarCcosto.trim() === '') return ccostos;
+    const busqueda = buscarCcosto.trim().toLowerCase();
+    return ccostos.filter((c) => c.ccosto_45.toLowerCase().includes(busqueda));
+  }, [ccostos, buscarCcosto]);
+
   const handleSort = (key: keyof MaestroConsumo) => {
     setSortConfig((prev) =>
       prev?.key === key && prev.direction === 'asc'
@@ -359,6 +369,7 @@ const ConsumoInsumoView: React.FC = () => {
     setBuscarApellido('');
     setIdTrabajador('');
     setIdResponsable('');
+    setBuscarCcosto('');
     setIdCcosto('');
     setFecha(new Date().toISOString().split('T')[0]);
     setHora(new Date().toTimeString().slice(0, 5));
@@ -469,6 +480,10 @@ const ConsumoInsumoView: React.FC = () => {
       const res = await fetch(`${API_URL}/${id}`, { method: 'DELETE' });
       const data: ApiResponse = await res.json();
       if (data.success) {
+        if (id === selectedConsumoId) {
+          setSelectedConsumoId(null);
+          setDetalleConsumo(null);
+        }
         await fetchConsumos();
         await showSuccess('¡Consumo eliminado!', 'El consumo ha sido eliminado correctamente.');
       } else {
@@ -477,6 +492,35 @@ const ConsumoInsumoView: React.FC = () => {
     } catch {
       await showError('Error', 'Error al eliminar consumo');
     }
+  };
+
+  const handleSelectConsumo = async (id: number) => {
+    if (selectedConsumoId === id) {
+      setSelectedConsumoId(null);
+      setDetalleConsumo(null);
+      return;
+    }
+    setLoadingDetalle(true);
+    setDetalleConsumo(null);
+    try {
+      const res = await fetch(`${API_URL}/${id}`);
+      const data: ApiResponse<{ maestro: MaestroConsumo; detalles: DetalleConsumo[] }> = await res.json();
+      if (data.success && data.data) {
+        setSelectedConsumoId(id);
+        setDetalleConsumo(data.data);
+      } else {
+        await showError('Error', 'Error al cargar el detalle del consumo');
+      }
+    } catch {
+      await showError('Error', 'Error al cargar el detalle del consumo');
+    } finally {
+      setLoadingDetalle(false);
+    }
+  };
+
+  const cerrarDetalle = () => {
+    setSelectedConsumoId(null);
+    setDetalleConsumo(null);
   };
 
   const startEdit = async (id: number) => {
@@ -491,6 +535,7 @@ const ConsumoInsumoView: React.FC = () => {
       setBuscarApellido('');
       setIdTrabajador(String(maestro.idtrabajador_46));
       setIdResponsable(String(maestro.id_responsableentrega_46));
+      setBuscarCcosto(maestro.ccosto_nombre || '');
       setIdCcosto(String(maestro.id_ccosto_46));
       setFecha(maestro.fecha_46);
       setHora(maestro.hora_46.slice(0, 5));
@@ -534,7 +579,7 @@ const ConsumoInsumoView: React.FC = () => {
         <div style={{ display: 'flex', gap: '10px' }}>
           <button
             className="btn-primary"
-            onClick={() => { resetForm(); setShowForm(true); setEditingId(null); }}
+            onClick={() => { setSelectedConsumoId(null); setDetalleConsumo(null); resetForm(); setShowForm(true); setEditingId(null); }}
             style={{ backgroundColor: '#007bff' }}
           >
             ✏️ Nuevo
@@ -571,7 +616,7 @@ const ConsumoInsumoView: React.FC = () => {
         <div className="form-container">
           <h3>{editingId ? '✏️ Editar Consumo' : '➕ Nuevo Consumo'}</h3>
           <form ref={formRef} onSubmit={editingId ? handleUpdate : handleCreate}>
-            <div className="form-row" style={{ gridTemplateColumns: '1fr 1fr 1fr 1fr' }}>
+            <div className="form-row consumo-form-row-4">
               <div className="form-group">
                 <label htmlFor="buscar-trabajador">Buscar Trabajador Por Apellido</label>
                 <input
@@ -629,6 +674,52 @@ const ConsumoInsumoView: React.FC = () => {
                 </div>
               </div>
               <div className="form-group">
+                <label htmlFor="buscar-ccosto">Buscar Centro de Costo</label>
+                <input
+                  type="text"
+                  id="buscar-ccosto"
+                  className="form-input"
+                  value={buscarCcosto}
+                  onChange={(e) => setBuscarCcosto(e.target.value.toUpperCase())}
+                  placeholder="EJ: ADMINISTRACION, BODEGA..."
+                  style={{ textTransform: 'uppercase' }}
+                  aria-label="Buscar centro de costo por nombre"
+                />
+                <small className="form-tip">
+                  💡 Tip: Escriba parte del nombre del centro de costo para filtrar la lista.
+                </small>
+              </div>
+              <div className="form-group">
+                <label>Seleccionar Centro de Costo *</label>
+                <div
+                  className="trabajador-list ccosto-list"
+                  role="listbox"
+                  aria-label="Lista de centros de costo"
+                >
+                  {ccostosFiltrados.length > 0 ? (
+                    ccostosFiltrados.map((cc) => (
+                      <div
+                        key={cc.id_ccosto_45}
+                        role="option"
+                        tabIndex={0}
+                        aria-selected={idCcosto === String(cc.id_ccosto_45)}
+                        onClick={() => setIdCcosto(String(cc.id_ccosto_45))}
+                        onKeyDown={(e) => e.key === 'Enter' && setIdCcosto(String(cc.id_ccosto_45))}
+                        className={`ccosto-list-item ${idCcosto === String(cc.id_ccosto_45) ? 'selected' : ''}`}
+                      >
+                        {cc.ccosto_45}
+                      </div>
+                    ))
+                  ) : (
+                    <div className="ccosto-list-empty">
+                      {ccostos.length === 0 ? 'Cargando centros de costo...' : 'No se encontraron centros de costo con ese criterio'}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+            <div className="form-row consumo-form-row-fecha">
+              <div className="form-group">
                 <label htmlFor="responsable">Responsable Entrega *</label>
                 <select
                   id="responsable"
@@ -645,25 +736,6 @@ const ConsumoInsumoView: React.FC = () => {
                   ))}
                 </select>
               </div>
-              <div className="form-group">
-                <label htmlFor="ccosto">Centro de Costo *</label>
-                <select
-                  id="ccosto"
-                  className="form-input"
-                  value={idCcosto}
-                  onChange={(e) => setIdCcosto(e.target.value)}
-                  required
-                >
-                  <option value="">Seleccione...</option>
-                  {ccostos.map((c) => (
-                    <option key={c.id_ccosto_45} value={String(c.id_ccosto_45)}>
-                      {c.ccosto_45}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-            <div className="form-row" style={{ gridTemplateColumns: '1fr 1fr 1fr' }}>
               <div className="form-group">
                 <label htmlFor="fecha">Fecha *</label>
                 <input
@@ -701,13 +773,13 @@ const ConsumoInsumoView: React.FC = () => {
 
             <div className="detalle-section">
               <div className="detalle-header">
-                <h4>Detalle de Insumos</h4>
+                <label style={{ display: 'block', marginBottom: '10px', fontWeight: 'bold' }}>Insumos Asignados</label>
                 <button type="button" className="btn-add-line" onClick={addLinea}>
                   ➕ Agregar línea
                 </button>
               </div>
-              <div className="detalle-table-wrapper">
-                <table className="detalle-table">
+              <div className="table-container detalle-insumos-grid">
+                <table className="data-table">
                   <thead>
                     <tr>
                       <th>Categoría *</th>
@@ -716,83 +788,97 @@ const ConsumoInsumoView: React.FC = () => {
                       <th>Precio Unit.</th>
                       <th>Total</th>
                       <th>Obs.</th>
-                      <th></th>
+                      <th>Acciones</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {lineas.map((linea, idx) => {
-                      const insumosFiltrados = linea.id_categoria
-                        ? insumos.filter((i) => i.id_categoria_43 === linea.id_categoria)
-                        : [];
-                      return (
-                      <tr key={idx}>
-                        <td>
-                          <select
-                            className="form-input form-input-sm"
-                            value={linea.id_categoria || ''}
-                            onChange={(e) => updateLinea(idx, 'id_categoria', parseInt(e.target.value, 10) || 0)}
-                            required={idx === 0}
-                          >
-                            <option value="">Seleccione...</option>
-                            {categorias.map((c) => (
-                              <option key={c.id_categoria_42} value={c.id_categoria_42}>
-                                {c.categoria_42}
-                              </option>
-                            ))}
-                          </select>
-                        </td>
-                        <td>
-                          <select
-                            className="form-input form-input-sm"
-                            value={linea.id_insumo || ''}
-                            onChange={(e) => updateLinea(idx, 'id_insumo', parseInt(e.target.value, 10) || 0)}
-                            required={idx === 0}
-                            disabled={!linea.id_categoria}
-                          >
-                            <option value="">Seleccione...</option>
-                            {insumosFiltrados.map((i) => (
-                              <option key={i.id_insumo_43} value={i.id_insumo_43}>
-                                {i.descripcion_43} - ${formatAmount(i.precio_insumo_43)}
-                              </option>
-                            ))}
-                          </select>
-                        </td>
-                        <td>
-                          <input
-                            type="number"
-                            className="form-input form-input-sm"
-                            value={linea.cantidad || ''}
-                            onChange={(e) => updateLinea(idx, 'cantidad', parseFloat(e.target.value) || 0)}
-                            min="0.01"
-                            step="0.01"
-                            required={idx === 0}
-                          />
-                        </td>
-                        <td className="td-precio">${formatAmount(linea.precio)}</td>
-                        <td className="td-total">${formatAmount(linea.total)}</td>
-                        <td>
-                          <input
-                            type="text"
-                            className="form-input form-input-sm"
-                            value={linea.observacion || ''}
-                            onChange={(e) => updateLinea(idx, 'observacion', e.target.value)}
-                            placeholder="-"
-                          />
-                        </td>
-                        <td>
-                          <button
-                            type="button"
-                            className="btn-delete-line"
-                            onClick={() => removeLinea(idx)}
-                            disabled={lineas.length <= 1}
-                            title="Quitar línea"
-                          >
-                            🗑️
-                          </button>
+                    {lineas.length === 0 ? (
+                      <tr>
+                        <td colSpan={7} style={{ textAlign: 'center', color: '#999' }}>
+                          No hay insumos asignados. Use "Agregar línea" para comenzar.
                         </td>
                       </tr>
-                    );
-                    })}
+                    ) : (
+                      lineas.map((linea, idx) => {
+                        const insumosFiltrados = linea.id_categoria
+                          ? insumos.filter((i) => i.id_categoria_43 === linea.id_categoria)
+                          : [];
+                        return (
+                          <tr key={idx}>
+                            <td>
+                              <select
+                                className="form-input form-input-sm"
+                                value={linea.id_categoria || ''}
+                                onChange={(e) => updateLinea(idx, 'id_categoria', parseInt(e.target.value, 10) || 0)}
+                                required={idx === 0}
+                                aria-label="Seleccionar categoría"
+                              >
+                                <option value="">Seleccione...</option>
+                                {categorias.map((c) => (
+                                  <option key={c.id_categoria_42} value={c.id_categoria_42}>
+                                    {c.categoria_42}
+                                  </option>
+                                ))}
+                              </select>
+                            </td>
+                            <td>
+                              <select
+                                className="form-input form-input-sm"
+                                value={linea.id_insumo || ''}
+                                onChange={(e) => updateLinea(idx, 'id_insumo', parseInt(e.target.value, 10) || 0)}
+                                required={idx === 0}
+                                disabled={!linea.id_categoria}
+                                aria-label="Seleccionar insumo"
+                              >
+                                <option value="">Seleccione...</option>
+                                {insumosFiltrados.map((i) => (
+                                  <option key={i.id_insumo_43} value={i.id_insumo_43}>
+                                    {i.descripcion_43} - ${formatAmount(i.precio_insumo_43)}
+                                  </option>
+                                ))}
+                              </select>
+                            </td>
+                            <td>
+                              <input
+                                type="number"
+                                className="form-input form-input-sm input-cantidad-centrado"
+                                value={linea.cantidad || ''}
+                                onChange={(e) => updateLinea(idx, 'cantidad', parseFloat(e.target.value) || 0)}
+                                min="0.01"
+                                step="0.01"
+                                required={idx === 0}
+                                style={{ width: '80px', padding: '6px 8px', textAlign: 'center' }}
+                                aria-label="Cantidad"
+                              />
+                            </td>
+                            <td className="td-precio">${formatAmount(linea.precio)}</td>
+                            <td className="td-total">${formatAmount(linea.total)}</td>
+                            <td>
+                              <input
+                                type="text"
+                                className="form-input form-input-sm"
+                                value={linea.observacion || ''}
+                                onChange={(e) => updateLinea(idx, 'observacion', e.target.value)}
+                                placeholder="-"
+                                aria-label="Observación"
+                              />
+                            </td>
+                            <td className="actions">
+                              <button
+                                type="button"
+                                className="btn-delete"
+                                onClick={() => removeLinea(idx)}
+                                disabled={lineas.length <= 1}
+                                title="Quitar línea"
+                                aria-label="Eliminar línea"
+                              >
+                                🗑️
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      })
+                    )}
                   </tbody>
                 </table>
               </div>
@@ -819,13 +905,14 @@ const ConsumoInsumoView: React.FC = () => {
             type="text"
             placeholder="🔍 Buscar consumo..."
             value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
+            onChange={(e) => setSearchTerm(e.target.value.toUpperCase())}
             style={{
               width: '100%',
               padding: '10px 12px 10px 40px',
               borderRadius: '4px',
               border: '1px solid #ced4da',
-              fontSize: '14px'
+              fontSize: '14px',
+              textTransform: 'uppercase'
             }}
           />
         </div>
@@ -898,34 +985,47 @@ const ConsumoInsumoView: React.FC = () => {
                     </td>
                   </tr>
                 ) : (
-                  currentItems.map((c) => (
-                    <tr key={c.id_m_consumo_insumo_46} className="fade-in">
-                      <td>{c.id_m_consumo_insumo_46}</td>
-                      <td>{c.fecha_46}</td>
-                      <td>{c.hora_46.slice(0, 5)}</td>
-                      <td>{c.trabajador_nombre || '-'}</td>
-                      <td>{c.responsable_nombre || '-'}</td>
-                      <td>{c.ccosto_nombre || '-'}</td>
-                      <td>{c.insumo_descripcion || '-'}</td>
-                      <td className="td-cantidad">{formatAmount(c.cantidad_46)}</td>
-                      <td className="actions">
-                        <button
-                          className="btn-edit"
-                          onClick={() => startEdit(c.id_m_consumo_insumo_46)}
-                          title="Editar"
-                        >
-                          ✏️
-                        </button>
-                        <button
-                          className="btn-delete"
-                          onClick={() => handleDelete(c.id_m_consumo_insumo_46)}
-                          title="Eliminar"
-                        >
-                          🗑️
-                        </button>
-                      </td>
-                    </tr>
-                  ))
+                  currentItems.map((c) => {
+                    const isSelected = selectedConsumoId === c.id_m_consumo_insumo_46;
+                    return (
+                      <tr
+                        key={c.id_m_consumo_insumo_46}
+                        className={`fade-in consumo-maestro-row ${isSelected ? 'consumo-row-selected' : ''}`}
+                        onClick={() => handleSelectConsumo(c.id_m_consumo_insumo_46)}
+                        role="button"
+                        tabIndex={0}
+                        onKeyDown={(e) => e.key === 'Enter' && handleSelectConsumo(c.id_m_consumo_insumo_46)}
+                        aria-label={`Ver detalle del consumo ${c.id_m_consumo_insumo_46}`}
+                      >
+                        <td>{c.id_m_consumo_insumo_46}</td>
+                        <td>{c.fecha_46 ? c.fecha_46.split('T')[0] : '-'}</td>
+                        <td>{c.hora_46.slice(0, 5)}</td>
+                        <td>{c.trabajador_nombre || '-'}</td>
+                        <td>{c.responsable_nombre || '-'}</td>
+                        <td>{c.ccosto_nombre || '-'}</td>
+                        <td>{c.insumo_descripcion || '-'}</td>
+                        <td className="td-cantidad">{formatAmount(c.cantidad_46)}</td>
+                        <td className="actions" onClick={(e) => e.stopPropagation()}>
+                          <button
+                            className="btn-edit"
+                            onClick={(e) => { e.stopPropagation(); startEdit(c.id_m_consumo_insumo_46); }}
+                            title="Editar"
+                            aria-label="Editar consumo"
+                          >
+                            ✏️
+                          </button>
+                          <button
+                            className="btn-delete"
+                            onClick={(e) => { e.stopPropagation(); handleDelete(c.id_m_consumo_insumo_46); }}
+                            title="Eliminar"
+                            aria-label="Eliminar consumo"
+                          >
+                            🗑️
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })
                 )}
               </tbody>
             </table>
@@ -938,6 +1038,61 @@ const ConsumoInsumoView: React.FC = () => {
               itemsPerPage={itemsPerPage}
               onPageChange={setCurrentPage}
             />
+          )}
+
+          {/* Grilla de detalle (oculta hasta hacer clic en un registro maestro) */}
+          {loadingDetalle && (
+            <div className="detalle-loading">⏳ Cargando detalle...</div>
+          )}
+          {detalleConsumo && !loadingDetalle && (
+            <div className="detalle-grid-container">
+              <div className="detalle-grid-header">
+                <h4>Detalle de Insumos - Consumo #{detalleConsumo.maestro.id_m_consumo_insumo_46}</h4>
+                <button type="button" className="btn-secondary btn-cerrar-detalle" onClick={cerrarDetalle} aria-label="Cerrar detalle">
+                  ✕ Cerrar
+                </button>
+              </div>
+              <div className="table-container detalle-insumos-grid">
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th>Insumo</th>
+                      <th>Cantidad</th>
+                      <th>Precio Unit.</th>
+                      <th>Total</th>
+                      <th>Obs.</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {/* Línea maestro */}
+                    {(() => {
+                      const insumoM = insumos.find((i) => i.id_insumo_43 === detalleConsumo.maestro.id_insumo_46);
+                      const precioM = insumoM?.precio_insumo_43 ?? 0;
+                      const totalM = detalleConsumo.maestro.cantidad_46 * precioM;
+                      return (
+                        <tr>
+                          <td>{detalleConsumo.maestro.insumo_descripcion || '-'}</td>
+                          <td className="td-cantidad">{formatAmount(detalleConsumo.maestro.cantidad_46)}</td>
+                          <td className="td-precio">${formatAmount(precioM)}</td>
+                          <td className="td-total">${formatAmount(totalM)}</td>
+                          <td>{detalleConsumo.maestro.observacion_46 || '-'}</td>
+                        </tr>
+                      );
+                    })()}
+                    {/* Líneas detalle */}
+                    {detalleConsumo.detalles.map((d) => (
+                      <tr key={d.id_d_consumo_insumo_47} className="consumo-detalle-row">
+                        <td>{d.insumo_descripcion || '-'}</td>
+                        <td className="td-cantidad">{formatAmount(d.cantidad_47)}</td>
+                        <td className="td-precio">${formatAmount(d.precio_insumo ?? 0)}</td>
+                        <td className="td-total">${formatAmount(d.total_47)}</td>
+                        <td>{d.observacion_47 || '-'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
           )}
         </>
       )}

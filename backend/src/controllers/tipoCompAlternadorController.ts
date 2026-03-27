@@ -9,10 +9,10 @@ export const getAllTipoCompAlternador = async (req: Request, res: Response): Pro
   try {
     const result = await pool.query<TipoCompAlternador>(
       `SELECT 
-        id_tipo_comp_alternador_32,
-        tipo_comp_alternador_32
-       FROM tbl_32_tipo_comp_alternador 
-       ORDER BY id_tipo_comp_alternador_32 ASC`
+        id_tipo_comp_alternador_30,
+        tipo_comp_alternador_30
+       FROM tbl_30_tipo_comp_alternador 
+       ORDER BY id_tipo_comp_alternador_30 ASC`
     );
 
     res.json({
@@ -38,10 +38,10 @@ export const getTipoCompAlternadorById = async (req: Request, res: Response): Pr
     const { id } = req.params;
     const result = await pool.query<TipoCompAlternador>(
       `SELECT 
-        id_tipo_comp_alternador_32,
-        tipo_comp_alternador_32
-       FROM tbl_32_tipo_comp_alternador 
-       WHERE id_tipo_comp_alternador_32 = $1`,
+        id_tipo_comp_alternador_30,
+        tipo_comp_alternador_30
+       FROM tbl_30_tipo_comp_alternador 
+       WHERE id_tipo_comp_alternador_30 = $1`,
       [id]
     );
 
@@ -72,10 +72,10 @@ export const getTipoCompAlternadorById = async (req: Request, res: Response): Pr
  */
 export const createTipoCompAlternador = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { id_tipo_comp_alternador_32, tipo_comp_alternador_32 }: CreateTipoCompAlternadorDTO = req.body;
+    const { id_tipo_comp_alternador_30, tipo_comp_alternador_30 }: CreateTipoCompAlternadorDTO = req.body;
 
     // Validación básica
-    if (!id_tipo_comp_alternador_32) {
+    if (!id_tipo_comp_alternador_30) {
       res.status(400).json({
         success: false,
         error: 'El ID del tipo de componente es requerido'
@@ -83,7 +83,7 @@ export const createTipoCompAlternador = async (req: Request, res: Response): Pro
       return;
     }
 
-    if (!tipo_comp_alternador_32 || tipo_comp_alternador_32.trim() === '') {
+    if (!tipo_comp_alternador_30 || tipo_comp_alternador_30.trim() === '') {
       res.status(400).json({
         success: false,
         error: 'El nombre del tipo de componente es requerido'
@@ -93,8 +93,8 @@ export const createTipoCompAlternador = async (req: Request, res: Response): Pro
 
     // Validar duplicados (case-insensitive)
     const existingTipo = await pool.query(
-      'SELECT id_tipo_comp_alternador_32 FROM tbl_32_tipo_comp_alternador WHERE LOWER(tipo_comp_alternador_32) = LOWER($1)',
-      [tipo_comp_alternador_32.trim()]
+      'SELECT id_tipo_comp_alternador_30 FROM tbl_30_tipo_comp_alternador WHERE LOWER(tipo_comp_alternador_30) = LOWER($1)',
+      [tipo_comp_alternador_30.trim()]
     );
 
     if (existingTipo.rowCount && existingTipo.rowCount > 0) {
@@ -107,8 +107,8 @@ export const createTipoCompAlternador = async (req: Request, res: Response): Pro
 
     // Validar que el ID no exista
     const existingId = await pool.query(
-      'SELECT id_tipo_comp_alternador_32 FROM tbl_32_tipo_comp_alternador WHERE id_tipo_comp_alternador_32 = $1',
-      [id_tipo_comp_alternador_32]
+      'SELECT id_tipo_comp_alternador_30 FROM tbl_30_tipo_comp_alternador WHERE id_tipo_comp_alternador_30 = $1',
+      [id_tipo_comp_alternador_30]
     );
 
     if (existingId.rowCount && existingId.rowCount > 0) {
@@ -120,8 +120,8 @@ export const createTipoCompAlternador = async (req: Request, res: Response): Pro
     }
 
     const result = await pool.query<TipoCompAlternador>(
-      'INSERT INTO tbl_32_tipo_comp_alternador (id_tipo_comp_alternador_32, tipo_comp_alternador_32) VALUES ($1, $2) RETURNING *',
-      [id_tipo_comp_alternador_32, tipo_comp_alternador_32.trim()]
+      'INSERT INTO tbl_30_tipo_comp_alternador (id_tipo_comp_alternador_30, tipo_comp_alternador_30) VALUES ($1, $2) RETURNING *',
+      [id_tipo_comp_alternador_30, tipo_comp_alternador_30.trim()]
     );
 
     res.status(201).json({
@@ -145,10 +145,10 @@ export const createTipoCompAlternador = async (req: Request, res: Response): Pro
 export const updateTipoCompAlternador = async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
-    const { tipo_comp_alternador_32 }: UpdateTipoCompAlternadorDTO = req.body;
+    const { tipo_comp_alternador_30 }: UpdateTipoCompAlternadorDTO = req.body;
 
     // Validación
-    if (!tipo_comp_alternador_32 || tipo_comp_alternador_32.trim() === '') {
+    if (!tipo_comp_alternador_30 || tipo_comp_alternador_30.trim() === '') {
       res.status(400).json({
         success: false,
         error: 'El nombre del tipo de componente es requerido'
@@ -158,8 +158,8 @@ export const updateTipoCompAlternador = async (req: Request, res: Response): Pro
 
     // Validar duplicados (excluyendo el registro actual)
     const existingTipo = await pool.query(
-      'SELECT id_tipo_comp_alternador_32 FROM tbl_32_tipo_comp_alternador WHERE LOWER(tipo_comp_alternador_32) = LOWER($1) AND id_tipo_comp_alternador_32 != $2',
-      [tipo_comp_alternador_32.trim(), id]
+      'SELECT id_tipo_comp_alternador_30 FROM tbl_30_tipo_comp_alternador WHERE LOWER(tipo_comp_alternador_30) = LOWER($1) AND id_tipo_comp_alternador_30 != $2',
+      [tipo_comp_alternador_30.trim(), id]
     );
 
     if (existingTipo.rowCount && existingTipo.rowCount > 0) {
@@ -171,8 +171,8 @@ export const updateTipoCompAlternador = async (req: Request, res: Response): Pro
     }
 
     const result = await pool.query<TipoCompAlternador>(
-      'UPDATE tbl_32_tipo_comp_alternador SET tipo_comp_alternador_32 = $1 WHERE id_tipo_comp_alternador_32 = $2 RETURNING *',
-      [tipo_comp_alternador_32.trim(), id]
+      'UPDATE tbl_30_tipo_comp_alternador SET tipo_comp_alternador_30 = $1 WHERE id_tipo_comp_alternador_30 = $2 RETURNING *',
+      [tipo_comp_alternador_30.trim(), id]
     );
 
     if (result.rowCount === 0) {
@@ -206,7 +206,7 @@ export const deleteTipoCompAlternador = async (req: Request, res: Response): Pro
     const { id } = req.params;
 
     const result = await pool.query(
-      'DELETE FROM tbl_32_tipo_comp_alternador WHERE id_tipo_comp_alternador_32 = $1 RETURNING id_tipo_comp_alternador_32',
+      'DELETE FROM tbl_30_tipo_comp_alternador WHERE id_tipo_comp_alternador_30 = $1 RETURNING id_tipo_comp_alternador_30',
       [id]
     );
 

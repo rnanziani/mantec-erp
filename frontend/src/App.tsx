@@ -33,9 +33,17 @@ import ParametrosView from './components/ParametrosView';
 import MaquinaView from './components/MaquinaView';
 import ResponsableEntregaView from './components/ResponsableEntregaView';
 import CategoriaView from './components/CategoriaView';
+import TallaView from './components/TallaView';
+import PrendaView from './components/PrendaView';
 import CcostoView from './components/CcostoView';
 import InsumoView from './components/InsumoView';
 import ConsumoInsumoView from './components/ConsumoInsumoView';
+import MarcaNeumaticoView from './components/MarcaNeumaticoView';
+import NeumaticoView from './components/NeumaticoView';
+import EstadoNeumaticoView from './components/EstadoNeumaticoView';
+import HistorialNeumaticoView from './components/HistorialNeumaticoView';
+import PatronRotacionView from './components/PatronRotacionView';
+import LlantaView from './components/LlantaView';
 import { useUserPermissions } from './hooks/useUserPermissions';
 import SessionInactivityModal from './components/SessionInactivityModal';
 import PasswordExpirationWarningModal from './components/PasswordExpirationWarningModal';
@@ -96,9 +104,17 @@ function App() {
     'responsables-entrega': 'MENU_MANTENEDORES',
     'tipos-comp-alternador': 'MENU_MANTENEDORES',
     'categorias': 'MENU_MANTENEDORES',
+    'tallas': 'MENU_MANTENEDORES',
+    'prendas': 'MENU_MANTENEDORES',
     'ccostos': 'MENU_MANTENEDORES',
     'insumos': 'MENU_MANTENEDORES',
-    'consumo-insumos': 'MENU_OPERACIONES'
+    'consumo-insumos': 'MENU_OPERACIONES',
+    'neumaticos': 'MENU_OPERACIONES',
+    'marcas-neumatico': 'MENU_OPERACIONES',
+    'estados-neumatico': 'MENU_OPERACIONES',
+    'historial-neumatico': 'MENU_OPERACIONES',
+    'patrones-rotacion': 'MENU_OPERACIONES',
+    'llantas': 'MENU_OPERACIONES'
   };
 
   // Función para verificar si el usuario tiene acceso a una ruta
@@ -337,11 +353,22 @@ function App() {
 
           {currentView === 'categorias' && hasRouteAccess('categorias') && <CategoriaView />}
 
+          {currentView === 'tallas' && hasRouteAccess('tallas') && <TallaView />}
+
+          {currentView === 'prendas' && hasRouteAccess('prendas') && <PrendaView />}
+
           {currentView === 'ccostos' && hasRouteAccess('ccostos') && <CcostoView />}
 
           {currentView === 'insumos' && hasRouteAccess('insumos') && <InsumoView />}
 
           {currentView === 'consumo-insumos' && hasRouteAccess('consumo-insumos') && <ConsumoInsumoView />}
+
+          {currentView === 'neumaticos' && hasRouteAccess('neumaticos') && <NeumaticoView />}
+          {currentView === 'marcas-neumatico' && hasRouteAccess('marcas-neumatico') && <MarcaNeumaticoView />}
+          {currentView === 'estados-neumatico' && hasRouteAccess('estados-neumatico') && <EstadoNeumaticoView />}
+          {currentView === 'historial-neumatico' && hasRouteAccess('historial-neumatico') && <HistorialNeumaticoView />}
+          {currentView === 'patrones-rotacion' && hasRouteAccess('patrones-rotacion') && <PatronRotacionView />}
+          {currentView === 'llantas' && hasRouteAccess('llantas') && <LlantaView />}
 
           {currentView === 'login' && <LoginForm />}
 
