@@ -67,7 +67,10 @@ const TrabajadorView: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [itemsPerPage] = useState<number>(10);
-  const [sortConfig, setSortConfig] = useState<SortConfig>({ key: 'nombre_06', direction: 'asc' });
+  const [sortConfig, setSortConfig] = useState<SortConfig>({
+    key: 'idtrabajador_06',
+    direction: 'desc'
+  });
   const [filterEstado, setFilterEstado] = useState<string>('all');
   const [filterCargo, setFilterCargo] = useState<string>('all');
   const [filterEmpresa, setFilterEmpresa] = useState<string>('all');
@@ -178,6 +181,8 @@ const TrabajadorView: React.FC = () => {
 
       if (data.success) {
         await fetchTrabajadores();
+        setSortConfig({ key: 'idtrabajador_06', direction: 'desc' });
+        setCurrentPage(1);
         resetForm();
         await showSuccess(
           editingId ? '¡Trabajador actualizado!' : '¡Trabajador creado!',
@@ -666,6 +671,9 @@ const TrabajadorView: React.FC = () => {
         <table className="data-table trabajador-table">
           <thead>
             <tr>
+              <th onClick={() => handleSort('idtrabajador_06')} className="sortable" style={{ cursor: 'pointer' }}>
+                ID {getSortIndicator('idtrabajador_06')}
+              </th>
               <th onClick={() => handleSort('ruttrabajador_06')} className="sortable" style={{ cursor: 'pointer' }}>
                 RUT {getSortIndicator('ruttrabajador_06')}
               </th>
@@ -700,6 +708,7 @@ const TrabajadorView: React.FC = () => {
             ) : (
               paginatedTrabajadores.map(trabajador => (
                 <tr key={trabajador.idtrabajador_06}>
+                  <td>{trabajador.idtrabajador_06}</td>
                   <td className="tecnico-rut">{trabajador.ruttrabajador_06}</td>
                   <td className="tecnico-nombre">{trabajador.nombre_06}</td>
                   <td>{trabajador.apaterno_06}</td>

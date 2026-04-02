@@ -183,7 +183,7 @@ export const createAsignacion = async (req: Request, res: Response): Promise<voi
     }: CreateAsignacionPrendaDTO = req.body;
 
     // Validaciones
-    if (!idtrabajador_09 || !fecha_09 || !hora_09 || !idresponsableentrega_09) {
+    if (!idtrabajador_09 || !fecha_09 || !hora_09 || !idresponsableentrega_09 || !idempresa_09) {
       await client.query('ROLLBACK');
       const response: ApiResponse<null> = {
         success: false,
@@ -215,7 +215,7 @@ export const createAsignacion = async (req: Request, res: Response): Promise<voi
       fecha_09,
       hora_09,
       idresponsableentrega_09,
-      idempresa_09 || null,
+      idempresa_09,
       observaciones_09 || null,
       entregado === true
     ]);
@@ -351,8 +351,17 @@ export const updateAsignacion = async (req: Request, res: Response): Promise<voi
       }
 
       if (idempresa_09 !== undefined) {
+        if (!idempresa_09) {
+          await client.query('ROLLBACK');
+          const response: ApiResponse<null> = {
+            success: false,
+            error: 'Empresa es requerida'
+          };
+          res.status(400).json(response);
+          return;
+        }
         updates.push(`idempresa_09 = $${paramCount}`);
-        values.push(idempresa_09 || null);
+        values.push(idempresa_09);
         paramCount++;
       }
 

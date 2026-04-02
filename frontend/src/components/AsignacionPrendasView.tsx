@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import './BodegaView.css'; // Reutilizamos los mismos estilos
 import './AsignacionPrendasView.css';
 import { showSuccess, showError, showDeleteConfirm } from '../utils/swal';
-import { exportReporteMaestroDetalleToExcel } from '../utils/exportUtils';
+import { exportReporteMaestroDetalleToExcel, exportReporteSoloMaestroToExcel } from '../utils/exportUtils';
 
 interface AsignacionPrenda {
   idasignacionmain_09: number;
@@ -160,6 +160,7 @@ const AsignacionPrendasView: React.FC = () => {
   const [showPreviewReporte, setShowPreviewReporte] = useState<boolean>(false);
   const [fechaHoraImpresion, setFechaHoraImpresion] = useState<string>('');
   const reportePreviewRef = useRef<HTMLDivElement>(null);
+  const selectAllDetalleHeaderRef = useRef<HTMLInputElement>(null);
 
   const API_URL = 'http://localhost:3001/api/asignaciones-prendas';
   const TALLAS_API_URL = 'http://localhost:3001/api/tallas';
@@ -307,6 +308,14 @@ const AsignacionPrendasView: React.FC = () => {
 
   const deseleccionarTodosDetalles = () => setSelectedDetalleIds(new Set());
 
+  useEffect(() => {
+    const el = selectAllDetalleHeaderRef.current;
+    if (!el) return;
+    const n = detallePrendas.length;
+    const s = selectedDetalleIds.size;
+    el.indeterminate = n > 0 && s > 0 && s < n;
+  }, [detallePrendas, selectedDetalleIds, editModeDetalle]);
+
   const applyBulkUpdate = async () => {
     if (selectedDetalleIds.size === 0) {
       await showError('Validación', 'Seleccione al menos una prenda del detalle para actualizar.');
@@ -355,12 +364,13 @@ const AsignacionPrendasView: React.FC = () => {
 
   const buildAsignacionPayload = (detallesRows: DetalleAsignacionPrenda[]) => {
     const idResp = parseInt(idResponsable, 10);
+    const idEmp = parseInt(idEmpresa, 10);
     return {
       idtrabajador_09: trabajadorSeleccionado!.idtrabajador_06,
       fecha_09: fecha,
       hora_09: hora,
       idresponsableentrega_09: idResp,
-      idempresa_09: idEmpresa ? parseInt(idEmpresa, 10) : null,
+      idempresa_09: idEmp,
       observaciones_09: observaciones.trim() || null,
       entregado,
       detalles: detallesRows.map((d) => ({
@@ -378,10 +388,10 @@ const AsignacionPrendasView: React.FC = () => {
     options?: { silent?: boolean }
   ): Promise<boolean> => {
     if (!idAsignacionSeleccionada) return false;
-    if (!trabajadorSeleccionado || !idResponsable || !fecha || !hora) {
+    if (!trabajadorSeleccionado || !idResponsable || !idEmpresa || !fecha || !hora) {
       await showError(
         'Validación',
-        'Complete trabajador, responsable, fecha y hora para guardar los cambios de la grilla en el servidor.'
+        'Complete trabajador, responsable, empresa, fecha y hora para guardar los cambios de la grilla en el servidor.'
       );
       return false;
     }
@@ -392,6 +402,11 @@ const AsignacionPrendasView: React.FC = () => {
     const idResp = parseInt(idResponsable, 10);
     if (Number.isNaN(idResp)) {
       await showError('Validación', 'Responsable no válido.');
+      return false;
+    }
+    const idEmp = parseInt(idEmpresa, 10);
+    if (Number.isNaN(idEmp)) {
+      await showError('Validación', 'Empresa no válida.');
       return false;
     }
     const asignacionData = buildAsignacionPayload(detallesRows);
@@ -431,8 +446,8 @@ const AsignacionPrendasView: React.FC = () => {
   };
 
   const handleGuardar = async () => {
-    if (!trabajadorSeleccionado || !idResponsable || !fecha || !hora) {
-      await showError('Validación', 'Todos los campos son requeridos');
+    if (!trabajadorSeleccionado || !idResponsable || !idEmpresa || !fecha || !hora) {
+      await showError('Validación', 'Trabajador, responsable, empresa, fecha y hora son requeridos');
       return;
     }
 
@@ -704,6 +719,13 @@ const AsignacionPrendasView: React.FC = () => {
   }, [processedAsignaciones, paginaActual]);
 
   const totalPaginas = Math.ceil(processedAsignaciones.length / registrosPorPagina);
+  const rutByTrabajadorId = useMemo(() => {
+    const map = new Map<number, string>();
+    trabajadores.forEach((t) => {
+      map.set(Number(t.idtrabajador_06), t.ruttrabajador_06 || '');
+    });
+    return map;
+  }, [trabajadores]);
 
   const openPreviewModal = useCallback(async (id: number) => {
     setShowPreviewModal(true);
@@ -932,6 +954,7 @@ const AsignacionPrendasView: React.FC = () => {
       idasignacionmain_09: number;
       fecha_09: string;
       hora_09: string;
+      rut_trabajador: string;
       trabajador_nombre: string;
       responsable_nombre: string;
       empresa_nombre: string;
@@ -944,6 +967,7 @@ const AsignacionPrendasView: React.FC = () => {
           idasignacionmain_09: id,
           fecha_09: row.fecha_09,
           hora_09: row.hora_09,
+          rut_trabajador: rutByTrabajadorId.get(Number(row.idtrabajador_06)) || 'N/A',
           trabajador_nombre: row.trabajador_nombre || 'N/A',
           responsable_nombre: row.responsable_nombre || 'N/A',
           empresa_nombre: row.empresa_nombre || 'N/A',
@@ -960,7 +984,7 @@ const AsignacionPrendasView: React.FC = () => {
     return Array.from(grupos.values()).sort(
       (a, b) => b.idasignacionmain_09 - a.idasignacionmain_09
     );
-  }, [datosReporte]);
+  }, [datosReporte, rutByTrabajadorId]);
 
   const handleSort = (key: keyof AsignacionPrenda) => {
     let direction: 'asc' | 'desc' = 'asc';
@@ -1268,9 +1292,9 @@ const AsignacionPrendasView: React.FC = () => {
             <button
               className="btn-primary"
               onClick={() => {
+                const filename = getNombreArchivoReportePrendas();
+                const fechaImp = new Date().toLocaleString('es-CL', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
                 if (tipoReporte === 'detalle' && reporteAgrupado.length > 0) {
-                  const filename = getNombreArchivoReportePrendas();
-                  const fechaImp = new Date().toLocaleString('es-CL', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
                   exportReporteMaestroDetalleToExcel(
                     reporteAgrupado,
                     filename,
@@ -1281,11 +1305,32 @@ const AsignacionPrendasView: React.FC = () => {
                     getTituloReportePrendas()
                   );
                   showSuccess('Exportado', 'El reporte se ha exportado a Excel correctamente.');
+                } else if (tipoReporte === 'maestro' && datosReporteMaestro.length > 0) {
+                  exportReporteSoloMaestroToExcel(
+                    datosReporteMaestro.map((row: any) => ({
+                      ...row,
+                      rut_trabajador: rutByTrabajadorId.get(Number(row.idtrabajador_09)) || 'N/A'
+                    })),
+                    filename,
+                    formatDateReporte,
+                    formatHoraReporte,
+                    formatEstadoEntrega,
+                    fechaDesdeReporte,
+                    fechaHastaReporte,
+                    fechaImp,
+                    getUsuarioConectado(),
+                    getTituloReportePrendas()
+                  );
+                  showSuccess('Exportado', 'El reporte se ha exportado a Excel correctamente.');
                 }
               }}
-              disabled={tipoReporte === 'maestro' || reporteAgrupado.length === 0}
+              disabled={
+                loadingReporte ||
+                (tipoReporte === 'detalle' && reporteAgrupado.length === 0) ||
+                (tipoReporte === 'maestro' && datosReporteMaestro.length === 0)
+              }
               style={{ backgroundColor: '#218838' }}
-              title="Exportar a Excel (formato maestro-detalle)"
+              title="Exportar a Excel (detalle con prendas, o solo maestro según el tipo de reporte)"
             >
               📊 Exportar Excel
             </button>
@@ -1308,18 +1353,44 @@ const AsignacionPrendasView: React.FC = () => {
                     onClick={() => {
                       const filename = getNombreArchivoReportePrendas();
                       const fechaImp = new Date().toLocaleString('es-CL', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
-                      exportReporteMaestroDetalleToExcel(
-                        reporteAgrupado,
-                        filename,
-                        formatDateReporte,
-                        formatHoraReporte,
-                        fechaImp,
-                        getUsuarioConectado(),
-                        getTituloReportePrendas()
-                      );
-                      showSuccess('Exportado', 'El reporte se ha exportado a Excel correctamente.');
+                      if (tipoReporte === 'detalle' && reporteAgrupado.length > 0) {
+                        exportReporteMaestroDetalleToExcel(
+                          reporteAgrupado,
+                          filename,
+                          formatDateReporte,
+                          formatHoraReporte,
+                          fechaImp,
+                          getUsuarioConectado(),
+                          getTituloReportePrendas()
+                        );
+                        showSuccess('Exportado', 'El reporte se ha exportado a Excel correctamente.');
+                      } else if (tipoReporte === 'maestro' && datosReporteMaestro.length > 0) {
+                        exportReporteSoloMaestroToExcel(
+                          datosReporteMaestro.map((row: any) => ({
+                            ...row,
+                            rut_trabajador: rutByTrabajadorId.get(Number(row.idtrabajador_09)) || 'N/A'
+                          })),
+                          filename,
+                          formatDateReporte,
+                          formatHoraReporte,
+                          formatEstadoEntrega,
+                          fechaDesdeReporte,
+                          fechaHastaReporte,
+                          fechaImp,
+                          getUsuarioConectado(),
+                          getTituloReportePrendas()
+                        );
+                        showSuccess('Exportado', 'El reporte se ha exportado a Excel correctamente.');
+                      }
                     }}
-                    style={{ backgroundColor: '#218838', display: tipoReporte === 'detalle' ? 'inline-flex' : 'none' }}
+                    style={{
+                      backgroundColor: '#218838',
+                      display:
+                        (tipoReporte === 'detalle' && reporteAgrupado.length > 0) ||
+                        (tipoReporte === 'maestro' && datosReporteMaestro.length > 0)
+                          ? 'inline-flex'
+                          : 'none'
+                    }}
                   >
                     📊 Exportar Excel
                   </button>
@@ -1350,24 +1421,24 @@ const AsignacionPrendasView: React.FC = () => {
                   <table className="data-table reporte-maestro-detalle" style={{ width: '100%', fontSize: '12px' }}>
                     <thead>
                       <tr>
-                        <td colSpan={10} style={{ border: 'none', padding: '0 0 8px 0', textAlign: 'center', fontWeight: 'bold', fontSize: '14px' }}>
+                        <td colSpan={11} style={{ border: 'none', padding: '0 0 8px 0', textAlign: 'center', fontWeight: 'bold', fontSize: '14px' }}>
                           {getTituloReportePrendas()}
                         </td>
                       </tr>
                       <tr>
-                        <td colSpan={10} style={{ border: 'none', padding: '0 0 4px 0', textAlign: 'center', fontSize: '0.9em', color: '#ffffff' }}>
+                        <td colSpan={11} style={{ border: 'none', padding: '0 0 4px 0', textAlign: 'center', fontSize: '0.9em', color: '#ffffff' }}>
                           Período: {formatDateReporte(fechaDesdeReporte)} - {formatDateReporte(fechaHastaReporte)}
                         </td>
                       </tr>
                       {getSubtituloRangoIdReporte() && (
                         <tr>
-                          <td colSpan={10} style={{ border: 'none', padding: '0 0 4px 0', textAlign: 'center', fontSize: '0.9em', color: '#ffffff' }}>
+                          <td colSpan={11} style={{ border: 'none', padding: '0 0 4px 0', textAlign: 'center', fontSize: '0.9em', color: '#ffffff' }}>
                             {getSubtituloRangoIdReporte()}
                           </td>
                         </tr>
                       )}
                       <tr>
-                        <td colSpan={10} style={{ border: 'none', padding: '0 0 8px 0', fontSize: '0.85em', color: '#ffffff' }}>
+                        <td colSpan={11} style={{ border: 'none', padding: '0 0 8px 0', fontSize: '0.85em', color: '#ffffff' }}>
                           <span>Usuario: {getUsuarioConectado()}</span>
                         </td>
                       </tr>
@@ -1375,6 +1446,7 @@ const AsignacionPrendasView: React.FC = () => {
                         <th>ID</th>
                         <th>Fecha</th>
                         <th>Hora</th>
+                        <th>RUT</th>
                         <th>Trabajador</th>
                         <th>Prenda</th>
                         <th>Talla</th>
@@ -1401,6 +1473,9 @@ const AsignacionPrendasView: React.FC = () => {
                                 </td>
                                 <td rowSpan={grupo.detalles.length} style={{ verticalAlign: 'top' }}>
                                   {formatHoraReporte(grupo.hora_09)}
+                                </td>
+                                <td rowSpan={grupo.detalles.length} style={{ verticalAlign: 'top' }}>
+                                  {grupo.rut_trabajador}
                                 </td>
                                 <td rowSpan={grupo.detalles.length} style={{ verticalAlign: 'top' }}>
                                   {grupo.trabajador_nombre}
@@ -1443,17 +1518,17 @@ const AsignacionPrendasView: React.FC = () => {
                   <table className="data-table" style={{ width: '100%', fontSize: '12px' }}>
                     <thead>
                       <tr>
-                        <td colSpan={7} style={{ border: 'none', padding: '0 0 8px 0', textAlign: 'center', fontWeight: 'bold', fontSize: '14px' }}>
+                        <td colSpan={8} style={{ border: 'none', padding: '0 0 8px 0', textAlign: 'center', fontWeight: 'bold', fontSize: '14px' }}>
                           {getTituloReportePrendas()}
                         </td>
                       </tr>
                       <tr>
-                        <td colSpan={7} style={{ border: 'none', padding: '0 0 4px 0', textAlign: 'center', fontSize: '0.9em', color: '#ffffff' }}>
+                        <td colSpan={8} style={{ border: 'none', padding: '0 0 4px 0', textAlign: 'center', fontSize: '0.9em', color: '#ffffff' }}>
                           Período: {formatDateReporte(fechaDesdeReporte)} - {formatDateReporte(fechaHastaReporte)}
                         </td>
                       </tr>
                       <tr>
-                        <td colSpan={7} style={{ border: 'none', padding: '0 0 8px 0', fontSize: '0.85em', color: '#ffffff' }}>
+                        <td colSpan={8} style={{ border: 'none', padding: '0 0 8px 0', fontSize: '0.85em', color: '#ffffff' }}>
                           <span>Usuario: {getUsuarioConectado()}</span>
                         </td>
                       </tr>
@@ -1461,6 +1536,7 @@ const AsignacionPrendasView: React.FC = () => {
                         <th>ID</th>
                         <th>Fecha</th>
                         <th>Hora</th>
+                        <th>RUT</th>
                         <th>Trabajador</th>
                         <th>Responsable</th>
                         <th>Empresa</th>
@@ -1474,6 +1550,7 @@ const AsignacionPrendasView: React.FC = () => {
                             <td>{row.idasignacionmain_09}</td>
                             <td>{formatDateReporte(row.fecha_09)}</td>
                             <td>{formatHoraReporte(row.hora_09)}</td>
+                            <td>{rutByTrabajadorId.get(Number(row.idtrabajador_09)) || 'N/A'}</td>
                             <td>{row.trabajador_nombre || 'N/A'}</td>
                             <td>{row.responsable_nombre || 'N/A'}</td>
                             <td>{row.empresa_nombre || 'N/A'}</td>
@@ -1484,7 +1561,7 @@ const AsignacionPrendasView: React.FC = () => {
                         ))
                       ) : (
                         <tr>
-                          <td colSpan={7} style={{ textAlign: 'center', padding: '24px', color: '#6c757d' }}>
+                          <td colSpan={8} style={{ textAlign: 'center', padding: '24px', color: '#6c757d' }}>
                             No hay registros para el período y filtros seleccionados.
                           </td>
                         </tr>
@@ -1593,10 +1670,11 @@ const AsignacionPrendasView: React.FC = () => {
             </div>
 
             <div className="form-group">
-              <label>Empresa</label>
+              <label>Empresa *</label>
               <select
                 value={idEmpresa}
                 onChange={(e) => setIdEmpresa(e.target.value)}
+                required
                 style={{ width: '100%', padding: '8px 12px', borderRadius: '4px', border: '1px solid #ced4da', fontSize: '14px' }}
               >
                 <option value="">Seleccione una empresa</option>
@@ -1899,7 +1977,31 @@ const AsignacionPrendasView: React.FC = () => {
               <table className="data-table">
                 <thead>
                   <tr>
-                    {editModeDetalle === 'bulk' && <th style={{ width: '42px' }}>Sel.</th>}
+                    {editModeDetalle === 'bulk' && (
+                      <th style={{ width: '42px', textAlign: 'center', verticalAlign: 'middle' }}>
+                        <input
+                          ref={selectAllDetalleHeaderRef}
+                          type="checkbox"
+                          checked={
+                            detallePrendas.length > 0 &&
+                            selectedDetalleIds.size === detallePrendas.length
+                          }
+                          disabled={detallePrendas.length === 0}
+                          onChange={() => {
+                            if (
+                              detallePrendas.length > 0 &&
+                              selectedDetalleIds.size === detallePrendas.length
+                            ) {
+                              deseleccionarTodosDetalles();
+                            } else {
+                              seleccionarTodosDetalles();
+                            }
+                          }}
+                          aria-label="Seleccionar o deseleccionar todas las filas de la grilla"
+                          title="Seleccionar todo / deseleccionar todo"
+                        />
+                      </th>
+                    )}
                     <th>Prenda</th>
                     <th>Talla</th>
                     <th>Cantidad</th>
@@ -2016,6 +2118,7 @@ const AsignacionPrendasView: React.FC = () => {
                   >
                     ID
                   </th>
+                  <th>RUT</th>
                   <th 
                     onClick={() => handleSort('trabajador_nombre')} 
                     className={`sortable ${sortConfig && sortConfig.key === 'trabajador_nombre' ? (sortConfig.direction === 'asc' ? 'sort-asc' : 'sort-desc') : ''}`}
@@ -2046,9 +2149,9 @@ const AsignacionPrendasView: React.FC = () => {
               </thead>
               <tbody>
                 {loading && asignaciones.length === 0 ? (
-                  <tr><td colSpan={7}>Cargando...</td></tr>
+                  <tr><td colSpan={8}>Cargando...</td></tr>
                 ) : asignacionesPaginadas.length === 0 ? (
-                  <tr><td colSpan={7}>No hay asignaciones registradas</td></tr>
+                  <tr><td colSpan={8}>No hay asignaciones registradas</td></tr>
                 ) : (
                   asignacionesPaginadas.map((asignacion) => (
                     <tr 
@@ -2057,6 +2160,7 @@ const AsignacionPrendasView: React.FC = () => {
                       style={{ cursor: 'pointer' }}
                     >
                       <td>{asignacion.idasignacionmain_09}</td>
+                      <td>{rutByTrabajadorId.get(Number(asignacion.idtrabajador_09)) || 'N/A'}</td>
                       <td>{asignacion.trabajador_nombre || 'N/A'}</td>
                       <td>{asignacion.fecha_09}</td>
                       <td>{asignacion.hora_09}</td>
