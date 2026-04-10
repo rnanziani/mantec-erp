@@ -1,5 +1,20 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import './BodegaView.css';
+
+const peekButtonStyle: React.CSSProperties = {
+  position: 'absolute',
+  right: '12px',
+  top: '50%',
+  transform: 'translateY(-50%)',
+  padding: '4px 8px',
+  border: 'none',
+  background: 'transparent',
+  cursor: 'pointer',
+  fontSize: '1.25rem',
+  lineHeight: 1,
+  borderRadius: '6px',
+  color: '#555'
+};
 
 const LoginForm: React.FC = () => {
   const [formData, setFormData] = useState({
@@ -14,6 +29,25 @@ const LoginForm: React.FC = () => {
     confirmar_password: ''
   });
   const [changePasswordSuccess, setChangePasswordSuccess] = useState(false);
+  /** Muestra la contraseña solo mientras el usuario mantiene presionado el botón del ojo. */
+  const [peekLoginPassword, setPeekLoginPassword] = useState(false);
+  const [peekNuevaPassword, setPeekNuevaPassword] = useState(false);
+  const [peekConfirmarPassword, setPeekConfirmarPassword] = useState(false);
+
+  useEffect(() => {
+    if (!peekLoginPassword && !peekNuevaPassword && !peekConfirmarPassword) return;
+    const endPeek = () => {
+      setPeekLoginPassword(false);
+      setPeekNuevaPassword(false);
+      setPeekConfirmarPassword(false);
+    };
+    window.addEventListener('mouseup', endPeek);
+    window.addEventListener('touchend', endPeek);
+    return () => {
+      window.removeEventListener('mouseup', endPeek);
+      window.removeEventListener('touchend', endPeek);
+    };
+  }, [peekLoginPassword, peekNuevaPassword, peekConfirmarPassword]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({
@@ -199,46 +233,88 @@ const LoginForm: React.FC = () => {
               <label htmlFor="password_nueva" style={{ fontSize: '1.1rem', fontWeight: '600', marginBottom: '0.75rem', display: 'block' }}>
                 Nueva contraseña:
               </label>
-              <input
-                type="password"
-                id="password_nueva"
-                name="password_nueva"
-                required
-                minLength={8}
-                value={newPasswordData.password_nueva}
-                onChange={handleNewPasswordChange}
-                placeholder="Mín. 8 caracteres, mayúsculas, minúsculas, números y especiales"
-                style={{
-                  width: '100%',
-                  padding: '1rem',
-                  fontSize: '1.1rem',
-                  border: '2px solid #ddd',
-                  borderRadius: '8px',
-                  boxSizing: 'border-box'
-                }}
-              />
+              <div style={{ position: 'relative', width: '100%' }}>
+                <input
+                  type={peekNuevaPassword ? 'text' : 'password'}
+                  id="password_nueva"
+                  name="password_nueva"
+                  required
+                  minLength={8}
+                  value={newPasswordData.password_nueva}
+                  onChange={handleNewPasswordChange}
+                  placeholder="Mín. 8 caracteres, mayúsculas, minúsculas, números y especiales"
+                  autoComplete="new-password"
+                  style={{
+                    width: '100%',
+                    padding: '1rem',
+                    paddingRight: '3rem',
+                    fontSize: '1.1rem',
+                    border: '2px solid #ddd',
+                    borderRadius: '8px',
+                    boxSizing: 'border-box'
+                  }}
+                />
+                <button
+                  type="button"
+                  tabIndex={-1}
+                  aria-label="Mantenga presionado para ver la nueva contraseña"
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    setPeekNuevaPassword(true);
+                  }}
+                  onTouchStart={(e) => {
+                    e.preventDefault();
+                    setPeekNuevaPassword(true);
+                  }}
+                  className="login-password-peek-btn"
+                  style={peekButtonStyle}
+                >
+                  👁
+                </button>
+              </div>
             </div>
             <div className="form-group">
               <label htmlFor="confirmar_password" style={{ fontSize: '1.1rem', fontWeight: '600', marginBottom: '0.75rem', display: 'block' }}>
                 Confirmar nueva contraseña:
               </label>
-              <input
-                type="password"
-                id="confirmar_password"
-                name="confirmar_password"
-                required
-                value={newPasswordData.confirmar_password}
-                onChange={handleNewPasswordChange}
-                placeholder="Repita la nueva contraseña"
-                style={{
-                  width: '100%',
-                  padding: '1rem',
-                  fontSize: '1.1rem',
-                  border: '2px solid #ddd',
-                  borderRadius: '8px',
-                  boxSizing: 'border-box'
-                }}
-              />
+              <div style={{ position: 'relative', width: '100%' }}>
+                <input
+                  type={peekConfirmarPassword ? 'text' : 'password'}
+                  id="confirmar_password"
+                  name="confirmar_password"
+                  required
+                  value={newPasswordData.confirmar_password}
+                  onChange={handleNewPasswordChange}
+                  placeholder="Repita la nueva contraseña"
+                  autoComplete="new-password"
+                  style={{
+                    width: '100%',
+                    padding: '1rem',
+                    paddingRight: '3rem',
+                    fontSize: '1.1rem',
+                    border: '2px solid #ddd',
+                    borderRadius: '8px',
+                    boxSizing: 'border-box'
+                  }}
+                />
+                <button
+                  type="button"
+                  tabIndex={-1}
+                  aria-label="Mantenga presionado para ver la confirmación de contraseña"
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    setPeekConfirmarPassword(true);
+                  }}
+                  onTouchStart={(e) => {
+                    e.preventDefault();
+                    setPeekConfirmarPassword(true);
+                  }}
+                  className="login-password-peek-btn"
+                  style={peekButtonStyle}
+                >
+                  👁
+                </button>
+              </div>
             </div>
             <button
               type="submit"
@@ -299,23 +375,44 @@ const LoginForm: React.FC = () => {
               <label htmlFor="password" style={{ fontSize: '1.1rem', fontWeight: '600', marginBottom: '0.75rem', display: 'block' }}>
                 Contraseña:
               </label>
-              <input
-                type="password"
-                id="password"
-                name="password"
-                required
-                value={formData.password}
-                onChange={handleChange}
-                placeholder="Ingrese su contraseña"
-                style={{
-                  width: '100%',
-                  padding: '1rem',
-                  fontSize: '1.1rem',
-                  border: '2px solid #ddd',
-                  borderRadius: '8px',
-                  boxSizing: 'border-box'
-                }}
-              />
+              <div style={{ position: 'relative', width: '100%' }}>
+                <input
+                  type={peekLoginPassword ? 'text' : 'password'}
+                  id="password"
+                  name="password"
+                  required
+                  value={formData.password}
+                  onChange={handleChange}
+                  placeholder="Ingrese su contraseña"
+                  autoComplete="current-password"
+                  style={{
+                    width: '100%',
+                    padding: '1rem',
+                    paddingRight: '3rem',
+                    fontSize: '1.1rem',
+                    border: '2px solid #ddd',
+                    borderRadius: '8px',
+                    boxSizing: 'border-box'
+                  }}
+                />
+                <button
+                  type="button"
+                  tabIndex={-1}
+                  aria-label="Mantenga presionado para ver la contraseña"
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    setPeekLoginPassword(true);
+                  }}
+                  onTouchStart={(e) => {
+                    e.preventDefault();
+                    setPeekLoginPassword(true);
+                  }}
+                  className="login-password-peek-btn"
+                  style={peekButtonStyle}
+                >
+                  👁
+                </button>
+              </div>
             </div>
 
             <button

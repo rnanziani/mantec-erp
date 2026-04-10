@@ -292,3 +292,12 @@
     background: #fee;
     border-color: #dc3545;
 }
+
+/* Botón ojo: mostrar contraseña mientras está presionado (LoginForm) */
+.login-password-peek-btn:hover {
+    background: rgba(0, 0, 0, 0.06);
+}
+
+.login-password-peek-btn:active {
+    background: rgba(0, 0, 0, 0.1);
+}

@@ -990,6 +990,109 @@ export const getReporteDatos = async (req: Request, res: Response): Promise<void
 };
 
 /**
+ * Inconsistencias: maestro (acta) marcado entregado pero con al menos una línea de detalle pendiente.
+ * Devuelve solo filas de detalle pendientes de esas asignaciones.
+ * Query params: fechaDesde, fechaHasta, idTrabajador?, idPrenda?, idDesde?, idHasta?
+ */
+export const getReporteInconsistenciaActaEntregadoDetallePendiente = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    const { fechaDesde, fechaHasta, idTrabajador, idPrenda, idDesde, idHasta } = req.query;
+
+    if (!fechaDesde || !fechaHasta) {
+      const response: ApiResponse<null> = {
+        success: false,
+        error: 'Los parámetros fechaDesde y fechaHasta son requeridos (formato YYYY-MM-DD)'
+      };
+      res.status(400).json(response);
+      return;
+    }
+
+    const nd = idDesde !== undefined && idDesde !== '' ? Number(idDesde) : NaN;
+    const nh = idHasta !== undefined && idHasta !== '' ? Number(idHasta) : NaN;
+    if (!Number.isNaN(nd) && !Number.isNaN(nh) && nd > nh) {
+      const response: ApiResponse<null> = {
+        success: false,
+        error: 'El ID inicial debe ser menor o igual al ID final'
+      };
+      res.status(400).json(response);
+      return;
+    }
+
+    const params: (string | number)[] = [fechaDesde, fechaHasta];
+    let paramIdx = 3;
+
+    let whereClause = `WHERE am.fecha_09 >= $1::date AND am.fecha_09 <= $2::date
+      AND COALESCE(am.entregado, false) = true
+      AND COALESCE(ad.entregado_10, false) = false`;
+
+    if (idTrabajador) {
+      whereClause += ` AND am.idtrabajador_09 = $${paramIdx}`;
+      params.push(Number(idTrabajador));
+      paramIdx++;
+    }
+    if (idPrenda) {
+      whereClause += ` AND ad.idprenda_10 = $${paramIdx}`;
+      params.push(Number(idPrenda));
+      paramIdx++;
+    }
+    if (!Number.isNaN(nd)) {
+      whereClause += ` AND am.idasignacionmain_09 >= $${paramIdx}`;
+      params.push(nd);
+      paramIdx++;
+    }
+    if (!Number.isNaN(nh)) {
+      whereClause += ` AND am.idasignacionmain_09 <= $${paramIdx}`;
+      params.push(nh);
+      paramIdx++;
+    }
+
+    const query = `
+      SELECT 
+        am.idasignacionmain_09,
+        am.fecha_09,
+        am.hora_09,
+        t.nombre_06 || ' ' || COALESCE(t.apaterno_06, '') || ' ' || COALESCE(t.amaterno_06, '') as trabajador_nombre,
+        t.idtrabajador_06,
+        r.nombreresponsableentrega_08 || ' ' || COALESCE(r.apaternoresponsableentrega_08, '') || ' ' || COALESCE(r.amaternoresponsableentrega_08, '') as responsable_nombre,
+        e.nombreempresa_15 as empresa_nombre,
+        p.prenda_07 as prenda_nombre,
+        p.idprenda_07,
+        ad.talla_10,
+        ad.cantidad_10,
+        COALESCE(ad.entregado_10, false) as entregado_10
+      FROM ${TABLA_ASIGNACION} am
+      INNER JOIN ${TABLA_TRABAJADOR} t ON am.idtrabajador_09 = t.idtrabajador_06
+      INNER JOIN ${TABLA_RESPONSABLE} r ON am.idresponsableentrega_09 = r.idresponsableentrega_08
+      LEFT JOIN ${TABLA_EMPRESA} e ON am.idempresa_09 = e.idempresa_15
+      INNER JOIN ${TABLA_DETALLE} ad ON am.idasignacionmain_09 = ad.idasignacionmain_10
+      INNER JOIN ${TABLA_PRENDA} p ON ad.idprenda_10 = p.idprenda_07
+      ${whereClause}
+      ORDER BY am.idasignacionmain_09 DESC, p.prenda_07 ASC
+    `;
+
+    const result = await pool.query(query, params);
+
+    const response: ApiResponse<object[]> = {
+      success: true,
+      data: result.rows
+    };
+
+    res.json(response);
+  } catch (error) {
+    console.error('Error al obtener reporte de inconsistencias acta/detalle:', error);
+    const response: ApiResponse<null> = {
+      success: false,
+      error: 'Error al obtener el reporte de inconsistencias',
+      message: error instanceof Error ? error.message : 'Error desconocido'
+    };
+    res.status(500).json(response);
+  }
+};
+
+/**
  * Reporte maestro de asignaciones (solo tabla principal)
  * Query params: fechaDesde, fechaHasta, idTrabajador?, entregado? (true|false)
  */
@@ -1057,6 +1160,92 @@ export const getReporteMaestro = async (req: Request, res: Response): Promise<vo
     const response: ApiResponse<null> = {
       success: false,
       error: 'Error al obtener el reporte maestro',
+      message: error instanceof Error ? error.message : 'Error desconocido'
+    };
+    res.status(500).json(response);
+  }
+};
+
+/**
+ * Resumen agregado: suma de cantidades por tipo de prenda en el período
+ * Query params: fechaDesde, fechaHasta, idTrabajador?, idPrenda?, idDesde?, idHasta?
+ */
+export const getReporteResumenPorPrenda = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { fechaDesde, fechaHasta, idTrabajador, idPrenda, idDesde, idHasta } = req.query;
+
+    if (!fechaDesde || !fechaHasta) {
+      const response: ApiResponse<null> = {
+        success: false,
+        error: 'Los parámetros fechaDesde y fechaHasta son requeridos (formato YYYY-MM-DD)'
+      };
+      res.status(400).json(response);
+      return;
+    }
+
+    const nd = idDesde !== undefined && idDesde !== '' ? Number(idDesde) : NaN;
+    const nh = idHasta !== undefined && idHasta !== '' ? Number(idHasta) : NaN;
+    if (!Number.isNaN(nd) && !Number.isNaN(nh) && nd > nh) {
+      const response: ApiResponse<null> = {
+        success: false,
+        error: 'El ID inicial debe ser menor o igual al ID final'
+      };
+      res.status(400).json(response);
+      return;
+    }
+
+    const params: (string | number)[] = [fechaDesde, fechaHasta];
+    let paramIdx = 3;
+
+    let whereClause = `WHERE am.fecha_09 >= $1::date AND am.fecha_09 <= $2::date`;
+    if (idTrabajador) {
+      whereClause += ` AND am.idtrabajador_09 = $${paramIdx}`;
+      params.push(Number(idTrabajador));
+      paramIdx++;
+    }
+    if (idPrenda) {
+      whereClause += ` AND ad.idprenda_10 = $${paramIdx}`;
+      params.push(Number(idPrenda));
+      paramIdx++;
+    }
+    if (!Number.isNaN(nd)) {
+      whereClause += ` AND am.idasignacionmain_09 >= $${paramIdx}`;
+      params.push(nd);
+      paramIdx++;
+    }
+    if (!Number.isNaN(nh)) {
+      whereClause += ` AND am.idasignacionmain_09 <= $${paramIdx}`;
+      params.push(nh);
+      paramIdx++;
+    }
+
+    const query = `
+      SELECT
+        p.idprenda_07,
+        p.prenda_07 AS prenda_nombre,
+        SUM(ad.cantidad_10)::bigint AS total_cantidad,
+        COUNT(*)::int AS lineas_detalle
+      FROM ${TABLA_ASIGNACION} am
+      INNER JOIN ${TABLA_DETALLE} ad ON am.idasignacionmain_09 = ad.idasignacionmain_10
+      INNER JOIN ${TABLA_PRENDA} p ON ad.idprenda_10 = p.idprenda_07
+      ${whereClause}
+      GROUP BY p.idprenda_07, p.prenda_07
+      ORDER BY p.prenda_07 ASC
+    `;
+
+    const result = await pool.query(query, params);
+
+    const response: ApiResponse<object[]> = {
+      success: true,
+      data: result.rows
+    };
+
+    res.json(response);
+  } catch (error) {
+    console.error('Error al obtener resumen por prenda:', error);
+    const response: ApiResponse<null> = {
+      success: false,
+      error: 'Error al obtener el resumen por tipo de prenda',
       message: error instanceof Error ? error.message : 'Error desconocido'
     };
     res.status(500).json(response);

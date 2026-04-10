@@ -11,7 +11,9 @@ import {
   generarActaEntregaPDF,
   getReporteDatos,
   generarReportePDF,
-  getReporteMaestro
+  getReporteMaestro,
+  getReporteResumenPorPrenda,
+  getReporteInconsistenciaActaEntregadoDetallePendiente
 } from '../controllers/asignacionPrendasController.js';
 import { getAllTallas } from '../controllers/tallaController.js';
 
@@ -39,11 +41,25 @@ router.get('/tallas', getAllTallas);
 router.get('/reporte-maestro', getReporteMaestro);
 
 /**
+ * @route   GET /api/asignaciones-prendas/reporte/resumen-por-prenda
+ * @desc    Cantidades agregadas por tipo de prenda (intervalo fechaDesde–fechaHasta; filtros opcionales como reporte/datos)
+ * @access  Public
+ */
+router.get('/reporte/resumen-por-prenda', getReporteResumenPorPrenda);
+
+/**
  * @route   GET /api/asignaciones-prendas/reporte/datos
  * @desc    Obtener datos del reporte (filtros: fechaDesde, fechaHasta, idTrabajador, idPrenda)
  * @access  Public
  */
 router.get('/reporte/datos', getReporteDatos);
+
+/**
+ * @route   GET /api/asignaciones-prendas/reporte/inconsistencia-acta-detalle-pendiente
+ * @desc    Acta (maestro) entregado con líneas de detalle pendientes; filtro principal por fechas
+ * @access  Public
+ */
+router.get('/reporte/inconsistencia-acta-detalle-pendiente', getReporteInconsistenciaActaEntregadoDetallePendiente);
 
 /**
  * @route   GET /api/asignaciones-prendas/reporte/pdf

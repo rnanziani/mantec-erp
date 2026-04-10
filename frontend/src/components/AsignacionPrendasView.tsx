@@ -2,7 +2,11 @@ import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import './BodegaView.css'; // Reutilizamos los mismos estilos
 import './AsignacionPrendasView.css';
 import { showSuccess, showError, showDeleteConfirm } from '../utils/swal';
-import { exportReporteMaestroDetalleToExcel, exportReporteSoloMaestroToExcel } from '../utils/exportUtils';
+import {
+  exportReporteMaestroDetalleToExcel,
+  exportReporteSoloMaestroToExcel,
+  exportReporteResumenPrendasToExcel
+} from '../utils/exportUtils';
 
 interface AsignacionPrenda {
   idasignacionmain_09: number;
@@ -51,6 +55,8 @@ interface Trabajador {
   nombre_06: string;
   apaterno_06: string;
   amaterno_06: string;
+  /** Empresa del trabajador (API trabajadores); respaldo si el acta no tiene idempresa_09. */
+  idempresa_06?: number | null;
 }
 
 interface Responsable {
@@ -74,12 +80,94 @@ const formatApiError = (data: ApiResponse, fallback: string): string => {
   return parts.length ? parts.join('\n\n') : fallback;
 };
 
+/** Mensaje concretando qué falta en el maestro (evita culpar a “fecha” cuando solo falta empresa, etc.). */
+const mensajeMaestroIncompleto = (ctx: {
+  trabajadorSeleccionado: Trabajador | null;
+  idResponsable: string;
+  idEmpresa: string;
+  fecha: string;
+  hora: string;
+}): string => {
+  const faltan: string[] = [];
+  if (!ctx.trabajadorSeleccionado) faltan.push('Trabajador');
+  if (!String(ctx.idResponsable).trim()) faltan.push('Responsable');
+  if (!String(ctx.idEmpresa).trim()) faltan.push('Empresa');
+  if (!String(ctx.fecha).trim()) faltan.push('Fecha');
+  if (!String(ctx.hora).trim()) faltan.push('Hora');
+  return faltan.length > 0
+    ? `Complete: ${faltan.join(', ')}.`
+    : 'Revise trabajador, responsable, empresa, fecha y hora.';
+};
+
+type GrupoReporteAsignacionPrenda = {
+  idasignacionmain_09: number;
+  fecha_09: string;
+  hora_09: string;
+  rut_trabajador: string;
+  trabajador_nombre: string;
+  responsable_nombre: string;
+  empresa_nombre: string;
+  detalles: Array<{ prenda_nombre: string; talla_10: string; cantidad_10: number; entregado_10: boolean }>;
+};
+
+/** Agrupa filas planas del API (una por línea de detalle) para vista previa / Excel maestro-detalle. */
+const agruparFilasReportePrendasPorAsignacion = (
+  filas: any[],
+  rutByTrabajadorId: Map<number, string>
+): GrupoReporteAsignacionPrenda[] => {
+  if (!filas?.length) return [];
+  const grupos = new Map<number, GrupoReporteAsignacionPrenda>();
+  filas.forEach((row: any) => {
+    const id = row.idasignacionmain_09;
+    if (!grupos.has(id)) {
+      grupos.set(id, {
+        idasignacionmain_09: id,
+        fecha_09: row.fecha_09,
+        hora_09: row.hora_09,
+        rut_trabajador: rutByTrabajadorId.get(Number(row.idtrabajador_06)) || 'N/A',
+        trabajador_nombre: row.trabajador_nombre || 'N/A',
+        responsable_nombre: row.responsable_nombre || 'N/A',
+        empresa_nombre: row.empresa_nombre || 'N/A',
+        detalles: []
+      });
+    }
+    grupos.get(id)!.detalles.push({
+      prenda_nombre: row.prenda_nombre || 'N/A',
+      talla_10: row.talla_10 || 'N/A',
+      cantidad_10: row.cantidad_10 ?? 0,
+      entregado_10: row.entregado_10 === true
+    });
+  });
+  return Array.from(grupos.values()).sort((a, b) => b.idasignacionmain_09 - a.idasignacionmain_09);
+};
+
 /** Compara ids de detalle (API puede devolver number o string en algunos casos). */
 const idDetalleEq = (a: number, b: number): boolean => Number(a) === Number(b);
 
 /** Etiqueta de estado de entrega para tablas (evita Verdadero/Falso). */
 const formatEstadoEntrega = (entregado: boolean): string =>
   entregado ? 'entregado' : 'pendiente';
+
+/**
+ * Valor para <input type="date">: solo yyyy-mm-dd (RFC 3339).
+ * node-pg / JSON suele devolver ISO con hora (p. ej. 2024-04-10T00:00:00.000Z); ese valor completo es inválido y el input queda vacío.
+ * @see https://developer.mozilla.org/en-US/docs/Web/HTML/Element/input/date#value
+ */
+const toDateInputValue = (raw: string | null | undefined): string => {
+  if (raw == null) return '';
+  const s = String(raw).trim();
+  if (!s) return '';
+  const ymd = s.includes('T') ? s.split('T')[0] : s.length >= 10 ? s.slice(0, 10) : s;
+  return /^\d{4}-\d{2}-\d{2}$/.test(ymd) ? ymd : '';
+};
+
+/** Valor para <input type="time"> (HH:mm); recorta segundos si vienen de TIME de PostgreSQL. */
+const toTimeInputValue = (raw: string | null | undefined): string => {
+  if (raw == null) return '';
+  const s = String(raw).trim();
+  if (!s) return '';
+  return s.length >= 5 ? s.slice(0, 5) : s;
+};
 
 const EstadoEntregaLabel: React.FC<{ entregado: boolean }> = ({ entregado }) => (
   <span
@@ -141,7 +229,7 @@ const AsignacionPrendasView: React.FC = () => {
 
   // Modo reporte
   const [modoReporte, setModoReporte] = useState<boolean>(false);
-  type TipoReporte = 'detalle' | 'maestro';
+  type TipoReporte = 'detalle' | 'maestro' | 'resumen' | 'inconsistencia';
   const [tipoReporte, setTipoReporte] = useState<TipoReporte>('detalle');
   const [fechaDesdeReporte, setFechaDesdeReporte] = useState<string>(() => {
     const d = new Date();
@@ -155,6 +243,8 @@ const AsignacionPrendasView: React.FC = () => {
   const [idHastaReporte, setIdHastaReporte] = useState<string>('');
   const [datosReporte, setDatosReporte] = useState<any[]>([]);
   const [datosReporteMaestro, setDatosReporteMaestro] = useState<any[]>([]);
+  const [datosReporteResumen, setDatosReporteResumen] = useState<any[]>([]);
+  const [datosReporteInconsistencia, setDatosReporteInconsistencia] = useState<any[]>([]);
   const [filtroEntregadoReporte, setFiltroEntregadoReporte] = useState<string>('');
   const [loadingReporte, setLoadingReporte] = useState<boolean>(false);
   const [showPreviewReporte, setShowPreviewReporte] = useState<boolean>(false);
@@ -391,7 +481,13 @@ const AsignacionPrendasView: React.FC = () => {
     if (!trabajadorSeleccionado || !idResponsable || !idEmpresa || !fecha || !hora) {
       await showError(
         'Validación',
-        'Complete trabajador, responsable, empresa, fecha y hora para guardar los cambios de la grilla en el servidor.'
+        `${mensajeMaestroIncompleto({
+          trabajadorSeleccionado,
+          idResponsable,
+          idEmpresa,
+          fecha,
+          hora
+        })} Así podrá guardar los cambios de la grilla en el servidor.`
       );
       return false;
     }
@@ -447,7 +543,16 @@ const AsignacionPrendasView: React.FC = () => {
 
   const handleGuardar = async () => {
     if (!trabajadorSeleccionado || !idResponsable || !idEmpresa || !fecha || !hora) {
-      await showError('Validación', 'Trabajador, responsable, empresa, fecha y hora son requeridos');
+      await showError(
+        'Validación',
+        mensajeMaestroIncompleto({
+          trabajadorSeleccionado,
+          idResponsable,
+          idEmpresa,
+          fecha,
+          hora
+        })
+      );
       return;
     }
 
@@ -619,15 +724,19 @@ const AsignacionPrendasView: React.FC = () => {
 
   const handleSeleccionarAsignacion = (asignacion: AsignacionPrenda) => {
     setIdAsignacionSeleccionada(asignacion.idasignacionmain_09);
-    setFecha(asignacion.fecha_09);
-    setHora(asignacion.hora_09);
+    setFecha(toDateInputValue(asignacion.fecha_09));
+    setHora(toTimeInputValue(asignacion.hora_09));
     setIdResponsable(asignacion.idresponsableentrega_09.toString());
-    setIdEmpresa(asignacion.idempresa_09 ? asignacion.idempresa_09.toString() : '');
+
+    const trabajador = trabajadores.find((t) => t.idtrabajador_06 === asignacion.idtrabajador_09);
+    const empresaActa =
+      asignacion.idempresa_09 != null ? String(asignacion.idempresa_09) : '';
+    const empresaTrabajador =
+      trabajador?.idempresa_06 != null ? String(trabajador.idempresa_06) : '';
+    setIdEmpresa(empresaActa || empresaTrabajador);
+
     setObservaciones(asignacion.observaciones_09 || '');
     setEntregado(asignacion.entregado === true);
-    
-    // Buscar trabajador
-    const trabajador = trabajadores.find(t => t.idtrabajador_06 === asignacion.idtrabajador_09);
     setTrabajadorSeleccionado(trabajador || null);
     
     setShowForm(true);
@@ -814,6 +923,69 @@ const AsignacionPrendasView: React.FC = () => {
     }
   }, [fechaDesdeReporte, fechaHastaReporte, idTrabajadorReporte, idPrendaReporte, idDesdeReporte, idHastaReporte]);
 
+  /** Acta entregado (maestro) con líneas de detalle aún pendientes; filtro principal por fechas. */
+  const fetchReporteInconsistenciaActaDetalle = useCallback(async () => {
+    if (!fechaDesdeReporte || !fechaHastaReporte) {
+      await showError('Validación', 'Debe indicar el intervalo de fechas');
+      return;
+    }
+    const idD = idDesdeReporte.trim() ? parseInt(idDesdeReporte, 10) : NaN;
+    const idH = idHastaReporte.trim() ? parseInt(idHastaReporte, 10) : NaN;
+    if (idDesdeReporte.trim() && Number.isNaN(idD)) {
+      await showError('Validación', 'ID inicial debe ser un número válido');
+      return;
+    }
+    if (idHastaReporte.trim() && Number.isNaN(idH)) {
+      await showError('Validación', 'ID final debe ser un número válido');
+      return;
+    }
+    if (!Number.isNaN(idD) && !Number.isNaN(idH) && idD > idH) {
+      await showError('Validación', 'El ID inicial debe ser menor o igual al ID final');
+      return;
+    }
+    setLoadingReporte(true);
+    setShowPreviewReporte(false);
+    try {
+      const params = new URLSearchParams({
+        fechaDesde: fechaDesdeReporte,
+        fechaHasta: fechaHastaReporte
+      });
+      if (idTrabajadorReporte) params.append('idTrabajador', idTrabajadorReporte);
+      if (idPrendaReporte) params.append('idPrenda', idPrendaReporte);
+      if (!Number.isNaN(idD)) params.append('idDesde', String(idD));
+      if (!Number.isNaN(idH)) params.append('idHasta', String(idH));
+      const response = await fetch(`${API_URL}/reporte/inconsistencia-acta-detalle-pendiente?${params}`);
+      const data: ApiResponse = await response.json();
+      if (!response.ok) {
+        await showError('Error', data.error || `Error del servidor (${response.status})`);
+        return;
+      }
+      if (data.success) {
+        const rows = Array.isArray(data.data) ? data.data : [];
+        setDatosReporteInconsistencia(rows);
+        setShowPreviewReporte(true);
+        setFechaHoraImpresion(
+          new Date().toLocaleString('es-CL', {
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+          })
+        );
+        setTimeout(() => {
+          reportePreviewRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }, 100);
+      } else {
+        await showError('Error', data.error || 'No se pudieron cargar las inconsistencias acta/detalle');
+      }
+    } catch (err) {
+      await showError('Error', 'Error de conexión al cargar el reporte de inconsistencias');
+    } finally {
+      setLoadingReporte(false);
+    }
+  }, [fechaDesdeReporte, fechaHastaReporte, idTrabajadorReporte, idPrendaReporte, idDesdeReporte, idHastaReporte]);
+
   // Reporte maestro (solo encabezado de asignación)
   const fetchReporteMaestro = useCallback(async () => {
     if (!fechaDesdeReporte || !fechaHastaReporte) {
@@ -861,6 +1033,61 @@ const AsignacionPrendasView: React.FC = () => {
       setLoadingReporte(false);
     }
   }, [fechaDesdeReporte, fechaHastaReporte, idTrabajadorReporte, filtroEntregadoReporte]);
+
+  /** Totales agregados por tipo de prenda (suma de cantidades en el período). */
+  const fetchReporteResumenPorPrenda = useCallback(async () => {
+    if (!fechaDesdeReporte || !fechaHastaReporte) {
+      await showError('Validación', 'Debe indicar el intervalo de fechas');
+      return;
+    }
+    const idD = idDesdeReporte.trim() ? parseInt(idDesdeReporte, 10) : NaN;
+    const idH = idHastaReporte.trim() ? parseInt(idHastaReporte, 10) : NaN;
+    if (idDesdeReporte.trim() && Number.isNaN(idD)) {
+      await showError('Validación', 'ID inicial debe ser un número válido');
+      return;
+    }
+    if (idHastaReporte.trim() && Number.isNaN(idH)) {
+      await showError('Validación', 'ID final debe ser un número válido');
+      return;
+    }
+    if (!Number.isNaN(idD) && !Number.isNaN(idH) && idD > idH) {
+      await showError('Validación', 'El ID inicial debe ser menor o igual al ID final');
+      return;
+    }
+    setLoadingReporte(true);
+    setShowPreviewReporte(false);
+    try {
+      const params = new URLSearchParams({
+        fechaDesde: fechaDesdeReporte,
+        fechaHasta: fechaHastaReporte
+      });
+      if (idTrabajadorReporte) params.append('idTrabajador', idTrabajadorReporte);
+      if (idPrendaReporte) params.append('idPrenda', idPrendaReporte);
+      if (!Number.isNaN(idD)) params.append('idDesde', String(idD));
+      if (!Number.isNaN(idH)) params.append('idHasta', String(idH));
+      const response = await fetch(`${API_URL}/reporte/resumen-por-prenda?${params}`);
+      const data: ApiResponse = await response.json();
+      if (!response.ok) {
+        await showError('Error', data.error || `Error del servidor (${response.status})`);
+        return;
+      }
+      if (data.success) {
+        const rows = Array.isArray(data.data) ? data.data : [];
+        setDatosReporteResumen(rows);
+        setShowPreviewReporte(true);
+        setFechaHoraImpresion(new Date().toLocaleString('es-CL', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }));
+        setTimeout(() => {
+          reportePreviewRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }, 100);
+      } else {
+        await showError('Error', data.error || 'No se pudieron cargar los datos del resumen');
+      }
+    } catch (err) {
+      await showError('Error', 'Error de conexión al cargar el resumen por tipo de prenda');
+    } finally {
+      setLoadingReporte(false);
+    }
+  }, [fechaDesdeReporte, fechaHastaReporte, idTrabajadorReporte, idPrendaReporte, idDesdeReporte, idHastaReporte]);
 
   const getReportePDFUrl = useCallback(() => {
     const params = new URLSearchParams({
@@ -916,6 +1143,34 @@ const AsignacionPrendasView: React.FC = () => {
     return `REPORTE DE ASIGNACIÓN DE PRENDAS — ${fh}`;
   };
 
+  /** Título para vista previa / Excel: acta entregado con prendas pendientes en detalle. */
+  const getTituloReporteInconsistenciaActaDetalle = (): string => {
+    const fh =
+      fechaHoraImpresion ||
+      new Date().toLocaleString('es-CL', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    return `INCONSISTENCIAS — Acta entregado y detalle con prendas pendientes — ${fh}`;
+  };
+
+  /** Título para vista previa / Excel del resumen agregado por tipo de prenda. */
+  const getTituloResumenPorTipoPrenda = (): string => {
+    const fh =
+      fechaHoraImpresion ||
+      new Date().toLocaleString('es-CL', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    return `RESUMEN DE PRENDAS POR TIPO — ${fh}`;
+  };
+
   /**
    * Nombre de archivo Excel/PDF: período del filtro + fecha y hora de impresión (exportación) legibles.
    * Sin dos puntos ni caracteres prohibidos en Windows.
@@ -934,7 +1189,15 @@ const AsignacionPrendasView: React.FC = () => {
           : !Number.isNaN(idH)
             ? `_IDhasta_${idH}`
             : '';
-    return `reporte-asignacion-prendas-${fechaDesdeReporte}-${fechaHastaReporte}${sufijoId}_impresion_${fechaImpresion}_${horaImpresion}`;
+    const prefijo =
+      tipoReporte === 'resumen'
+        ? 'reporte-resumen-por-tipo-prenda'
+        : tipoReporte === 'maestro'
+          ? 'reporte-asignacion-maestro'
+          : tipoReporte === 'inconsistencia'
+            ? 'reporte-inconsistencia-acta-detalle-pendiente'
+            : 'reporte-asignacion-prendas';
+    return `${prefijo}-${fechaDesdeReporte}-${fechaHastaReporte}${sufijoId}_impresion_${fechaImpresion}_${horaImpresion}`;
   };
 
   /** Texto opcional para vista previa / coherencia con PDF */
@@ -947,44 +1210,26 @@ const AsignacionPrendasView: React.FC = () => {
     return '';
   };
 
-  // Agrupar reporte por asignación (maestro-detalle)
-  const reporteAgrupado = useMemo(() => {
-    if (!datosReporte || datosReporte.length === 0) return [];
-    const grupos = new Map<number, {
-      idasignacionmain_09: number;
-      fecha_09: string;
-      hora_09: string;
-      rut_trabajador: string;
-      trabajador_nombre: string;
-      responsable_nombre: string;
-      empresa_nombre: string;
-      detalles: Array<{ prenda_nombre: string; talla_10: string; cantidad_10: number; entregado_10: boolean }>;
-    }>();
-    datosReporte.forEach((row: any) => {
-      const id = row.idasignacionmain_09;
-      if (!grupos.has(id)) {
-        grupos.set(id, {
-          idasignacionmain_09: id,
-          fecha_09: row.fecha_09,
-          hora_09: row.hora_09,
-          rut_trabajador: rutByTrabajadorId.get(Number(row.idtrabajador_06)) || 'N/A',
-          trabajador_nombre: row.trabajador_nombre || 'N/A',
-          responsable_nombre: row.responsable_nombre || 'N/A',
-          empresa_nombre: row.empresa_nombre || 'N/A',
-          detalles: []
-        });
-      }
-      grupos.get(id)!.detalles.push({
-        prenda_nombre: row.prenda_nombre || 'N/A',
-        talla_10: row.talla_10 || 'N/A',
-        cantidad_10: row.cantidad_10 ?? 0,
-        entregado_10: row.entregado_10 === true
-      });
-    });
-    return Array.from(grupos.values()).sort(
-      (a, b) => b.idasignacionmain_09 - a.idasignacionmain_09
-    );
-  }, [datosReporte, rutByTrabajadorId]);
+  const reporteAgrupado = useMemo(
+    () => agruparFilasReportePrendasPorAsignacion(datosReporte, rutByTrabajadorId),
+    [datosReporte, rutByTrabajadorId]
+  );
+
+  const reporteAgrupadoInconsistencia = useMemo(
+    () => agruparFilasReportePrendasPorAsignacion(datosReporteInconsistencia, rutByTrabajadorId),
+    [datosReporteInconsistencia, rutByTrabajadorId]
+  );
+
+  const gruposReporteTablaDetalleOInconsistencia: GrupoReporteAsignacionPrenda[] =
+    tipoReporte === 'inconsistencia'
+      ? reporteAgrupadoInconsistencia
+      : tipoReporte === 'detalle'
+        ? reporteAgrupado
+        : [];
+
+  const totalResumenPorTipo = useMemo(() => {
+    return datosReporteResumen.reduce((acc, row: any) => acc + Number(row.total_cantidad ?? 0), 0);
+  }, [datosReporteResumen]);
 
   const handleSort = (key: keyof AsignacionPrenda) => {
     let direction: 'asc' | 'desc' = 'asc';
@@ -1107,6 +1352,8 @@ const AsignacionPrendasView: React.FC = () => {
                 setModoReporte(false);
                 setShowPreviewReporte(false);
                 setDatosReporte([]);
+                setDatosReporteMaestro([]);
+                setDatosReporteResumen([]);
                 setIdDesdeReporte('');
                 setIdHastaReporte('');
               }}
@@ -1129,7 +1376,7 @@ const AsignacionPrendasView: React.FC = () => {
           <div className="no-print">
           <h3>📊 Reporte de Asignación de Prendas</h3>
           <p style={{ color: '#6c757d', marginBottom: '8px', fontSize: '0.95em' }}>
-            Elija entre reporte maestro (solo asignación principal) o detalle (con prendas).
+            Elija el tipo: detalle, pendiente, maestro (solo cabecera) o resumen (totales por tipo de prenda).
           </p>
           <div style={{ marginBottom: '16px', display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
             <label style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}>
@@ -1142,9 +1389,27 @@ const AsignacionPrendasView: React.FC = () => {
                   setTipoReporte('detalle');
                   setShowPreviewReporte(false);
                   setDatosReporteMaestro([]);
+                  setDatosReporteResumen([]);
+                  setDatosReporteInconsistencia([]);
                 }}
               />
               <span>Detalle (maestro + prendas)</span>
+            </label>
+            <label style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}>
+              <input
+                type="radio"
+                name="tipo-reporte"
+                value="inconsistencia"
+                checked={tipoReporte === 'inconsistencia'}
+                onChange={() => {
+                  setTipoReporte('inconsistencia');
+                  setShowPreviewReporte(false);
+                  setDatosReporte([]);
+                  setDatosReporteMaestro([]);
+                  setDatosReporteResumen([]);
+                }}
+              />
+              <span>Pendiente</span>
             </label>
             <label style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}>
               <input
@@ -1156,13 +1421,31 @@ const AsignacionPrendasView: React.FC = () => {
                   setTipoReporte('maestro');
                   setShowPreviewReporte(false);
                   setDatosReporte([]);
+                  setDatosReporteResumen([]);
+                  setDatosReporteInconsistencia([]);
                 }}
               />
               <span>Solo maestro (una fila por asignación)</span>
             </label>
+            <label style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}>
+              <input
+                type="radio"
+                name="tipo-reporte"
+                value="resumen"
+                checked={tipoReporte === 'resumen'}
+                onChange={() => {
+                  setTipoReporte('resumen');
+                  setShowPreviewReporte(false);
+                  setDatosReporte([]);
+                  setDatosReporteMaestro([]);
+                  setDatosReporteInconsistencia([]);
+                }}
+              />
+              <span>Resumen por tipo de prenda</span>
+            </label>
           </div>
           <p style={{ color: '#6c757d', marginBottom: '16px', fontSize: '0.9em' }}>
-            Filtre por intervalo de fechas. En modo detalle puede acotar por rango de ID y prenda; en modo maestro puede filtrar por estado entregado.
+            Filtre por intervalo de fechas (desde / hasta). En detalle, pendiente y resumen puede acotar por trabajador, prenda y rango de ID de asignación. En maestro puede filtrar por estado entregado del acta.
           </p>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '16px', marginBottom: '20px' }}>
             <div className="form-group">
@@ -1262,19 +1545,27 @@ const AsignacionPrendasView: React.FC = () => {
                 onChange={(e) => setFiltroEntregadoReporte(e.target.value)}
                 style={{ width: '100%', padding: '8px 12px', borderRadius: '4px', border: '1px solid #ced4da', fontSize: '14px' }}
                 aria-describedby="entregado-reporte-desc"
-                disabled={tipoReporte === 'detalle'}
+                disabled={tipoReporte === 'detalle' || tipoReporte === 'resumen' || tipoReporte === 'inconsistencia'}
               >
                 <option value="">Todos</option>
                 <option value="true">Solo entregados</option>
                 <option value="false">Solo pendientes</option>
               </select>
-              <span id="entregado-reporte-desc" className="sr-only">Filtrar por estado de entrega en el maestro</span>
+              <span id="entregado-reporte-desc" className="sr-only">Filtrar por estado de entrega del acta (solo reporte maestro)</span>
             </div>
           </div>
           <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
             <button
               className="btn-primary"
-              onClick={tipoReporte === 'detalle' ? fetchReporte : fetchReporteMaestro}
+              onClick={
+                tipoReporte === 'detalle'
+                  ? fetchReporte
+                  : tipoReporte === 'inconsistencia'
+                    ? fetchReporteInconsistenciaActaDetalle
+                    : tipoReporte === 'maestro'
+                      ? fetchReporteMaestro
+                      : fetchReporteResumenPorPrenda
+              }
               disabled={loadingReporte}
               style={{ backgroundColor: '#17a2b8' }}
             >
@@ -1283,7 +1574,13 @@ const AsignacionPrendasView: React.FC = () => {
             <button
               className="btn-primary"
               onClick={() => window.open(getReportePDFUrl(), '_blank')}
-              disabled={!fechaDesdeReporte || !fechaHastaReporte || tipoReporte === 'maestro'}
+              disabled={
+                !fechaDesdeReporte ||
+                !fechaHastaReporte ||
+                tipoReporte === 'maestro' ||
+                tipoReporte === 'resumen' ||
+                tipoReporte === 'inconsistencia'
+              }
               style={{ backgroundColor: '#28a745' }}
               title="Descargar PDF (formato carta, horizontal)"
             >
@@ -1305,6 +1602,17 @@ const AsignacionPrendasView: React.FC = () => {
                     getTituloReportePrendas()
                   );
                   showSuccess('Exportado', 'El reporte se ha exportado a Excel correctamente.');
+                } else if (tipoReporte === 'inconsistencia' && reporteAgrupadoInconsistencia.length > 0) {
+                  exportReporteMaestroDetalleToExcel(
+                    reporteAgrupadoInconsistencia,
+                    filename,
+                    formatDateReporte,
+                    formatHoraReporte,
+                    fechaImp,
+                    getUsuarioConectado(),
+                    getTituloReporteInconsistenciaActaDetalle()
+                  );
+                  showSuccess('Exportado', 'El reporte se ha exportado a Excel correctamente.');
                 } else if (tipoReporte === 'maestro' && datosReporteMaestro.length > 0) {
                   exportReporteSoloMaestroToExcel(
                     datosReporteMaestro.map((row: any) => ({
@@ -1322,15 +1630,34 @@ const AsignacionPrendasView: React.FC = () => {
                     getTituloReportePrendas()
                   );
                   showSuccess('Exportado', 'El reporte se ha exportado a Excel correctamente.');
+                } else if (tipoReporte === 'resumen' && datosReporteResumen.length > 0) {
+                  exportReporteResumenPrendasToExcel(
+                    datosReporteResumen.map((row: any) => ({
+                      idprenda_07: Number(row.idprenda_07),
+                      prenda_nombre: String(row.prenda_nombre ?? ''),
+                      total_cantidad: row.total_cantidad,
+                      lineas_detalle: Number(row.lineas_detalle ?? 0)
+                    })),
+                    totalResumenPorTipo,
+                    filename,
+                    formatDateReporte(fechaDesdeReporte),
+                    formatDateReporte(fechaHastaReporte),
+                    fechaImp,
+                    getUsuarioConectado(),
+                    getTituloResumenPorTipoPrenda()
+                  );
+                  showSuccess('Exportado', 'El resumen se ha exportado a Excel correctamente.');
                 }
               }}
               disabled={
                 loadingReporte ||
                 (tipoReporte === 'detalle' && reporteAgrupado.length === 0) ||
-                (tipoReporte === 'maestro' && datosReporteMaestro.length === 0)
+                (tipoReporte === 'inconsistencia' && reporteAgrupadoInconsistencia.length === 0) ||
+                (tipoReporte === 'maestro' && datosReporteMaestro.length === 0) ||
+                (tipoReporte === 'resumen' && datosReporteResumen.length === 0)
               }
               style={{ backgroundColor: '#218838' }}
-              title="Exportar a Excel (detalle con prendas, o solo maestro según el tipo de reporte)"
+              title="Exportar a Excel según el tipo de reporte"
             >
               📊 Exportar Excel
             </button>
@@ -1364,6 +1691,17 @@ const AsignacionPrendasView: React.FC = () => {
                           getTituloReportePrendas()
                         );
                         showSuccess('Exportado', 'El reporte se ha exportado a Excel correctamente.');
+                      } else if (tipoReporte === 'inconsistencia' && reporteAgrupadoInconsistencia.length > 0) {
+                        exportReporteMaestroDetalleToExcel(
+                          reporteAgrupadoInconsistencia,
+                          filename,
+                          formatDateReporte,
+                          formatHoraReporte,
+                          fechaImp,
+                          getUsuarioConectado(),
+                          getTituloReporteInconsistenciaActaDetalle()
+                        );
+                        showSuccess('Exportado', 'El reporte se ha exportado a Excel correctamente.');
                       } else if (tipoReporte === 'maestro' && datosReporteMaestro.length > 0) {
                         exportReporteSoloMaestroToExcel(
                           datosReporteMaestro.map((row: any) => ({
@@ -1381,13 +1719,32 @@ const AsignacionPrendasView: React.FC = () => {
                           getTituloReportePrendas()
                         );
                         showSuccess('Exportado', 'El reporte se ha exportado a Excel correctamente.');
+                      } else if (tipoReporte === 'resumen' && datosReporteResumen.length > 0) {
+                        exportReporteResumenPrendasToExcel(
+                          datosReporteResumen.map((row: any) => ({
+                            idprenda_07: Number(row.idprenda_07),
+                            prenda_nombre: String(row.prenda_nombre ?? ''),
+                            total_cantidad: row.total_cantidad,
+                            lineas_detalle: Number(row.lineas_detalle ?? 0)
+                          })),
+                          totalResumenPorTipo,
+                          filename,
+                          formatDateReporte(fechaDesdeReporte),
+                          formatDateReporte(fechaHastaReporte),
+                          fechaImp,
+                          getUsuarioConectado(),
+                          getTituloResumenPorTipoPrenda()
+                        );
+                        showSuccess('Exportado', 'El resumen se ha exportado a Excel correctamente.');
                       }
                     }}
                     style={{
                       backgroundColor: '#218838',
                       display:
                         (tipoReporte === 'detalle' && reporteAgrupado.length > 0) ||
-                        (tipoReporte === 'maestro' && datosReporteMaestro.length > 0)
+                        (tipoReporte === 'inconsistencia' && reporteAgrupadoInconsistencia.length > 0) ||
+                        (tipoReporte === 'maestro' && datosReporteMaestro.length > 0) ||
+                        (tipoReporte === 'resumen' && datosReporteResumen.length > 0)
                           ? 'inline-flex'
                           : 'none'
                     }}
@@ -1416,13 +1773,15 @@ const AsignacionPrendasView: React.FC = () => {
                   backgroundColor: '#fff'
                 }}
               >
-                {tipoReporte === 'detalle' ? (
-                  reporteAgrupado.length > 0 ? (
+                {tipoReporte === 'detalle' || tipoReporte === 'inconsistencia' ? (
+                  gruposReporteTablaDetalleOInconsistencia.length > 0 ? (
                   <table className="data-table reporte-maestro-detalle" style={{ width: '100%', fontSize: '12px' }}>
                     <thead>
                       <tr>
                         <td colSpan={11} style={{ border: 'none', padding: '0 0 8px 0', textAlign: 'center', fontWeight: 'bold', fontSize: '14px' }}>
-                          {getTituloReportePrendas()}
+                          {tipoReporte === 'inconsistencia'
+                            ? getTituloReporteInconsistenciaActaDetalle()
+                            : getTituloReportePrendas()}
                         </td>
                       </tr>
                       <tr>
@@ -1430,6 +1789,13 @@ const AsignacionPrendasView: React.FC = () => {
                           Período: {formatDateReporte(fechaDesdeReporte)} - {formatDateReporte(fechaHastaReporte)}
                         </td>
                       </tr>
+                      {tipoReporte === 'inconsistencia' && (
+                        <tr>
+                          <td colSpan={11} style={{ border: 'none', padding: '0 0 4px 0', textAlign: 'center', fontSize: '0.9em', color: '#ffffff' }}>
+                            Criterio: acta (maestro) en estado entregado y solo líneas de detalle aún pendientes (principal filtro: fechas del acta).
+                          </td>
+                        </tr>
+                      )}
                       {getSubtituloRangoIdReporte() && (
                         <tr>
                           <td colSpan={11} style={{ border: 'none', padding: '0 0 4px 0', textAlign: 'center', fontSize: '0.9em', color: '#ffffff' }}>
@@ -1457,7 +1823,7 @@ const AsignacionPrendasView: React.FC = () => {
                       </tr>
                     </thead>
                     <tbody>
-                      {reporteAgrupado.map((grupo) =>
+                      {gruposReporteTablaDetalleOInconsistencia.map((grupo) =>
                         grupo.detalles.map((det, dIdx) => (
                           <tr
                             key={`${grupo.idasignacionmain_09}-${dIdx}`}
@@ -1506,6 +1872,62 @@ const AsignacionPrendasView: React.FC = () => {
                           </tr>
                         ))
                       )}
+                    </tbody>
+                  </table>
+                  ) : (
+                    <p style={{ textAlign: 'center', padding: '24px', color: '#6c757d' }}>
+                      No hay registros para el período y filtros seleccionados.
+                    </p>
+                  )
+                ) : tipoReporte === 'resumen' ? (
+                  datosReporteResumen.length > 0 ? (
+                  <table className="data-table" style={{ width: '100%', fontSize: '12px' }}>
+                    <thead>
+                      <tr>
+                        <td colSpan={5} style={{ border: 'none', padding: '0 0 8px 0', textAlign: 'center', fontWeight: 'bold', fontSize: '14px' }}>
+                          {getTituloResumenPorTipoPrenda()}
+                        </td>
+                      </tr>
+                      <tr>
+                        <td colSpan={5} style={{ border: 'none', padding: '0 0 4px 0', textAlign: 'center', fontSize: '0.9em', color: '#ffffff' }}>
+                          Período: {formatDateReporte(fechaDesdeReporte)} - {formatDateReporte(fechaHastaReporte)}
+                        </td>
+                      </tr>
+                      {getSubtituloRangoIdReporte() && (
+                        <tr>
+                          <td colSpan={5} style={{ border: 'none', padding: '0 0 4px 0', textAlign: 'center', fontSize: '0.9em', color: '#ffffff' }}>
+                            {getSubtituloRangoIdReporte()}
+                          </td>
+                        </tr>
+                      )}
+                      <tr>
+                        <td colSpan={5} style={{ border: 'none', padding: '0 0 8px 0', fontSize: '0.85em', color: '#ffffff' }}>
+                          <span>Usuario: {getUsuarioConectado()}</span>
+                        </td>
+                      </tr>
+                      <tr>
+                        <th>#</th>
+                        <th>Tipo de prenda</th>
+                        <th style={{ textAlign: 'right' }}>Total cantidad</th>
+                        <th style={{ textAlign: 'right' }}>Líneas de detalle</th>
+                        <th style={{ textAlign: 'center' }}>ID prenda</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {datosReporteResumen.map((row: any, idx: number) => (
+                        <tr key={row.idprenda_07}>
+                          <td>{idx + 1}</td>
+                          <td>{row.prenda_nombre || 'N/A'}</td>
+                          <td style={{ textAlign: 'right' }}>{Number(row.total_cantidad ?? 0)}</td>
+                          <td style={{ textAlign: 'right' }}>{Number(row.lineas_detalle ?? 0)}</td>
+                          <td style={{ textAlign: 'center' }}>{row.idprenda_07}</td>
+                        </tr>
+                      ))}
+                      <tr style={{ fontWeight: 'bold', borderTop: '2px solid #dee2e6' }}>
+                        <td colSpan={2} style={{ textAlign: 'right' }}>TOTAL GENERAL</td>
+                        <td style={{ textAlign: 'right' }}>{totalResumenPorTipo}</td>
+                        <td colSpan={2} />
+                      </tr>
                     </tbody>
                   </table>
                   ) : (
@@ -1623,7 +2045,16 @@ const AsignacionPrendasView: React.FC = () => {
                   trabajadoresFiltrados.map(trab => (
                     <div
                       key={trab.idtrabajador_06}
-                      onClick={() => setTrabajadorSeleccionado(trab)}
+                      onClick={() => {
+                        setTrabajadorSeleccionado(trab);
+                        if (
+                          idAsignacionSeleccionada &&
+                          !String(idEmpresa).trim() &&
+                          trab.idempresa_06 != null
+                        ) {
+                          setIdEmpresa(String(trab.idempresa_06));
+                        }
+                      }}
                       style={{
                         padding: '8px',
                         cursor: 'pointer',
@@ -2084,8 +2515,8 @@ const AsignacionPrendasView: React.FC = () => {
                 type="text"
                 placeholder="🔍 Buscar asignación..."
                 value={filtro}
-                onChange={(e) => setFiltro(e.target.value)}
-                style={{ width: '100%', padding: '10px', fontSize: '14px', borderRadius: '4px', border: '1px solid #ced4da' }}
+                onChange={(e) => setFiltro(e.target.value.toUpperCase())}
+                style={{ width: '100%', padding: '10px', fontSize: '14px', borderRadius: '4px', border: '1px solid #ced4da', textTransform: 'uppercase' }}
               />
               <div style={{ display: 'flex', gap: '8px' }}>
                 <input
@@ -2201,11 +2632,26 @@ const AsignacionPrendasView: React.FC = () => {
           </div>
 
           {totalPaginas > 1 && (
-            <div style={{ marginTop: '20px', display: 'flex', justifyContent: 'center', gap: '10px' }}>
+            <div
+              style={{ marginTop: '20px', display: 'flex', justifyContent: 'center', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}
+              role="navigation"
+              aria-label="Paginación de asignaciones"
+            >
               <button
+                type="button"
                 className="btn-secondary"
-                onClick={() => setPaginaActual(prev => Math.max(1, prev - 1))}
+                onClick={() => setPaginaActual(1)}
                 disabled={paginaActual === 1}
+                aria-label="Ir a la primera página"
+              >
+                ⇤ Primera
+              </button>
+              <button
+                type="button"
+                className="btn-secondary"
+                onClick={() => setPaginaActual((prev) => Math.max(1, prev - 1))}
+                disabled={paginaActual === 1}
+                aria-label="Página anterior"
               >
                 ← Anterior
               </button>
@@ -2213,11 +2659,22 @@ const AsignacionPrendasView: React.FC = () => {
                 Página {paginaActual} de {totalPaginas}
               </span>
               <button
+                type="button"
                 className="btn-secondary"
-                onClick={() => setPaginaActual(prev => Math.min(totalPaginas, prev + 1))}
+                onClick={() => setPaginaActual((prev) => Math.min(totalPaginas, prev + 1))}
                 disabled={paginaActual === totalPaginas}
+                aria-label="Página siguiente"
               >
                 Siguiente →
+              </button>
+              <button
+                type="button"
+                className="btn-secondary"
+                onClick={() => setPaginaActual(totalPaginas)}
+                disabled={paginaActual === totalPaginas}
+                aria-label="Ir a la última página"
+              >
+                Última ⇥
               </button>
             </div>
           )}

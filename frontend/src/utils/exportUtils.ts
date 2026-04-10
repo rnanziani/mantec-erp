@@ -170,6 +170,81 @@ export const exportReporteSoloMaestroToExcel = (
   XLSX.writeFile(workbook, `${filename}.xlsx`);
 };
 
+/** Totales por tipo de prenda (período y filtros ya reflejados en los datos). */
+export const exportReporteResumenPrendasToExcel = (
+  rows: Array<{
+    idprenda_07: number;
+    prenda_nombre: string;
+    total_cantidad: number | string;
+    lineas_detalle: number;
+  }>,
+  totalGeneral: number,
+  filename: string,
+  periodoDesde: string,
+  periodoHasta: string,
+  fechaHoraImpresion?: string,
+  usuario?: string,
+  tituloReporte?: string
+): void => {
+  const headers = ['#', 'Tipo de prenda', 'Total cantidad', 'Líneas de detalle'];
+  const pad4 = (cells: (string | number)[]): (string | number)[] => {
+    const out = [...cells];
+    while (out.length < 4) out.push('');
+    return out.slice(0, 4);
+  };
+
+  const topRows: (string | number)[][] = [];
+  const merges: Array<{ s: { r: number; c: number }; e: { r: number; c: number } }> = [];
+  let r = 0;
+
+  if (tituloReporte) {
+    topRows.push(pad4([tituloReporte]));
+    merges.push({ s: { r: 0, c: 0 }, e: { r: 0, c: 3 } });
+    r = 1;
+  }
+
+  topRows.push(pad4([`Período: ${periodoDesde} – ${periodoHasta}`]));
+  merges.push({ s: { r: r, c: 0 }, e: { r: r, c: 3 } });
+  r += 1;
+
+  if (usuario) {
+    topRows.push(pad4(['Usuario:', usuario]));
+    merges.push({ s: { r: r, c: 0 }, e: { r: r, c: 3 } });
+    r += 1;
+  }
+  if (fechaHoraImpresion && !tituloReporte) {
+    topRows.push(pad4(['Fecha y hora de impresión:', fechaHoraImpresion]));
+    merges.push({ s: { r: r, c: 0 }, e: { r: r, c: 3 } });
+    r += 1;
+  }
+  if (usuario || (fechaHoraImpresion && !tituloReporte)) {
+    topRows.push(pad4([]));
+  }
+
+  const dataRows = rows.map((row, idx) => [
+    idx + 1,
+    row.prenda_nombre || 'N/A',
+    typeof row.total_cantidad === 'string' ? row.total_cantidad : Number(row.total_cantidad),
+    row.lineas_detalle
+  ]);
+
+  const rowsAoa: (string | number)[][] = [
+    ...topRows,
+    headers,
+    ...dataRows,
+    pad4(['', 'TOTAL GENERAL', totalGeneral, ''])
+  ];
+
+  const worksheet = XLSX.utils.aoa_to_sheet(rowsAoa);
+  if (merges.length > 0) {
+    worksheet['!merges'] = merges;
+  }
+
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, worksheet, 'Resumen');
+  XLSX.writeFile(workbook, `${filename}.xlsx`);
+};
+
 export const exportToExcel = <T extends Record<string, any>>(
   data: T[],
   filename: string,
