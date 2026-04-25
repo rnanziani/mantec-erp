@@ -8,3 +8,18 @@
   color: #c62828;
   font-weight: 600;
 }
+
+/* ID asignación - nombre del trabajador encima de la grilla de prendas asignadas */
+.trabajador-summary-above-detail-grid {
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  border-radius: 6px;
+  background: #e3f2fd;
+  border: 1px solid #90caf9;
+  font-size: clamp(0.95rem, 2.2vw, 1.05rem);
+  font-weight: 700;
+  color: #0d47a1;
+  letter-spacing: 0.02em;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}

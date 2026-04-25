@@ -770,17 +770,26 @@ const AsignacionPrendasView: React.FC = () => {
     });
   }, [trabajadores, buscarApellido]);
 
+  const rutByTrabajadorId = useMemo(() => {
+    const map = new Map<number, string>();
+    trabajadores.forEach((t) => {
+      map.set(Number(t.idtrabajador_06), t.ruttrabajador_06 || '');
+    });
+    return map;
+  }, [trabajadores]);
+
   // Procesar asignaciones para mostrar
   const processedAsignaciones = useMemo(() => {
     let data = [...asignaciones];
 
     if (filtro) {
       const lowerFiltro = filtro.toLowerCase();
-      data = data.filter(a =>
-        a.trabajador_nombre?.toLowerCase().includes(lowerFiltro) ||
-        a.responsable_nombre?.toLowerCase().includes(lowerFiltro) ||
-        a.empresa_nombre?.toLowerCase().includes(lowerFiltro) ||
-        a.idasignacionmain_09.toString().includes(filtro)
+      data = data.filter(
+        (a) =>
+          a.trabajador_nombre?.toLowerCase().includes(lowerFiltro) ||
+          a.responsable_nombre?.toLowerCase().includes(lowerFiltro) ||
+          a.empresa_nombre?.toLowerCase().includes(lowerFiltro) ||
+          a.idasignacionmain_09.toString().includes(filtro)
       );
     }
 
@@ -828,13 +837,6 @@ const AsignacionPrendasView: React.FC = () => {
   }, [processedAsignaciones, paginaActual]);
 
   const totalPaginas = Math.ceil(processedAsignaciones.length / registrosPorPagina);
-  const rutByTrabajadorId = useMemo(() => {
-    const map = new Map<number, string>();
-    trabajadores.forEach((t) => {
-      map.set(Number(t.idtrabajador_06), t.ruttrabajador_06 || '');
-    });
-    return map;
-  }, [trabajadores]);
 
   const openPreviewModal = useCallback(async (id: number) => {
     setShowPreviewModal(true);
@@ -1257,6 +1259,16 @@ const AsignacionPrendasView: React.FC = () => {
     }
     return '';
   }, [trabajadorSeleccionado, idAsignacionSeleccionada, asignaciones]);
+
+  /** ID de asignación (maestro) y nombre del trabajador, encima de la grilla de detalle (útil para reportes por ID). */
+  const asignacionIdNombreSobreGrilla = useMemo(() => {
+    const nombre = nombreTrabajadorTitulo.trim();
+    if (!nombre) return '';
+    if (idAsignacionSeleccionada != null) {
+      return `${idAsignacionSeleccionada} - ${nombre}`;
+    }
+    return nombre;
+  }, [nombreTrabajadorTitulo, idAsignacionSeleccionada]);
 
   return (
     <div className="bodega-view">
@@ -2404,6 +2416,17 @@ const AsignacionPrendasView: React.FC = () => {
               </div>
             )}
 
+            {asignacionIdNombreSobreGrilla ? (
+              <p
+                className="trabajador-summary-above-detail-grid"
+                role="status"
+                aria-live="polite"
+                title={asignacionIdNombreSobreGrilla}
+              >
+                {asignacionIdNombreSobreGrilla}
+              </p>
+            ) : null}
+
             <div className="table-container">
               <table className="data-table">
                 <thead>
@@ -2543,8 +2566,8 @@ const AsignacionPrendasView: React.FC = () => {
             <table className="data-table">
               <thead>
                 <tr>
-                  <th 
-                    onClick={() => handleSort('idasignacionmain_09')} 
+                  <th
+                    onClick={() => handleSort('idasignacionmain_09')}
                     className={`sortable ${sortConfig && sortConfig.key === 'idasignacionmain_09' ? (sortConfig.direction === 'asc' ? 'sort-asc' : 'sort-desc') : ''}`}
                   >
                     ID
