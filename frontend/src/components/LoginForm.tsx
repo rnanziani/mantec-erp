@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import './BodegaView.css';
+import { apiUrl } from '../lib/apiClient';
+import { onLoginSuccess } from '../lib/sessionAuth';
 
 const peekButtonStyle: React.CSSProperties = {
   position: 'absolute',
@@ -70,7 +72,7 @@ const LoginForm: React.FC = () => {
     setChangePasswordSuccess(false);
 
     try {
-      const response = await fetch('http://localhost:3001/api/auth/login', {
+      const response = await fetch(apiUrl('/auth/login'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -81,6 +83,7 @@ const LoginForm: React.FC = () => {
       const data = await response.json();
 
       if (response.ok && data.success) {
+        onLoginSuccess();
         localStorage.setItem('token', data.token);
         localStorage.setItem('user', JSON.stringify(data.usuario));
         window.location.href = (window.location.pathname || '/') + '#dashboard';
@@ -110,7 +113,7 @@ const LoginForm: React.FC = () => {
     setLoading(true);
     setError('');
     try {
-      const response = await fetch('http://localhost:3001/api/auth/change-password-expired', {
+      const response = await fetch(apiUrl('/auth/change-password-expired'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -435,18 +438,6 @@ const LoginForm: React.FC = () => {
             </button>
           </form>
         )}
-
-        <div style={{ marginTop: '2rem', textAlign: 'center', fontSize: '1rem', color: '#666' }}>
-          <p>
-            ¿No tiene una cuenta?{' '}
-            <a 
-              href="#register" 
-              style={{ color: '#667eea', textDecoration: 'none', fontWeight: 'bold', fontSize: '1.1rem' }}
-            >
-              Regístrese aquí
-            </a>
-          </p>
-        </div>
 
         <div style={{ 
           marginTop: '2rem', 

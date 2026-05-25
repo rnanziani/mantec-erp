@@ -1,14 +1,10 @@
 /**
  * Funciones helper para obtener parámetros del sistema desde el backend
  */
-
-const BACKEND_URL = 'http://localhost:3001/api';
+import { apiUrl } from './apiClient';
 
 /**
  * Obtener un parámetro del sistema desde el backend
- * @param codigoParametro - Código del parámetro
- * @param valorPorDefecto - Valor por defecto si no se encuentra
- * @returns Valor del parámetro como string
  */
 export async function obtenerParametro(
   codigoParametro: string,
@@ -16,11 +12,11 @@ export async function obtenerParametro(
 ): Promise<string> {
   try {
     const token = localStorage.getItem('token');
-    const response = await fetch(`${BACKEND_URL}/parametros/${codigoParametro}`, {
+    const response = await fetch(apiUrl(`/parametros/${codigoParametro}`), {
       headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
-      }
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
     });
 
     if (response.ok) {
@@ -47,5 +43,3 @@ export async function obtenerParametroNumero(
   const numero = parseInt(valor, 10);
   return isNaN(numero) ? valorPorDefecto : numero;
 }
-
-

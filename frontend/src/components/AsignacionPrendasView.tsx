@@ -7,6 +7,7 @@ import {
   exportReporteSoloMaestroToExcel,
   exportReporteResumenPrendasToExcel
 } from '../utils/exportUtils';
+import { apiUrl, openAuthenticatedBlob } from '../lib/apiClient';
 
 interface AsignacionPrenda {
   idasignacionmain_09: number;
@@ -252,11 +253,11 @@ const AsignacionPrendasView: React.FC = () => {
   const reportePreviewRef = useRef<HTMLDivElement>(null);
   const selectAllDetalleHeaderRef = useRef<HTMLInputElement>(null);
 
-  const API_URL = 'http://localhost:3001/api/asignaciones-prendas';
-  const TALLAS_API_URL = 'http://localhost:3001/api/tallas';
-  const TRABAJADORES_URL = 'http://localhost:3001/api/trabajadores';
-  const RESPONSABLES_URL = 'http://localhost:3001/api/responsables-entrega';
-  const EMPRESAS_URL = 'http://localhost:3001/api/empresas';
+  const API_URL = apiUrl('/asignaciones-prendas');
+  const TALLAS_API_URL = apiUrl('/tallas');
+  const TRABAJADORES_URL = apiUrl('/trabajadores');
+  const RESPONSABLES_URL = apiUrl('/responsables-entrega');
+  const EMPRESAS_URL = apiUrl('/empresas');
 
   // Definir funciones fetch antes del useEffect
   const fetchAsignaciones = useCallback(async () => {
@@ -346,11 +347,16 @@ const AsignacionPrendasView: React.FC = () => {
   const [filtro, setFiltro] = useState<string>('');
   const [filtroFechaDesde, setFiltroFechaDesde] = useState<string>('');
   const [filtroFechaHasta, setFiltroFechaHasta] = useState<string>('');
+  const [filtroEstado, setFiltroEstado] = useState<string>('');
   const [sortConfig, setSortConfig] = useState<SortConfig | null>(null);
   
   // Paginación
   const [paginaActual, setPaginaActual] = useState<number>(1);
   const registrosPorPagina = 10;
+
+  useEffect(() => {
+    setPaginaActual(1);
+  }, [filtro, filtroFechaDesde, filtroFechaHasta, filtroEstado]);
 
   useEffect(() => {
     fetchAsignaciones();
@@ -803,6 +809,12 @@ const AsignacionPrendasView: React.FC = () => {
       });
     }
 
+    if (filtroEstado === 'entregado') {
+      data = data.filter((a) => a.entregado === true);
+    } else if (filtroEstado === 'pendiente') {
+      data = data.filter((a) => a.entregado !== true);
+    }
+
     if (sortConfig) {
       data.sort((a, b) => {
         const aValue = a[sortConfig.key];
@@ -828,7 +840,7 @@ const AsignacionPrendasView: React.FC = () => {
     }
 
     return data;
-  }, [asignaciones, filtro, filtroFechaDesde, filtroFechaHasta, sortConfig]);
+  }, [asignaciones, filtro, filtroFechaDesde, filtroFechaHasta, filtroEstado, sortConfig]);
 
   const asignacionesPaginadas = useMemo(() => {
     const inicio = (paginaActual - 1) * registrosPorPagina;
@@ -1585,7 +1597,11 @@ const AsignacionPrendasView: React.FC = () => {
             </button>
             <button
               className="btn-primary"
-              onClick={() => window.open(getReportePDFUrl(), '_blank')}
+              onClick={() => {
+                openAuthenticatedBlob(getReportePDFUrl()).catch((err) =>
+                  showError('Reporte', err instanceof Error ? err.message : 'No se pudo generar el PDF')
+                );
+              }}
               disabled={
                 !fechaDesdeReporte ||
                 !fechaHastaReporte ||
@@ -2530,7 +2546,7 @@ const AsignacionPrendasView: React.FC = () => {
             <div
               style={{
                 display: 'grid',
-                gridTemplateColumns: 'minmax(220px, 1fr) minmax(180px, 240px)',
+                gridTemplateColumns: 'minmax(220px, 1fr) minmax(180px, 240px) minmax(140px, 180px)',
                 gap: '10px'
               }}
             >
@@ -2559,6 +2575,18 @@ const AsignacionPrendasView: React.FC = () => {
                   title="Filtrar hasta fecha"
                 />
               </div>
+              <select
+                id="filtro-estado-asignacion"
+                value={filtroEstado}
+                onChange={(e) => setFiltroEstado(e.target.value)}
+                style={{ width: '100%', padding: '10px', fontSize: '14px', borderRadius: '4px', border: '1px solid #ced4da' }}
+                aria-label="Filtrar por estado de entrega"
+                title="Filtrar por estado"
+              >
+                <option value="">Todos los estados</option>
+                <option value="pendiente">Pendiente</option>
+                <option value="entregado">Entregado</option>
+              </select>
             </div>
           </div>
 
@@ -2738,7 +2766,7 @@ const AsignacionPrendasView: React.FC = () => {
             onClick={(e) => e.stopPropagation()}
           >
             <div className="no-print" style={{ padding: '16px', borderBottom: '1px solid #eee', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
-              <h3 style={{ margin: 0 }}>📄 Vista Previa - Acta de Entrega de Uniforme</h3>
+              <h3 style={{ margin: 0 }}>📄 Vista Previa - Acta de Entrega de Cargo</h3>
               <div style={{ display: 'flex', gap: '8px' }}>
                 <button
                   className="btn-primary"
@@ -2750,7 +2778,12 @@ const AsignacionPrendasView: React.FC = () => {
                 </button>
                 <button
                   className="btn-primary"
-                  onClick={() => previewAsignacionId && window.open(`${API_URL}/${previewAsignacionId}/acta-pdf`, '_blank')}
+                  onClick={() => {
+                    if (!previewAsignacionId) return;
+                    openAuthenticatedBlob(`/asignaciones-prendas/${previewAsignacionId}/acta-pdf`).catch((err) =>
+                      showError('PDF', err instanceof Error ? err.message : 'No se pudo generar el PDF')
+                    );
+                  }}
                   disabled={!previewActaData}
                   style={{ backgroundColor: '#28a745' }}
                 >
@@ -2775,17 +2808,17 @@ const AsignacionPrendasView: React.FC = () => {
                     color: '#333'
                   }}
                 >
-                  <h2 style={{ textAlign: 'center', marginBottom: '4px', fontSize: '16px' }}>ACTA DE ENTREGA DE UNIFORME</h2>
+                  <h2 style={{ textAlign: 'center', marginBottom: '4px', fontSize: '16px' }}>ACTA DE ENTREGA DE CARGO</h2>
                   <p style={{ textAlign: 'right', fontSize: '10px', color: '#666', marginBottom: '12px' }}>SIG F-622-005 Versión 001</p>
                   <p style={{ marginBottom: '12px' }}>
-                    En la ciudad de Santiago, {previewActaData.intro.dia} días del mes de {previewActaData.intro.mes} del año {previewActaData.intro.anio}, se procede a dejar constancia de la entrega del uniforme al trabajador que a continuación se detalla:
+                    En la ciudad de Santiago, {previewActaData.intro.dia} días del mes de {previewActaData.intro.mes} del año {previewActaData.intro.anio}, se procede a dejar constancia de la entrega de cargo al trabajador que a continuación se detalla:
                   </p>
                   <p style={{ fontWeight: 'bold', marginBottom: '8px' }}>Datos del Trabajador:</p>
                   <p style={{ margin: '4px 0' }}><strong>Nombre:</strong> {previewActaData.trabajador.nombre}</p>
                   <p style={{ margin: '4px 0' }}><strong>Rut:</strong> {previewActaData.trabajador.rut}</p>
                   <p style={{ margin: '4px 0 12px 0' }}><strong>Cargo:</strong> {previewActaData.trabajador.cargo}</p>
                   <p style={{ margin: '4px 0 12px 0' }}><strong>Empresa:</strong> {previewActaData.trabajador.empresa}</p>
-                  <p style={{ fontWeight: 'bold', marginBottom: '8px' }}>Detalle del uniforme entregado</p>
+                  <p style={{ fontWeight: 'bold', marginBottom: '8px' }}>Detalle de insumos entregados</p>
                   <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '12px', fontSize: '11px' }}>
                     <thead>
                       <tr style={{ backgroundColor: '#e8e8e8' }}>
@@ -2793,17 +2826,17 @@ const AsignacionPrendasView: React.FC = () => {
                         <th style={{ border: '1px solid #ccc', padding: '6px', textAlign: 'center' }}>Cantidad</th>
                         <th style={{ border: '1px solid #ccc', padding: '6px', textAlign: 'center' }}>Talla</th>
                         <th style={{ border: '1px solid #ccc', padding: '6px', textAlign: 'center' }}>Estado</th>
-                        <th style={{ border: '1px solid #ccc', padding: '6px', textAlign: 'center' }}>Firma</th>
+                        <th style={{ border: '1px solid #ccc', padding: '6px', textAlign: 'center' }}>Estado Entrega</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {previewActaData.prendas.map((p: { prenda: string; cantidad: number; talla: string }, i: number) => (
+                      {previewActaData.prendas.map((p: { prenda: string; cantidad: number; talla: string; entregado: boolean }, i: number) => (
                         <tr key={i}>
                           <td style={{ border: '1px solid #ccc', padding: '6px' }}>{p.prenda}</td>
                           <td style={{ border: '1px solid #ccc', padding: '6px', textAlign: 'center' }}>{p.cantidad}</td>
                           <td style={{ border: '1px solid #ccc', padding: '6px', textAlign: 'center' }}>{p.talla}</td>
                           <td style={{ border: '1px solid #ccc', padding: '6px', textAlign: 'center' }}>Nuevo</td>
-                          <td style={{ border: '1px solid #ccc', padding: '6px' }}></td>
+                          <td style={{ border: '1px solid #ccc', padding: '6px', textAlign: 'center' }}>{p.entregado ? 'Entregado' : 'Pendiente'}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -2814,22 +2847,22 @@ const AsignacionPrendasView: React.FC = () => {
                   <p style={{ fontWeight: 'bold', marginBottom: '6px' }}>Responsabilidades:</p>
                   <p style={{ marginBottom: '4px' }}>Usted se compromete a</p>
                   <ul style={{ margin: '4px 0 12px 20px', padding: 0 }}>
-                    <li>Usar el uniforme únicamente durante sus funciones laborales.</li>
-                    <li>Mantener el uniforme en condiciones limpias y presentables.</li>
-                    <li>No alterar ni modificar el diseño del uniforme.</li>
-                    <li>Responder por el cuidado y conservación de las prendas entregadas.</li>
+                    <li>Usar los insumos únicamente durante sus funciones laborales.</li>
+                    <li>Mantener los insumos en condiciones limpias y presentables.</li>
+                    <li>No alterar ni modificar los insumos entregados.</li>
+                    <li>Responder por el cuidado y conservación de los insumos entregados.</li>
                     <li>Reportar inmediatamente cualquier daño o pérdida al área correspondiente.</li>
-                    <li>El mal uso o la negligencia en el cuidado del uniforme podrá ser objeto de observaciones o medidas disciplinarias conforme al reglamento interno.</li>
+                    <li>El mal uso o la negligencia en el cuidado de los insumos podrá ser objeto de observaciones o medidas disciplinarias conforme al reglamento interno.</li>
                   </ul>
-                  <p style={{ fontWeight: 'bold', marginBottom: '6px' }}>Uso del Uniforme:</p>
-                  <p style={{ marginBottom: '8px' }}>La empresa hace hincapié en la obligatoriedad del uso del uniforme completo durante todo el periodo de servicio activo. El uso del uniforme contribuye a:</p>
+                  <p style={{ fontWeight: 'bold', marginBottom: '6px' }}>Uso de Insumos de Cargo:</p>
+                  <p style={{ marginBottom: '8px' }}>La empresa hace hincapié en la obligatoriedad del uso de los insumos de cargo durante todo el periodo de servicio activo. Su uso contribuye a:</p>
                   <ul style={{ margin: '4px 0 12px 20px', padding: 0 }}>
                     <li>Proyectar una imagen profesional y ordenada de la empresa.</li>
                     <li>Generar confianza en los pasajeros.</li>
                     <li>Facilitar la identificación del personal por parte de usuarios.</li>
                   </ul>
                   <p style={{ fontWeight: 'bold', marginBottom: '6px' }}>Declaración del Trabajador:</p>
-                  <p style={{ marginBottom: '12px' }}>Declaro haber recibido a conformidad las prendas antes detalladas, las cuales se encuentran en buen estado y son de uso obligatorio durante mi jornada laboral. Asimismo, me comprometo a dar un uso adecuado al uniforme y a conservarlo en buenas condiciones, haciéndome responsable de su cuidado.</p>
+                  <p style={{ marginBottom: '12px' }}>Declaro haber recibido a conformidad los insumos antes detallados, los cuales se encuentran en buen estado y son de uso obligatorio durante mi jornada laboral. Asimismo, me comprometo a dar un uso adecuado y a conservarlos en buenas condiciones, haciéndome responsable de su cuidado.</p>
                   <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '12px' }}>
                     <tbody>
                       <tr>

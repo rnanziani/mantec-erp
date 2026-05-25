@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { showSuccess, showError } from '../utils/swal';
 import './BodegaView.css'; // Reutilizamos los mismos estilos
+import { apiUrl } from '../lib/apiClient';
 
 interface TipoTransaccion {
     id_tipo_transaccion_25: number;
@@ -26,7 +27,7 @@ const TipoTransaccionView: React.FC = () => {
     const [filtro, setFiltro] = useState('');
     const [sortConfig, setSortConfig] = useState<{ key: keyof TipoTransaccion; direction: 'asc' | 'desc' } | null>(null);
 
-    const API_URL = 'http://localhost:3001/api/tipos-transaccion';
+    const API_URL = apiUrl('/tipos-transaccion');
 
     useEffect(() => {
         fetchTipos();

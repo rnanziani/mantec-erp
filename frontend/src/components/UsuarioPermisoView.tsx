@@ -1,6 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { showSuccess, showError, showDeleteConfirm } from '../utils/swal';
 import Pagination from './shared/Pagination';
+import {
+    RANGOS_MODULO_PERMISOS,
+    filtrarPermisosPorModulo,
+    moduloRangoValue,
+} from '../constants/permisoModuloRangos';
+import { apiUrl } from '../lib/apiClient';
 import './BodegaView.css';
 
 interface UsuarioPermiso {
@@ -41,17 +47,21 @@ const UsuarioPermisoView: React.FC = () => {
     const [selectedPermiso, setSelectedPermiso] = useState<number | ''>('');
     const [selectedPermisosMasivos, setSelectedPermisosMasivos] = useState<number[]>([]);
 
-    // Estados para búsqueda y ordenamiento
+    // Estados para búsqueda, filtros y ordenamiento
     const [filtro, setFiltro] = useState('');
+    const [filterUsuario, setFilterUsuario] = useState<number | ''>('');
+    const [filterModulo, setFilterModulo] = useState<string>('');
+    const [filterPermiso, setFilterPermiso] = useState<number | ''>('');
+    const [formModulo, setFormModulo] = useState<string>('');
     const [sortConfig, setSortConfig] = useState<{ key: keyof UsuarioPermiso; direction: 'asc' | 'desc' } | null>(null);
     
     // Estados para paginación
     const [currentPage, setCurrentPage] = useState<number>(1);
     const [itemsPerPage] = useState<number>(10);
 
-    const API_URL = 'http://localhost:3001/api/usuario-permisos';
-    const USUARIOS_URL = 'http://localhost:3001/api/usuarios';
-    const PERMISOS_URL = 'http://localhost:3001/api/permisos';
+    const API_URL = apiUrl('/usuario-permisos');
+    const USUARIOS_URL = apiUrl('/usuarios');
+    const PERMISOS_URL = apiUrl('/permisos');
 
     useEffect(() => {
         fetchRelaciones();
@@ -228,12 +238,14 @@ const UsuarioPermisoView: React.FC = () => {
     const resetForm = () => {
         setSelectedUsuario('');
         setSelectedPermiso('');
+        setFormModulo('');
         setShowForm(false);
     };
 
     const resetFormMasivo = () => {
         setSelectedUsuario('');
         setSelectedPermisosMasivos([]);
+        setFormModulo('');
         setShowFormMasivo(false);
     };
 
@@ -250,7 +262,21 @@ const UsuarioPermisoView: React.FC = () => {
     const processedRelaciones = React.useMemo(() => {
         let data = [...relaciones];
 
-        // 1. Filtrar
+        // 1. Filtrar por usuario y/o permiso
+        if (filterUsuario !== '') {
+            data = data.filter((r) => r.id_usuario_000 === filterUsuario);
+        }
+        if (filterModulo !== '') {
+            const idsEnModulo = new Set(
+                filtrarPermisosPorModulo(permisos, filterModulo).map((p) => p.id_permiso_05)
+            );
+            data = data.filter((r) => idsEnModulo.has(r.id_permiso_000));
+        }
+        if (filterPermiso !== '') {
+            data = data.filter((r) => r.id_permiso_000 === filterPermiso);
+        }
+
+        // 2. Búsqueda libre
         if (filtro) {
             const lowerFiltro = filtro.toLowerCase();
             data = data.filter(r =>
@@ -264,7 +290,7 @@ const UsuarioPermisoView: React.FC = () => {
             );
         }
 
-        // 2. Ordenar
+        // 3. Ordenar
         if (sortConfig) {
             data.sort((a, b) => {
                 const aValue = a[sortConfig.key];
@@ -296,40 +322,65 @@ const UsuarioPermisoView: React.FC = () => {
         }
 
         return data;
-    }, [relaciones, filtro, sortConfig]);
+    }, [relaciones, filtro, filterUsuario, filterModulo, filterPermiso, sortConfig, permisos]);
+
+    const hayFiltroActivo = filterUsuario !== '' || filterModulo !== '' || filterPermiso !== '' || filtro !== '';
+
+    const limpiarFiltros = () => {
+        setFilterUsuario('');
+        setFilterModulo('');
+        setFilterPermiso('');
+        setFiltro('');
+    };
+
+    const permisosOrdenados = useMemo(
+        () => [...permisos].sort((a, b) => (a.orden_05 ?? 9999) - (b.orden_05 ?? 9999)),
+        [permisos]
+    );
+
+    const permisosParaFiltro = useMemo(
+        () => filtrarPermisosPorModulo(permisosOrdenados, filterModulo),
+        [permisosOrdenados, filterModulo]
+    );
+
+    const permisosDisponiblesUsuario = useMemo(() => {
+        if (!selectedUsuario) return permisosOrdenados;
+        const asignados = new Set(
+            relaciones
+                .filter((r) => r.id_usuario_000 === selectedUsuario)
+                .map((r) => r.id_permiso_000)
+        );
+        return permisosOrdenados.filter((p) => !asignados.has(p.id_permiso_05));
+    }, [selectedUsuario, permisosOrdenados, relaciones]);
+
+    const permisosParaFormulario = useMemo(
+        () => filtrarPermisosPorModulo(permisosDisponiblesUsuario, formModulo),
+        [permisosDisponiblesUsuario, formModulo]
+    );
+
+    const usuariosConAsignaciones = useMemo(() => {
+        const ids = new Set(relaciones.map((r) => r.id_usuario_000));
+        return usuarios
+            .filter((u) => ids.has(u.id_usuario_00))
+            .sort((a, b) =>
+                (a.nombre_completo_00 || a.username).localeCompare(b.nombre_completo_00 || b.username)
+            );
+    }, [relaciones, usuarios]);
 
     // Paginación: calcular items a mostrar
-    const paginatedRelaciones = React.useMemo(() => {
+    const paginatedRelaciones = useMemo(() => {
         const startIndex = (currentPage - 1) * itemsPerPage;
         return processedRelaciones.slice(startIndex, startIndex + itemsPerPage);
     }, [processedRelaciones, currentPage, itemsPerPage]);
 
     const totalPages = Math.ceil(processedRelaciones.length / itemsPerPage);
 
-    // Resetear a página 1 cuando cambia el filtro
+    // Resetear a página 1 cuando cambian filtros
     useEffect(() => {
         setCurrentPage(1);
-    }, [filtro]);
+    }, [filtro, filterUsuario, filterModulo, filterPermiso]);
 
-    // Obtener permisos disponibles para un usuario (no asignados directamente)
-    const getPermisosDisponibles = (usuarioId: number) => {
-        const permisosAsignados = relaciones
-            .filter(r => r.id_usuario_000 === usuarioId)
-            .map(r => r.id_permiso_000);
-        return permisos.filter(p => !permisosAsignados.includes(p.id_permiso_05));
-    };
-
-    // Agregar/remover permiso de la selección masiva
-    const togglePermisoMasivo = (permisoId: number) => {
-        setSelectedPermisosMasivos(prev => 
-            prev.includes(permisoId)
-                ? prev.filter(id => id !== permisoId)
-                : [...prev, permisoId]
-        );
-    };
-
-    // Obtener relaciones agrupadas por usuario para mostrar el botón "Eliminar todos"
-    const relacionesPorUsuario = React.useMemo(() => {
+    const relacionesPorUsuario = useMemo(() => {
         const grupos: Record<number, UsuarioPermiso[]> = {};
         relaciones.forEach(rel => {
             if (!grupos[rel.id_usuario_000]) {
@@ -339,6 +390,23 @@ const UsuarioPermisoView: React.FC = () => {
         });
         return grupos;
     }, [relaciones]);
+
+    const togglePermisoMasivo = (permisoId: number) => {
+        setSelectedPermisosMasivos(prev =>
+            prev.includes(permisoId)
+                ? prev.filter(id => id !== permisoId)
+                : [...prev, permisoId]
+        );
+    };
+
+    const handleFormModuloChange = (value: string) => {
+        setFormModulo(value);
+        setSelectedPermiso('');
+        const idsValidos = new Set(
+            filtrarPermisosPorModulo(permisosDisponiblesUsuario, value).map((p) => p.id_permiso_05)
+        );
+        setSelectedPermisosMasivos((prev) => prev.filter((id) => idsValidos.has(id)));
+    };
 
     return (
         <div className="bodega-view">
@@ -370,53 +438,79 @@ const UsuarioPermisoView: React.FC = () => {
                 <div className="form-container">
                     <h3>Nueva Asignación Permiso-Usuario</h3>
                     <form onSubmit={handleSubmit}>
-                        <div className="form-group">
-                            <label>Usuario *</label>
-                            <select
-                                value={selectedUsuario}
-                                onChange={(e) => setSelectedUsuario(e.target.value ? parseInt(e.target.value) : '')}
-                                required
-                                style={{ width: '100%', padding: '8px 12px', borderRadius: '4px', border: '1px solid #ced4da' }}
-                            >
-                                <option value="">Seleccione un usuario</option>
-                                {usuarios.map(usuario => (
-                                    <option key={usuario.id_usuario_00} value={usuario.id_usuario_00}>
-                                        {usuario.nombre_completo_00 || usuario.username} ({usuario.email})
-                                    </option>
-                                ))}
-                            </select>
-                        </div>
-                        <div className="form-group">
-                            <label>Permiso *</label>
-                            <select
-                                value={selectedPermiso}
-                                onChange={(e) => setSelectedPermiso(e.target.value ? parseInt(e.target.value) : '')}
-                                required
-                                style={{ width: '100%', padding: '8px 12px', borderRadius: '4px', border: '1px solid #ced4da' }}
-                            >
-                                <option value="">Seleccione un permiso</option>
-                                {selectedUsuario 
-                                    ? getPermisosDisponibles(selectedUsuario as number).map(permiso => (
+                        <div
+                            style={{
+                                display: 'grid',
+                                gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
+                                gap: '15px',
+                                marginBottom: '16px',
+                                alignItems: 'start',
+                            }}
+                        >
+                            <div className="form-group" style={{ marginBottom: 0 }}>
+                                <label htmlFor="usuario-permiso-usuario">Usuario *</label>
+                                <select
+                                    id="usuario-permiso-usuario"
+                                    value={selectedUsuario}
+                                    onChange={(e) => {
+                                        setSelectedUsuario(e.target.value ? parseInt(e.target.value) : '');
+                                        setSelectedPermiso('');
+                                    }}
+                                    required
+                                    style={{ width: '100%', padding: '8px 12px', borderRadius: '4px', border: '1px solid #ced4da', fontSize: '14px' }}
+                                >
+                                    <option value="">Seleccione un usuario</option>
+                                    {usuarios.map(usuario => (
+                                        <option key={usuario.id_usuario_00} value={usuario.id_usuario_00}>
+                                            {usuario.nombre_completo_00 || usuario.username} ({usuario.email})
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div className="form-group" style={{ marginBottom: 0 }}>
+                                <label htmlFor="usuario-permiso-modulo">Agrupación</label>
+                                <select
+                                    id="usuario-permiso-modulo"
+                                    value={formModulo}
+                                    onChange={(e) => handleFormModuloChange(e.target.value)}
+                                    style={{ width: '100%', padding: '8px 12px', borderRadius: '4px', border: '1px solid #ced4da', fontSize: '14px' }}
+                                >
+                                    <option value="">Todos los módulos</option>
+                                    {RANGOS_MODULO_PERMISOS.map((r) => (
+                                        <option key={r.label} value={moduloRangoValue(r.min, r.max)}>
+                                            {r.label} ({r.min}–{r.max})
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div className="form-group" style={{ marginBottom: 0 }}>
+                                <label htmlFor="usuario-permiso-permiso">Permiso *</label>
+                                <select
+                                    id="usuario-permiso-permiso"
+                                    value={selectedPermiso}
+                                    onChange={(e) => setSelectedPermiso(e.target.value ? parseInt(e.target.value) : '')}
+                                    required
+                                    style={{ width: '100%', padding: '8px 12px', borderRadius: '4px', border: '1px solid #ced4da', fontSize: '14px' }}
+                                >
+                                    <option value="">Seleccione un permiso</option>
+                                    {permisosParaFormulario.map(permiso => (
                                         <option key={permiso.id_permiso_05} value={permiso.id_permiso_05}>
                                             {permiso.nombre_permiso_05} {permiso.descripcion_05 ? `- ${permiso.descripcion_05}` : ''}
                                         </option>
-                                    ))
-                                    : permisos.map(permiso => (
-                                        <option key={permiso.id_permiso_05} value={permiso.id_permiso_05}>
-                                            {permiso.nombre_permiso_05} {permiso.descripcion_05 ? `- ${permiso.descripcion_05}` : ''}
-                                        </option>
-                                    ))
-                                }
-                            </select>
-                            {selectedUsuario && getPermisosDisponibles(selectedUsuario as number).length === 0 && (
-                                <small style={{ color: '#dc3545', display: 'block', marginTop: '5px' }}>
-                                    Este usuario ya tiene todos los permisos asignados directamente
-                                </small>
-                            )}
-                            <small style={{ color: '#6c757d', fontSize: '0.85em', display: 'block', marginTop: '5px' }}>
-                                💡 Nota: Solo se muestran permisos no asignados directamente. Los permisos del nivel se mantienen.
-                            </small>
+                                    ))}
+                                </select>
+                                {selectedUsuario && permisosParaFormulario.length === 0 && (
+                                    <small style={{ color: '#dc3545', display: 'block', marginTop: '5px' }}>
+                                        {formModulo
+                                            ? 'No hay permisos disponibles en esta agrupación para el usuario seleccionado'
+                                            : 'Este usuario ya tiene todos los permisos asignados directamente'}
+                                    </small>
+                                )}
+                            </div>
                         </div>
+                        <small style={{ color: '#6c757d', fontSize: '0.85em', display: 'block', marginBottom: '16px' }}>
+                            💡 Solo se muestran permisos no asignados directamente. Los permisos del nivel se mantienen.
+                        </small>
                         <div className="form-actions">
                             <button type="submit" className="btn-primary" disabled={loading || !selectedUsuario || !selectedPermiso}>
                                 {loading ? 'Guardando...' : 'Guardar'}
@@ -433,39 +527,71 @@ const UsuarioPermisoView: React.FC = () => {
                 <div className="form-container">
                     <h3>Asignación Masiva de Permisos</h3>
                     <form onSubmit={handleSubmitMasivo}>
-                        <div className="form-group">
-                            <label>Usuario *</label>
-                            <select
-                                value={selectedUsuario}
-                                onChange={(e) => setSelectedUsuario(e.target.value ? parseInt(e.target.value) : '')}
-                                required
-                                style={{ width: '100%', padding: '8px 12px', borderRadius: '4px', border: '1px solid #ced4da' }}
-                            >
-                                <option value="">Seleccione un usuario</option>
-                                {usuarios.map(usuario => (
-                                    <option key={usuario.id_usuario_00} value={usuario.id_usuario_00}>
-                                        {usuario.nombre_completo_00 || usuario.username} ({usuario.email})
-                                    </option>
-                                ))}
-                            </select>
+                        <div
+                            style={{
+                                display: 'grid',
+                                gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
+                                gap: '15px',
+                                marginBottom: '16px',
+                                alignItems: 'start',
+                            }}
+                        >
+                            <div className="form-group" style={{ marginBottom: 0 }}>
+                                <label htmlFor="usuario-permiso-masivo-usuario">Usuario *</label>
+                                <select
+                                    id="usuario-permiso-masivo-usuario"
+                                    value={selectedUsuario}
+                                    onChange={(e) => {
+                                        setSelectedUsuario(e.target.value ? parseInt(e.target.value) : '');
+                                        setSelectedPermisosMasivos([]);
+                                    }}
+                                    required
+                                    style={{ width: '100%', padding: '8px 12px', borderRadius: '4px', border: '1px solid #ced4da', fontSize: '14px' }}
+                                >
+                                    <option value="">Seleccione un usuario</option>
+                                    {usuarios.map(usuario => (
+                                        <option key={usuario.id_usuario_00} value={usuario.id_usuario_00}>
+                                            {usuario.nombre_completo_00 || usuario.username} ({usuario.email})
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div className="form-group" style={{ marginBottom: 0 }}>
+                                <label htmlFor="usuario-permiso-masivo-modulo">Agrupación</label>
+                                <select
+                                    id="usuario-permiso-masivo-modulo"
+                                    value={formModulo}
+                                    onChange={(e) => handleFormModuloChange(e.target.value)}
+                                    style={{ width: '100%', padding: '8px 12px', borderRadius: '4px', border: '1px solid #ced4da', fontSize: '14px' }}
+                                >
+                                    <option value="">Todos los módulos</option>
+                                    {RANGOS_MODULO_PERMISOS.map((r) => (
+                                        <option key={r.label} value={moduloRangoValue(r.min, r.max)}>
+                                            {r.label} ({r.min}–{r.max})
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
                         </div>
                         <div className="form-group">
                             <label>Permisos *</label>
-                            <div style={{ 
-                                maxHeight: '300px', 
-                                overflowY: 'auto', 
-                                border: '1px solid #ced4da', 
-                                borderRadius: '4px', 
+                            <div style={{
+                                maxHeight: '300px',
+                                overflowY: 'auto',
+                                border: '1px solid #ced4da',
+                                borderRadius: '4px',
                                 padding: '10px',
                                 backgroundColor: '#f8f9fa'
                             }}>
                                 {selectedUsuario ? (
-                                    getPermisosDisponibles(selectedUsuario as number).length === 0 ? (
+                                    permisosParaFormulario.length === 0 ? (
                                         <p style={{ color: '#dc3545', textAlign: 'center', padding: '20px' }}>
-                                            Este usuario ya tiene todos los permisos asignados directamente
+                                            {formModulo
+                                                ? 'No hay permisos disponibles en esta agrupación para el usuario seleccionado'
+                                                : 'Este usuario ya tiene todos los permisos asignados directamente'}
                                         </p>
                                     ) : (
-                                        getPermisosDisponibles(selectedUsuario as number).map(permiso => (
+                                        permisosParaFormulario.map(permiso => (
                                             <label key={permiso.id_permiso_05} style={{ 
                                                 display: 'block', 
                                                 padding: '8px',
@@ -509,14 +635,89 @@ const UsuarioPermisoView: React.FC = () => {
                 </div>
             )}
 
-            {/* Buscador */}
+            {/* Filtros por usuario, agrupación y permiso */}
             <div className="form-container" style={{ marginBottom: '20px' }}>
+                <div
+                    style={{
+                        display: 'flex',
+                        flexWrap: 'wrap',
+                        gap: '12px',
+                        alignItems: 'flex-end',
+                    }}
+                >
+                    <div className="form-group" style={{ marginBottom: 0, flex: '1 1 200px', minWidth: '180px' }}>
+                        <label htmlFor="filtro-usuario">Usuario</label>
+                        <select
+                            id="filtro-usuario"
+                            value={filterUsuario}
+                            onChange={(e) => setFilterUsuario(e.target.value ? parseInt(e.target.value, 10) : '')}
+                            style={{ width: '100%', padding: '8px 12px', borderRadius: '4px', border: '1px solid #ced4da', fontSize: '14px' }}
+                        >
+                            <option value="">Todos los usuarios</option>
+                            {usuariosConAsignaciones.map((usuario) => (
+                                <option key={usuario.id_usuario_00} value={usuario.id_usuario_00}>
+                                    {usuario.nombre_completo_00 || usuario.username} ({usuario.email})
+                                </option>
+                            ))}
+                        </select>
+                    </div>
+                    <div className="form-group" style={{ marginBottom: 0, flex: '1 1 200px', minWidth: '180px' }}>
+                        <label htmlFor="filtro-modulo-directo">Agrupación</label>
+                        <select
+                            id="filtro-modulo-directo"
+                            value={filterModulo}
+                            onChange={(e) => {
+                                setFilterModulo(e.target.value);
+                                setFilterPermiso('');
+                            }}
+                            style={{ width: '100%', padding: '8px 12px', borderRadius: '4px', border: '1px solid #ced4da', fontSize: '14px' }}
+                        >
+                            <option value="">Todos los módulos</option>
+                            {RANGOS_MODULO_PERMISOS.map((r) => (
+                                <option key={r.label} value={moduloRangoValue(r.min, r.max)}>
+                                    {r.label} ({r.min}–{r.max})
+                                </option>
+                            ))}
+                        </select>
+                    </div>
+                    <div className="form-group" style={{ marginBottom: 0, flex: '1 1 220px', minWidth: '200px' }}>
+                        <label htmlFor="filtro-permiso-directo">Permiso</label>
+                        <select
+                            id="filtro-permiso-directo"
+                            value={filterPermiso}
+                            onChange={(e) => setFilterPermiso(e.target.value ? parseInt(e.target.value, 10) : '')}
+                            style={{ width: '100%', padding: '8px 12px', borderRadius: '4px', border: '1px solid #ced4da', fontSize: '14px' }}
+                        >
+                            <option value="">Todos los permisos</option>
+                            {permisosParaFiltro.map((permiso) => (
+                                <option key={permiso.id_permiso_05} value={permiso.id_permiso_05}>
+                                    {permiso.nombre_permiso_05}
+                                </option>
+                            ))}
+                        </select>
+                    </div>
+                    {hayFiltroActivo && (
+                        <button
+                            type="button"
+                            className="btn-secondary"
+                            onClick={limpiarFiltros}
+                            style={{ flex: '0 0 auto', alignSelf: 'flex-end' }}
+                        >
+                            Limpiar filtros
+                        </button>
+                    )}
+                </div>
+                {hayFiltroActivo && (
+                    <p style={{ margin: '10px 0 0', fontSize: '0.85rem', color: '#007bff' }}>
+                        {processedRelaciones.length} resultado{processedRelaciones.length !== 1 ? 's' : ''} con los filtros aplicados
+                    </p>
+                )}
                 <input
                     type="text"
                     placeholder="🔍 Buscar por usuario, permiso, email o descripción..."
                     value={filtro}
                     onChange={(e) => setFiltro(e.target.value)}
-                    style={{ width: '100%', padding: '10px', fontSize: '14px', borderRadius: '4px', border: '1px solid #ced4da' }}
+                    style={{ width: '100%', padding: '10px', fontSize: '14px', borderRadius: '4px', border: '1px solid #ced4da', marginTop: '15px' }}
                 />
             </div>
 
@@ -546,7 +747,11 @@ const UsuarioPermisoView: React.FC = () => {
                         {loading && relaciones.length === 0 ? (
                             <tr><td colSpan={6}>Cargando...</td></tr>
                         ) : processedRelaciones.length === 0 ? (
-                            <tr><td colSpan={6}>No hay permisos directos asignados a usuarios</td></tr>
+                            <tr><td colSpan={6}>
+                                {hayFiltroActivo
+                                    ? 'No hay asignaciones que coincidan con los filtros aplicados'
+                                    : 'No hay permisos directos asignados a usuarios'}
+                            </td></tr>
                         ) : (
                             paginatedRelaciones.map((relacion, index) => {
                                 const isFirstOfUser = index === 0 || 

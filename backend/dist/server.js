@@ -3,6 +3,7 @@ import cors from 'cors';
 import helmet from 'helmet';
 import dotenv from 'dotenv';
 import { testConnection } from './db.js';
+import { apiPermissionGuard } from './middleware/authMiddleware.js';
 import marcasRoutes from './routes/marcasRoutes.js';
 import alternadoresRoutes from './routes/alternadoresRoutes.js';
 import estadoAlternadorRoutes from './routes/estadoAlternadorRoutes.js';
@@ -52,6 +53,8 @@ const PORT = process.env.PORT || 3001;
 app.use(helmet());
 app.use(cors());
 app.use(express.json());
+// Protección global: JWT + permisos por ruta API
+app.use(apiPermissionGuard);
 // MANTEC Health check
 app.get('/api/mantec/health', (req, res) => {
     res.json({

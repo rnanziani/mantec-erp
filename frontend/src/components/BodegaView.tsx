@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { showSuccess, showError, showConfirm } from '../utils/swal';
 import './BodegaView.css';
+import { apiUrl } from '../lib/apiClient';
 
 interface Bodega {
     id_bodega_27: number;
@@ -21,7 +22,7 @@ const BodegaView: React.FC = () => {
     const [filtro, setFiltro] = useState('');
     const [sortConfig, setSortConfig] = useState<{ key: keyof Bodega; direction: 'asc' | 'desc' } | null>(null);
 
-    const API_URL = 'http://localhost:3001/api/bodegas';
+    const API_URL = apiUrl('/bodegas');
 
     useEffect(() => {
         fetchBodegas();

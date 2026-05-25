@@ -4,6 +4,7 @@ import './PatronRotacionView.css';
 import Pagination from './shared/Pagination';
 import { exportToExcel } from '../utils/exportUtils';
 import { showDeleteConfirm, showSuccess, showError } from '../utils/swal';
+import { apiUrl } from '../lib/apiClient';
 
 interface PatronRotacion {
   id_patron_35: number;
@@ -60,7 +61,7 @@ const PatronRotacionView: React.FC = () => {
   const [itemsPerPage] = useState<number>(10);
   const [sortConfig, setSortConfig] = useState<SortConfig>({ key: 'codigo_patron_35', direction: 'asc' });
 
-  const API_URL = 'http://localhost:3001/api/patrones-rotacion';
+  const API_URL = apiUrl('/patrones-rotacion');
 
   useEffect(() => {
     fetchPatrones();

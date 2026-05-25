@@ -4,6 +4,7 @@ import './EstadoNeumaticoView.css';
 import Pagination from './shared/Pagination';
 import { exportToExcel } from '../utils/exportUtils';
 import { showDeleteConfirm, showSuccess, showError } from '../utils/swal';
+import { apiUrl } from '../lib/apiClient';
 
 interface EstadoNeumatico {
   id_estado_33: number;
@@ -46,7 +47,7 @@ const EstadoNeumaticoView: React.FC = () => {
   const [itemsPerPage] = useState<number>(10);
   const [sortConfig, setSortConfig] = useState<SortConfig>({ key: 'orden_33', direction: 'asc' });
 
-  const API_URL = 'http://localhost:3001/api/estados-neumatico';
+  const API_URL = apiUrl('/estados-neumatico');
 
   useEffect(() => {
     fetchEstados();

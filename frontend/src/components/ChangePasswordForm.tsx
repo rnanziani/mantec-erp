@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import './BodegaView.css';
+import { apiUrl } from '../lib/apiClient';
 
 const ChangePasswordForm: React.FC = () => {
   const [formData, setFormData] = useState({
@@ -80,7 +81,7 @@ const ChangePasswordForm: React.FC = () => {
 
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch('http://localhost:3001/api/auth/change-password', {
+      const response = await fetch(apiUrl('/auth/change-password'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

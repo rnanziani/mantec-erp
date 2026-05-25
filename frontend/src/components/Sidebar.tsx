@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useUserPermissions } from '../hooks/useUserPermissions';
 import './Sidebar.css';
+import { apiUrl } from '../lib/apiClient';
 
 interface MenuItem {
     id: string;
@@ -42,10 +43,10 @@ const Sidebar: React.FC<SidebarProps> = ({ onNavigate, currentView }) => {
             permissionRequired: 'MENU_NIVEL_ACCESO',
             children: [
                 { id: 'usuarios', label: 'Usuarios', icon: '👥', path: 'usuarios', permissionRequired: 'MENU_NIVEL_ACCESO_USUARIOS' },
-                { id: 'niveles-usuario', label: 'Nivel de Acceso', icon: '👤', path: 'niveles-usuario', permissionRequired: 'MENU_NIVEL_ACCESO_NIVELES' },
-                { id: 'permisos', label: 'Permisos', icon: '🔐', path: 'permisos', permissionRequired: 'MENU_NIVEL_ACCESO_PERMISOS' },
+                { id: 'permisos', label: 'Catálogo de Permisos', icon: '🔐', path: 'permisos', permissionRequired: 'MENU_NIVEL_ACCESO_PERMISOS' },
+                { id: 'niveles-usuario', label: 'Nivel de Acceso (Roles)', icon: '👤', path: 'niveles-usuario', permissionRequired: 'MENU_NIVEL_ACCESO_NIVELES' },
                 { id: 'nivel-permisos', label: 'Asignación Niveles', icon: '🔗', path: 'nivel-permisos', permissionRequired: 'MENU_NIVEL_ACCESO_ASIGNACION' },
-                { id: 'usuario-permisos', label: 'Permisos Directos', icon: '👤', path: 'usuario-permisos', permissionRequired: 'MENU_NIVEL_ACCESO_ASIGNACION' },
+                { id: 'usuario-permisos', label: 'Permisos Directos', icon: '👤', path: 'usuario-permisos', permissionRequired: 'MENU_NIVEL_ACCESO_PERMISOS_DIRECTOS' },
                 { id: 'historial-contrasenas', label: 'Historial Contraseñas', icon: '🔒', path: 'historial-contrasenas', permissionRequired: 'MENU_NIVEL_ACCESO_HISTORIAL' },
                 { id: 'intentos-login', label: 'Intentos de Login', icon: '🔐', path: 'intentos-login', permissionRequired: 'MENU_NIVEL_ACCESO_INTENTOS' },
                 { id: 'sesiones', label: 'Sesiones', icon: '🔑', path: 'sesiones', permissionRequired: 'MENU_NIVEL_ACCESO_SESIONES' },
@@ -68,27 +69,49 @@ const Sidebar: React.FC<SidebarProps> = ({ onNavigate, currentView }) => {
             id: 'neumaticos',
             label: 'Neumáticos',
             icon: '🛞',
-            permissionRequired: 'MENU_OPERACIONES',
+            permissionRequired: 'MENU_NEUMATICOS',
             children: [
-                { id: 'neumaticos', label: 'Neumáticos', icon: '🛞', path: 'neumaticos', permissionRequired: 'MENU_OPERACIONES' },
-                { id: 'marcas-neumatico', label: 'Marcas', icon: '🏷️', path: 'marcas-neumatico', permissionRequired: 'MENU_OPERACIONES' },
-                { id: 'estados-neumatico', label: 'Estados', icon: '📊', path: 'estados-neumatico', permissionRequired: 'MENU_OPERACIONES' },
-                { id: 'historial-neumatico', label: 'Historial', icon: '📋', path: 'historial-neumatico', permissionRequired: 'MENU_OPERACIONES' },
-                { id: 'patrones-rotacion', label: 'Patrones de Rotación', icon: '🔄', path: 'patrones-rotacion', permissionRequired: 'MENU_OPERACIONES' },
-                { id: 'llantas', label: 'Llantas', icon: '⭕', path: 'llantas', permissionRequired: 'MENU_OPERACIONES' }
+                { id: 'neumaticos', label: 'Cod Trazabilidad', icon: '🛞', path: 'neumaticos', permissionRequired: 'MENU_NEUMATICOS_COD_TRAZABILIDAD' },
+                { id: 'marcas-neumatico', label: 'Marcas', icon: '🏷️', path: 'marcas-neumatico', permissionRequired: 'MENU_NEUMATICOS_MARCAS' },
+                { id: 'estados-neumatico', label: 'Estados', icon: '📊', path: 'estados-neumatico', permissionRequired: 'MENU_NEUMATICOS_ESTADOS' },
+                { id: 'historial-neumatico', label: 'Historial', icon: '📋', path: 'historial-neumatico', permissionRequired: 'MENU_NEUMATICOS_HISTORIAL' },
+                { id: 'patrones-rotacion', label: 'Patrones de Rotación', icon: '🔄', path: 'patrones-rotacion', permissionRequired: 'MENU_NEUMATICOS_PATRONES_ROTACION' },
+                { id: 'llantas', label: 'Tipo Llanta', icon: '⭕', path: 'llantas', permissionRequired: 'MENU_NEUMATICOS_TIPO_LLANTA' }
             ]
         },
         {
             id: 'inventario',
             label: 'Gestion Alternadores',
             icon: '📦',
-            permissionRequired: 'MENU_INVENTARIO',
+            permissionRequired: 'MENU_GESTION_ALTERNADORES',
             children: [
-                { id: 'alternadores', label: 'Alternadores', icon: '⚡', path: 'lista-alternadores', permissionRequired: 'MENU_MANTENEDORES_ALTERNADORES' },
-                { id: 'bodegas', label: 'Bodegas', icon: '🏢', path: 'bodegas', permissionRequired: 'MENU_INVENTARIO_BODEGAS' },
-                { id: 'tipos-transaccion', label: 'Tipos de Transacción', icon: '🔄', path: 'tipos-transaccion', permissionRequired: 'MENU_INVENTARIO_TIPOS_TRANSACCION' },
-                { id: 'transacciones', label: 'Movimientos', icon: '📝', path: 'transacciones', permissionRequired: 'MENU_INVENTARIO_TRANSACCIONES' },
-                { id: 'existencias', label: 'Stock Actual', icon: '📊', path: 'existencias', permissionRequired: 'MENU_INVENTARIO_EXISTENCIAS' }
+                { id: 'alternadores', label: 'Alternadores', icon: '⚡', path: 'lista-alternadores', permissionRequired: 'MENU_GESTION_ALTERNADORES_ALTERNADORES' },
+                { id: 'marcas-alternador', label: 'Marca Alternadores', icon: '🏷️', path: 'alternadores', permissionRequired: 'MENU_GESTION_ALTERNADORES_MARCAS' },
+                { id: 'estados', label: 'Estado Alternador', icon: '📊', path: 'estados', permissionRequired: 'MENU_GESTION_ALTERNADORES_ESTADO' },
+                { id: 'bodegas', label: 'Bodegas', icon: '🏢', path: 'bodegas', permissionRequired: 'MENU_GESTION_ALTERNADORES_BODEGAS' },
+                { id: 'tipos-transaccion', label: 'Tipos de Transacción', icon: '🔄', path: 'tipos-transaccion', permissionRequired: 'MENU_GESTION_ALTERNADORES_TIPOS_TRANSACCION' },
+                { id: 'transacciones', label: 'Movimientos', icon: '📝', path: 'transacciones', permissionRequired: 'MENU_GESTION_ALTERNADORES_MOVIMIENTOS' },
+                { id: 'existencias', label: 'Stock Actual', icon: '📊', path: 'existencias', permissionRequired: 'MENU_GESTION_ALTERNADORES_STOCK' }
+            ]
+        },
+        {
+            id: 'maestros',
+            label: 'Mantenedores',
+            icon: '📋',
+            permissionRequired: 'MENU_MANTENEDORES',
+            children: [
+                { id: 'cargos', label: 'Cargos', icon: '👔', path: 'cargos', permissionRequired: 'MENU_MANTENEDORES_CARGOS' },
+                { id: 'tecnicos', label: 'Técnicos', icon: '👷', path: 'tecnicos', permissionRequired: 'MENU_MANTENEDORES_TECNICOS' },
+                { id: 'trabajadores', label: 'Trabajadores', icon: '👥', path: 'trabajadores', permissionRequired: 'MENU_MANTENEDORES_TRABAJADORES' },
+                { id: 'productos-aseo', label: 'Productos de Aseo', icon: '🧼', path: 'productos-aseo', permissionRequired: 'MENU_MANTENEDORES_PRODUCTOS_ASEO' },
+                { id: 'maquinas', label: 'Máquinas', icon: '🔧', path: 'maquinas', permissionRequired: 'MENU_MANTENEDORES_MAQUINAS' },
+                { id: 'responsables-entrega', label: 'Responsables de Entrega', icon: '📋', path: 'responsables-entrega', permissionRequired: 'MENU_MANTENEDORES_RESPONSABLES_ENTREGA' },
+                { id: 'tipos-comp-alternador', label: 'Tipos Componente', icon: '⚙️', path: 'tipos-comp-alternador', permissionRequired: 'MENU_MANTENEDORES_TIPOS_COMP' },
+                { id: 'categorias', label: 'Categorías', icon: '🗂️', path: 'categorias', permissionRequired: 'MENU_MANTENEDORES_CATEGORIAS' },
+                { id: 'tallas', label: 'Tallas', icon: '📏', path: 'tallas', permissionRequired: 'MENU_MANTENEDORES_TALLAS' },
+                { id: 'prendas', label: 'Prendas', icon: '👕', path: 'prendas', permissionRequired: 'MENU_MANTENEDORES_PRENDAS' },
+                { id: 'ccostos', label: 'Centros de Costo', icon: '🏷️', path: 'ccostos', permissionRequired: 'MENU_MANTENEDORES_CCOSTOS' },
+                { id: 'insumos', label: 'Insumos', icon: '🧾', path: 'insumos', permissionRequired: 'MENU_MANTENEDORES_INSUMOS' }
             ]
         },
         {
@@ -97,28 +120,6 @@ const Sidebar: React.FC<SidebarProps> = ({ onNavigate, currentView }) => {
             icon: '📈',
             path: 'reportes',
             permissionRequired: 'MENU_REPORTES'
-        },
-        {
-            id: 'maestros',
-            label: 'Mantenedores',
-            icon: '📋',
-            permissionRequired: 'MENU_MANTENEDORES',
-            children: [
-                { id: 'marcas', label: 'Marcas', icon: '🏷️', path: 'alternadores', permissionRequired: 'MENU_MANTENEDORES_MARCAS' },
-                { id: 'estados', label: 'Estados', icon: '📊', path: 'estados', permissionRequired: 'MENU_MANTENEDORES_ESTADOS' },
-                { id: 'cargos', label: 'Cargos', icon: '👔', path: 'cargos', permissionRequired: 'MENU_MANTENEDORES_CARGOS' },
-                { id: 'tecnicos', label: 'Técnicos', icon: '👷', path: 'tecnicos', permissionRequired: 'MENU_MANTENEDORES_TECNICOS' },
-                { id: 'trabajadores', label: 'Trabajadores', icon: '👥', path: 'trabajadores', permissionRequired: 'MENU_MANTENEDORES_TRABAJADORES' },
-                { id: 'productos-aseo', label: 'Productos de Aseo', icon: '🧼', path: 'productos-aseo', permissionRequired: 'MENU_MANTENEDORES_PRODUCTOS_ASEO' },
-                { id: 'maquinas', label: 'Máquinas', icon: '🔧', path: 'maquinas', permissionRequired: 'MENU_MANTENEDORES_MAQUINAS' },
-                { id: 'responsables-entrega', label: 'Responsables de Entrega', icon: '📋', path: 'responsables-entrega', permissionRequired: 'MENU_MANTENEDORES' },
-                { id: 'tipos-comp-alternador', label: 'Tipos Componente', icon: '⚙️', path: 'tipos-comp-alternador', permissionRequired: 'MENU_MANTENEDORES' },
-                { id: 'categorias', label: 'Categorías', icon: '🗂️', path: 'categorias', permissionRequired: 'MENU_MANTENEDORES' },
-                { id: 'tallas', label: 'Tallas', icon: '📏', path: 'tallas', permissionRequired: 'MENU_MANTENEDORES' },
-                { id: 'prendas', label: 'Prendas', icon: '👕', path: 'prendas', permissionRequired: 'MENU_MANTENEDORES' },
-                { id: 'ccostos', label: 'Centros de Costo', icon: '🏷️', path: 'ccostos', permissionRequired: 'MENU_MANTENEDORES' },
-                { id: 'insumos', label: 'Insumos', icon: '🧾', path: 'insumos', permissionRequired: 'MENU_MANTENEDORES' }
-            ]
         }
     ];
 
@@ -300,7 +301,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onNavigate, currentView }) => {
                         const token = localStorage.getItem('token');
                         if (token) {
                             try {
-                                await fetch('http://localhost:3001/api/auth/logout', {
+                                await fetch(apiUrl('/auth/logout'), {
                                     method: 'POST',
                                     headers: {
                                         'Authorization': `Bearer ${token}`

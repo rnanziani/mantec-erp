@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { apiUrl } from '../lib/apiClient';
 
 interface SessionStatus {
   sessionExpired: boolean;
@@ -11,7 +12,7 @@ interface SessionStatus {
   passwordExpired?: boolean;
 }
 
-const API_URL = 'http://localhost:3001/api/auth/session-status';
+const API_URL = apiUrl('/auth/session-status');
 
 export const useSessionMonitor = (enabled: boolean = true) => {
   const [sessionStatus, setSessionStatus] = useState<SessionStatus | null>(null);

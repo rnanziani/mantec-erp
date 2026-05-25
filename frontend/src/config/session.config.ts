@@ -1,3 +1,4 @@
+import { apiUrl } from '../lib/apiClient';
 export interface SessionTimeoutConfig {
   inactivityTimeout: number;
   countdownDuration: number;
@@ -12,7 +13,7 @@ export const defaultSessionConfig: SessionTimeoutConfig = {
 
 export async function loadSessionConfig(): Promise<SessionTimeoutConfig> {
   try {
-    const res = await fetch('http://localhost:3001/api/parametros/valores/actuales', {
+    const res = await fetch(apiUrl('/parametros/valores/actuales'), {
       headers: { 'Authorization': `Bearer ${localStorage.getItem('token') || ''}` }
     });
     if (!res.ok) return defaultSessionConfig;

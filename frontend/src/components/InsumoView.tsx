@@ -3,6 +3,7 @@ import './BodegaView.css';
 import './InsumoView.css';
 import { exportToExcel } from '../utils/exportUtils';
 import { showDeleteConfirm, showSuccess, showError } from '../utils/swal';
+import { apiUrl } from '../lib/apiClient';
 
 interface Insumo {
   id_insumo_43: number;
@@ -47,8 +48,8 @@ const InsumoView: React.FC = () => {
     direction: 'asc'
   });
 
-  const API_URL = 'http://localhost:3001/api/insumos';
-  const CATEG_URL = 'http://localhost:3001/api/categorias';
+  const API_URL = apiUrl('/insumos');
+  const CATEG_URL = apiUrl('/categorias');
 
   const formatAmount = (value: number | string) =>
     new Intl.NumberFormat('es-CL', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(Number(value));

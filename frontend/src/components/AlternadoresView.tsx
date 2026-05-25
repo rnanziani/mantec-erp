@@ -5,6 +5,7 @@ import { showSuccess, showError, showDeleteConfirm } from '../utils/swal';
 import SearchBar from './shared/SearchBar';
 import Pagination from './shared/Pagination';
 import { exportToExcel } from '../utils/exportUtils';
+import { apiUrl } from '../lib/apiClient';
 
 interface Alternador {
   id_alternador_19: number;
@@ -58,9 +59,9 @@ const AlternadoresView: React.FC = () => {
   const [itemsPerPage] = useState<number>(10);
   const [sortConfig, setSortConfig] = useState<SortConfig>({ key: 'id_alternador_19', direction: 'asc' });
 
-  const API_URL = 'http://localhost:3001/api/alternadores';
-  const MARCAS_URL = 'http://localhost:3001/api/marcas';
-  const TIPOS_COMP_URL = 'http://localhost:3001/api/tipos-comp-alternador';
+  const API_URL = apiUrl('/alternadores');
+  const MARCAS_URL = apiUrl('/marcas');
+  const TIPOS_COMP_URL = apiUrl('/tipos-comp-alternador');
 
   useEffect(() => {
     fetchAlternadores();

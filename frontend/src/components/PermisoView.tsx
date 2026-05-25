@@ -1,7 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { showSuccess, showError, showDeleteConfirm } from '../utils/swal';
+import { exportToExcel } from '../utils/exportUtils';
 import Pagination from './shared/Pagination';
+import { RANGOS_MODULO_PERMISOS } from '../constants/permisoModuloRangos';
 import './BodegaView.css';
+import { apiUrl } from '../lib/apiClient';
 
 interface Permiso {
     id_permiso_05: number;
@@ -21,13 +24,18 @@ const PermisoView: React.FC = () => {
 
     // Estados para búsqueda y ordenamiento
     const [filtro, setFiltro] = useState('');
+    const [ordenMin, setOrdenMin] = useState('');
+    const [ordenMax, setOrdenMax] = useState('');
     const [sortConfig, setSortConfig] = useState<{ key: keyof Permiso; direction: 'asc' | 'desc' } | null>(null);
+
+    /** Orden igual al sidebar: 1 Inicio … 7 Reportes (miles = posición del menú) */
+    const RANGOS_MODULO = RANGOS_MODULO_PERMISOS;
     
     // Estados para paginación
     const [currentPage, setCurrentPage] = useState<number>(1);
     const [itemsPerPage] = useState<number>(10);
 
-    const API_URL = 'http://localhost:3001/api/permisos';
+    const API_URL = apiUrl('/permisos');
 
     useEffect(() => {
         fetchPermisos();
@@ -134,7 +142,7 @@ const PermisoView: React.FC = () => {
     const processedPermisos = React.useMemo(() => {
         let data = [...permisos];
 
-        // 1. Filtrar
+        // 1. Filtrar por texto
         if (filtro) {
             const lowerFiltro = filtro.toLowerCase();
             data = data.filter(p =>
@@ -145,7 +153,17 @@ const PermisoView: React.FC = () => {
             );
         }
 
-        // 2. Ordenar
+        // 2. Filtrar por rango de orden
+        const minVal = ordenMin.trim() !== '' ? Number(ordenMin) : null;
+        const maxVal = ordenMax.trim() !== '' ? Number(ordenMax) : null;
+        if (minVal !== null && !Number.isNaN(minVal)) {
+            data = data.filter((p) => (p.orden_05 ?? 0) >= minVal);
+        }
+        if (maxVal !== null && !Number.isNaN(maxVal)) {
+            data = data.filter((p) => (p.orden_05 ?? 0) <= maxVal);
+        }
+
+        // 3. Ordenar
         if (sortConfig) {
             data.sort((a, b) => {
                 const aValue = a[sortConfig.key];
@@ -177,7 +195,17 @@ const PermisoView: React.FC = () => {
         }
 
         return data;
-    }, [permisos, filtro, sortConfig]);
+    }, [permisos, filtro, ordenMin, ordenMax, sortConfig]);
+
+    const hayFiltroActivo = Boolean(filtro || ordenMin.trim() || ordenMax.trim());
+    const rangoActivoLabel = React.useMemo(() => {
+        if (!ordenMin.trim() && !ordenMax.trim()) return null;
+        const match = RANGOS_MODULO.find(
+            (r) => ordenMin === String(r.min) && ordenMax === String(r.max)
+        );
+        if (match) return `${match.label} (${match.min}–${match.max})`;
+        return `${ordenMin.trim() || '…'} – ${ordenMax.trim() || '…'}`;
+    }, [ordenMin, ordenMax]);
 
     // Paginación: calcular items a mostrar
     const paginatedPermisos = React.useMemo(() => {
@@ -190,18 +218,92 @@ const PermisoView: React.FC = () => {
     // Resetear a página 1 cuando cambia el filtro
     useEffect(() => {
         setCurrentPage(1);
-    }, [filtro]);
+    }, [filtro, ordenMin, ordenMax]);
+
+    const aplicarRango = (min: number, max: number) => {
+        setOrdenMin(String(min));
+        setOrdenMax(String(max));
+    };
+
+    const limpiarFiltros = () => {
+        setFiltro('');
+        setOrdenMin('');
+        setOrdenMax('');
+    };
+
+    const handleExport = async () => {
+        const dataToExport = processedPermisos.map((p) => ({
+            ID: p.id_permiso_05,
+            Nombre: p.nombre_permiso_05,
+            Descripcion: p.descripcion_05 ?? '',
+            Orden: p.orden_05 ?? 0
+        }));
+        let suffix = '';
+        if (ordenMin.trim() || ordenMax.trim()) {
+            suffix += `_orden_${ordenMin.trim() || 'min'}_${ordenMax.trim() || 'max'}`;
+        }
+        if (filtro) suffix += '_texto';
+        exportToExcel(dataToExport, `permisos${suffix || '_completo'}`, 'Permisos');
+        await showSuccess('¡Exportación exitosa!', 'El reporte de permisos se descargó en Excel.');
+    };
 
     return (
         <div className="bodega-view">
-            <div className="view-header">
-                <h2>🔐 Gestión de Permisos</h2>
-                <button
-                    className="btn-primary"
-                    onClick={() => setShowForm(!showForm)}
+            <div
+                className="view-header"
+                style={{ flexWrap: 'wrap', gap: '12px', alignItems: 'center' }}
+            >
+                <div
+                    style={{
+                        display: 'flex',
+                        flexWrap: 'wrap',
+                        alignItems: 'center',
+                        gap: '16px',
+                        flex: '1 1 320px',
+                        minWidth: 0,
+                    }}
                 >
-                    {showForm ? '✕ Cancelar' : '+ Nuevo Permiso'}
-                </button>
+                    <h2>🔐 Catálogo de Permisos</h2>
+                    <p
+                        role="note"
+                        aria-label="Observación sobre el catálogo de permisos"
+                        style={{
+                            margin: 0,
+                            flex: '1 1 260px',
+                            maxWidth: '720px',
+                            fontSize: '0.85rem',
+                            color: '#3d5a73',
+                            lineHeight: 1.45,
+                            padding: '8px 14px',
+                            background: 'linear-gradient(135deg, #f0f7ff 0%, #e8f4fd 100%)',
+                            border: '1px solid #b8d4f0',
+                            borderRadius: '8px',
+                            boxShadow: '0 1px 2px rgba(0, 60, 120, 0.06)',
+                        }}
+                    >
+                        <strong style={{ color: '#2563eb', fontWeight: 600 }}>ℹ️ Observación:</strong>{' '}
+                        Aún no asignas nada a nadie. Solo defines llaves que existen en el sistema.
+                    </p>
+                </div>
+                <div style={{ display: 'flex', gap: '10px', flexShrink: 0 }}>
+                    <button
+                        type="button"
+                        className="btn-primary"
+                        onClick={handleExport}
+                        disabled={processedPermisos.length === 0}
+                        style={{ backgroundColor: '#17a2b8' }}
+                        title="Exportar listado a Excel"
+                        aria-label="Exportar permisos a Excel"
+                    >
+                        📊 Exportar
+                    </button>
+                    <button
+                        className="btn-primary"
+                        onClick={() => setShowForm(!showForm)}
+                    >
+                        {showForm ? '✕ Cancelar' : '+ Nuevo Permiso'}
+                    </button>
+                </div>
             </div>
 
             {showForm && (
@@ -240,7 +342,7 @@ const PermisoView: React.FC = () => {
                                 style={{ width: '100%', padding: '8px 12px', borderRadius: '4px', border: '1px solid #ced4da' }}
                             />
                             <small style={{ color: '#6c757d', fontSize: '0.85em', display: 'block', marginTop: '5px' }}>
-                                💡 Tip: Usa rangos para agrupar permisos (1000-1999: Dashboard, 2000-2999: Nivel de Acceso, etc.)
+                                💡 Tip: Usa rangos por menú (1000 Inicio, 2000 Nivel de Acceso, 3000 Operaciones, 4000 Neumáticos, 5000 Gestión Alternadores, 6000 Mantenedores, 7000 Reportes).
                             </small>
                         </div>
                         <div className="form-actions">
@@ -255,15 +357,105 @@ const PermisoView: React.FC = () => {
                 </div>
             )}
 
-            {/* Buscador */}
+            {/* Buscador y filtro por rango de orden */}
             <div className="form-container" style={{ marginBottom: '20px' }}>
-                <input
-                    type="text"
-                    placeholder="🔍 Buscar permiso..."
-                    value={filtro}
-                    onChange={(e) => setFiltro(e.target.value)}
-                    style={{ width: '100%', padding: '10px', fontSize: '14px', borderRadius: '4px', border: '1px solid #ced4da' }}
-                />
+                <div
+                    style={{
+                        display: 'flex',
+                        flexWrap: 'wrap',
+                        gap: '12px',
+                        alignItems: 'flex-end',
+                        marginBottom: '12px',
+                    }}
+                >
+                    <div style={{ flex: '1 1 220px', minWidth: '180px' }}>
+                        <label htmlFor="filtro-permiso" style={{ display: 'block', fontSize: '0.85rem', marginBottom: '4px' }}>
+                            Buscar permiso
+                        </label>
+                        <input
+                            id="filtro-permiso"
+                            type="text"
+                            placeholder="🔍 Nombre, descripción o ID..."
+                            value={filtro}
+                            onChange={(e) => setFiltro(e.target.value)}
+                            aria-label="Buscar permiso por nombre, descripción o ID"
+                            style={{ width: '100%', padding: '8px 10px', fontSize: '14px', borderRadius: '4px', border: '1px solid #ced4da' }}
+                        />
+                    </div>
+                    <div style={{ flex: '0 1 110px', minWidth: '90px' }}>
+                        <label htmlFor="orden-min" style={{ display: 'block', fontSize: '0.85rem', marginBottom: '4px' }}>
+                            Desde
+                        </label>
+                        <input
+                            id="orden-min"
+                            type="number"
+                            min={0}
+                            placeholder="4000"
+                            value={ordenMin}
+                            onChange={(e) => setOrdenMin(e.target.value)}
+                            aria-describedby="rango-orden-ayuda"
+                            style={{ width: '100%', padding: '8px 10px', borderRadius: '4px', border: '1px solid #ced4da' }}
+                        />
+                    </div>
+                    <div style={{ flex: '0 1 110px', minWidth: '90px' }}>
+                        <label htmlFor="orden-max" style={{ display: 'block', fontSize: '0.85rem', marginBottom: '4px' }}>
+                            Hasta
+                        </label>
+                        <input
+                            id="orden-max"
+                            type="number"
+                            min={0}
+                            placeholder="4999"
+                            value={ordenMax}
+                            onChange={(e) => setOrdenMax(e.target.value)}
+                            style={{ width: '100%', padding: '8px 10px', borderRadius: '4px', border: '1px solid #ced4da' }}
+                        />
+                    </div>
+                    {hayFiltroActivo && (
+                        <button
+                            type="button"
+                            className="btn-secondary"
+                            onClick={limpiarFiltros}
+                            style={{ flex: '0 0 auto', alignSelf: 'flex-end' }}
+                        >
+                            Limpiar filtros
+                        </button>
+                    )}
+                </div>
+
+                <p id="rango-orden-ayuda" style={{ fontSize: '0.8rem', color: '#6c757d', margin: '0 0 10px' }}>
+                    Atajos por módulo (mismo orden que el menú lateral):
+                </p>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }} role="group" aria-label="Atajos de rango por módulo">
+                    {RANGOS_MODULO.map((r) => {
+                        const activo = ordenMin === String(r.min) && ordenMax === String(r.max);
+                        return (
+                            <button
+                                key={r.label}
+                                type="button"
+                                onClick={() => aplicarRango(r.min, r.max)}
+                                style={{
+                                    padding: '6px 12px',
+                                    fontSize: '0.8rem',
+                                    borderRadius: '20px',
+                                    border: activo ? '2px solid #007bff' : '1px solid #ced4da',
+                                    background: activo ? '#e7f1ff' : '#f8f9fa',
+                                    cursor: 'pointer',
+                                }}
+                                aria-pressed={activo}
+                            >
+                                {r.label} ({r.min}–{r.max})
+                            </button>
+                        );
+                    })}
+                </div>
+
+                {rangoActivoLabel && (
+                    <p style={{ marginTop: '10px', marginBottom: 0, fontSize: '0.85rem', color: '#007bff' }}>
+                        Mostrando permisos con orden entre <strong>{rangoActivoLabel}</strong>
+                        {' '}({processedPermisos.length} resultado{processedPermisos.length !== 1 ? 's' : ''})
+                    </p>
+                )}
             </div>
 
             <div className="table-container">
@@ -301,7 +493,11 @@ const PermisoView: React.FC = () => {
                         {loading && permisos.length === 0 ? (
                             <tr><td colSpan={5}>Cargando...</td></tr>
                         ) : processedPermisos.length === 0 ? (
-                            <tr><td colSpan={5}>No hay permisos registrados</td></tr>
+                            <tr><td colSpan={5}>
+                                {hayFiltroActivo
+                                    ? 'No hay permisos que coincidan con los filtros aplicados'
+                                    : 'No hay permisos registrados'}
+                            </td></tr>
                         ) : (
                             paginatedPermisos.map((permiso) => (
                                 <tr key={permiso.id_permiso_05}>

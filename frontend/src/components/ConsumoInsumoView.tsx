@@ -1,9 +1,10 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import './BodegaView.css';
 import './ConsumoInsumoView.css';
 import Pagination from './shared/Pagination';
 import { showDeleteConfirm, showSuccess, showError } from '../utils/swal';
 import { exportToExcel } from '../utils/exportUtils';
+import { apiUrl, openAuthenticatedBlob } from '../lib/apiClient';
 
 interface MaestroConsumo {
   id_m_consumo_insumo_46: number;
@@ -83,12 +84,20 @@ interface ApiResponse<T = unknown> {
   error?: string;
 }
 
-const API_URL = 'http://localhost:3001/api/consumo-insumos';
-const TRABAJADORES_URL = 'http://localhost:3001/api/trabajadores';
-const RESPONSABLES_URL = 'http://localhost:3001/api/responsables-entrega';
-const CCOSTOS_URL = 'http://localhost:3001/api/ccostos';
-const INSUMOS_URL = 'http://localhost:3001/api/insumos';
-const CATEGORIAS_URL = 'http://localhost:3001/api/categorias';
+interface ActaInsumoPreviewData {
+  intro: { dia: number; mes: string; anio: number };
+  trabajador: { nombre: string; rut: string; cargo: string; empresa: string; ccosto: string };
+  insumos: Array<{ item: string; cantidad: number; categoria: string }>;
+  observaciones?: string | null;
+  responsable: { nombre: string; fecha: string; hora: string };
+}
+
+const API_URL = apiUrl('/consumo-insumos');
+const TRABAJADORES_URL = apiUrl('/trabajadores');
+const RESPONSABLES_URL = apiUrl('/responsables-entrega');
+const CCOSTOS_URL = apiUrl('/ccostos');
+const INSUMOS_URL = apiUrl('/insumos');
+const CATEGORIAS_URL = apiUrl('/categorias');
 
 const formatAmount = (value: number) =>
   new Intl.NumberFormat('es-CL', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value);
@@ -113,6 +122,10 @@ const ConsumoInsumoView: React.FC = () => {
   const [selectedConsumoId, setSelectedConsumoId] = useState<number | null>(null);
   const [detalleConsumo, setDetalleConsumo] = useState<{ maestro: MaestroConsumo; detalles: DetalleConsumo[] } | null>(null);
   const [loadingDetalle, setLoadingDetalle] = useState(false);
+  const [showPreviewModal, setShowPreviewModal] = useState(false);
+  const [previewConsumoId, setPreviewConsumoId] = useState<number | null>(null);
+  const [previewActaData, setPreviewActaData] = useState<ActaInsumoPreviewData | null>(null);
+  const [loadingActa, setLoadingActa] = useState(false);
 
   const [buscarApellido, setBuscarApellido] = useState('');
   const [idTrabajador, setIdTrabajador] = useState('');
@@ -523,6 +536,40 @@ const ConsumoInsumoView: React.FC = () => {
     setDetalleConsumo(null);
   };
 
+  const consumoIdForActa = editingId ?? selectedConsumoId;
+
+  const openPreviewModal = useCallback(async (id: number) => {
+    setShowPreviewModal(true);
+    setPreviewConsumoId(id);
+    setPreviewActaData(null);
+    setLoadingActa(true);
+    try {
+      const response = await fetch(`${API_URL}/${id}/acta-datos`);
+      const data: ApiResponse<ActaInsumoPreviewData> = await response.json();
+      if (data.success && data.data) {
+        setPreviewActaData(data.data);
+      } else {
+        await showError('Error', data.error || 'No se pudieron cargar los datos del acta');
+        setShowPreviewModal(false);
+      }
+    } catch {
+      await showError('Error', 'Error de conexión al cargar el acta');
+      setShowPreviewModal(false);
+    } finally {
+      setLoadingActa(false);
+    }
+  }, []);
+
+  const closePreviewModal = useCallback(() => {
+    setShowPreviewModal(false);
+    setPreviewActaData(null);
+    setPreviewConsumoId(null);
+  }, []);
+
+  const handlePrintActa = useCallback(() => {
+    window.print();
+  }, []);
+
   const startEdit = async (id: number) => {
     try {
       const res = await fetch(`${API_URL}/${id}`);
@@ -593,6 +640,17 @@ const ConsumoInsumoView: React.FC = () => {
           >
             💾 Guardar
           </button>
+          {consumoIdForActa && (
+            <button
+              className="btn-primary"
+              onClick={() => openPreviewModal(consumoIdForActa)}
+              style={{ backgroundColor: '#6c757d' }}
+              title="Vista previa del Acta de Entrega de Insumos"
+              type="button"
+            >
+              📄 Vista Previa Acta
+            </button>
+          )}
           <button
             className="btn-primary"
             onClick={handleExport}
@@ -1007,6 +1065,19 @@ const ConsumoInsumoView: React.FC = () => {
                         <td className="td-cantidad">{formatAmount(c.cantidad_46)}</td>
                         <td className="actions" onClick={(e) => e.stopPropagation()}>
                           <button
+                            className="btn-primary"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              openPreviewModal(c.id_m_consumo_insumo_46);
+                            }}
+                            title="Acta de entrega - vista previa e impresión"
+                            aria-label="Vista previa e impresión del acta de entrega"
+                            style={{ marginRight: '5px', padding: '4px 8px', fontSize: '12px' }}
+                            type="button"
+                          >
+                            🖨️
+                          </button>
+                          <button
                             className="btn-edit"
                             onClick={(e) => { e.stopPropagation(); startEdit(c.id_m_consumo_insumo_46); }}
                             title="Editar"
@@ -1048,9 +1119,19 @@ const ConsumoInsumoView: React.FC = () => {
             <div className="detalle-grid-container">
               <div className="detalle-grid-header">
                 <h4>Detalle de Insumos - Consumo #{detalleConsumo.maestro.id_m_consumo_insumo_46}</h4>
-                <button type="button" className="btn-secondary btn-cerrar-detalle" onClick={cerrarDetalle} aria-label="Cerrar detalle">
-                  ✕ Cerrar
-                </button>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <button
+                    type="button"
+                    className="btn-primary"
+                    onClick={() => openPreviewModal(detalleConsumo.maestro.id_m_consumo_insumo_46)}
+                    style={{ backgroundColor: '#6c757d' }}
+                  >
+                    📄 Vista Previa Acta
+                  </button>
+                  <button type="button" className="btn-secondary btn-cerrar-detalle" onClick={cerrarDetalle} aria-label="Cerrar detalle">
+                    ✕ Cerrar
+                  </button>
+                </div>
               </div>
               <div className="table-container detalle-insumos-grid">
                 <table className="data-table">
@@ -1097,6 +1178,183 @@ const ConsumoInsumoView: React.FC = () => {
         </>
       )}
       {loading && !showForm && <div className="loading">⏳ Cargando...</div>}
+
+      {showPreviewModal && (
+        <div
+          className="acta-preview-overlay"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="acta-insumos-preview-title"
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0,0,0,0.5)',
+            zIndex: 1000,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '20px'
+          }}
+          onClick={(e) => e.target === e.currentTarget && closePreviewModal()}
+        >
+          <div
+            className="acta-preview-modal"
+            style={{
+              backgroundColor: 'white',
+              borderRadius: '8px',
+              maxWidth: '816px',
+              width: '100%',
+              maxHeight: '90vh',
+              overflow: 'auto',
+              boxShadow: '0 4px 20px rgba(0,0,0,0.2)',
+              position: 'relative'
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="no-print" style={{ padding: '16px', borderBottom: '1px solid #eee', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
+              <h3 id="acta-insumos-preview-title" style={{ margin: 0 }}>📄 Vista Previa - Acta de Entrega de Insumos</h3>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <button
+                  className="btn-primary"
+                  onClick={handlePrintActa}
+                  disabled={!previewActaData}
+                  style={{ backgroundColor: '#007bff' }}
+                  type="button"
+                >
+                  🖨️ Imprimir
+                </button>
+                <button
+                  className="btn-primary"
+                  onClick={() => {
+                    if (!previewConsumoId) return;
+                    openAuthenticatedBlob(`/consumo-insumos/${previewConsumoId}/acta-pdf`).catch((err) =>
+                      showError('PDF', err instanceof Error ? err.message : 'No se pudo generar el PDF')
+                    );
+                  }}
+                  disabled={!previewActaData}
+                  style={{ backgroundColor: '#28a745' }}
+                  type="button"
+                >
+                  📥 Generar PDF
+                </button>
+                <button className="btn-secondary" onClick={closePreviewModal} type="button">
+                  ✕ Cerrar
+                </button>
+              </div>
+            </div>
+
+            <div className="acta-preview-content" style={{ padding: '24px' }}>
+              {loadingActa ? (
+                <div style={{ textAlign: 'center', padding: '40px' }}>⏳ Cargando acta...</div>
+              ) : previewActaData ? (
+                <div
+                  className="acta-print-area"
+                  style={{
+                    fontFamily: 'Arial, sans-serif',
+                    fontSize: '12px',
+                    lineHeight: 1.4,
+                    color: '#333'
+                  }}
+                >
+                  <h2 style={{ textAlign: 'center', marginBottom: '4px', fontSize: '16px' }}>ACTA DE ENTREGA DE INSUMOS</h2>
+                  <p style={{ textAlign: 'right', fontSize: '10px', color: '#666', marginBottom: '12px' }}>SIG F-622-006 Versión 001</p>
+                  <p style={{ marginBottom: '12px' }}>
+                    En la ciudad de Santiago, {previewActaData.intro.dia} días del mes de {previewActaData.intro.mes} del año {previewActaData.intro.anio}, se procede a dejar constancia de la entrega de insumos al trabajador que a continuación se detalla:
+                  </p>
+                  <p style={{ fontWeight: 'bold', marginBottom: '8px' }}>Datos del Trabajador:</p>
+                  <p style={{ margin: '4px 0' }}><strong>Nombre:</strong> {previewActaData.trabajador.nombre}</p>
+                  <p style={{ margin: '4px 0' }}><strong>Rut:</strong> {previewActaData.trabajador.rut}</p>
+                  <p style={{ margin: '4px 0' }}><strong>Cargo:</strong> {previewActaData.trabajador.cargo}</p>
+                  <p style={{ margin: '4px 0' }}><strong>Empresa:</strong> {previewActaData.trabajador.empresa}</p>
+                  <p style={{ margin: '4px 0 12px 0' }}><strong>C. Costo:</strong> {previewActaData.trabajador.ccosto}</p>
+                  <p style={{ fontWeight: 'bold', marginBottom: '8px' }}>Detalle de insumos entregados</p>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '12px', fontSize: '11px' }}>
+                    <thead>
+                      <tr style={{ backgroundColor: '#e8e8e8' }}>
+                        <th style={{ border: '1px solid #ccc', padding: '6px', textAlign: 'center' }}>Item</th>
+                        <th style={{ border: '1px solid #ccc', padding: '6px', textAlign: 'center' }}>Cantidad</th>
+                        <th style={{ border: '1px solid #ccc', padding: '6px', textAlign: 'center' }}>Categoría</th>
+                        <th style={{ border: '1px solid #ccc', padding: '6px', textAlign: 'center' }}>Estado</th>
+                        <th style={{ border: '1px solid #ccc', padding: '6px', textAlign: 'center' }}>Estado Entrega</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {previewActaData.insumos.map((insumo, i) => (
+                        <tr key={i}>
+                          <td style={{ border: '1px solid #ccc', padding: '6px' }}>{insumo.item}</td>
+                          <td style={{ border: '1px solid #ccc', padding: '6px', textAlign: 'center' }}>{insumo.cantidad}</td>
+                          <td style={{ border: '1px solid #ccc', padding: '6px', textAlign: 'center' }}>{insumo.categoria}</td>
+                          <td style={{ border: '1px solid #ccc', padding: '6px', textAlign: 'center' }}>Nuevo</td>
+                          <td style={{ border: '1px solid #ccc', padding: '6px', textAlign: 'center' }}>Entregado</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  {previewActaData.observaciones && (
+                    <p style={{ marginBottom: '12px' }}><strong>Observaciones:</strong> {previewActaData.observaciones}</p>
+                  )}
+                  <p style={{ fontWeight: 'bold', marginBottom: '6px' }}>Responsabilidades:</p>
+                  <p style={{ marginBottom: '4px' }}>Usted se compromete a</p>
+                  <ul style={{ margin: '4px 0 12px 20px', padding: 0 }}>
+                    <li>Usar los insumos únicamente durante sus funciones laborales.</li>
+                    <li>Mantener los insumos en condiciones adecuadas para su uso.</li>
+                    <li>No alterar ni modificar los insumos entregados.</li>
+                    <li>Responder por el cuidado y conservación de los insumos entregados.</li>
+                    <li>Reportar inmediatamente cualquier daño o pérdida al área correspondiente.</li>
+                    <li>El mal uso o la negligencia en el cuidado de los insumos podrá ser objeto de observaciones o medidas disciplinarias conforme al reglamento interno.</li>
+                  </ul>
+                  <p style={{ fontWeight: 'bold', marginBottom: '6px' }}>Uso de Insumos:</p>
+                  <p style={{ marginBottom: '8px' }}>La empresa hace hincapié en la obligatoriedad del uso adecuado de los insumos entregados durante todo el periodo de servicio activo. Su uso contribuye a:</p>
+                  <ul style={{ margin: '4px 0 12px 20px', padding: 0 }}>
+                    <li>Garantizar la continuidad operacional del servicio.</li>
+                    <li>Proteger la seguridad del personal y de los usuarios.</li>
+                    <li>Optimizar el control y trazabilidad de materiales.</li>
+                  </ul>
+                  <p style={{ fontWeight: 'bold', marginBottom: '6px' }}>Declaración del Trabajador:</p>
+                  <p style={{ marginBottom: '12px' }}>Declaro haber recibido a conformidad los insumos antes detallados, los cuales se encuentran en buen estado y son de uso obligatorio durante mi jornada laboral. Asimismo, me comprometo a dar un uso adecuado y a conservarlos en buenas condiciones, haciéndome responsable de su cuidado.</p>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '12px' }}>
+                    <tbody>
+                      <tr>
+                        <td style={{ border: '1px solid #ccc', padding: '8px', textAlign: 'center', width: '50%' }}>Firma</td>
+                        <td style={{ border: '1px solid #ccc', padding: '8px', textAlign: 'center', width: '50%' }}>Huella</td>
+                      </tr>
+                      <tr>
+                        <td style={{ border: '1px solid #ccc', height: '50px', verticalAlign: 'top' }}></td>
+                        <td style={{ border: '1px solid #ccc', height: '50px', verticalAlign: 'top' }}></td>
+                      </tr>
+                    </tbody>
+                  </table>
+                  <p style={{ fontWeight: 'bold', marginBottom: '4px' }}>Firma del encargado de Entrega</p>
+                  <p style={{ margin: 0 }}>Nombre: {previewActaData.responsable.nombre}</p>
+                  <p style={{ margin: 0 }}>Fecha: {previewActaData.responsable.fecha} {previewActaData.responsable.hora}</p>
+                </div>
+              ) : null}
+            </div>
+          </div>
+        </div>
+      )}
+
+      <style>{`
+        @media print {
+          body * { visibility: hidden !important; }
+          .acta-preview-overlay,
+          .acta-preview-overlay * { visibility: visible !important; }
+          .acta-preview-overlay {
+            position: fixed !important;
+            inset: 0 !important;
+            background: white !important;
+            overflow: visible !important;
+          }
+          .acta-preview-modal {
+            box-shadow: none !important;
+            max-height: none !important;
+          }
+          .no-print { display: none !important; }
+        }
+      `}</style>
     </div>
   );
 };

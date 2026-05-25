@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { showSuccess, showError, showDeleteConfirm, showWarning } from '../utils/swal';
 import './BodegaView.css'; // Reutilizamos los mismos estilos que TipoTransaccionView
+import { apiUrl, openAuthenticatedBlob } from '../lib/apiClient';
 
 interface Transaccion {
   id_transaccion_28: number;
@@ -136,14 +137,14 @@ const TransaccionView: React.FC = () => {
   const [filtro, setFiltro] = useState<string>('');
   const [sortConfig, setSortConfig] = useState<{ key: keyof Transaccion; direction: 'asc' | 'desc' } | null>(null);
 
-  const API_URL = 'http://localhost:3001/api/transacciones';
-  const ALTERNADORES_URL = 'http://localhost:3001/api/alternadores';
-  const UBICACIONES_URL = 'http://localhost:3001/api/bodegas';
-  const TIPOS_URL = 'http://localhost:3001/api/tipos-transaccion';
-  const TECNICOS_URL = 'http://localhost:3001/api/tecnicos';
-  const MAQUINAS_URL = 'http://localhost:3001/api/maquinas';
-  const MARCAS_URL = 'http://localhost:3001/api/marcas';
-  const TIPOS_COMP_URL = 'http://localhost:3001/api/tipos-comp-alternador';
+  const API_URL = apiUrl('/transacciones');
+  const ALTERNADORES_URL = apiUrl('/alternadores');
+  const UBICACIONES_URL = apiUrl('/bodegas');
+  const TIPOS_URL = apiUrl('/tipos-transaccion');
+  const TECNICOS_URL = apiUrl('/tecnicos');
+  const MAQUINAS_URL = apiUrl('/maquinas');
+  const MARCAS_URL = apiUrl('/marcas');
+  const TIPOS_COMP_URL = apiUrl('/tipos-comp-alternador');
 
   useEffect(() => {
     fetchTransacciones();
@@ -470,7 +471,7 @@ const TransaccionView: React.FC = () => {
         params.append('id_alternador', reportIdAlternador);
       }
 
-      const response = await fetch(`http://localhost:3001/api/transacciones/filtradas?${params.toString()}`);
+      const response = await fetch(`${apiUrl('/transacciones/filtradas')}?${params.toString()}`);
       const data: ApiResponse = await response.json();
 
       if (data.success && Array.isArray(data.data)) {
@@ -519,8 +520,12 @@ const TransaccionView: React.FC = () => {
     }
 
     // Abrir el reporte en una nueva ventana para descargar
-    const reportUrl = `http://localhost:3001/api/transacciones/reporte/pdf?${params.toString()}`;
-    window.open(reportUrl, '_blank');
+    try {
+      await openAuthenticatedBlob(`/transacciones/reporte/pdf?${params.toString()}`);
+    } catch (err) {
+      await showError('Reporte', err instanceof Error ? err.message : 'No se pudo generar el PDF');
+      return;
+    }
 
     // Cerrar el modal y vista previa
     setShowReportModal(false);
@@ -1387,8 +1392,14 @@ const TransaccionView: React.FC = () => {
                     }
 
                     // Abrir el reporte en una nueva ventana para descargar
-                    const reportUrl = `http://localhost:3001/api/transacciones/reporte-cantidad-componentes/pdf?${params.toString()}`;
-                    window.open(reportUrl, '_blank');
+                    try {
+                      await openAuthenticatedBlob(
+                        `/transacciones/reporte-cantidad-componentes/pdf?${params.toString()}`
+                      );
+                    } catch (err) {
+                      await showError('Reporte', err instanceof Error ? err.message : 'No se pudo generar el PDF');
+                      return;
+                    }
 
                     // Cerrar el modal
                     setShowCantComponentesModal(false);

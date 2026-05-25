@@ -5,6 +5,7 @@ import { showSuccess, showError, showDeleteConfirm } from '../utils/swal';
 import SearchBar from './shared/SearchBar';
 import Pagination from './shared/Pagination';
 import { exportToExcel } from '../utils/exportUtils';
+import { apiUrl } from '../lib/apiClient';
 
 interface Neumatico {
   id_neumatico_31: number;
@@ -52,8 +53,8 @@ const NeumaticoView: React.FC = () => {
   const [itemsPerPage] = useState<number>(10);
   const [sortConfig, setSortConfig] = useState<SortConfig>({ key: 'id_neumatico_31', direction: 'asc' });
 
-  const API_URL = 'http://localhost:3001/api/neumaticos';
-  const MARCAS_URL = 'http://localhost:3001/api/marcas-neumatico?activo=true';
+  const API_URL = apiUrl('/neumaticos');
+  const MARCAS_URL = apiUrl('/marcas-neumatico?activo=true');
 
   useEffect(() => {
     fetchNeumaticos();

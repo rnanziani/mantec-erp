@@ -3,6 +3,7 @@ import './BodegaView.css';
 import './CargoView.css';
 import { exportToExcel } from '../utils/exportUtils';
 import { showDeleteConfirm, showSuccess, showError } from '../utils/swal';
+import { apiUrl } from '../lib/apiClient';
 
 interface Cargo {
   idcargo_14: number;
@@ -36,7 +37,7 @@ const CargoView: React.FC = () => {
   const [itemsPerPage] = useState<number>(10);
   const [sortConfig, setSortConfig] = useState<SortConfig>({ key: 'idcargo_14', direction: 'asc' });
 
-  const API_URL = 'http://localhost:3001/api/cargos';
+  const API_URL = apiUrl('/cargos');
 
   useEffect(() => {
     fetchCargos();

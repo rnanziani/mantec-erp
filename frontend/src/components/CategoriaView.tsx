@@ -3,6 +3,7 @@ import './BodegaView.css';
 import './CategoriaView.css';
 import { exportToExcel } from '../utils/exportUtils';
 import { showDeleteConfirm, showSuccess, showError } from '../utils/swal';
+import { apiUrl } from '../lib/apiClient';
 
 interface Categoria {
   id_categoria_42: number;
@@ -36,7 +37,7 @@ const CategoriaView: React.FC = () => {
     direction: 'asc'
   });
 
-  const API_URL = 'http://localhost:3001/api/categorias';
+  const API_URL = apiUrl('/categorias');
 
   useEffect(() => {
     fetchCategorias();

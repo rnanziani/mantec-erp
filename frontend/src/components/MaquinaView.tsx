@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { showSuccess, showError, showDeleteConfirm } from '../utils/swal';
 import Pagination from './shared/Pagination';
 import './BodegaView.css';
+import { apiUrl } from '../lib/apiClient';
 
 interface Maquina {
   idmaquina_11: number;
@@ -38,8 +39,8 @@ const MaquinaView: React.FC = () => {
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [itemsPerPage] = useState<number>(10);
 
-  const API_URL = 'http://localhost:3001/api/maquinas';
-  const EMPRESAS_URL = 'http://localhost:3001/api/empresas';
+  const API_URL = apiUrl('/maquinas');
+  const EMPRESAS_URL = apiUrl('/empresas');
 
   useEffect(() => {
     fetchMaquinas();

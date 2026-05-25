@@ -548,7 +548,7 @@ export const getActaDatos = async (req: Request, res: Response): Promise<void> =
     const asignacion = asignacionResult.rows[0];
 
     const detallesQuery = `
-      SELECT ad.idprenda_10, ad.talla_10, ad.cantidad_10, p.prenda_07 as prenda_nombre
+      SELECT ad.idprenda_10, ad.talla_10, ad.cantidad_10, COALESCE(ad.entregado_10, false) as entregado_10, p.prenda_07 as prenda_nombre
       FROM ${TABLA_DETALLE} ad
       INNER JOIN ${TABLA_PRENDA} p ON ad.idprenda_10 = p.idprenda_07
       WHERE ad.idasignacionmain_10 = $1
@@ -557,16 +557,26 @@ export const getActaDatos = async (req: Request, res: Response): Promise<void> =
     const detallesResult = await pool.query(detallesQuery, [id]);
     const detalles = detallesResult.rows;
 
-    const filasPrendas: Array<{ prenda: string; cantidad: number; talla: string }> = [];
-    detalles.forEach((d: { prenda_nombre: string; talla_10: string; cantidad_10: number }) => {
-      for (let i = 0; i < (d.cantidad_10 || 1); i++) {
-        filasPrendas.push({
-          prenda: d.prenda_nombre || 'N/A',
-          cantidad: 1,
-          talla: d.talla_10 || 'N/A'
+    const prendasAgrupadas = new Map<string, { prenda: string; cantidad: number; talla: string; entregado: boolean }>();
+    detalles.forEach((d: { prenda_nombre: string; talla_10: string; cantidad_10: number; entregado_10: boolean }) => {
+      const prenda = d.prenda_nombre || 'N/A';
+      const talla = d.talla_10 || 'N/A';
+      const entregado = d.entregado_10 === true;
+      const key = `${prenda}__${talla}__${entregado}`;
+      const actual = prendasAgrupadas.get(key);
+
+      if (actual) {
+        actual.cantidad += Number(d.cantidad_10 || 0);
+      } else {
+        prendasAgrupadas.set(key, {
+          prenda,
+          cantidad: Number(d.cantidad_10 || 0),
+          talla,
+          entregado
         });
       }
     });
+    const filasPrendas = Array.from(prendasAgrupadas.values());
 
     const meses = ['ENERO', 'FEBRERO', 'MARZO', 'ABRIL', 'MAYO', 'JUNIO', 'JULIO', 'AGOSTO', 'SEPTIEMBRE', 'OCTUBRE', 'NOVIEMBRE', 'DICIEMBRE'];
     const fechaObj = new Date(asignacion.fecha_09);
@@ -586,7 +596,7 @@ export const getActaDatos = async (req: Request, res: Response): Promise<void> =
     };
 
     const nombreTrabajador = `${asignacion.nombre_06 || ''} ${asignacion.apaterno_06 || ''} ${asignacion.amaterno_06 || ''}`.trim();
-    const nombreResponsable = `${asignacion.nombreresponsableentrega_08 || ''} ${asignacion.apaternoresponsableentrega_08 || ''}`.trim();
+    const nombreResponsable = 'Ricardo Nuñez Anziani';
 
     const response: ApiResponse<object> = {
       success: true,
@@ -666,6 +676,7 @@ export const generarActaEntregaPDF = async (req: Request, res: Response): Promis
         ad.idprenda_10,
         ad.talla_10,
         ad.cantidad_10,
+        COALESCE(ad.entregado_10, false) as entregado_10,
         p.prenda_07 as prenda_nombre
       FROM ${TABLA_DETALLE} ad
       INNER JOIN ${TABLA_PRENDA} p ON ad.idprenda_10 = p.idprenda_07
@@ -676,17 +687,27 @@ export const generarActaEntregaPDF = async (req: Request, res: Response): Promis
     const detallesResult = await pool.query(detallesQuery, [id]);
     const detalles = detallesResult.rows;
 
-    // Expandir detalles: si cantidad=3, crear 3 filas (una por prenda entregada)
-    const filasPrendas: Array<{ prenda: string; cantidad: number; talla: string }> = [];
-    detalles.forEach((d: { prenda_nombre: string; talla_10: string; cantidad_10: number }) => {
-      for (let i = 0; i < (d.cantidad_10 || 1); i++) {
-        filasPrendas.push({
-          prenda: d.prenda_nombre || 'N/A',
-          cantidad: 1,
-          talla: d.talla_10 || 'N/A'
+    // Consolidar detalles: una línea por prenda+talla con cantidad total
+    const prendasAgrupadas = new Map<string, { prenda: string; cantidad: number; talla: string; entregado: boolean }>();
+    detalles.forEach((d: { prenda_nombre: string; talla_10: string; cantidad_10: number; entregado_10: boolean }) => {
+      const prenda = d.prenda_nombre || 'N/A';
+      const talla = d.talla_10 || 'N/A';
+      const entregado = d.entregado_10 === true;
+      const key = `${prenda}__${talla}__${entregado}`;
+      const actual = prendasAgrupadas.get(key);
+
+      if (actual) {
+        actual.cantidad += Number(d.cantidad_10 || 0);
+      } else {
+        prendasAgrupadas.set(key, {
+          prenda,
+          cantidad: Number(d.cantidad_10 || 0),
+          talla,
+          entregado
         });
       }
     });
+    const filasPrendas = Array.from(prendasAgrupadas.values());
 
     const formatDate = (date: Date | string): string => {
       const d = typeof date === 'string' ? new Date(date) : date;
@@ -706,7 +727,7 @@ export const generarActaEntregaPDF = async (req: Request, res: Response): Promis
     const anio = fechaObj.getFullYear();
 
     const nombreTrabajador = `${asignacion.nombre_06 || ''} ${asignacion.apaterno_06 || ''} ${asignacion.amaterno_06 || ''}`.trim();
-    const nombreResponsable = `${asignacion.nombreresponsableentrega_08 || ''} ${asignacion.apaternoresponsableentrega_08 || ''}`.trim();
+    const nombreResponsable = 'Ricardo Nuñez Anziani';
 
     const fonts = {
       Roboto: {
@@ -724,7 +745,7 @@ export const generarActaEntregaPDF = async (req: Request, res: Response): Promis
       { text: 'Cantidad', style: 'tableHeader', alignment: 'center' },
       { text: 'Talla', style: 'tableHeader', alignment: 'center' },
       { text: 'Estado', style: 'tableHeader', alignment: 'center' },
-      { text: 'Firma', style: 'tableHeader', alignment: 'center' }
+      { text: 'Estado Entrega', style: 'tableHeader', alignment: 'center' }
     ];
 
     const tableBody: any[] = [tableHeader];
@@ -735,7 +756,7 @@ export const generarActaEntregaPDF = async (req: Request, res: Response): Promis
         { text: String(fila.cantidad), style: 'tableCell', alignment: 'center' },
         { text: fila.talla, style: 'tableCell', alignment: 'center' },
         { text: 'Nuevo', style: 'tableCell', alignment: 'center' },
-        { text: '', style: 'tableCell' }
+        { text: fila.entregado ? 'Entregado' : 'Pendiente', style: 'tableCell', alignment: 'center' }
       ]);
     });
 
@@ -743,10 +764,10 @@ export const generarActaEntregaPDF = async (req: Request, res: Response): Promis
       pageSize: 'LETTER',
       pageMargins: [40, 30, 40, 30],
       content: [
-        { text: 'ACTA DE ENTREGA DE UNIFORME', style: 'title', alignment: 'center', margin: [0, 0, 0, 4] },
+        { text: 'ACTA DE ENTREGA DE CARGO', style: 'title', alignment: 'center', margin: [0, 0, 0, 4] },
         { text: 'SIG F-622-005 Versión 001', style: 'version', alignment: 'right', margin: [0, 0, 0, 8] },
         {
-          text: `En la ciudad de Santiago, ${dia} días del mes de ${mes} del año ${anio}, se procede a dejar constancia de la entrega del uniforme al trabajador que a continuación se detalla:`,
+          text: `En la ciudad de Santiago, ${dia} días del mes de ${mes} del año ${anio}, se procede a dejar constancia de la entrega de cargo al trabajador que a continuación se detalla:`,
           style: 'intro',
           margin: [0, 0, 0, 10]
         },
@@ -779,7 +800,7 @@ export const generarActaEntregaPDF = async (req: Request, res: Response): Promis
           ],
           margin: [0, 0, 0, 10]
         },
-        { text: 'Detalle del uniforme entregado', style: 'sectionTitle', margin: [0, 0, 0, 6] },
+        { text: 'Detalle de insumos entregados', style: 'sectionTitle', margin: [0, 0, 0, 6] },
         {
           table: {
             headerRows: 1,
@@ -805,19 +826,19 @@ export const generarActaEntregaPDF = async (req: Request, res: Response): Promis
         { text: 'Usted se compromete a', style: 'paragraph', margin: [0, 0, 0, 4] },
         {
           ul: [
-            'Usar el uniforme únicamente durante sus funciones laborales.',
-            'Mantener el uniforme en condiciones limpias y presentables.',
-            'No alterar ni modificar el diseño del uniforme.',
-            'Responder por el cuidado y conservación de las prendas entregadas.',
+            'Usar los insumos únicamente durante sus funciones laborales.',
+            'Mantener los insumos en condiciones limpias y presentables.',
+            'No alterar ni modificar los insumos entregados.',
+            'Responder por el cuidado y conservación de los insumos entregados.',
             'Reportar inmediatamente cualquier daño o pérdida al área correspondiente.',
-            'El mal uso o la negligencia en el cuidado del uniforme podrá ser objeto de observaciones o medidas disciplinarias conforme al reglamento interno.'
+            'El mal uso o la negligencia en el cuidado de los insumos podrá ser objeto de observaciones o medidas disciplinarias conforme al reglamento interno.'
           ],
           style: 'listItem',
           margin: [0, 0, 0, 10]
         },
-        { text: 'Uso del Uniforme:', style: 'sectionTitle', margin: [0, 0, 0, 6] },
+        { text: 'Uso de Insumos de Cargo:', style: 'sectionTitle', margin: [0, 0, 0, 6] },
         {
-          text: 'La empresa hace hincapié en la obligatoriedad del uso del uniforme completo durante todo el periodo de servicio activo. El uso del uniforme contribuye a:',
+          text: 'La empresa hace hincapié en la obligatoriedad del uso de los insumos de cargo durante todo el periodo de servicio activo. Su uso contribuye a:',
           style: 'paragraph',
           margin: [0, 0, 0, 6]
         },
@@ -832,7 +853,7 @@ export const generarActaEntregaPDF = async (req: Request, res: Response): Promis
         },
         { text: 'Declaración del Trabajador:', style: 'sectionTitle', margin: [0, 0, 0, 6] },
         {
-          text: 'Declaro haber recibido a conformidad las prendas antes detalladas, las cuales se encuentran en buen estado y son de uso obligatorio durante mi jornada laboral. Asimismo, me comprometo a dar un uso adecuado al uniforme y a conservarlo en buenas condiciones, haciéndome responsable de su cuidado.',
+          text: 'Declaro haber recibido a conformidad los insumos antes detallados, los cuales se encuentran en buen estado y son de uso obligatorio durante mi jornada laboral. Asimismo, me comprometo a dar un uso adecuado y a conservarlos en buenas condiciones, haciéndome responsable de su cuidado.',
           style: 'paragraph',
           margin: [0, 0, 0, 10]
         },
@@ -879,7 +900,7 @@ export const generarActaEntregaPDF = async (req: Request, res: Response): Promis
 
     const pdfDoc = printer.createPdfKitDocument(docDefinition);
     res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `attachment; filename=acta-entrega-uniforme-${id}.pdf`);
+    res.setHeader('Content-Disposition', `attachment; filename=acta-entrega-cargo-${id}.pdf`);
     pdfDoc.pipe(res);
     pdfDoc.end();
   } catch (error) {

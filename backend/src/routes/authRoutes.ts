@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import rateLimit from 'express-rate-limit';
 import {
   register,
   login,
@@ -13,19 +14,27 @@ import {
 
 const router = Router();
 
+const authSensitiveLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { success: false, error: 'Demasiados intentos. Espere unos minutos e intente de nuevo.' },
+});
+
 /**
  * @route   POST /api/auth/register
  * @desc    Registrar un nuevo usuario
- * @access  Public
+ * @access  Private (MENU_NIVEL_ACCESO_USUARIOS)
  */
-router.post('/register', register);
+router.post('/register', authSensitiveLimiter, register);
 
 /**
  * @route   POST /api/auth/login
  * @desc    Iniciar sesión
  * @access  Public
  */
-router.post('/login', login);
+router.post('/login', authSensitiveLimiter, login);
 
 /**
  * @route   POST /api/auth/change-password
@@ -39,7 +48,7 @@ router.post('/change-password', changePassword);
  * @desc    Cambiar contraseña cuando está expirada (desde login, sin token)
  * @access  Public
  */
-router.post('/change-password-expired', changePasswordExpired);
+router.post('/change-password-expired', authSensitiveLimiter, changePasswordExpired);
 
 /**
  * @route   GET /api/auth/me

@@ -14,11 +14,13 @@ import {
   obtenerIpCliente
 } from '../utils/authUtils.js';
 import { CreateUsuarioDTO, LoginDTO, ChangePasswordDTO, ChangePasswordExpiredDTO } from '../types.js';
+import { getEffectivePermissions } from '../services/permissionService.js';
+import { errorDetails } from '../utils/safeError.js';
 
 /**
  * @route   POST /api/auth/register
  * @desc    Registrar un nuevo usuario
- * @access  Public
+ * @access  Private (MENU_NIVEL_ACCESO_USUARIOS)
  */
 export const register = async (req: Request, res: Response) => {
   try {
@@ -98,7 +100,7 @@ export const register = async (req: Request, res: Response) => {
     res.status(500).json({
       success: false,
       error: 'Error al registrar usuario',
-      details: error.message
+      details: errorDetails(error)
     });
   }
 };
@@ -226,7 +228,7 @@ export const login = async (req: Request, res: Response) => {
     res.status(500).json({
       success: false,
       error: 'Error al iniciar sesión',
-      details: error.message
+      details: errorDetails(error)
     });
   }
 };
@@ -340,7 +342,7 @@ export const changePassword = async (req: Request, res: Response) => {
     res.status(500).json({
       success: false,
       error: 'Error al cambiar contraseña',
-      details: error.message
+      details: errorDetails(error)
     });
   }
 };
@@ -440,7 +442,7 @@ export const changePasswordExpired = async (req: Request, res: Response) => {
     return res.status(500).json({
       success: false,
       error: 'Error al cambiar contraseña',
-      details: error.message
+      details: errorDetails(error)
     });
   }
 };
@@ -507,7 +509,7 @@ export const getMe = async (req: Request, res: Response) => {
     res.status(500).json({
       success: false,
       error: 'Error al obtener información del usuario',
-      details: error.message
+      details: errorDetails(error)
     });
   }
 };
@@ -551,58 +553,11 @@ export const getMyPermissions = async (req: Request, res: Response) => {
     }
 
     const usuario = usuarioResult.rows[0];
-    const idNivel = usuario.id_nivel_04;
-    const idUsuario = usuario.id_usuario_00;
-
-    // Obtener los permisos del usuario: combinación de permisos del nivel + permisos directos
-    // Si el usuario no tiene nivel, solo se obtienen los permisos directos
-    let permisosResult;
-    
-    if (idNivel) {
-      // Usuario con nivel: permisos del nivel + permisos directos
-      permisosResult = await pool.query(
-        `SELECT DISTINCT
-          p.id_permiso_05,
-          p.nombre_permiso_05,
-          p.descripcion_05,
-          p.orden_05,
-          COALESCE(p.orden_05, 9999) AS orden_para_sort
-         FROM tbl_05_permiso p
-         WHERE p.id_permiso_05 IN (
-           -- Permisos del nivel del usuario
-           SELECT np.id_permiso_05
-           FROM tbl_050_nivel_permiso np
-           WHERE np.id_nivel_04 = $1
-           
-           UNION
-           
-           -- Permisos directos del usuario
-           SELECT up.id_permiso_000
-           FROM tbl_000_usuario_permiso up
-           WHERE up.id_usuario_000 = $2
-         )
-         ORDER BY orden_para_sort ASC, p.nombre_permiso_05 ASC`,
-        [idNivel, idUsuario]
-      );
-    } else {
-      // Usuario sin nivel: solo permisos directos
-      permisosResult = await pool.query(
-        `SELECT DISTINCT
-          p.id_permiso_05,
-          p.nombre_permiso_05,
-          p.descripcion_05,
-          p.orden_05,
-          COALESCE(p.orden_05, 9999) AS orden_para_sort
-         FROM tbl_05_permiso p
-         INNER JOIN tbl_000_usuario_permiso up ON p.id_permiso_05 = up.id_permiso_000
-         WHERE up.id_usuario_000 = $1
-         ORDER BY orden_para_sort ASC, p.nombre_permiso_05 ASC`,
-        [idUsuario]
-      );
-    }
-
-    const permissions = permisosResult.rows;
-    const permissionNames = permissions.map((p: any) => p.nombre_permiso_05);
+    const permissions = await getEffectivePermissions(
+      usuario.id_usuario_00,
+      usuario.id_nivel_04
+    );
+    const permissionNames = permissions.map((p) => p.nombre_permiso_05);
 
     res.json({
       success: true,
@@ -616,7 +571,7 @@ export const getMyPermissions = async (req: Request, res: Response) => {
     res.status(500).json({
       success: false,
       error: 'Error al obtener permisos del usuario',
-      details: error.message
+      details: errorDetails(error)
     });
   }
 };
@@ -711,7 +666,7 @@ export const getSessionStatus = async (req: Request, res: Response) => {
     res.status(500).json({
       success: false,
       error: 'Error al obtener estado de sesión',
-      details: error.message
+      details: errorDetails(error)
     });
   }
 };
@@ -777,7 +732,7 @@ export const extendSession = async (req: Request, res: Response) => {
     res.status(500).json({
       success: false,
       error: 'Error al extender sesión',
-      details: error.message
+      details: errorDetails(error)
     });
   }
 };
@@ -807,7 +762,7 @@ export const logout = async (req: Request, res: Response) => {
     res.status(500).json({
       success: false,
       error: 'Error al cerrar sesión',
-      details: error.message
+      details: errorDetails(error)
     });
   }
 };

@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import './BodegaView.css';
+import { apiUrl } from '../lib/apiClient';
+import { showError } from '../utils/swal';
 
 interface HistorialContrasena {
     id_historial_01: number;
     id_usuario_01: number;
-    hashed_password_01: string;
     fecha_cambio_01: string;
     username_00?: string;
     nombre_completo?: string;
@@ -17,7 +18,7 @@ const HistorialContrasenaView: React.FC = () => {
     const [filtro, setFiltro] = useState('');
     const [sortConfig, setSortConfig] = useState<{ key: keyof HistorialContrasena; direction: 'asc' | 'desc' } | null>(null);
 
-    const API_URL = 'http://localhost:3001/api/historial-contrasenas';
+    const API_URL = apiUrl('/historial-contrasenas');
 
     useEffect(() => {
         fetchHistorial();
@@ -91,16 +92,6 @@ const HistorialContrasenaView: React.FC = () => {
         return data;
     }, [historial, filtro, sortConfig]);
 
-    // Función para ocultar/mostrar contraseña hasheada
-    const maskPassword = (hash: string) => {
-        if (!hash) return 'N/A';
-        // Mostrar solo los primeros y últimos caracteres
-        if (hash.length > 20) {
-            return `${hash.substring(0, 10)}...${hash.substring(hash.length - 10)}`;
-        }
-        return '***';
-    };
-
     return (
         <div className="bodega-view">
             <div className="view-header">
@@ -160,7 +151,6 @@ const HistorialContrasenaView: React.FC = () => {
                             >
                                 Email
                             </th>
-                            <th>Contraseña (Hash)</th>
                             <th 
                                 onClick={() => handleSort('fecha_cambio_01')} 
                                 className={`sortable ${sortConfig && sortConfig.key === 'fecha_cambio_01' ? (sortConfig.direction === 'asc' ? 'sort-asc' : 'sort-desc') : ''}`}
@@ -171,9 +161,9 @@ const HistorialContrasenaView: React.FC = () => {
                     </thead>
                     <tbody>
                         {loading && historial.length === 0 ? (
-                            <tr><td colSpan={6}>Cargando...</td></tr>
+                            <tr><td colSpan={5}>Cargando...</td></tr>
                         ) : processedHistorial.length === 0 ? (
-                            <tr><td colSpan={6}>No hay registros en el historial de contraseñas</td></tr>
+                            <tr><td colSpan={5}>No hay registros en el historial de contraseñas</td></tr>
                         ) : (
                             processedHistorial.map((registro) => (
                                 <tr key={registro.id_historial_01}>
@@ -181,17 +171,6 @@ const HistorialContrasenaView: React.FC = () => {
                                     <td><strong>{registro.username_00 || `ID: ${registro.id_usuario_01}`}</strong></td>
                                     <td>{registro.nombre_completo || <span style={{ color: '#999', fontStyle: 'italic' }}>Sin nombre</span>}</td>
                                     <td>{registro.email_00 || <span style={{ color: '#999', fontStyle: 'italic' }}>Sin email</span>}</td>
-                                    <td>
-                                        <code style={{ 
-                                            fontSize: '11px', 
-                                            backgroundColor: '#f5f5f5', 
-                                            padding: '4px 8px', 
-                                            borderRadius: '3px',
-                                            fontFamily: 'monospace'
-                                        }}>
-                                            {maskPassword(registro.hashed_password_01)}
-                                        </code>
-                                    </td>
                                     <td>
                                         {registro.fecha_cambio_01
                                             ? new Date(registro.fecha_cambio_01).toLocaleString('es-CL', {

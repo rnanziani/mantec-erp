@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import './BodegaView.css';
+import { apiUrl } from '../lib/apiClient';
 
 const RegisterForm: React.FC = () => {
   const [formData, setFormData] = useState({
@@ -73,7 +74,7 @@ const RegisterForm: React.FC = () => {
     }
 
     try {
-      const response = await fetch('http://localhost:3001/api/auth/register', {
+      const response = await fetch(apiUrl('/auth/register'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

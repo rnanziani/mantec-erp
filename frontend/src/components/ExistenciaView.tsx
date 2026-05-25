@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import './BodegaView.css'; // Reutilizamos los mismos estilos que TipoTransaccionView
 import { showError } from '../utils/swal';
+import { apiUrl } from '../lib/apiClient';
 
 interface Existencia {
   id_existencia_26: number;
@@ -32,7 +33,7 @@ const ExistenciaView: React.FC = () => {
   const [filtro, setFiltro] = useState<string>('');
   const [sortConfig, setSortConfig] = useState<{ key: keyof Existencia; direction: 'asc' | 'desc' } | null>(null);
 
-  const API_URL = 'http://localhost:3001/api/existencias';
+  const API_URL = apiUrl('/existencias');
 
   useEffect(() => {
     fetchExistencias();

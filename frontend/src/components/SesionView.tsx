@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import './BodegaView.css';
 import { showError } from '../utils/swal';
+import { apiUrl } from '../lib/apiClient';
 
 interface Sesion {
     id_sesion_03: string;
@@ -22,7 +23,7 @@ const SesionView: React.FC = () => {
     const [filtroEstado, setFiltroEstado] = useState<string>('todos'); // 'todos', 'activas', 'expiradas'
     const [sortConfig, setSortConfig] = useState<{ key: keyof Sesion; direction: 'asc' | 'desc' } | null>(null);
 
-    const API_URL = 'http://localhost:3001/api/sesiones-view';
+    const API_URL = apiUrl('/sesiones-view');
 
     useEffect(() => {
         fetchSesiones();
@@ -73,7 +74,7 @@ const SesionView: React.FC = () => {
             
             // Verificar si es un error de red
             if (errorMessage.includes('Failed to fetch') || errorMessage.includes('NetworkError')) {
-                await showError('Error de Conexión', 'No se pudo conectar con el servidor. Verifica que el backend esté corriendo en http://localhost:3001');
+                await showError('Error de Conexión', 'No se pudo conectar con el servidor. Verifica que el backend esté corriendo en el servidor API');
             } else {
                 await showError('Error', errorMessage);
             }

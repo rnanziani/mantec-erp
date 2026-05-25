@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import './BodegaView.css';
 import { exportToExcel } from '../utils/exportUtils';
 import { showDeleteConfirm, showSuccess, showError } from '../utils/swal';
+import { apiUrl } from '../lib/apiClient';
 
 interface ProductoAseo {
   idproductoaseo_10: number;
@@ -47,7 +48,7 @@ const ProductoAseoView: React.FC = () => {
   const [itemsPerPage] = useState<number>(10);
   const [sortConfig, setSortConfig] = useState<SortConfig>({ key: 'orden_10', direction: 'asc' });
 
-  const API_URL = 'http://localhost:3001/api/productos-aseo';
+  const API_URL = apiUrl('/productos-aseo');
 
   useEffect(() => {
     fetchProductos();

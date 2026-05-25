@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { apiUrl } from '../lib/apiClient';
 
 interface Permission {
   id_permiso_05: number;
@@ -41,7 +42,7 @@ export const useUserPermissions = (enabled: boolean = true) => {
           return;
         }
 
-        const response = await fetch('http://localhost:3001/api/auth/permissions', {
+        const response = await fetch(apiUrl('/auth/permissions'), {
           headers: {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json'
@@ -113,7 +114,7 @@ export const useUserPermissions = (enabled: boolean = true) => {
         return;
       }
 
-      const response = await fetch('http://localhost:3001/api/auth/permissions', {
+      const response = await fetch(apiUrl('/auth/permissions'), {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { showSuccess, showError, showDeleteConfirm } from '../utils/swal';
 import './BodegaView.css';
+import { apiUrl } from '../lib/apiClient';
 
 interface NivelUsuario {
     id_nivel_04: number;
@@ -19,9 +20,12 @@ const NivelUsuarioView: React.FC = () => {
 
     // Estados para búsqueda y ordenamiento
     const [filtro, setFiltro] = useState('');
-    const [sortConfig, setSortConfig] = useState<{ key: keyof NivelUsuario; direction: 'asc' | 'desc' } | null>(null);
+    const [sortConfig, setSortConfig] = useState<{ key: keyof NivelUsuario; direction: 'asc' | 'desc' }>({
+        key: 'id_nivel_04',
+        direction: 'asc',
+    });
 
-    const API_URL = 'http://localhost:3001/api/niveles-usuario';
+    const API_URL = apiUrl('/niveles-usuario');
 
     useEffect(() => {
         fetchNiveles();
@@ -55,8 +59,8 @@ const NivelUsuarioView: React.FC = () => {
                 method,
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    nombre_nivel_04: nombreNivel,
-                    descripcion_04: descripcion || null
+                    nombre_nivel_04: nombreNivel.trim().toUpperCase(),
+                    descripcion_04: descripcion.trim() ? descripcion.trim().toUpperCase() : null
                 })
             });
 
@@ -100,8 +104,8 @@ const NivelUsuarioView: React.FC = () => {
 
     const handleEdit = (nivel: NivelUsuario) => {
         setEditingId(nivel.id_nivel_04);
-        setNombreNivel(nivel.nombre_nivel_04);
-        setDescripcion(nivel.descripcion_04 || '');
+        setNombreNivel(nivel.nombre_nivel_04.toUpperCase());
+        setDescripcion((nivel.descripcion_04 || '').toUpperCase());
         setShowForm(true);
     };
 
@@ -165,7 +169,7 @@ const NivelUsuarioView: React.FC = () => {
     return (
         <div className="bodega-view">
             <div className="view-header">
-                <h2>👤 Gestión de Nivel de Acceso</h2>
+                <h2>👤 Gestión de Nivel de Acceso (Roles)</h2>
                 <button
                     className="btn-primary"
                     onClick={() => setShowForm(!showForm)}
@@ -183,20 +187,25 @@ const NivelUsuarioView: React.FC = () => {
                             <input
                                 type="text"
                                 value={nombreNivel}
-                                onChange={(e) => setNombreNivel(e.target.value)}
+                                onChange={(e) => setNombreNivel(e.target.value.toUpperCase())}
                                 required
-                                placeholder="Ej: Administrador, Usuario, Supervisor"
+                                placeholder="Ej: ADMINISTRADOR, USUARIO, SUPERVISOR"
                                 maxLength={50}
+                                style={{ textTransform: 'uppercase' }}
+                                autoCapitalize="characters"
+                                spellCheck={false}
                             />
                         </div>
                         <div className="form-group">
                             <label>Descripción</label>
                             <textarea
                                 value={descripcion}
-                                onChange={(e) => setDescripcion(e.target.value)}
-                                placeholder="Descripción del nivel de acceso (opcional)"
+                                onChange={(e) => setDescripcion(e.target.value.toUpperCase())}
+                                placeholder="DESCRIPCIÓN DEL NIVEL DE ACCESO (OPCIONAL)"
                                 rows={4}
-                                style={{ width: '100%', padding: '8px 12px', borderRadius: '4px', border: '1px solid #ced4da', fontFamily: 'inherit', resize: 'vertical' }}
+                                style={{ width: '100%', padding: '8px 12px', borderRadius: '4px', border: '1px solid #ced4da', fontFamily: 'inherit', resize: 'vertical', textTransform: 'uppercase' }}
+                                autoCapitalize="characters"
+                                spellCheck={false}
                             />
                         </div>
                         <div className="form-actions">
@@ -215,10 +224,12 @@ const NivelUsuarioView: React.FC = () => {
             <div className="form-container" style={{ marginBottom: '20px' }}>
                 <input
                     type="text"
-                    placeholder="🔍 Buscar nivel de acceso..."
+                    placeholder="🔍 BUSCAR NIVEL DE ACCESO..."
                     value={filtro}
-                    onChange={(e) => setFiltro(e.target.value)}
-                    style={{ width: '100%', padding: '10px', fontSize: '14px', borderRadius: '4px', border: '1px solid #ced4da' }}
+                    onChange={(e) => setFiltro(e.target.value.toUpperCase())}
+                    style={{ width: '100%', padding: '10px', fontSize: '14px', borderRadius: '4px', border: '1px solid #ced4da', textTransform: 'uppercase' }}
+                    autoCapitalize="characters"
+                    spellCheck={false}
                 />
             </div>
 
@@ -262,8 +273,10 @@ const NivelUsuarioView: React.FC = () => {
                             processedNiveles.map((nivel) => (
                                 <tr key={nivel.id_nivel_04}>
                                     <td>{nivel.id_nivel_04}</td>
-                                    <td><strong>{nivel.nombre_nivel_04}</strong></td>
-                                    <td>{nivel.descripcion_04 || <span style={{ color: '#999', fontStyle: 'italic' }}>Sin descripción</span>}</td>
+                                    <td style={{ textTransform: 'uppercase' }}><strong>{nivel.nombre_nivel_04}</strong></td>
+                                    <td style={{ textTransform: 'uppercase' }}>
+                                        {nivel.descripcion_04 || <span style={{ color: '#999', fontStyle: 'italic' }}>Sin descripción</span>}
+                                    </td>
                                     <td>
                                         {nivel.creado_en_04
                                             ? new Date(nivel.creado_en_04).toLocaleDateString('es-CL', {

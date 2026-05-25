@@ -3,6 +3,7 @@ import './BodegaView.css';
 import './CcostoView.css';
 import { exportToExcel } from '../utils/exportUtils';
 import { showDeleteConfirm, showSuccess, showError } from '../utils/swal';
+import { apiUrl } from '../lib/apiClient';
 
 interface Ccosto {
   id_ccosto_45: number;
@@ -40,7 +41,7 @@ const CcostoView: React.FC = () => {
     direction: 'asc'
   });
 
-  const API_URL = 'http://localhost:3001/api/ccostos';
+  const API_URL = apiUrl('/ccostos');
 
   useEffect(() => {
     fetchAll();

@@ -4,6 +4,7 @@ import './OrdenTrabajoView.css';
 import Pagination from './shared/Pagination';
 import { exportToExcel } from '../utils/exportUtils';
 import { showDeleteConfirm, showSuccess, showError } from '../utils/swal';
+import { apiUrl } from '../lib/apiClient';
 
 interface OrdenTrabajo {
     id_orden_24: number;
@@ -81,7 +82,7 @@ const OrdenTrabajoView: React.FC = () => {
     const [maquinaSearch, setMaquinaSearch] = useState<string>('');
     const [showMaquinaDropdown, setShowMaquinaDropdown] = useState<boolean>(false);
 
-    const API_URL = 'http://localhost:3001/api/ordenes-trabajo';
+    const API_URL = apiUrl('/ordenes-trabajo');
 
     useEffect(() => {
         fetchOrdenes();
@@ -111,7 +112,7 @@ const OrdenTrabajoView: React.FC = () => {
 
     const fetchAlternadores = async () => {
         try {
-            const response = await fetch('http://localhost:3001/api/alternadores');
+            const response = await fetch(apiUrl('/alternadores'));
             const data: ApiResponse = await response.json();
             if (data.success && Array.isArray(data.data)) {
                 setAlternadores(data.data as Alternador[]);
@@ -123,7 +124,7 @@ const OrdenTrabajoView: React.FC = () => {
 
     const fetchMaquinas = async () => {
         try {
-            const response = await fetch('http://localhost:3001/api/maquinas');
+            const response = await fetch(apiUrl('/maquinas'));
             const data: ApiResponse = await response.json();
             if (data.success && Array.isArray(data.data)) {
                 setMaquinas(data.data as Maquina[]);

@@ -3,6 +3,7 @@ import './BodegaView.css';
 import './CategoriaView.css';
 import { exportToExcel } from '../utils/exportUtils';
 import { showDeleteConfirm, showSuccess, showError } from '../utils/swal';
+import { apiUrl } from '../lib/apiClient';
 
 interface Talla {
   id_16: number;
@@ -44,7 +45,7 @@ const TallaView: React.FC = () => {
     direction: 'asc'
   });
 
-  const API_URL = 'http://localhost:3001/api/tallas';
+  const API_URL = apiUrl('/tallas');
 
   useEffect(() => {
     fetchTallas();

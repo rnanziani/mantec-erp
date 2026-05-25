@@ -3,6 +3,8 @@ import cors from 'cors';
 import helmet from 'helmet';
 import dotenv from 'dotenv';
 import { testConnection } from './db.js';
+import { apiPermissionGuard } from './middleware/authMiddleware.js';
+import { validateProductionSecrets } from './utils/safeError.js';
 import marcasRoutes from './routes/marcasRoutes.js';
 import alternadoresRoutes from './routes/alternadoresRoutes.js';
 import estadoAlternadorRoutes from './routes/estadoAlternadorRoutes.js';
@@ -48,14 +50,28 @@ import llantaRoutes from './routes/llantaRoutes.js';
 console.log('🔄 Servidor iniciando - Cargando rutas...');
 
 dotenv.config();
+validateProductionSecrets();
 
 const app = express();
 const PORT = process.env.PORT || 3001;
 
+const corsOrigins = [
+  process.env.FRONTEND_URL,
+  ...(process.env.NODE_ENV !== 'production' ? ['http://localhost:5173', 'http://127.0.0.1:5173'] : []),
+].filter(Boolean) as string[];
+
 // Middleware MANTEC
 app.use(helmet());
-app.use(cors());
-app.use(express.json());
+app.use(
+  cors({
+    origin: corsOrigins.length > 0 ? corsOrigins : true,
+    credentials: true,
+  })
+);
+app.use(express.json({ limit: '1mb' }));
+
+// Protección global: JWT + permisos por ruta API
+app.use(apiPermissionGuard);
 
 // MANTEC Health check
 app.get('/api/mantec/health', (req, res) => {
@@ -78,13 +94,6 @@ app.get('/api/mantec/info', (req, res) => {
     version: '1.0.0'
   });
 });
-
-// RUTA DE PRUEBA - Verificar que POST funciona
-app.post('/api/test-post', (req, res) => {
-  console.log('🧪 Test POST recibido');
-  res.json({ success: true, message: 'POST funciona correctamente' });
-});
-console.log('🧪 Ruta de prueba POST registrada en /api/test-post');
 
 // Rutas de la API
 app.use('/api/marcas', marcasRoutes);
@@ -131,6 +140,19 @@ app.use('/api/prendas', prendaRoutes);
 app.use('/api/llantas', llantaRoutes);
 
 console.log('✅ Todas las rutas cargadas');
+
+app.use((_req, res) => {
+  res.status(404).json({ success: false, error: 'Ruta no encontrada' });
+});
+
+app.use((err: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
+  console.error('Error no controlado:', err);
+  res.status(500).json({
+    success: false,
+    error: 'Error interno del servidor',
+    ...(process.env.NODE_ENV !== 'production' && { details: err.message }),
+  });
+});
 
 // Iniciar servidor
 const startServer = async () => {

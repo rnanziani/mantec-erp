@@ -6,7 +6,7 @@ const { Pool } = pg;
 export const pool = new Pool({
     host: process.env.DB_HOST || 'localhost',
     port: parseInt(process.env.DB_PORT || '5432'),
-    database: process.env.DB_NAME || 'mantec_erp',
+    database: process.env.DB_NAME || 'mantec_erc',
     user: process.env.DB_USER || 'postgres',
     password: process.env.DB_PASSWORD || 'postgres',
     max: 20, // Máximo de conexiones en el pool
@@ -24,7 +24,7 @@ export const testConnection = async () => {
         console.log('🔄 Intentando conectar a PostgreSQL...');
         console.log(`   Host: ${process.env.DB_HOST || 'localhost'}`);
         console.log(`   Port: ${process.env.DB_PORT || '5432'}`);
-        console.log(`   Database: ${process.env.DB_NAME || 'mantec_erp'}`);
+        console.log(`   Database: ${process.env.DB_NAME || 'mantec_erc'}`);
         console.log(`   User: ${process.env.DB_USER || 'postgres'}`);
         const client = await pool.connect();
         const result = await client.query('SELECT NOW()');
@@ -47,7 +47,7 @@ export const testConnection = async () => {
         }
         else if (error.code === '3D000') {
             console.error('   ⚠️  La base de datos no existe');
-            console.error(`   💡 Crea la base de datos: ${process.env.DB_NAME || 'mantec_erp'}`);
+            console.error(`   💡 Crea la base de datos: ${process.env.DB_NAME || 'mantec_erc'}`);
         }
         return false;
     }

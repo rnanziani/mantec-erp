@@ -5,6 +5,7 @@ import './TrabajadorView.css';
 import { showSuccess, showError, showDeleteConfirm } from '../utils/swal';
 import { exportToExcel } from '../utils/exportUtils';
 import { validateRut, formatRut } from '../utils/rutValidator';
+import { apiUrl } from '../lib/apiClient';
 
 interface Trabajador {
   idtrabajador_06: number;
@@ -77,9 +78,9 @@ const TrabajadorView: React.FC = () => {
   const [modoBusquedaNombre, setModoBusquedaNombre] = useState<'apellido' | 'nombre'>('apellido');
   const [buscarApellido, setBuscarApellido] = useState<string>('');
 
-  const API_URL = 'http://localhost:3001/api/trabajadores';
-  const CARGOS_URL = 'http://localhost:3001/api/cargos';
-  const EMPRESAS_URL = 'http://localhost:3001/api/empresas';
+  const API_URL = apiUrl('/trabajadores');
+  const CARGOS_URL = apiUrl('/cargos');
+  const EMPRESAS_URL = apiUrl('/empresas');
 
   useEffect(() => {
     fetchTrabajadores();

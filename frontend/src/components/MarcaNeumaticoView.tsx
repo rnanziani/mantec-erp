@@ -4,6 +4,7 @@ import './MarcaNeumaticoView.css';
 import Pagination from './shared/Pagination';
 import { exportToExcel } from '../utils/exportUtils';
 import { showDeleteConfirm, showSuccess, showError } from '../utils/swal';
+import { apiUrl } from '../lib/apiClient';
 
 interface MarcaNeumatico {
   id_marca_32: number;
@@ -42,7 +43,7 @@ const MarcaNeumaticoView: React.FC = () => {
     direction: 'asc'
   });
 
-  const API_URL = 'http://localhost:3001/api/marcas-neumatico';
+  const API_URL = apiUrl('/marcas-neumatico');
 
   useEffect(() => {
     fetchAll();

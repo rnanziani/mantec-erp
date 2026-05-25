@@ -3,6 +3,7 @@ import './BodegaView.css';
 import { useToast } from '../context/ToastContext';
 import Pagination from './shared/Pagination';
 import { showDeleteConfirm } from '../utils/swal';
+import { apiUrl } from '../lib/apiClient';
 
 interface Usuario {
   id_usuario_00: number;
@@ -106,13 +107,13 @@ const UsuarioView: React.FC = () => {
   // Búsqueda y filtros
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [filterEstado, setFilterEstado] = useState<string>('all');
-  const [sortConfig, setSortConfig] = useState<SortConfig>({ key: 'created_at', direction: 'desc' });
+  const [sortConfig, setSortConfig] = useState<SortConfig>({ key: 'id_usuario_00', direction: 'asc' });
   const [currentPage, setCurrentPage] = useState<number>(1);
   const itemsPerPage = 10;
 
   const { showToast } = useToast();
-  const API_URL = 'http://localhost:3001/api/usuarios';
-  const NIVELES_URL = 'http://localhost:3001/api/niveles-usuario';
+  const API_URL = apiUrl('/usuarios');
+  const NIVELES_URL = apiUrl('/niveles-usuario');
 
   useEffect(() => {
     fetchUsuarios();
@@ -229,10 +230,10 @@ const UsuarioView: React.FC = () => {
           'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({
-          username,
-          email,
+          username: username.trim().toUpperCase(),
+          email: email.trim().toLowerCase(),
           password,
-          nombre_completo_00: nombreCompleto || null,
+          nombre_completo_00: nombreCompleto.trim() ? nombreCompleto.trim().toUpperCase() : null,
           is_active: isActive,
           id_nivel_04: idNivel || null
         })
@@ -270,9 +271,9 @@ const UsuarioView: React.FC = () => {
           'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({
-          username,
-          email,
-          nombre_completo_00: nombreCompleto || null,
+          username: username.trim().toUpperCase(),
+          email: email.trim().toLowerCase(),
+          nombre_completo_00: nombreCompleto.trim() ? nombreCompleto.trim().toUpperCase() : null,
           is_active: isActive,
           id_nivel_04: idNivel || null
         })
@@ -326,9 +327,9 @@ const UsuarioView: React.FC = () => {
 
   const startEdit = (usuario: Usuario) => {
     setEditingId(usuario.id_usuario_00);
-    setUsername(usuario.username);
-    setEmail(usuario.email);
-    setNombreCompleto(usuario.nombre_completo_00 || '');
+    setUsername(usuario.username.toUpperCase());
+    setEmail(usuario.email.toLowerCase());
+    setNombreCompleto((usuario.nombre_completo_00 || '').toUpperCase());
     setIsActive(usuario.is_active);
     setIdNivel(usuario.id_nivel_04 || '');
     setPassword('');
@@ -550,9 +551,12 @@ const UsuarioView: React.FC = () => {
                 <input
                   type="text"
                   value={username}
-                  onChange={(e) => setUsername(e.target.value)}
+                  onChange={(e) => setUsername(e.target.value.toUpperCase())}
                   required
-                  placeholder="usuario123"
+                  placeholder="USUARIO123"
+                  style={{ textTransform: 'uppercase' }}
+                  autoCapitalize="characters"
+                  spellCheck={false}
                 />
               </div>
 
@@ -561,9 +565,11 @@ const UsuarioView: React.FC = () => {
                 <input
                   type="email"
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  onChange={(e) => setEmail(e.target.value.toLowerCase())}
                   required
                   placeholder="correo@ejemplo.com"
+                  autoCapitalize="none"
+                  spellCheck={false}
                 />
               </div>
 
@@ -595,8 +601,11 @@ const UsuarioView: React.FC = () => {
                 <input
                   type="text"
                   value={nombreCompleto}
-                  onChange={(e) => setNombreCompleto(e.target.value)}
-                  placeholder="Juan Pérez"
+                  onChange={(e) => setNombreCompleto(e.target.value.toUpperCase())}
+                  placeholder="JUAN PÉREZ"
+                  style={{ textTransform: 'uppercase' }}
+                  autoCapitalize="characters"
+                  spellCheck={false}
                 />
               </div>
 
@@ -716,9 +725,9 @@ const UsuarioView: React.FC = () => {
                   usuariosPaginados.map((usuario) => (
                     <tr key={usuario.id_usuario_00}>
                       <td>{usuario.id_usuario_00}</td>
-                      <td>{usuario.username}</td>
+                      <td style={{ textTransform: 'uppercase' }}>{usuario.username}</td>
                       <td>{usuario.email}</td>
-                      <td>{usuario.nombre_completo_00 || '-'}</td>
+                      <td style={{ textTransform: 'uppercase' }}>{usuario.nombre_completo_00 || '-'}</td>
                       <td>
                         {usuario.nombre_nivel_04 ? (
                           <span style={{ 

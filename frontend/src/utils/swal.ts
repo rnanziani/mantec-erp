@@ -4,6 +4,7 @@
  */
 
 import Swal from 'sweetalert2';
+import { isSessionExpiredBlocking } from '../lib/sessionAuth';
 
 // Configuración por defecto para todos los alerts
 const defaultConfig = {
@@ -39,6 +40,9 @@ export const showSuccess = (title: string, message?: string, timer: number = 300
  * Muestra un mensaje de error
  */
 export const showError = (title: string, message?: string) => {
+  if (isSessionExpiredBlocking()) {
+    return Promise.resolve({ isConfirmed: true, isDenied: false, isDismissed: false });
+  }
   return Swal.fire({
     ...defaultConfig,
     icon: 'error',

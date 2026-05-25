@@ -3,6 +3,7 @@ import './BodegaView.css';
 import './CategoriaView.css';
 import { exportToExcel } from '../utils/exportUtils';
 import { showDeleteConfirm, showError, showSuccess } from '../utils/swal';
+import { apiUrl } from '../lib/apiClient';
 
 interface Prenda {
   idprenda_07: number;
@@ -39,7 +40,7 @@ const PrendaView: React.FC = () => {
     direction: 'asc'
   });
 
-  const API_URL = 'http://localhost:3001/api/prendas';
+  const API_URL = apiUrl('/prendas');
 
   useEffect(() => {
     fetchPrendas();

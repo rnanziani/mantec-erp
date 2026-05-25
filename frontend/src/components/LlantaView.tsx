@@ -3,6 +3,7 @@ import './BodegaView.css';
 import Pagination from './shared/Pagination';
 import { exportToExcel } from '../utils/exportUtils';
 import { showDeleteConfirm, showSuccess, showError } from '../utils/swal';
+import { apiUrl } from '../lib/apiClient';
 
 interface Llanta {
   id_llanta_36: number;
@@ -35,7 +36,7 @@ const LlantaView: React.FC = () => {
     direction: 'asc'
   });
 
-  const API_URL = 'http://localhost:3001/api/llantas';
+  const API_URL = apiUrl('/llantas');
 
   useEffect(() => {
     fetchLlantas();

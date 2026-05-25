@@ -4,6 +4,7 @@ import './TecnicoView.css';
 import { exportToExcel } from '../utils/exportUtils';
 import { showDeleteConfirm, showSuccess, showError } from '../utils/swal';
 import { validateRut, formatRut } from '../utils/rutValidator';
+import { apiUrl } from '../lib/apiClient';
 
 interface Tecnico {
   id_tecnico_21: number;
@@ -59,8 +60,8 @@ const TecnicoView: React.FC = () => {
   const [sortConfig, setSortConfig] = useState<SortConfig>({ key: 'id_tecnico_21', direction: 'desc' });
   const [filterEstado, setFilterEstado] = useState<string>('all');
 
-  const API_URL = 'http://localhost:3001/api/tecnicos';
-  const CARGOS_URL = 'http://localhost:3001/api/cargos';
+  const API_URL = apiUrl('/tecnicos');
+  const CARGOS_URL = apiUrl('/cargos');
 
   useEffect(() => {
     fetchTecnicos();

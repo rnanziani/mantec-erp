@@ -14,7 +14,6 @@ export const getAllHistorialContrasenas = async (req: Request, res: Response): P
             SELECT 
                 h.id_historial_01,
                 h.id_usuario_01,
-                h.hashed_password_01,
                 h.fecha_cambio_01,
                 u.username as username_00,
                 u.nombre_completo_00 as nombre_completo,
@@ -53,7 +52,6 @@ export const getHistorialByUsuario = async (req: Request, res: Response): Promis
             SELECT 
                 h.id_historial_01,
                 h.id_usuario_01,
-                h.hashed_password_01,
                 h.fecha_cambio_01,
                 u.username as username_00,
                 u.nombre_completo_00 as nombre_completo,
@@ -93,7 +91,6 @@ export const getHistorialById = async (req: Request, res: Response): Promise<voi
             SELECT 
                 h.id_historial_01,
                 h.id_usuario_01,
-                h.hashed_password_01,
                 h.fecha_cambio_01,
                 u.username as username_00,
                 u.nombre_completo_00 as nombre_completo,

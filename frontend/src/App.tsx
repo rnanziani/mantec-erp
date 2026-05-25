@@ -19,7 +19,6 @@ import AsignacionPrendasView from './components/AsignacionPrendasView';
 import ProductoAseoView from './components/ProductoAseoView';
 import TrabajadorView from './components/TrabajadorView';
 import LoginForm from './components/LoginForm';
-import RegisterForm from './components/RegisterForm';
 import ChangePasswordForm from './components/ChangePasswordForm';
 import UsuarioView from './components/UsuarioView';
 import NivelUsuarioView from './components/NivelUsuarioView';
@@ -46,16 +45,25 @@ import PatronRotacionView from './components/PatronRotacionView';
 import LlantaView from './components/LlantaView';
 import { useUserPermissions } from './hooks/useUserPermissions';
 import SessionInactivityModal from './components/SessionInactivityModal';
+import SessionExpiredModal from './components/SessionExpiredModal';
+import SessionExpiryBanner from './components/SessionExpiryBanner';
 import PasswordExpirationWarningModal from './components/PasswordExpirationWarningModal';
 import { useSessionMonitor } from './hooks/useSessionMonitor';
 import { loadSessionConfig, defaultSessionConfig } from './config/session.config';
 import type { SessionTimeoutConfig } from './config/session.config';
 import './utils/swal.css';
+import { apiUrl } from './lib/apiClient';
+import {
+  SESSION_EXPIRED_EVENT,
+  beginForcedLogout,
+  notifySessionExpired,
+} from './lib/sessionAuth';
 
 function getInitialView(): string {
   const hash = window.location.hash.replace('#', '') || 'dashboard';
   const token = localStorage.getItem('token');
-  if (!token && hash !== 'login' && hash !== 'register') return 'login';
+  if (!token && hash !== 'login') return 'login';
+  if (hash === 'register') return 'login';
   return hash;
 }
 
@@ -66,12 +74,46 @@ function App() {
   const [inactivityConfig, setInactivityConfig] = useState<SessionTimeoutConfig | null>(null);
   const [appReady, setAppReady] = useState(false);
   const [passwordWarningDismissed, setPasswordWarningDismissed] = useState(false);
+  const [sessionExpiredMessage, setSessionExpiredMessage] = useState<string | null>(null);
 
   const token = localStorage.getItem('token');
-  const { sessionStatus } = useSessionMonitor(!!token && currentView !== 'login' && currentView !== 'register');
+  const { sessionStatus, refresh: refreshSessionStatus, clearSessionStatus } = useSessionMonitor(
+    !!token && currentView !== 'login' && !sessionExpiredMessage
+  );
   
   // Obtener permisos del usuario
-  const { hasPermission } = useUserPermissions(!!token && currentView !== 'login' && currentView !== 'register');
+  const { hasPermission } = useUserPermissions(!!token && currentView !== 'login');
+
+  // Aviso global de sesión expirada (401 o monitor)
+  useEffect(() => {
+    const onSessionExpired = (event: Event) => {
+      const detail = (event as CustomEvent<{ message?: string }>).detail;
+      setSessionExpiredMessage(
+        detail?.message ||
+          'Su sesión expiró. Inicie sesión de nuevo antes de cargar datos.'
+      );
+    };
+    window.addEventListener(SESSION_EXPIRED_EVENT, onSessionExpired);
+    return () => window.removeEventListener(SESSION_EXPIRED_EVENT, onSessionExpired);
+  }, []);
+
+  useEffect(() => {
+    if (sessionStatus?.sessionExpired && token && currentView !== 'login') {
+      notifySessionExpired(
+        'Su sesión expiró por tiempo de inactividad. Inicie sesión de nuevo antes de continuar.'
+      );
+    }
+  }, [sessionStatus?.sessionExpired, token, currentView]);
+
+  useEffect(() => {
+    const onVisible = () => {
+      if (document.visibilityState === 'visible' && token && currentView !== 'login') {
+        refreshSessionStatus();
+      }
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => document.removeEventListener('visibilitychange', onVisible);
+  }, [token, currentView, refreshSessionStatus]);
 
   // Mapeo de rutas a permisos requeridos
   const routePermissions: Record<string, string> = {
@@ -80,7 +122,7 @@ function App() {
     'niveles-usuario': 'MENU_NIVEL_ACCESO_NIVELES',
     'permisos': 'MENU_NIVEL_ACCESO_PERMISOS',
     'nivel-permisos': 'MENU_NIVEL_ACCESO_ASIGNACION',
-    'usuario-permisos': 'MENU_NIVEL_ACCESO_ASIGNACION',
+    'usuario-permisos': 'MENU_NIVEL_ACCESO_PERMISOS_DIRECTOS',
     'historial-contrasenas': 'MENU_NIVEL_ACCESO_HISTORIAL',
     'intentos-login': 'MENU_NIVEL_ACCESO_INTENTOS',
     'sesiones': 'MENU_NIVEL_ACCESO_SESIONES',
@@ -88,39 +130,39 @@ function App() {
     'ordenes-trabajo': 'MENU_OPERACIONES_ORDENES_TRABAJO',
     'asignacion-productos-aseo': 'MENU_OPERACIONES_ASIGNACION_ASEO',
     'asignacion-prendas': 'MENU_OPERACIONES_ASIGNACION_PRENDAS',
-    'bodegas': 'MENU_INVENTARIO_BODEGAS',
-    'tipos-transaccion': 'MENU_INVENTARIO_TIPOS_TRANSACCION',
-    'transacciones': 'MENU_INVENTARIO_TRANSACCIONES',
-    'existencias': 'MENU_INVENTARIO_EXISTENCIAS',
+    'bodegas': 'MENU_GESTION_ALTERNADORES_BODEGAS',
+    'tipos-transaccion': 'MENU_GESTION_ALTERNADORES_TIPOS_TRANSACCION',
+    'transacciones': 'MENU_GESTION_ALTERNADORES_MOVIMIENTOS',
+    'existencias': 'MENU_GESTION_ALTERNADORES_STOCK',
     'reportes': 'MENU_REPORTES',
-    'alternadores': 'MENU_MANTENEDORES_MARCAS',
-    'lista-alternadores': 'MENU_MANTENEDORES_ALTERNADORES',
-    'estados': 'MENU_MANTENEDORES_ESTADOS',
+    'alternadores': 'MENU_GESTION_ALTERNADORES_MARCAS',
+    'lista-alternadores': 'MENU_GESTION_ALTERNADORES_ALTERNADORES',
+    'estados': 'MENU_GESTION_ALTERNADORES_ESTADO',
     'cargos': 'MENU_MANTENEDORES_CARGOS',
     'tecnicos': 'MENU_MANTENEDORES_TECNICOS',
     'trabajadores': 'MENU_MANTENEDORES_TRABAJADORES',
     'productos-aseo': 'MENU_MANTENEDORES_PRODUCTOS_ASEO',
     'maquinas': 'MENU_MANTENEDORES_MAQUINAS',
-    'responsables-entrega': 'MENU_MANTENEDORES',
-    'tipos-comp-alternador': 'MENU_MANTENEDORES',
-    'categorias': 'MENU_MANTENEDORES',
-    'tallas': 'MENU_MANTENEDORES',
-    'prendas': 'MENU_MANTENEDORES',
-    'ccostos': 'MENU_MANTENEDORES',
-    'insumos': 'MENU_MANTENEDORES',
+    'responsables-entrega': 'MENU_MANTENEDORES_RESPONSABLES_ENTREGA',
+    'tipos-comp-alternador': 'MENU_MANTENEDORES_TIPOS_COMP',
+    'categorias': 'MENU_MANTENEDORES_CATEGORIAS',
+    'tallas': 'MENU_MANTENEDORES_TALLAS',
+    'prendas': 'MENU_MANTENEDORES_PRENDAS',
+    'ccostos': 'MENU_MANTENEDORES_CCOSTOS',
+    'insumos': 'MENU_MANTENEDORES_INSUMOS',
     'consumo-insumos': 'MENU_OPERACIONES',
-    'neumaticos': 'MENU_OPERACIONES',
-    'marcas-neumatico': 'MENU_OPERACIONES',
-    'estados-neumatico': 'MENU_OPERACIONES',
-    'historial-neumatico': 'MENU_OPERACIONES',
-    'patrones-rotacion': 'MENU_OPERACIONES',
-    'llantas': 'MENU_OPERACIONES'
+    'neumaticos': 'MENU_NEUMATICOS_COD_TRAZABILIDAD',
+    'marcas-neumatico': 'MENU_NEUMATICOS_MARCAS',
+    'estados-neumatico': 'MENU_NEUMATICOS_ESTADOS',
+    'historial-neumatico': 'MENU_NEUMATICOS_HISTORIAL',
+    'patrones-rotacion': 'MENU_NEUMATICOS_PATRONES_ROTACION',
+    'llantas': 'MENU_NEUMATICOS_TIPO_LLANTA'
   };
 
   // Función para verificar si el usuario tiene acceso a una ruta
   const hasRouteAccess = (route: string): boolean => {
-    // Rutas públicas (login, register)
-    if (route === 'login' || route === 'register') {
+    // Rutas públicas (login)
+    if (route === 'login') {
       return true;
     }
 
@@ -159,8 +201,11 @@ function App() {
     const hash = window.location.hash.replace('#', '') || 'dashboard';
     const currentToken = localStorage.getItem('token');
     
-    // Si no está autenticado y no está en login/register, redirigir a login
-    if (!currentToken && hash !== 'login' && hash !== 'register') {
+    // Si no está autenticado, redirigir a login (#register ya no es público)
+    if (!currentToken && hash !== 'login') {
+      setCurrentView('login');
+      window.location.hash = 'login';
+    } else if (hash === 'register') {
       setCurrentView('login');
       window.location.hash = 'login';
     } else {
@@ -172,8 +217,11 @@ function App() {
       const newHash = window.location.hash.replace('#', '') || 'dashboard';
       const currentToken = localStorage.getItem('token');
       
-      // Si no está autenticado y no está en login/register, redirigir a login
-      if (!currentToken && newHash !== 'login' && newHash !== 'register') {
+      // Si no está autenticado, redirigir a login (#register ya no es público)
+      if (!currentToken && newHash !== 'login') {
+        setCurrentView('login');
+        window.location.hash = 'login';
+      } else if (newHash === 'register') {
         setCurrentView('login');
         window.location.hash = 'login';
       } else {
@@ -185,8 +233,8 @@ function App() {
     return () => window.removeEventListener('hashchange', handleHashChange);
   }, []);
 
-  // Ocultar sidebar en login y register
-  const showSidebar = currentView !== 'login' && currentView !== 'register';
+  // Ocultar sidebar en login
+  const showSidebar = currentView !== 'login';
 
   // Manejar extensión de sesión (llamado al reactivar o por actividad). Retorna true si OK.
   const handleExtendSession = async (): Promise<boolean> => {
@@ -194,7 +242,7 @@ function App() {
       const token = localStorage.getItem('token');
       if (!token) return false;
 
-      const response = await fetch('http://localhost:3001/api/auth/extend-session', {
+      const response = await fetch(apiUrl('/auth/extend-session'), {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -209,24 +257,43 @@ function App() {
     }
   };
 
-  // Manejar logout
+  // Manejar logout (sidebar, banner, inactividad)
   const handleLogout = async () => {
     try {
-      const token = localStorage.getItem('token');
+      const savedToken = localStorage.getItem('token');
+      beginForcedLogout();
       localStorage.removeItem('token');
       localStorage.removeItem('user');
+      setSessionExpiredMessage(null);
+      clearSessionStatus();
       setCurrentView('login');
       window.location.hash = 'login';
-      // Luego notificar al backend (fire-and-forget)
-      if (token) {
-        fetch('http://localhost:3001/api/auth/logout', {
+      if (savedToken) {
+        fetch(apiUrl('/auth/logout'), {
           method: 'POST',
-          headers: { 'Authorization': `Bearer ${token}` }
+          headers: { Authorization: `Bearer ${savedToken}` },
         }).catch(() => {});
       }
     } catch (error) {
       console.error('Error en logout:', error);
     }
+  };
+
+  /** Cierre forzado desde modal de sesión expirada → login limpio */
+  const handleSessionExpiredLogin = () => {
+    const savedToken = localStorage.getItem('token');
+    beginForcedLogout();
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    setSessionExpiredMessage(null);
+    clearSessionStatus();
+    if (savedToken) {
+      fetch(apiUrl('/auth/logout'), {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${savedToken}` },
+      }).catch(() => {});
+    }
+    window.location.href = `${window.location.pathname || '/'}#login`;
   };
 
 
@@ -243,6 +310,13 @@ function App() {
             onExtend={handleExtendSession}
             onLogout={handleLogout}
             onActivity={() => { handleExtendSession(); }}
+          />
+        )}
+
+        {sessionExpiredMessage && token && currentView !== 'login' && (
+          <SessionExpiredModal
+            message={sessionExpiredMessage}
+            onLogin={handleSessionExpiredLogin}
           />
         )}
 
@@ -266,9 +340,31 @@ function App() {
           );
         })()}
         
-        <div className="mantec-main-content" style={!showSidebar ? { marginLeft: 0 } : {}}>
+        <div
+          className="mantec-main-content"
+          style={{
+            ...( !showSidebar ? { marginLeft: 0 } : {}),
+            ...(sessionExpiredMessage && currentView !== 'login'
+              ? { pointerEvents: 'none', userSelect: 'none', opacity: 0.45 }
+              : {}),
+          }}
+        >
+          {showSidebar &&
+            sessionStatus?.debeAdvertir &&
+            !sessionStatus.sessionExpired &&
+            !sessionExpiredMessage && (
+              <SessionExpiryBanner
+                minutosRestantes={Math.floor(sessionStatus.segundosRestantes / 60)}
+                segundosRestantes={sessionStatus.segundosRestantes % 60}
+                onExtend={async () => {
+                  const ok = await handleExtendSession();
+                  if (ok) refreshSessionStatus();
+                }}
+                onLogout={handleLogout}
+              />
+            )}
           {/* Protección de rutas: si no tiene acceso, mostrar mensaje */}
-          {!hasRouteAccess(currentView) && currentView !== 'login' && currentView !== 'register' && (
+          {!hasRouteAccess(currentView) && currentView !== 'login' && (
             <div className="mantec-welcome" style={{ padding: '2rem', textAlign: 'center' }}>
               <h2>🔒 Acceso Denegado</h2>
               <p>No tienes permisos para acceder a esta sección.</p>
@@ -371,8 +467,6 @@ function App() {
           {currentView === 'llantas' && hasRouteAccess('llantas') && <LlantaView />}
 
           {currentView === 'login' && <LoginForm />}
-
-          {currentView === 'register' && <RegisterForm />}
 
           {currentView === 'change-password' && <ChangePasswordForm />}
 

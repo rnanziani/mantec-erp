@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import './BodegaView.css';
+import { apiUrl } from '../lib/apiClient';
+import { showError } from '../utils/swal';
 
 interface IntentoLogin {
     id_intento_02: number;
@@ -20,7 +22,7 @@ const IntentoLoginView: React.FC = () => {
     const [filtroExitoso, setFiltroExitoso] = useState<string>('todos'); // 'todos', 'exitosos', 'fallidos'
     const [sortConfig, setSortConfig] = useState<{ key: keyof IntentoLogin; direction: 'asc' | 'desc' } | null>(null);
 
-    const API_URL = 'http://localhost:3001/api/intentos-login';
+    const API_URL = apiUrl('/intentos-login');
 
     useEffect(() => {
         fetchIntentos();

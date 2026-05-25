@@ -1,6 +1,12 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { showSuccess, showError, showDeleteConfirm } from '../utils/swal';
 import Pagination from './shared/Pagination';
+import {
+    RANGOS_MODULO_PERMISOS,
+    filtrarPermisosPorModulo,
+    moduloRangoValue,
+} from '../constants/permisoModuloRangos';
+import { apiUrl } from '../lib/apiClient';
 import './BodegaView.css';
 
 interface NivelPermiso {
@@ -22,6 +28,7 @@ interface Permiso {
     id_permiso_05: number;
     nombre_permiso_05: string;
     descripcion_05: string | null;
+    orden_05: number | null;
 }
 
 const NivelPermisoView: React.FC = () => {
@@ -33,15 +40,21 @@ const NivelPermisoView: React.FC = () => {
     const [selectedNivel, setSelectedNivel] = useState<number | ''>('');
     const [selectedPermiso, setSelectedPermiso] = useState<number | ''>('');
 
-    // Estados para búsqueda y ordenamiento
-    const [filtro, setFiltro] = useState('');
-    const [sortConfig, setSortConfig] = useState<{ key: keyof NivelPermiso; direction: 'asc' | 'desc' } | null>(null);
+    // Estados para filtros y ordenamiento
+    const [filterNivel, setFilterNivel] = useState<number | ''>('');
+    const [filterModulo, setFilterModulo] = useState<string>('');
+    const [filterPermiso, setFilterPermiso] = useState<number | ''>('');
+    const [formModulo, setFormModulo] = useState<string>('');
+    const [sortConfig, setSortConfig] = useState<{ key: keyof NivelPermiso; direction: 'asc' | 'desc' }>({
+        key: 'id_nivel_04',
+        direction: 'asc',
+    });
     const [currentPage, setCurrentPage] = useState(1);
     const [itemsPerPage] = useState(10);
 
-    const API_URL = 'http://localhost:3001/api/nivel-permisos';
-    const NIVELES_URL = 'http://localhost:3001/api/niveles-usuario';
-    const PERMISOS_URL = 'http://localhost:3001/api/permisos';
+    const API_URL = apiUrl('/nivel-permisos');
+    const NIVELES_URL = apiUrl('/niveles-usuario');
+    const PERMISOS_URL = apiUrl('/permisos');
 
     useEffect(() => {
         fetchRelaciones();
@@ -150,6 +163,7 @@ const NivelPermisoView: React.FC = () => {
     const resetForm = () => {
         setSelectedNivel('');
         setSelectedPermiso('');
+        setFormModulo('');
         setShowForm(false);
     };
 
@@ -171,17 +185,18 @@ const NivelPermisoView: React.FC = () => {
     const processedRelaciones = useMemo(() => {
         let data = [...relaciones];
 
-        // 1. Filtrar
-        if (filtro) {
-            const lowerFiltro = filtro.toLowerCase();
-            data = data.filter(r =>
-                (r.nombre_nivel_04 && r.nombre_nivel_04.toLowerCase().includes(lowerFiltro)) ||
-                (r.nombre_permiso_05 && r.nombre_permiso_05.toLowerCase().includes(lowerFiltro)) ||
-                (r.descripcion_04 && r.descripcion_04.toLowerCase().includes(lowerFiltro)) ||
-                (r.descripcion_05 && r.descripcion_05.toLowerCase().includes(lowerFiltro)) ||
-                r.id_nivel_04.toString().includes(lowerFiltro) ||
-                r.id_permiso_05.toString().includes(lowerFiltro)
+        // 1. Filtrar por nivel y/o permiso
+        if (filterNivel !== '') {
+            data = data.filter((r) => r.id_nivel_04 === filterNivel);
+        }
+        if (filterModulo !== '') {
+            const idsEnModulo = new Set(
+                filtrarPermisosPorModulo(permisos, filterModulo).map((p) => p.id_permiso_05)
             );
+            data = data.filter((r) => idsEnModulo.has(r.id_permiso_05));
+        }
+        if (filterPermiso !== '') {
+            data = data.filter((r) => r.id_permiso_05 === filterPermiso);
         }
 
         // 2. Ordenar
@@ -199,12 +214,42 @@ const NivelPermisoView: React.FC = () => {
                 if (aValue > bValue) {
                     return sortConfig.direction === 'asc' ? 1 : -1;
                 }
+                if (sortConfig.key === 'id_nivel_04' && a.id_permiso_05 !== b.id_permiso_05) {
+                    return a.id_permiso_05 - b.id_permiso_05;
+                }
                 return 0;
             });
         }
 
         return data;
-    }, [relaciones, filtro, sortConfig]);
+    }, [relaciones, filterNivel, filterModulo, filterPermiso, sortConfig, permisos]);
+
+    const hayFiltroActivo = filterNivel !== '' || filterModulo !== '' || filterPermiso !== '';
+
+    const permisosOrdenados = useMemo(
+        () => [...permisos].sort((a, b) => (a.orden_05 ?? 9999) - (b.orden_05 ?? 9999)),
+        [permisos]
+    );
+
+    const permisosParaFiltro = useMemo(
+        () => filtrarPermisosPorModulo(permisosOrdenados, filterModulo),
+        [permisosOrdenados, filterModulo]
+    );
+
+    const permisosDisponiblesNivel = useMemo(() => {
+        if (!selectedNivel) return permisosOrdenados;
+        const asignados = new Set(
+            relaciones
+                .filter((r) => r.id_nivel_04 === selectedNivel)
+                .map((r) => r.id_permiso_05)
+        );
+        return permisosOrdenados.filter((p) => !asignados.has(p.id_permiso_05));
+    }, [selectedNivel, permisosOrdenados, relaciones]);
+
+    const permisosParaFormulario = useMemo(
+        () => filtrarPermisosPorModulo(permisosDisponiblesNivel, formModulo),
+        [permisosDisponiblesNivel, formModulo]
+    );
 
     const indexOfLastItem = currentPage * itemsPerPage;
     const indexOfFirstItem = indexOfLastItem - itemsPerPage;
@@ -213,7 +258,13 @@ const NivelPermisoView: React.FC = () => {
 
     useEffect(() => {
         setCurrentPage(1);
-    }, [filtro, sortConfig]);
+    }, [filterNivel, filterModulo, filterPermiso, sortConfig]);
+
+    const limpiarFiltros = () => {
+        setFilterNivel('');
+        setFilterModulo('');
+        setFilterPermiso('');
+    };
 
     useEffect(() => {
         setCurrentPage((p) => {
@@ -221,14 +272,6 @@ const NivelPermisoView: React.FC = () => {
             return p > tp ? tp : p;
         });
     }, [processedRelaciones.length, itemsPerPage]);
-
-    // Obtener permisos disponibles para un nivel (no asignados)
-    const getPermisosDisponibles = (nivelId: number) => {
-        const permisosAsignados = relaciones
-            .filter(r => r.id_nivel_04 === nivelId)
-            .map(r => r.id_permiso_05);
-        return permisos.filter(p => !permisosAsignados.includes(p.id_permiso_05));
-    };
 
     return (
         <div className="bodega-view">
@@ -273,6 +316,25 @@ const NivelPermisoView: React.FC = () => {
                                 </select>
                             </div>
                             <div className="form-group" style={{ marginBottom: 0 }}>
+                                <label htmlFor="nivel-permiso-modulo">Agrupación</label>
+                                <select
+                                    id="nivel-permiso-modulo"
+                                    value={formModulo}
+                                    onChange={(e) => {
+                                        setFormModulo(e.target.value);
+                                        setSelectedPermiso('');
+                                    }}
+                                    style={{ width: '100%', padding: '8px 12px', borderRadius: '4px', border: '1px solid #ced4da', fontSize: '14px' }}
+                                >
+                                    <option value="">Todos los módulos</option>
+                                    {RANGOS_MODULO_PERMISOS.map((r) => (
+                                        <option key={r.label} value={moduloRangoValue(r.min, r.max)}>
+                                            {r.label} ({r.min}–{r.max})
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div className="form-group" style={{ marginBottom: 0 }}>
                                 <label htmlFor="nivel-permiso-permiso">Permiso *</label>
                                 <select
                                     id="nivel-permiso-permiso"
@@ -282,21 +344,22 @@ const NivelPermisoView: React.FC = () => {
                                     style={{ width: '100%', padding: '8px 12px', borderRadius: '4px', border: '1px solid #ced4da', fontSize: '14px' }}
                                 >
                                     <option value="">Seleccione un permiso</option>
-                                    {selectedNivel
-                                        ? getPermisosDisponibles(selectedNivel as number).map(permiso => (
-                                            <option key={permiso.id_permiso_05} value={permiso.id_permiso_05}>
-                                                {permiso.nombre_permiso_05}
-                                            </option>
-                                        ))
-                                        : permisos.map(permiso => (
-                                            <option key={permiso.id_permiso_05} value={permiso.id_permiso_05}>
-                                                {permiso.nombre_permiso_05}
-                                            </option>
-                                        ))}
+                                    {permisosParaFormulario.map(permiso => (
+                                        <option key={permiso.id_permiso_05} value={permiso.id_permiso_05}>
+                                            {permiso.nombre_permiso_05}
+                                        </option>
+                                    ))}
                                 </select>
-                                {selectedNivel && getPermisosDisponibles(selectedNivel as number).length === 0 && (
+                                {selectedNivel && permisosParaFormulario.length === 0 && (
                                     <small style={{ color: '#dc3545', display: 'block', marginTop: '5px' }}>
-                                        Este nivel ya tiene todos los permisos asignados
+                                        {formModulo
+                                            ? 'No hay permisos disponibles en esta agrupación para el nivel seleccionado'
+                                            : 'Este nivel ya tiene todos los permisos asignados'}
+                                    </small>
+                                )}
+                                {!selectedNivel && formModulo && permisosParaFormulario.length === 0 && (
+                                    <small style={{ color: '#6c757d', display: 'block', marginTop: '5px' }}>
+                                        No hay permisos en esta agrupación
                                     </small>
                                 )}
                             </div>
@@ -313,24 +376,98 @@ const NivelPermisoView: React.FC = () => {
                 </div>
             )}
 
-            {/* Buscador */}
+            {/* Filtros por nivel, agrupación y permiso */}
             <div className="form-container" style={{ marginBottom: '20px' }}>
-                <input
-                    type="text"
-                    placeholder="🔍 Buscar por nivel, permiso o descripción..."
-                    value={filtro}
-                    onChange={(e) => setFiltro(e.target.value)}
-                    style={{ width: '100%', padding: '10px', fontSize: '14px', borderRadius: '4px', border: '1px solid #ced4da' }}
-                />
+                <div
+                    style={{
+                        display: 'flex',
+                        flexWrap: 'wrap',
+                        gap: '12px',
+                        alignItems: 'flex-end',
+                    }}
+                >
+                    <div className="form-group" style={{ marginBottom: 0, flex: '1 1 180px', minWidth: '160px' }}>
+                        <label htmlFor="filtro-nivel">Nivel de Acceso</label>
+                        <select
+                            id="filtro-nivel"
+                            value={filterNivel}
+                            onChange={(e) => setFilterNivel(e.target.value ? parseInt(e.target.value, 10) : '')}
+                            style={{ width: '100%', padding: '8px 12px', borderRadius: '4px', border: '1px solid #ced4da', fontSize: '14px' }}
+                        >
+                            <option value="">Todos los niveles</option>
+                            {niveles.map((nivel) => (
+                                <option key={nivel.id_nivel_04} value={nivel.id_nivel_04}>
+                                    {nivel.nombre_nivel_04}
+                                </option>
+                            ))}
+                        </select>
+                    </div>
+                    <div className="form-group" style={{ marginBottom: 0, flex: '1 1 200px', minWidth: '180px' }}>
+                        <label htmlFor="filtro-modulo">Agrupación</label>
+                        <select
+                            id="filtro-modulo"
+                            value={filterModulo}
+                            onChange={(e) => {
+                                setFilterModulo(e.target.value);
+                                setFilterPermiso('');
+                            }}
+                            style={{ width: '100%', padding: '8px 12px', borderRadius: '4px', border: '1px solid #ced4da', fontSize: '14px' }}
+                        >
+                            <option value="">Todos los módulos</option>
+                            {RANGOS_MODULO_PERMISOS.map((r) => (
+                                <option key={r.label} value={moduloRangoValue(r.min, r.max)}>
+                                    {r.label} ({r.min}–{r.max})
+                                </option>
+                            ))}
+                        </select>
+                    </div>
+                    <div className="form-group" style={{ marginBottom: 0, flex: '1 1 220px', minWidth: '200px' }}>
+                        <label htmlFor="filtro-permiso">Permiso</label>
+                        <select
+                            id="filtro-permiso"
+                            value={filterPermiso}
+                            onChange={(e) => setFilterPermiso(e.target.value ? parseInt(e.target.value, 10) : '')}
+                            style={{ width: '100%', padding: '8px 12px', borderRadius: '4px', border: '1px solid #ced4da', fontSize: '14px' }}
+                        >
+                            <option value="">Todos los permisos</option>
+                            {permisosParaFiltro.map((permiso) => (
+                                <option key={permiso.id_permiso_05} value={permiso.id_permiso_05}>
+                                    {permiso.nombre_permiso_05}
+                                </option>
+                            ))}
+                        </select>
+                    </div>
+                    {hayFiltroActivo && (
+                        <button
+                            type="button"
+                            className="btn-secondary"
+                            onClick={limpiarFiltros}
+                            style={{ flex: '0 0 auto', alignSelf: 'flex-end' }}
+                        >
+                            Limpiar filtros
+                        </button>
+                    )}
+                </div>
+                {hayFiltroActivo && (
+                    <p style={{ margin: '10px 0 0', fontSize: '0.85rem', color: '#007bff' }}>
+                        {processedRelaciones.length} resultado{processedRelaciones.length !== 1 ? 's' : ''} con los filtros aplicados
+                    </p>
+                )}
             </div>
 
             <div className="table-container">
                 <table className="data-table">
                     <thead>
                         <tr>
+                            <th
+                                onClick={() => handleSort('id_nivel_04')}
+                                className={`sortable ${sortConfig.key === 'id_nivel_04' ? (sortConfig.direction === 'asc' ? 'sort-asc' : 'sort-desc') : ''}`}
+                            >
+                                ID Nivel
+                            </th>
                             <th 
                                 onClick={() => handleSort('nombre_nivel_04')} 
-                                className={`sortable ${sortConfig && sortConfig.key === 'nombre_nivel_04' ? (sortConfig.direction === 'asc' ? 'sort-asc' : 'sort-desc') : ''}`}
+                                className={`sortable ${sortConfig.key === 'nombre_nivel_04' ? (sortConfig.direction === 'asc' ? 'sort-asc' : 'sort-desc') : ''}`}
                             >
                                 Nivel de Acceso
                             </th>
@@ -347,14 +484,19 @@ const NivelPermisoView: React.FC = () => {
                     </thead>
                     <tbody>
                         {loading && relaciones.length === 0 ? (
-                            <tr><td colSpan={5}>Cargando...</td></tr>
+                            <tr><td colSpan={6}>Cargando...</td></tr>
                         ) : processedRelaciones.length === 0 ? (
-                            <tr><td colSpan={5}>No hay relaciones nivel-permiso registradas</td></tr>
+                            <tr><td colSpan={6}>
+                                {hayFiltroActivo
+                                    ? 'No hay asignaciones que coincidan con los filtros aplicados'
+                                    : 'No hay relaciones nivel-permiso registradas'}
+                            </td></tr>
                         ) : (
                             relacionesPaginadas.map((relacion) => (
                                 <tr key={`${relacion.id_nivel_04}-${relacion.id_permiso_05}`}>
+                                    <td>{relacion.id_nivel_04}</td>
                                     <td>
-                                        <strong>{relacion.nombre_nivel_04 || `ID: ${relacion.id_nivel_04}`}</strong>
+                                        <strong>{relacion.nombre_nivel_04 || `Nivel ${relacion.id_nivel_04}`}</strong>
                                     </td>
                                     <td>
                                         <strong>{relacion.nombre_permiso_05 || `ID: ${relacion.id_permiso_05}`}</strong>

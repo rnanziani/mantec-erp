@@ -4,6 +4,7 @@ import './HistorialNeumaticoView.css';
 import Pagination from './shared/Pagination';
 import { exportToExcel } from '../utils/exportUtils';
 import { showDeleteConfirm, showSuccess, showError } from '../utils/swal';
+import { apiUrl } from '../lib/apiClient';
 
 interface HistorialNeumatico {
   id_historial_34: number;
@@ -59,11 +60,11 @@ interface ApiResponse<T = unknown> {
 
 type SortKey = keyof HistorialNeumatico;
 
-const API_URL = 'http://localhost:3001/api/historial-neumatico';
-const NEUMATICOS_URL = 'http://localhost:3001/api/neumaticos';
-const MAQUINAS_URL = 'http://localhost:3001/api/maquinas';
-const TECNICOS_URL = 'http://localhost:3001/api/tecnicos';
-const TRABAJADORES_URL = 'http://localhost:3001/api/trabajadores';
+const API_URL = apiUrl('/historial-neumatico');
+const NEUMATICOS_URL = apiUrl('/neumaticos');
+const MAQUINAS_URL = apiUrl('/maquinas');
+const TECNICOS_URL = apiUrl('/tecnicos');
+const TRABAJADORES_URL = apiUrl('/trabajadores');
 
 const formatFecha = (f: string) => {
   if (!f) return '-';

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import './BodegaView.css'; // Reutilizamos los mismos estilos
 import { showSuccess, showError, showDeleteConfirm } from '../utils/swal';
+import { apiUrl, openAuthenticatedBlob } from '../lib/apiClient';
 
 interface Asignacion {
   id_asignacion: number;
@@ -118,11 +119,11 @@ const AsignacionProductosAseoView: React.FC = () => {
   const [reportTrabajadorSeleccionado, setReportTrabajadorSeleccionado] = useState<Trabajador | null>(null);
   const [reportProducto, setReportProducto] = useState<string>('');
 
-  const API_URL = 'http://localhost:3001/api/asignaciones-productos-aseo';
-  const PRODUCTOS_URL = 'http://localhost:3001/api/productos-aseo';
-  const MAQUINAS_URL = 'http://localhost:3001/api/maquinas';
-  const TRABAJADORES_URL = 'http://localhost:3001/api/trabajadores';
-  const RESPONSABLES_URL = 'http://localhost:3001/api/responsables-entrega';
+  const API_URL = apiUrl('/asignaciones-productos-aseo');
+  const PRODUCTOS_URL = apiUrl('/productos-aseo');
+  const MAQUINAS_URL = apiUrl('/maquinas');
+  const TRABAJADORES_URL = apiUrl('/trabajadores');
+  const RESPONSABLES_URL = apiUrl('/responsables-entrega');
 
   useEffect(() => {
     fetchAsignaciones();
@@ -573,7 +574,7 @@ const AsignacionProductosAseoView: React.FC = () => {
     setPreviewLoading(true);
     try {
       const params = buildReportParams();
-      const response = await fetch(`http://localhost:3001/api/asignaciones-productos-aseo/reporte/datos?${params.toString()}`);
+      const response = await fetch(`${apiUrl('/asignaciones-productos-aseo/reporte/datos')}?${params.toString()}`);
       const data: ApiResponse = await response.json();
 
       if (data.success && Array.isArray(data.data)) {
@@ -600,8 +601,14 @@ const AsignacionProductosAseoView: React.FC = () => {
     const params = buildReportParams();
 
     // Abrir el reporte en una nueva ventana para descargar
-    const reportUrl = `http://localhost:3001/api/asignaciones-productos-aseo/reporte/pdf?${params.toString()}`;
-    window.open(reportUrl, '_blank');
+    try {
+      await openAuthenticatedBlob(
+        `/asignaciones-productos-aseo/reporte/pdf?${params.toString()}`
+      );
+    } catch (err) {
+      await showError('Reporte', err instanceof Error ? err.message : 'No se pudo generar el PDF');
+      return;
+    }
 
     // Cerrar el modal y vista previa
     setShowReportModal(false);

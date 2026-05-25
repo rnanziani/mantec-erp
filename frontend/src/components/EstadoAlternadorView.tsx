@@ -3,6 +3,7 @@ import './BodegaView.css';
 import './EstadoAlternadorView.css';
 import { exportToExcel } from '../utils/exportUtils';
 import { showDeleteConfirm, showSuccess, showError } from '../utils/swal';
+import { apiUrl } from '../lib/apiClient';
 
 interface EstadoAlternador {
   id_estado_20: number;
@@ -39,7 +40,7 @@ const EstadoAlternadorView: React.FC = () => {
   const [itemsPerPage] = useState<number>(10);
   const [sortConfig, setSortConfig] = useState<SortConfig>({ key: 'id_estado_20', direction: 'asc' });
 
-  const API_URL = 'http://localhost:3001/api/estados';
+  const API_URL = apiUrl('/estados');
 
   useEffect(() => {
     fetchEstados();
