@@ -95,7 +95,14 @@ const LoginForm: React.FC = () => {
       }
     } catch (err) {
       console.error('Login fetch error:', err, 'API:', API_BASE);
-      setError('Error de conexión. Intente nuevamente. Si persiste, verifique que el backend esté activo en Render.');
+      const isNetwork =
+        err instanceof TypeError ||
+        (err instanceof Error && /fetch|network|failed/i.test(err.message));
+      setError(
+        isNetwork
+          ? `Error de conexión con ${API_BASE}. Verifique CORS/FRONTEND_URL en Render o espere el arranque del backend (plan free).`
+          : 'Error de conexión. Intente nuevamente.'
+      );
     } finally {
       setLoading(false);
     }

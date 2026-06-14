@@ -69,15 +69,37 @@ const corsOrigins = [
 
 const uniqueCorsOrigins = [...new Set(corsOrigins)];
 
+/** Frontends Render (*.onrender.com) cuando FRONTEND_URL no coincide con la URL real del Static Site. */
+function isAllowedCorsOrigin(origin: string): boolean {
+  const normalized = normalizeOrigin(origin);
+  if (uniqueCorsOrigins.includes(normalized)) return true;
+  if (process.env.NODE_ENV === 'production' && /^https:\/\/[\w-]+\.onrender\.com$/i.test(normalized)) {
+    return true;
+  }
+  return uniqueCorsOrigins.length === 0;
+}
+
 if (process.env.NODE_ENV === 'production') {
-  console.log('🌐 CORS orígenes permitidos:', uniqueCorsOrigins.length ? uniqueCorsOrigins.join(', ') : '(todos — configure FRONTEND_URL)');
+  console.log('🌐 CORS orígenes permitidos:', uniqueCorsOrigins.length ? uniqueCorsOrigins.join(', ') : '(todos)');
+  console.log('🌐 CORS extra: cualquier https://*.onrender.com');
 }
 
 // Middleware MANTEC
 app.use(helmet());
 app.use(
   cors({
-    origin: uniqueCorsOrigins.length > 0 ? uniqueCorsOrigins : true,
+    origin(origin, callback) {
+      if (!origin) {
+        callback(null, true);
+        return;
+      }
+      if (isAllowedCorsOrigin(origin)) {
+        callback(null, origin);
+        return;
+      }
+      console.warn('CORS rechazado:', origin);
+      callback(null, false);
+    },
     credentials: true,
   })
 );
