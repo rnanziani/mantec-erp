@@ -1,0 +1,11 @@
+# Blueprint Render — https://render.com/docs/blueprint-spec
+services:
+  - type: web
+    name: mantec-backend
+    runtime: node
+    rootDir: backend
+    buildCommand: npm install --include=dev && npm run build
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
