@@ -2,7 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import dotenv from 'dotenv';
-import { testConnection } from './db.js';
+import { pool, testConnection } from './db.js';
 import { apiPermissionGuard } from './middleware/authMiddleware.js';
 import { validateProductionSecrets } from './utils/safeError.js';
 import marcasRoutes from './routes/marcasRoutes.js';
@@ -98,14 +98,22 @@ app.get('/', (_req, res) => {
   });
 });
 
-// MANTEC Health check
-app.get('/api/mantec/health', (req, res) => {
+// MANTEC Health check (incluye estado de PostgreSQL)
+app.get('/api/mantec/health', async (_req, res) => {
+  let database: 'conectada' | 'error' = 'error';
+  try {
+    await pool.query('SELECT 1');
+    database = 'conectada';
+  } catch {
+    database = 'error';
+  }
   res.json({
-    status: 'OPERATIVO',
+    status: database === 'conectada' ? 'OPERATIVO' : 'DEGRADADO',
+    database,
     sistema: 'MANTEC ERP',
     version: '1.0.0',
     modulo: 'Gestión de Alternadores',
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
   });
 });
 
