@@ -136,7 +136,7 @@ export const showSessionWarning = (
   onExtend: () => void,
   onLogout: () => void
 ) => {
-  let timerInterval: NodeJS.Timeout;
+  let timerInterval: ReturnType<typeof setInterval>;
   let minutos = minutosRestantes;
   let segundos = segundosRestantes;
 

@@ -8,6 +8,7 @@ interface MenuItem {
     label: string;
     icon: string;
     path?: string;
+    permissionRequired?: string | string[];
     children?: MenuItem[];
 }
 
@@ -24,11 +25,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onNavigate, currentView }) => {
     const { hasPermission } = useUserPermissions(true);
 
     // Mapeo de permisos a menús (permissionRequired puede ser string o array)
-    interface MenuItemWithPermission extends MenuItem {
-        permissionRequired?: string | string[]; // Permiso requerido para mostrar este menú
-    }
-
-    const allMenuItems: MenuItemWithPermission[] = [
+    const allMenuItems: MenuItem[] = [
         {
             id: 'dashboard',
             label: 'Inicio',
@@ -125,7 +122,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onNavigate, currentView }) => {
     ];
 
     // Función para verificar si un menú debe mostrarse
-    const shouldShowMenuItem = (item: MenuItemWithPermission): boolean => {
+    const shouldShowMenuItem = (item: MenuItem): boolean => {
         // Si no tiene permiso requerido, mostrarlo (compatibilidad hacia atrás)
         if (!item.permissionRequired) {
             return true;
@@ -141,13 +138,13 @@ const Sidebar: React.FC<SidebarProps> = ({ onNavigate, currentView }) => {
     };
 
     // Filtrar menús según permisos
-    const filterMenuItems = (items: MenuItemWithPermission[]): MenuItem[] => {
+    const filterMenuItems = (items: MenuItem[]): MenuItem[] => {
         return items
             .filter(shouldShowMenuItem)
             .map(item => {
                 // Si tiene hijos, filtrarlos también
                 if (item.children) {
-                    const filteredChildren = filterMenuItems(item.children as MenuItemWithPermission[]);
+                    const filteredChildren = filterMenuItems(item.children as MenuItem[]);
                     // Si después de filtrar quedan hijos, mostrar el menú padre
                     if (filteredChildren.length > 0) {
                         return {
