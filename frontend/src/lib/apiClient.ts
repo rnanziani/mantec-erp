@@ -7,7 +7,33 @@ import {
   notifySessionExpired,
 } from './sessionAuth';
 
-export const API_BASE = (import.meta.env.VITE_API_URL ?? 'http://localhost:3001').replace(/\/$/, '');
+/**
+ * Resuelve la URL del backend.
+ * 1) VITE_API_URL (build Render / .env.local)
+ * 2) Auto: frontend en *.onrender.com → API mantec-erp.onrender.com
+ * 3) Desarrollo local
+ */
+function resolveApiBase(): string {
+  const fromEnv = import.meta.env.VITE_API_URL?.trim();
+  if (fromEnv && !/localhost|127\.0\.0\.1/.test(fromEnv)) {
+    return fromEnv.replace(/\/$/, '');
+  }
+
+  if (typeof window !== 'undefined') {
+    const host = window.location.hostname;
+    if (host.endsWith('.onrender.com')) {
+      return 'https://mantec-erp.onrender.com';
+    }
+  }
+
+  if (fromEnv) {
+    return fromEnv.replace(/\/$/, '');
+  }
+
+  return 'http://localhost:3001';
+}
+
+export const API_BASE = resolveApiBase();
 
 /** Construye URL absoluta al backend. path: '/usuarios', '/neumaticos?activo=true', 'api/foo' */
 export function apiUrl(path: string): string {

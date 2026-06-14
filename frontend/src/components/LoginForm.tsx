@@ -95,11 +95,7 @@ const LoginForm: React.FC = () => {
       }
     } catch (err) {
       console.error('Login fetch error:', err, 'API:', API_BASE);
-      const missingApi =
-        import.meta.env.PROD && /localhost|127\.0\.0\.1/.test(API_BASE)
-          ? ' Configure VITE_API_URL=https://mantec-erp.onrender.com en Render y vuelva a desplegar el frontend.'
-          : '';
-      setError(`Error de conexión. Intente nuevamente.${missingApi}`);
+      setError('Error de conexión. Intente nuevamente. Si persiste, verifique que el backend esté activo en Render.');
     } finally {
       setLoading(false);
     }
