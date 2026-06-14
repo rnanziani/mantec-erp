@@ -94,6 +94,7 @@ const TransaccionView: React.FC = () => {
 
   // Formulario
   const [showForm, setShowForm] = useState<boolean>(false);
+  const [editingId, setEditingId] = useState<number | null>(null);
   const [idAlternador, setIdAlternador] = useState<string>('');
   const [idUbicacionOrigen, setIdUbicacionOrigen] = useState<string>('');
   const [idUbicacionDestino, setIdUbicacionDestino] = useState<string>('');
@@ -372,6 +373,101 @@ const TransaccionView: React.FC = () => {
     }
   };
 
+  const handleUpdate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingId) return;
+
+    if (!idAlternador || !idUbicacionOrigen || !idUbicacionDestino || !idTipoTransaccion) {
+      await showError('Validación', 'Todos los campos marcados con * son requeridos');
+      return;
+    }
+
+    if (!alternadorSeleccionado) {
+      await showError('Validación', 'Por favor seleccione un alternador de la lista');
+      return;
+    }
+
+    if (idUbicacionOrigen === idUbicacionDestino) {
+      await showError('Validación', 'La ubicación de origen y destino deben ser diferentes');
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      setError('');
+      const response = await fetch(`${API_URL}/${editingId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id_alternador_28: parseInt(idAlternador),
+          id_ubicacion_origen_28: parseInt(idUbicacionOrigen),
+          id_ubicacion_destino_28: parseInt(idUbicacionDestino),
+          id_tipo_transaccion_28: parseInt(idTipoTransaccion),
+          id_tecnico_28: idTecnico ? parseInt(idTecnico) : null,
+          id_maquina_28: idMaquina ? parseInt(idMaquina) : null,
+          fecha_28: fecha || undefined,
+          hora_28: hora || undefined
+        })
+      });
+
+      const data: ApiResponse = await response.json();
+
+      if (data.success) {
+        await showSuccess('¡Éxito!', data.message || 'Transacción actualizada exitosamente');
+        await fetchTransacciones();
+        resetForm();
+      } else {
+        const mensaje = [data.error, data.message].filter(Boolean).join(': ') || 'Error al actualizar la transacción';
+        await showError('Error', mensaje);
+      }
+    } catch (err) {
+      await showError('Error', 'Error al actualizar la transacción');
+      console.error('Error:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const startEdit = (transaccion: Transaccion) => {
+    setEditingId(transaccion.id_transaccion_28);
+    setIdAlternador(String(transaccion.id_alternador_28));
+    setIdUbicacionOrigen(String(transaccion.id_ubicacion_origen_28));
+    setIdUbicacionDestino(String(transaccion.id_ubicacion_destino_28));
+    setIdTipoTransaccion(String(transaccion.id_tipo_transaccion_28));
+    setIdTecnico(transaccion.id_tecnico_28 ? String(transaccion.id_tecnico_28) : '');
+    setIdMaquina(transaccion.id_maquina_28 ? String(transaccion.id_maquina_28) : '');
+    setFecha(
+      transaccion.fecha_28
+        ? String(transaccion.fecha_28).split('T')[0]
+        : new Date().toISOString().split('T')[0]
+    );
+    setHora(transaccion.hora_28 ? String(transaccion.hora_28).slice(0, 5) : '');
+
+    const alt = alternadores.find((a) => a.id_alternador_19 === transaccion.id_alternador_28);
+    setAlternadorSeleccionado(
+      alt || {
+        id_alternador_19: transaccion.id_alternador_28,
+        cod_alternador_19: transaccion.cod_alternador_19 || '',
+        marca_18: transaccion.marca_18
+      }
+    );
+    setBuscarAlternador(transaccion.cod_alternador_19 || '');
+
+    if (transaccion.id_maquina_28) {
+      const maq = maquinas.find((m) => m.idmaquina_11 === transaccion.id_maquina_28);
+      setMaquinaSeleccionada(maq || null);
+      setBuscarMaquina(transaccion.maquina_ppu || transaccion.maquina_numinterno || '');
+    } else {
+      setMaquinaSeleccionada(null);
+      setBuscarMaquina('');
+    }
+
+    setShowForm(true);
+    setError('');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
   const handleDelete = async (id: number) => {
     const confirmed = await showDeleteConfirm('esta transacción');
     if (!confirmed) return;
@@ -409,6 +505,7 @@ const TransaccionView: React.FC = () => {
     setBuscarMaquina('');
     setAlternadorSeleccionado(null);
     setMaquinaSeleccionada(null);
+    setEditingId(null);
     setShowForm(false);
     setError('');
   };
@@ -548,7 +645,13 @@ const TransaccionView: React.FC = () => {
         <div style={{ display: 'flex', gap: '10px' }}>
           <button
             className="btn-primary"
-            onClick={() => setShowForm(!showForm)}
+            onClick={() => {
+              if (showForm) resetForm();
+              else {
+                resetForm();
+                setShowForm(true);
+              }
+            }}
             style={{ backgroundColor: showForm ? '#6c757d' : '#007bff' }}
           >
             {showForm ? '✕ Cancelar' : '+ Nueva Transacción'}
@@ -572,8 +675,8 @@ const TransaccionView: React.FC = () => {
 
       {showForm && (
         <div className="form-container">
-          <h3>Nueva Transacción</h3>
-          <form onSubmit={handleCreate}>
+          <h3>{editingId ? '✏️ Editar Transacción' : 'Nueva Transacción'}</h3>
+          <form onSubmit={editingId ? handleUpdate : handleCreate}>
             {/* Primera fila: Búsqueda de Alternador y Selección de Alternador */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '20px' }}>
               <div className="form-group">
@@ -793,7 +896,7 @@ const TransaccionView: React.FC = () => {
 
             <div className="form-actions" style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '20px' }}>
               <button type="submit" className="btn-primary" disabled={loading} style={{ backgroundColor: '#28a745' }}>
-                {loading ? 'Guardando...' : 'Guardar'}
+                {loading ? 'Guardando...' : editingId ? 'Actualizar' : 'Guardar'}
               </button>
               <button type="button" className="btn-secondary" onClick={resetForm} style={{ backgroundColor: '#6c757d' }}>
                 Cancelar
@@ -1167,7 +1270,7 @@ const TransaccionView: React.FC = () => {
             {loading && transacciones.length === 0 ? (
               <tr><td colSpan={12}>Cargando...</td></tr>
             ) : processedTransacciones.length === 0 ? (
-              <tr><td colSpan={11}>No hay transacciones registradas</td></tr>
+              <tr><td colSpan={12}>No hay transacciones registradas</td></tr>
             ) : (
               processedTransacciones.map((transaccion) => (
                 <tr key={transaccion.id_transaccion_28}>
@@ -1195,9 +1298,20 @@ const TransaccionView: React.FC = () => {
                   <td>{transaccion.tipo_comp_descripcion || 'N/A'}</td>
                   <td className="actions">
                     <button
+                      className="btn-edit"
+                      onClick={() => startEdit(transaccion)}
+                      title="Editar"
+                      aria-label="Editar transacción"
+                      type="button"
+                    >
+                      ✏️
+                    </button>
+                    <button
                       className="btn-delete"
                       onClick={() => handleDelete(transaccion.id_transaccion_28)}
                       title="Eliminar"
+                      aria-label="Eliminar transacción"
+                      type="button"
                     >
                       🗑️
                     </button>

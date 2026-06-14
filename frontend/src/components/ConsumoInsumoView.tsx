@@ -76,6 +76,17 @@ interface LineaItem {
   isMaster?: boolean;
 }
 
+interface DetalleLineaEditable {
+  key: string;
+  isMaster: boolean;
+  id_d_consumo_insumo_47?: number;
+  id_insumo: number;
+  cantidad: number;
+  observacion: string;
+  editing: boolean;
+  backup?: { id_insumo: number; cantidad: number; observacion: string };
+}
+
 interface ApiResponse<T = unknown> {
   success: boolean;
   data?: T;
@@ -102,6 +113,42 @@ const CATEGORIAS_URL = apiUrl('/categorias');
 const formatAmount = (value: number) =>
   new Intl.NumberFormat('es-CL', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value);
 
+const formatCantidad = (value: number) =>
+  new Intl.NumberFormat('es-CL', { maximumFractionDigits: 0 }).format(Math.trunc(value));
+
+const parseCantidadEntera = (raw: string): number => {
+  const n = parseInt(raw, 10);
+  return Number.isNaN(n) || n < 0 ? 0 : n;
+};
+
+function buildDetalleLineasFromConsumo(data: {
+  maestro: MaestroConsumo;
+  detalles: DetalleConsumo[];
+}): DetalleLineaEditable[] {
+  const lines: DetalleLineaEditable[] = [
+    {
+      key: 'master',
+      isMaster: true,
+      id_insumo: data.maestro.id_insumo_46,
+      cantidad: Math.trunc(data.maestro.cantidad_46),
+      observacion: data.maestro.observacion_46 || '',
+      editing: false
+    }
+  ];
+  for (const d of data.detalles) {
+    lines.push({
+      key: `d-${d.id_d_consumo_insumo_47}`,
+      isMaster: false,
+      id_d_consumo_insumo_47: d.id_d_consumo_insumo_47,
+      id_insumo: d.id_insumo_47,
+      cantidad: Math.trunc(d.cantidad_47),
+      observacion: d.observacion_47 || '',
+      editing: false
+    });
+  }
+  return lines;
+}
+
 const ConsumoInsumoView: React.FC = () => {
   const formRef = React.useRef<HTMLFormElement>(null);
   const [consumos, setConsumos] = useState<MaestroConsumo[]>([]);
@@ -115,12 +162,21 @@ const ConsumoInsumoView: React.FC = () => {
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [filtroFechaDesde, setFiltroFechaDesde] = useState<string>(() => {
+    const d = new Date();
+    d.setDate(d.getDate() - 7);
+    return d.toISOString().split('T')[0];
+  });
+  const [filtroFechaHasta, setFiltroFechaHasta] = useState<string>(() =>
+    new Date().toISOString().split('T')[0]
+  );
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10);
-  const [diasFiltro] = useState(7);
   const [sortConfig, setSortConfig] = useState<{ key: keyof MaestroConsumo; direction: 'asc' | 'desc' } | null>(null);
   const [selectedConsumoId, setSelectedConsumoId] = useState<number | null>(null);
   const [detalleConsumo, setDetalleConsumo] = useState<{ maestro: MaestroConsumo; detalles: DetalleConsumo[] } | null>(null);
+  const [detalleLineas, setDetalleLineas] = useState<DetalleLineaEditable[]>([]);
+  const [savingDetalle, setSavingDetalle] = useState(false);
   const [loadingDetalle, setLoadingDetalle] = useState(false);
   const [showPreviewModal, setShowPreviewModal] = useState(false);
   const [previewConsumoId, setPreviewConsumoId] = useState<number | null>(null);
@@ -148,6 +204,10 @@ const ConsumoInsumoView: React.FC = () => {
     fetchCategorias();
     fetchInsumos();
   }, []);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, filtroFechaDesde, filtroFechaHasta]);
 
   const fetchConsumos = async () => {
     try {
@@ -224,16 +284,13 @@ const ConsumoInsumoView: React.FC = () => {
   const processedConsumos = useMemo(() => {
     let data = [...consumos];
 
-    if (diasFiltro > 0) {
-      const hoy = new Date();
-      hoy.setHours(0, 0, 0, 0);
-      const fechaLimite = new Date(hoy);
-      fechaLimite.setDate(hoy.getDate() - diasFiltro);
+    if (filtroFechaDesde || filtroFechaHasta) {
       data = data.filter((c) => {
         if (!c.fecha_46) return false;
-        const fechaConsumo = new Date(c.fecha_46);
-        fechaConsumo.setHours(0, 0, 0, 0);
-        return fechaConsumo >= fechaLimite && fechaConsumo <= hoy;
+        const fechaConsumo = String(c.fecha_46).split('T')[0];
+        if (filtroFechaDesde && fechaConsumo < filtroFechaDesde) return false;
+        if (filtroFechaHasta && fechaConsumo > filtroFechaHasta) return false;
+        return true;
       });
     }
 
@@ -276,7 +333,7 @@ const ConsumoInsumoView: React.FC = () => {
     }
 
     return data;
-  }, [consumos, searchTerm, diasFiltro, sortConfig]);
+  }, [consumos, searchTerm, filtroFechaDesde, filtroFechaHasta, sortConfig]);
 
   const trabajadoresFiltrados = useMemo(() => {
     if (!buscarApellido || buscarApellido.trim() === '') return trabajadores;
@@ -371,7 +428,9 @@ const ConsumoInsumoView: React.FC = () => {
         item.precio = ins?.precio_insumo_43 || 0;
         item.total = item.cantidad * item.precio;
       } else if (field === 'cantidad') {
-        item.total = Number(value) * item.precio;
+        const cantidadEntera = parseCantidadEntera(String(value));
+        item.cantidad = cantidadEntera;
+        item.total = cantidadEntera * item.precio;
       }
       next[index] = item;
       return next;
@@ -399,7 +458,18 @@ const ConsumoInsumoView: React.FC = () => {
     e.preventDefault();
     const first = lineas[0];
     if (!first || first.id_categoria === 0 || first.id_insumo === 0 || first.cantidad <= 0) {
-      await showError('Validación', 'Debe seleccionar categoría e insumo con cantidad mayor a 0');
+      await showError('Validación', 'Debe seleccionar categoría e insumo con cantidad entera mayor a 0');
+      return;
+    }
+    if (!Number.isInteger(first.cantidad)) {
+      await showError('Validación', 'La cantidad debe ser un número entero');
+      return;
+    }
+    const detallesInvalidos = lineas.slice(1).some(
+      (l) => l.id_insumo > 0 && l.cantidad > 0 && !Number.isInteger(l.cantidad)
+    );
+    if (detallesInvalidos) {
+      await showError('Validación', 'La cantidad de cada línea debe ser un número entero');
       return;
     }
     if (!idTrabajador || !idResponsable || !idCcosto) {
@@ -427,11 +497,17 @@ const ConsumoInsumoView: React.FC = () => {
           }))
         })
       });
-      const data: ApiResponse = await res.json();
-      if (data.success) {
+      const data: ApiResponse<MaestroConsumo> = await res.json();
+      if (data.success && data.data) {
         await fetchConsumos();
-        resetForm();
-        await showSuccess('¡Consumo creado!', 'El consumo de insumos ha sido registrado correctamente.');
+        const newId = data.data.id_m_consumo_insumo_46;
+        setEditingId(newId);
+        setSelectedConsumoId(newId);
+        setShowForm(true);
+        await showSuccess(
+          '¡Consumo creado!',
+          'Registro guardado. Ya puede generar el acta de entrega en PDF.'
+        );
       } else {
         await showError('Error al crear', data.error || 'Error al crear consumo');
       }
@@ -445,7 +521,18 @@ const ConsumoInsumoView: React.FC = () => {
     if (editingId === null) return;
     const first = lineas[0];
     if (!first || first.id_categoria === 0 || first.id_insumo === 0 || first.cantidad <= 0) {
-      await showError('Validación', 'Debe seleccionar categoría e insumo con cantidad mayor a 0');
+      await showError('Validación', 'Debe seleccionar categoría e insumo con cantidad entera mayor a 0');
+      return;
+    }
+    if (!Number.isInteger(first.cantidad)) {
+      await showError('Validación', 'La cantidad debe ser un número entero');
+      return;
+    }
+    const detallesInvalidos = lineas.slice(1).some(
+      (l) => l.id_insumo > 0 && l.cantidad > 0 && !Number.isInteger(l.cantidad)
+    );
+    if (detallesInvalidos) {
+      await showError('Validación', 'La cantidad de cada línea debe ser un número entero');
       return;
     }
     if (!idTrabajador || !idResponsable || !idCcosto) {
@@ -476,8 +563,10 @@ const ConsumoInsumoView: React.FC = () => {
       const data: ApiResponse = await res.json();
       if (data.success) {
         await fetchConsumos();
-        resetForm();
-        await showSuccess('¡Consumo actualizado!', 'El consumo de insumos ha sido actualizado correctamente.');
+        await showSuccess(
+          '¡Consumo actualizado!',
+          'Cambios guardados. Puede generar o imprimir el acta de entrega.'
+        );
       } else {
         await showError('Error al actualizar', data.error || 'Error al actualizar consumo');
       }
@@ -507,10 +596,193 @@ const ConsumoInsumoView: React.FC = () => {
     }
   };
 
+  const getPrecioInsumo = useCallback(
+    (idInsumo: number) => insumos.find((i) => i.id_insumo_43 === idInsumo)?.precio_insumo_43 ?? 0,
+    [insumos]
+  );
+
+  const getInsumoDescripcion = useCallback(
+    (idInsumo: number, fallback?: string) =>
+      insumos.find((i) => i.id_insumo_43 === idInsumo)?.descripcion_43 || fallback || '-',
+    [insumos]
+  );
+
+  const persistDetalleLineas = useCallback(
+    async (lineas: DetalleLineaEditable[]) => {
+      if (!detalleConsumo) return false;
+
+      const masterLine = lineas.find((l) => l.isMaster);
+      if (!masterLine || masterLine.cantidad <= 0 || !Number.isInteger(masterLine.cantidad)) {
+        await showError('Validación', 'La cantidad del insumo principal debe ser un entero mayor a 0');
+        return false;
+      }
+
+      for (const linea of lineas) {
+        if (linea.cantidad <= 0 || !Number.isInteger(linea.cantidad)) {
+          await showError('Validación', 'Todas las cantidades deben ser enteros mayores a 0');
+          return false;
+        }
+      }
+
+      setSavingDetalle(true);
+      try {
+        const m = detalleConsumo.maestro;
+        const fechaStr = m.fecha_46 ? String(m.fecha_46).split('T')[0] : '';
+        const horaStr = m.hora_46 ? String(m.hora_46).slice(0, 8) : '';
+
+        const res = await fetch(`${API_URL}/${m.id_m_consumo_insumo_46}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            idtrabajador_46: m.idtrabajador_46,
+            id_responsableentrega_46: m.id_responsableentrega_46,
+            id_ccosto_46: m.id_ccosto_46,
+            id_insumo_46: masterLine.id_insumo,
+            cantidad_46: masterLine.cantidad,
+            fecha_46: fechaStr,
+            hora_46: horaStr,
+            observacion_46: masterLine.observacion.trim() || undefined,
+            detalles: lineas
+              .filter((l) => !l.isMaster)
+              .map((l) => ({
+                id_insumo_47: l.id_insumo,
+                cantidad_47: l.cantidad,
+                observacion_47: l.observacion.trim() || undefined
+              }))
+          })
+        });
+
+        const data: ApiResponse = await res.json();
+        if (!data.success) {
+          await showError('Error', data.error || 'No se pudo guardar el detalle');
+          return false;
+        }
+
+        await fetchConsumos();
+        const refresh = await fetch(`${API_URL}/${m.id_m_consumo_insumo_46}`);
+        const refreshData: ApiResponse<{ maestro: MaestroConsumo; detalles: DetalleConsumo[] }> =
+          await refresh.json();
+        if (refreshData.success && refreshData.data) {
+          setDetalleConsumo(refreshData.data);
+          setDetalleLineas(buildDetalleLineasFromConsumo(refreshData.data));
+        }
+        await showSuccess('¡Guardado!', 'Detalle actualizado correctamente.');
+        return true;
+      } catch {
+        await showError('Error', 'Error al guardar el detalle');
+        return false;
+      } finally {
+        setSavingDetalle(false);
+      }
+    },
+    [detalleConsumo, fetchConsumos]
+  );
+
+  const startEditDetalleLinea = (key: string) => {
+    setDetalleLineas((prev) =>
+      prev.map((l) =>
+        l.key === key
+          ? {
+              ...l,
+              editing: true,
+              backup: { id_insumo: l.id_insumo, cantidad: l.cantidad, observacion: l.observacion }
+            }
+          : l
+      )
+    );
+  };
+
+  const cancelEditDetalleLinea = (key: string) => {
+    setDetalleLineas((prev) =>
+      prev.map((l) => {
+        if (l.key !== key) return l;
+        if (!l.backup) return { ...l, editing: false };
+        return {
+          ...l,
+          id_insumo: l.backup.id_insumo,
+          cantidad: l.backup.cantidad,
+          observacion: l.backup.observacion,
+          editing: false,
+          backup: undefined
+        };
+      })
+    );
+  };
+
+  const updateDetalleLineaField = (
+    key: string,
+    field: 'id_insumo' | 'cantidad' | 'observacion',
+    value: number | string
+  ) => {
+    setDetalleLineas((prev) =>
+      prev.map((l) => {
+        if (l.key !== key) return l;
+        if (field === 'id_insumo') return { ...l, id_insumo: Number(value) };
+        if (field === 'cantidad') return { ...l, cantidad: parseCantidadEntera(String(value)) };
+        return { ...l, observacion: String(value) };
+      })
+    );
+  };
+
+  const saveDetalleLinea = async (key: string) => {
+    const linea = detalleLineas.find((l) => l.key === key);
+    if (!linea) return;
+    if (linea.cantidad <= 0 || !Number.isInteger(linea.cantidad)) {
+      await showError('Validación', 'La cantidad debe ser un entero mayor a 0');
+      return;
+    }
+    const lineasToSave = detalleLineas.map((l) =>
+      l.key === key ? { ...l, editing: false, backup: undefined } : l
+    );
+    await persistDetalleLineas(lineasToSave);
+  };
+
+  const deleteDetalleLinea = async (key: string) => {
+    const target = detalleLineas.find((l) => l.key === key);
+    if (!target) return;
+
+    let next: DetalleLineaEditable[];
+
+    if (target.isMaster) {
+      if (detalleLineas.length <= 1) {
+        await showError(
+          'No permitido',
+          'No puede eliminar la única línea. Elimine el consumo completo desde la grilla principal.'
+        );
+        return;
+      }
+      const confirmed = await showDeleteConfirm('la línea principal del detalle');
+      if (!confirmed) return;
+
+      const firstDetail = detalleLineas.find((l) => !l.isMaster);
+      if (!firstDetail) return;
+
+      const restDetails = detalleLineas.filter((l) => !l.isMaster && l.key !== firstDetail.key);
+      next = [
+        {
+          ...firstDetail,
+          key: 'master',
+          isMaster: true,
+          id_d_consumo_insumo_47: undefined,
+          editing: false,
+          backup: undefined
+        },
+        ...restDetails
+      ];
+    } else {
+      const confirmed = await showDeleteConfirm('esta línea de detalle');
+      if (!confirmed) return;
+      next = detalleLineas.filter((l) => l.key !== key);
+    }
+
+    await persistDetalleLineas(next);
+  };
+
   const handleSelectConsumo = async (id: number) => {
     if (selectedConsumoId === id) {
       setSelectedConsumoId(null);
       setDetalleConsumo(null);
+      setDetalleLineas([]);
       return;
     }
     setLoadingDetalle(true);
@@ -521,6 +793,7 @@ const ConsumoInsumoView: React.FC = () => {
       if (data.success && data.data) {
         setSelectedConsumoId(id);
         setDetalleConsumo(data.data);
+        setDetalleLineas(buildDetalleLineasFromConsumo(data.data));
       } else {
         await showError('Error', 'Error al cargar el detalle del consumo');
       }
@@ -534,6 +807,7 @@ const ConsumoInsumoView: React.FC = () => {
   const cerrarDetalle = () => {
     setSelectedConsumoId(null);
     setDetalleConsumo(null);
+    setDetalleLineas([]);
   };
 
   const consumoIdForActa = editingId ?? selectedConsumoId;
@@ -570,6 +844,12 @@ const ConsumoInsumoView: React.FC = () => {
     window.print();
   }, []);
 
+  const generateActaPdf = useCallback((id: number) => {
+    openAuthenticatedBlob(`/consumo-insumos/${id}/acta-pdf`).catch((err) =>
+      showError('PDF', err instanceof Error ? err.message : 'No se pudo generar el PDF')
+    );
+  }, []);
+
   const startEdit = async (id: number) => {
     try {
       const res = await fetch(`${API_URL}/${id}`);
@@ -593,7 +873,7 @@ const ConsumoInsumoView: React.FC = () => {
           id_categoria: insumoMaster?.id_categoria_43 || 0,
           id_insumo: maestro.id_insumo_46,
           descripcion: maestro.insumo_descripcion || '',
-          cantidad: maestro.cantidad_46,
+                          cantidad: Math.trunc(maestro.cantidad_46),
           precio: insumoMaster?.precio_insumo_43 || 0,
           total: insumoMaster ? maestro.cantidad_46 * insumoMaster.precio_insumo_43 : 0,
           isMaster: true
@@ -605,7 +885,7 @@ const ConsumoInsumoView: React.FC = () => {
           id_categoria: insumoDet?.id_categoria_43 || 0,
           id_insumo: d.id_insumo_47,
           descripcion: d.insumo_descripcion || '',
-          cantidad: d.cantidad_47,
+          cantidad: Math.trunc(d.cantidad_47),
           precio: d.precio_insumo || 0,
           total: d.total_47,
           observacion: d.observacion_47
@@ -641,22 +921,34 @@ const ConsumoInsumoView: React.FC = () => {
             💾 Guardar
           </button>
           {consumoIdForActa && (
-            <button
-              className="btn-primary"
-              onClick={() => openPreviewModal(consumoIdForActa)}
-              style={{ backgroundColor: '#6c757d' }}
-              title="Vista previa del Acta de Entrega de Insumos"
-              type="button"
-            >
-              📄 Vista Previa Acta
-            </button>
+            <>
+              <button
+                className="btn-primary"
+                onClick={() => openPreviewModal(consumoIdForActa)}
+                style={{ backgroundColor: '#6c757d' }}
+                title="Vista previa del Acta de Entrega de Insumos"
+                type="button"
+              >
+                📄 Vista Previa Acta
+              </button>
+              <button
+                className="btn-primary"
+                onClick={() => generateActaPdf(consumoIdForActa)}
+                style={{ backgroundColor: '#17a2b8' }}
+                title="Descargar acta de entrega en PDF"
+                type="button"
+              >
+                📥 Acta PDF
+              </button>
+            </>
           )}
           <button
             className="btn-primary"
             onClick={handleExport}
             style={{ backgroundColor: '#dc3545' }}
+            type="button"
           >
-            📊 Generar Reporte
+            📊 Exportar Excel
           </button>
           <button className="btn-secondary" onClick={resetForm}>
             🚪 Salir
@@ -901,12 +1193,14 @@ const ConsumoInsumoView: React.FC = () => {
                                 type="number"
                                 className="form-input form-input-sm input-cantidad-centrado"
                                 value={linea.cantidad || ''}
-                                onChange={(e) => updateLinea(idx, 'cantidad', parseFloat(e.target.value) || 0)}
-                                min="0.01"
-                                step="0.01"
+                                onChange={(e) => updateLinea(idx, 'cantidad', parseCantidadEntera(e.target.value))}
+                                min="1"
+                                step="1"
+                                inputMode="numeric"
+                                pattern="[0-9]*"
                                 required={idx === 0}
                                 style={{ width: '80px', padding: '6px 8px', textAlign: 'center' }}
-                                aria-label="Cantidad"
+                                aria-label="Cantidad entera"
                               />
                             </td>
                             <td className="td-precio">${formatAmount(linea.precio)}</td>
@@ -942,7 +1236,43 @@ const ConsumoInsumoView: React.FC = () => {
               </div>
             </div>
 
-            <div className="form-actions">
+            <div
+              className="form-actions"
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                flexWrap: 'wrap',
+                gap: '12px',
+                marginTop: '20px'
+              }}
+            >
+              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
+                {editingId ? (
+                  <>
+                    <button
+                      type="button"
+                      className="btn-primary"
+                      onClick={() => openPreviewModal(editingId)}
+                      style={{ backgroundColor: '#6c757d' }}
+                    >
+                      📄 Vista Previa Acta
+                    </button>
+                    <button
+                      type="button"
+                      className="btn-primary"
+                      onClick={() => generateActaPdf(editingId)}
+                      style={{ backgroundColor: '#28a745' }}
+                    >
+                      📥 Generar PDF Acta
+                    </button>
+                  </>
+                ) : (
+                  <span style={{ color: '#6c757d', fontSize: '0.9rem' }}>
+                    💡 Guarde el consumo para generar el acta de entrega (igual que en asignación de uniformes).
+                  </span>
+                )}
+              </div>
               <button type="button" className="btn-secondary" onClick={resetForm}>
                 ❌ Cancelar
               </button>
@@ -954,25 +1284,56 @@ const ConsumoInsumoView: React.FC = () => {
       {/* Buscador y tabla */}
       {!showForm && (
         <div className="form-container" style={{ marginBottom: '20px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px', flexWrap: 'wrap', gap: '8px' }}>
             <div style={{ color: '#6c757d', fontSize: '14px' }}>
-              📅 Mostrando consumos de los últimos {diasFiltro} días (Total: {processedConsumos.length})
+              📅{' '}
+              {filtroFechaDesde || filtroFechaHasta
+                ? `Período: ${filtroFechaDesde || '…'} — ${filtroFechaHasta || '…'}`
+                : 'Todos los períodos'}
+              {' '}(Total: {processedConsumos.length})
             </div>
           </div>
-          <input
-            type="text"
-            placeholder="🔍 Buscar consumo..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value.toUpperCase())}
+          <div
             style={{
-              width: '100%',
-              padding: '10px 12px 10px 40px',
-              borderRadius: '4px',
-              border: '1px solid #ced4da',
-              fontSize: '14px',
-              textTransform: 'uppercase'
+              display: 'grid',
+              gridTemplateColumns: 'minmax(220px, 1fr) minmax(180px, 240px)',
+              gap: '10px'
             }}
-          />
+          >
+            <input
+              type="text"
+              placeholder="🔍 Buscar consumo..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value.toUpperCase())}
+              style={{
+                width: '100%',
+                padding: '10px 12px',
+                borderRadius: '4px',
+                border: '1px solid #ced4da',
+                fontSize: '14px',
+                textTransform: 'uppercase'
+              }}
+              aria-label="Buscar consumo"
+            />
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <input
+                type="date"
+                value={filtroFechaDesde}
+                onChange={(e) => setFiltroFechaDesde(e.target.value)}
+                style={{ width: '100%', padding: '10px', fontSize: '14px', borderRadius: '4px', border: '1px solid #ced4da' }}
+                aria-label="Filtrar desde fecha"
+                title="Desde fecha"
+              />
+              <input
+                type="date"
+                value={filtroFechaHasta}
+                onChange={(e) => setFiltroFechaHasta(e.target.value)}
+                style={{ width: '100%', padding: '10px', fontSize: '14px', borderRadius: '4px', border: '1px solid #ced4da' }}
+                aria-label="Filtrar hasta fecha"
+                title="Hasta fecha"
+              />
+            </div>
+          </div>
         </div>
       )}
 
@@ -1062,7 +1423,7 @@ const ConsumoInsumoView: React.FC = () => {
                         <td>{c.responsable_nombre || '-'}</td>
                         <td>{c.ccosto_nombre || '-'}</td>
                         <td>{c.insumo_descripcion || '-'}</td>
-                        <td className="td-cantidad">{formatAmount(c.cantidad_46)}</td>
+                        <td className="td-cantidad">{formatCantidad(c.cantidad_46)}</td>
                         <td className="actions" onClick={(e) => e.stopPropagation()}>
                           <button
                             className="btn-primary"
@@ -1142,34 +1503,128 @@ const ConsumoInsumoView: React.FC = () => {
                       <th>Precio Unit.</th>
                       <th>Total</th>
                       <th>Obs.</th>
+                      <th>Acciones</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {/* Línea maestro */}
-                    {(() => {
-                      const insumoM = insumos.find((i) => i.id_insumo_43 === detalleConsumo.maestro.id_insumo_46);
-                      const precioM = insumoM?.precio_insumo_43 ?? 0;
-                      const totalM = detalleConsumo.maestro.cantidad_46 * precioM;
+                    {detalleLineas.map((linea) => {
+                      const precio = getPrecioInsumo(linea.id_insumo);
+                      const total = linea.cantidad * precio;
                       return (
-                        <tr>
-                          <td>{detalleConsumo.maestro.insumo_descripcion || '-'}</td>
-                          <td className="td-cantidad">{formatAmount(detalleConsumo.maestro.cantidad_46)}</td>
-                          <td className="td-precio">${formatAmount(precioM)}</td>
-                          <td className="td-total">${formatAmount(totalM)}</td>
-                          <td>{detalleConsumo.maestro.observacion_46 || '-'}</td>
+                        <tr
+                          key={linea.key}
+                          className={linea.isMaster ? '' : 'consumo-detalle-row'}
+                        >
+                          <td>
+                            {linea.editing ? (
+                              <select
+                                className="form-input form-input-sm"
+                                value={linea.id_insumo || ''}
+                                onChange={(e) =>
+                                  updateDetalleLineaField(linea.key, 'id_insumo', parseInt(e.target.value, 10) || 0)
+                                }
+                                aria-label="Seleccionar insumo"
+                              >
+                                <option value="">Seleccione...</option>
+                                {insumos.map((i) => (
+                                  <option key={i.id_insumo_43} value={i.id_insumo_43}>
+                                    {i.descripcion_43}
+                                  </option>
+                                ))}
+                              </select>
+                            ) : (
+                              getInsumoDescripcion(linea.id_insumo)
+                            )}
+                          </td>
+                          <td className="td-cantidad">
+                            {linea.editing ? (
+                              <input
+                                type="number"
+                                className="form-input form-input-sm input-cantidad-centrado"
+                                value={linea.cantidad || ''}
+                                min={1}
+                                step={1}
+                                inputMode="numeric"
+                                onChange={(e) =>
+                                  updateDetalleLineaField(linea.key, 'cantidad', parseCantidadEntera(e.target.value))
+                                }
+                                style={{ width: '80px', textAlign: 'center' }}
+                                aria-label="Cantidad entera"
+                              />
+                            ) : (
+                              formatCantidad(linea.cantidad)
+                            )}
+                          </td>
+                          <td className="td-precio">${formatAmount(precio)}</td>
+                          <td className="td-total">${formatAmount(total)}</td>
+                          <td>
+                            {linea.editing ? (
+                              <input
+                                type="text"
+                                className="form-input form-input-sm"
+                                value={linea.observacion}
+                                onChange={(e) => updateDetalleLineaField(linea.key, 'observacion', e.target.value)}
+                                placeholder="-"
+                                aria-label="Observación"
+                              />
+                            ) : (
+                              linea.observacion || '-'
+                            )}
+                          </td>
+                          <td className="actions">
+                            {linea.editing ? (
+                              <>
+                                <button
+                                  type="button"
+                                  className="btn-primary"
+                                  onClick={() => saveDetalleLinea(linea.key)}
+                                  disabled={savingDetalle}
+                                  title="Grabar"
+                                  aria-label="Grabar línea"
+                                  style={{ marginRight: '4px', padding: '4px 8px', fontSize: '12px' }}
+                                >
+                                  💾
+                                </button>
+                                <button
+                                  type="button"
+                                  className="btn-secondary"
+                                  onClick={() => cancelEditDetalleLinea(linea.key)}
+                                  disabled={savingDetalle}
+                                  title="Cancelar"
+                                  aria-label="Cancelar edición"
+                                  style={{ padding: '4px 8px', fontSize: '12px' }}
+                                >
+                                  ✕
+                                </button>
+                              </>
+                            ) : (
+                              <>
+                                <button
+                                  type="button"
+                                  className="btn-edit"
+                                  onClick={() => startEditDetalleLinea(linea.key)}
+                                  disabled={savingDetalle}
+                                  title="Editar"
+                                  aria-label="Editar línea"
+                                >
+                                  ✏️
+                                </button>
+                                <button
+                                  type="button"
+                                  className="btn-delete"
+                                  onClick={() => deleteDetalleLinea(linea.key)}
+                                  disabled={savingDetalle}
+                                  title="Eliminar"
+                                  aria-label="Eliminar línea"
+                                >
+                                  🗑️
+                                </button>
+                              </>
+                            )}
+                          </td>
                         </tr>
                       );
-                    })()}
-                    {/* Líneas detalle */}
-                    {detalleConsumo.detalles.map((d) => (
-                      <tr key={d.id_d_consumo_insumo_47} className="consumo-detalle-row">
-                        <td>{d.insumo_descripcion || '-'}</td>
-                        <td className="td-cantidad">{formatAmount(d.cantidad_47)}</td>
-                        <td className="td-precio">${formatAmount(d.precio_insumo ?? 0)}</td>
-                        <td className="td-total">${formatAmount(d.total_47)}</td>
-                        <td>{d.observacion_47 || '-'}</td>
-                      </tr>
-                    ))}
+                    })}
                   </tbody>
                 </table>
               </div>
@@ -1230,9 +1685,7 @@ const ConsumoInsumoView: React.FC = () => {
                   className="btn-primary"
                   onClick={() => {
                     if (!previewConsumoId) return;
-                    openAuthenticatedBlob(`/consumo-insumos/${previewConsumoId}/acta-pdf`).catch((err) =>
-                      showError('PDF', err instanceof Error ? err.message : 'No se pudo generar el PDF')
-                    );
+                    generateActaPdf(previewConsumoId);
                   }}
                   disabled={!previewActaData}
                   style={{ backgroundColor: '#28a745' }}

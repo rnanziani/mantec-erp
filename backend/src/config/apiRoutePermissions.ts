@@ -35,7 +35,6 @@ export const AUTH_ONLY_PREFIXES = [
   '/api/auth/extend-session',
   '/api/auth/change-password',
   '/api/parametros/valores/actuales',
-  '/api/empresas',
 ];
 
 /**
@@ -88,6 +87,7 @@ export const API_PREFIX_RULES: Array<{
   { prefix: '/api/responsables-entrega', permission: 'MENU_MANTENEDORES_RESPONSABLES_ENTREGA', readAuthOnly: true },
   { prefix: '/api/productos-aseo', permission: 'MENU_MANTENEDORES_PRODUCTOS_ASEO', readAuthOnly: true },
   { prefix: '/api/trabajadores', permission: 'MENU_MANTENEDORES_TRABAJADORES', readAuthOnly: true },
+  { prefix: '/api/empresas', permission: 'MENU_MANTENEDORES_EMPRESAS', readAuthOnly: true },
   { prefix: '/api/categorias', permission: 'MENU_MANTENEDORES_CATEGORIAS', readAuthOnly: true },
   { prefix: '/api/tecnicos', permission: 'MENU_MANTENEDORES_TECNICOS', readAuthOnly: true },
   { prefix: '/api/cargos', permission: 'MENU_MANTENEDORES_CARGOS', readAuthOnly: true },

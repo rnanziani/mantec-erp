@@ -35,6 +35,7 @@ import CategoriaView from './components/CategoriaView';
 import TallaView from './components/TallaView';
 import PrendaView from './components/PrendaView';
 import CcostoView from './components/CcostoView';
+import EmpresaView from './components/EmpresaView';
 import InsumoView from './components/InsumoView';
 import ConsumoInsumoView from './components/ConsumoInsumoView';
 import MarcaNeumaticoView from './components/MarcaNeumaticoView';
@@ -141,6 +142,7 @@ function App() {
     'cargos': 'MENU_MANTENEDORES_CARGOS',
     'tecnicos': 'MENU_MANTENEDORES_TECNICOS',
     'trabajadores': 'MENU_MANTENEDORES_TRABAJADORES',
+    'empresas': 'MENU_MANTENEDORES_EMPRESAS',
     'productos-aseo': 'MENU_MANTENEDORES_PRODUCTOS_ASEO',
     'maquinas': 'MENU_MANTENEDORES_MAQUINAS',
     'responsables-entrega': 'MENU_MANTENEDORES_RESPONSABLES_ENTREGA',
@@ -422,6 +424,8 @@ function App() {
           {currentView === 'productos-aseo' && hasRouteAccess('productos-aseo') && <ProductoAseoView />}
 
           {currentView === 'trabajadores' && hasRouteAccess('trabajadores') && <TrabajadorView />}
+
+          {currentView === 'empresas' && hasRouteAccess('empresas') && <EmpresaView />}
 
           {currentView === 'usuarios' && hasRouteAccess('usuarios') && <UsuarioView />}
 

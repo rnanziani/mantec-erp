@@ -103,6 +103,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onNavigate, currentView }) => {
                 { id: 'cargos', label: 'Cargos', icon: '👔', path: 'cargos', permissionRequired: 'MENU_MANTENEDORES_CARGOS' },
                 { id: 'tecnicos', label: 'Técnicos', icon: '👷', path: 'tecnicos', permissionRequired: 'MENU_MANTENEDORES_TECNICOS' },
                 { id: 'trabajadores', label: 'Trabajadores', icon: '👥', path: 'trabajadores', permissionRequired: 'MENU_MANTENEDORES_TRABAJADORES' },
+                { id: 'empresas', label: 'Empresas', icon: '🏢', path: 'empresas', permissionRequired: 'MENU_MANTENEDORES_EMPRESAS' },
                 { id: 'productos-aseo', label: 'Productos de Aseo', icon: '🧼', path: 'productos-aseo', permissionRequired: 'MENU_MANTENEDORES_PRODUCTOS_ASEO' },
                 { id: 'maquinas', label: 'Máquinas', icon: '🔧', path: 'maquinas', permissionRequired: 'MENU_MANTENEDORES_MAQUINAS' },
                 { id: 'responsables-entrega', label: 'Responsables de Entrega', icon: '📋', path: 'responsables-entrega', permissionRequired: 'MENU_MANTENEDORES_RESPONSABLES_ENTREGA' },

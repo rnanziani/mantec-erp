@@ -259,12 +259,25 @@ const AsignacionPrendasView: React.FC = () => {
   const RESPONSABLES_URL = apiUrl('/responsables-entrega');
   const EMPRESAS_URL = apiUrl('/empresas');
 
+  const [filtroFechaDesde, setFiltroFechaDesde] = useState<string>(() => {
+    const d = new Date();
+    d.setDate(d.getDate() - 3);
+    return d.toISOString().split('T')[0];
+  });
+  const [filtroFechaHasta, setFiltroFechaHasta] = useState<string>(() =>
+    new Date().toISOString().split('T')[0]
+  );
+
   // Definir funciones fetch antes del useEffect
   const fetchAsignaciones = useCallback(async () => {
     try {
       setLoading(true);
       setError('');
-      const response = await fetch(API_URL);
+      const params = new URLSearchParams();
+      if (filtroFechaDesde) params.append('fechaDesde', filtroFechaDesde);
+      if (filtroFechaHasta) params.append('fechaHasta', filtroFechaHasta);
+      const url = params.toString() ? `${API_URL}?${params.toString()}` : API_URL;
+      const response = await fetch(url);
       const data: ApiResponse = await response.json();
 
       if (data.success && Array.isArray(data.data)) {
@@ -278,7 +291,7 @@ const AsignacionPrendasView: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [filtroFechaDesde, filtroFechaHasta]);
 
   const fetchPrendas = useCallback(async () => {
     try {
@@ -345,8 +358,6 @@ const AsignacionPrendasView: React.FC = () => {
 
   // Búsqueda y ordenamiento
   const [filtro, setFiltro] = useState<string>('');
-  const [filtroFechaDesde, setFiltroFechaDesde] = useState<string>('');
-  const [filtroFechaHasta, setFiltroFechaHasta] = useState<string>('');
   const [filtroEstado, setFiltroEstado] = useState<string>('');
   const [sortConfig, setSortConfig] = useState<SortConfig | null>(null);
   
@@ -799,16 +810,6 @@ const AsignacionPrendasView: React.FC = () => {
       );
     }
 
-    if (filtroFechaDesde || filtroFechaHasta) {
-      data = data.filter((a) => {
-        if (!a.fecha_09) return false;
-        const fechaAsignacion = String(a.fecha_09).split('T')[0];
-        if (filtroFechaDesde && fechaAsignacion < filtroFechaDesde) return false;
-        if (filtroFechaHasta && fechaAsignacion > filtroFechaHasta) return false;
-        return true;
-      });
-    }
-
     if (filtroEstado === 'entregado') {
       data = data.filter((a) => a.entregado === true);
     } else if (filtroEstado === 'pendiente') {
@@ -840,7 +841,7 @@ const AsignacionPrendasView: React.FC = () => {
     }
 
     return data;
-  }, [asignaciones, filtro, filtroFechaDesde, filtroFechaHasta, filtroEstado, sortConfig]);
+  }, [asignaciones, filtro, filtroEstado, sortConfig]);
 
   const asignacionesPaginadas = useMemo(() => {
     const inicio = (paginaActual - 1) * registrosPorPagina;
@@ -2543,6 +2544,15 @@ const AsignacionPrendasView: React.FC = () => {
       {!showForm && !modoReporte && (
         <>
           <div className="form-container" style={{ marginBottom: '20px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px', flexWrap: 'wrap', gap: '8px' }}>
+              <div style={{ color: '#6c757d', fontSize: '14px' }}>
+                📅{' '}
+                {filtroFechaDesde || filtroFechaHasta
+                  ? `Período: ${filtroFechaDesde || '…'} — ${filtroFechaHasta || '…'}`
+                  : 'Todos los períodos'}
+                {' '}(Total: {processedAsignaciones.length})
+              </div>
+            </div>
             <div
               style={{
                 display: 'grid',

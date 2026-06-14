@@ -25,6 +25,21 @@ const TABLA_EMPRESA = 'tbl_15_empresas';
  */
 export const getAllAsignaciones = async (req: Request, res: Response): Promise<void> => {
   try {
+    const { fechaDesde, fechaHasta } = req.query;
+    const conditions: string[] = [];
+    const params: string[] = [];
+
+    if (fechaDesde) {
+      params.push(String(fechaDesde));
+      conditions.push(`am.fecha_09 >= $${params.length}::date`);
+    }
+    if (fechaHasta) {
+      params.push(String(fechaHasta));
+      conditions.push(`am.fecha_09 <= $${params.length}::date`);
+    }
+
+    const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+
     const query = `
       SELECT 
         am.idasignacionmain_09,
@@ -42,10 +57,11 @@ export const getAllAsignaciones = async (req: Request, res: Response): Promise<v
       INNER JOIN ${TABLA_TRABAJADOR} t ON am.idtrabajador_09 = t.idtrabajador_06
       INNER JOIN ${TABLA_RESPONSABLE} r ON am.idresponsableentrega_09 = r.idresponsableentrega_08
       LEFT JOIN ${TABLA_EMPRESA} e ON am.idempresa_09 = e.idempresa_15
+      ${whereClause}
       ORDER BY am.fecha_09 DESC, am.hora_09 DESC
     `;
 
-    const result = await pool.query<AsignacionPrenda>(query);
+    const result = await pool.query<AsignacionPrenda>(query, params);
 
     const response: ApiResponse<AsignacionPrenda[]> = {
       success: true,

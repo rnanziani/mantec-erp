@@ -242,6 +242,23 @@ export interface UpdateCargoDTO {
   cargo_14: string;
 }
 
+/**
+ * Empresa
+ * Tabla: tbl_15_empresas
+ */
+export interface Empresa {
+  idempresa_15: number;
+  nombreempresa_15: string;
+}
+
+export interface CreateEmpresaDTO {
+  nombreempresa_15: string;
+}
+
+export interface UpdateEmpresaDTO {
+  nombreempresa_15: string;
+}
+
 export interface Categoria {
   id_categoria_42: number;
   categoria_42: string;

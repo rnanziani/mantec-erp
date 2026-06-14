@@ -21,6 +21,7 @@ const MANTENEDORES = [
   { nombre: 'MENU_MANTENEDORES_CARGOS', descripcion: 'Cargos', orden: 6130 },
   { nombre: 'MENU_MANTENEDORES_TECNICOS', descripcion: 'Técnicos', orden: 6140 },
   { nombre: 'MENU_MANTENEDORES_TRABAJADORES', descripcion: 'Trabajadores', orden: 6150 },
+  { nombre: 'MENU_MANTENEDORES_EMPRESAS', descripcion: 'Empresas', orden: 6155 },
   { nombre: 'MENU_MANTENEDORES_PRODUCTOS_ASEO', descripcion: 'Productos de aseo', orden: 6160 },
   { nombre: 'MENU_MANTENEDORES_MAQUINAS', descripcion: 'Máquinas', orden: 6170 },
   { nombre: 'MENU_MANTENEDORES_RESPONSABLES_ENTREGA', descripcion: 'Responsables de entrega', orden: 6180 },
@@ -80,7 +81,9 @@ async function main() {
   }
 
   const parentId = ids.get('MENU_MANTENEDORES');
-  const hijosNuevos = MANTENEDORES.filter((p) => p.orden >= 6180).map((p) => p.nombre);
+  const hijosNuevos = MANTENEDORES.filter(
+    (p) => p.orden >= 6180 || p.nombre === 'MENU_MANTENEDORES_EMPRESAS'
+  ).map((p) => p.nombre);
 
   const niveles = await pool.query(
     `SELECT DISTINCT id_nivel_04 FROM tbl_050_nivel_permiso WHERE id_permiso_05 = $1`,
