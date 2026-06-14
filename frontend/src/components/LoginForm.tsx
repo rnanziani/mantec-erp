@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import './BodegaView.css';
-import { apiUrl } from '../lib/apiClient';
+import { apiUrl, API_BASE } from '../lib/apiClient';
 import { onLoginSuccess } from '../lib/sessionAuth';
 
 const peekButtonStyle: React.CSSProperties = {
@@ -94,7 +94,12 @@ const LoginForm: React.FC = () => {
         }
       }
     } catch (err) {
-      setError('Error de conexión. Intente nuevamente.');
+      console.error('Login fetch error:', err, 'API:', API_BASE);
+      const missingApi =
+        import.meta.env.PROD && /localhost|127\.0\.0\.1/.test(API_BASE)
+          ? ' Configure VITE_API_URL=https://mantec-erp.onrender.com en Render y vuelva a desplegar el frontend.'
+          : '';
+      setError(`Error de conexión. Intente nuevamente.${missingApi}`);
     } finally {
       setLoading(false);
     }

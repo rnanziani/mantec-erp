@@ -55,16 +55,29 @@ validateProductionSecrets();
 const app = express();
 const PORT = process.env.PORT || 3001;
 
+function normalizeOrigin(url: string): string {
+  return url.trim().replace(/\/$/, '');
+}
+
 const corsOrigins = [
   process.env.FRONTEND_URL,
+  ...(process.env.CORS_ORIGINS?.split(',') ?? []),
   ...(process.env.NODE_ENV !== 'production' ? ['http://localhost:5173', 'http://127.0.0.1:5173'] : []),
-].filter(Boolean) as string[];
+]
+  .filter((v): v is string => Boolean(v && v.trim()))
+  .map(normalizeOrigin);
+
+const uniqueCorsOrigins = [...new Set(corsOrigins)];
+
+if (process.env.NODE_ENV === 'production') {
+  console.log('🌐 CORS orígenes permitidos:', uniqueCorsOrigins.length ? uniqueCorsOrigins.join(', ') : '(todos — configure FRONTEND_URL)');
+}
 
 // Middleware MANTEC
 app.use(helmet());
 app.use(
   cors({
-    origin: corsOrigins.length > 0 ? corsOrigins : true,
+    origin: uniqueCorsOrigins.length > 0 ? uniqueCorsOrigins : true,
     credentials: true,
   })
 );
