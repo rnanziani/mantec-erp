@@ -2,7 +2,7 @@ import { Request, Response } from 'express';
 import { pool } from '../db.js';
 import { Transaccion, CreateTransaccionDTO, UpdateTransaccionDTO, ApiResponse } from '../types.js';
 import PdfPrinter from 'pdfmake';
-import { TDocumentDefinitions } from 'pdfmake/interfaces';
+import type { PdfDocumentDefinition } from '../utils/pdfTypes.js';
 
 /**
  * Obtener todas las transacciones con información de alternador, marca, ubicación y tipo
@@ -646,7 +646,7 @@ export const generarReportePDF = async (req: Request, res: Response): Promise<vo
     });
 
     // Definir el documento PDF
-    const docDefinition: TDocumentDefinitions = {
+    const docDefinition: PdfDocumentDefinition = {
       pageSize: 'A4',
       pageOrientation: 'landscape',
       pageMargins: [20, 120, 40, 60], // Margen izquierdo reducido 50% (40 -> 20)
@@ -1054,7 +1054,7 @@ export const generarReporteCantidadComponentesPDF = async (req: Request, res: Re
     }
 
     // Definir el documento PDF
-    const docDefinition: TDocumentDefinitions = {
+    const docDefinition: PdfDocumentDefinition = {
       pageSize: 'A4',
       pageOrientation: 'portrait',
       pageMargins: [20, 120, 40, 60],

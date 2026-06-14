@@ -75,7 +75,7 @@ export const createPrenda = async (req: Request, res: Response): Promise<void> =
       [prendaNorm]
     );
 
-    if (dup.rowCount > 0) {
+    if ((dup.rowCount ?? 0) > 0) {
       res.status(400).json({
         success: false,
         error: 'Ya existe una prenda con ese valor'
@@ -119,7 +119,7 @@ export const updatePrenda = async (req: Request, res: Response): Promise<void> =
       [prendaNorm, id]
     );
 
-    if (otra.rowCount > 0) {
+    if ((otra.rowCount ?? 0) > 0) {
       res.status(400).json({
         success: false,
         error: 'Ya existe otra prenda con ese valor'

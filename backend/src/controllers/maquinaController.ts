@@ -36,7 +36,7 @@ export const getAllMaquinas = async (req: Request, res: Response): Promise<void>
     const response: ApiResponse<Maquina[]> = {
       success: true,
       data: result.rows,
-      count: result.rowCount
+      count: result.rowCount ?? undefined
     };
 
     res.json(response);
@@ -147,7 +147,7 @@ export const createMaquina = async (req: Request, res: Response): Promise<void> 
       [numinterno_11, idempresa_11]
     );
 
-    if (duplicateCheck.rowCount > 0) {
+    if ((duplicateCheck.rowCount ?? 0) > 0) {
       const response: ApiResponse<null> = {
         success: false,
         error: 'Ya existe una máquina con el mismo número interno para esta empresa'
@@ -254,7 +254,7 @@ export const updateMaquina = async (req: Request, res: Response): Promise<void> 
         [finalNumInterno, finalIdEmpresa, id]
       );
 
-      if (duplicateCheck.rowCount > 0) {
+      if ((duplicateCheck.rowCount ?? 0) > 0) {
         const response: ApiResponse<null> = {
           success: false,
           error: 'Ya existe una máquina con el mismo número interno para esta empresa'

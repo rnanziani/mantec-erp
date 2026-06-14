@@ -549,6 +549,7 @@ export interface ApiResponse<T> {
   data?: T;
   message?: string;
   error?: string;
+  count?: number;
 }
 
 // ============================================
@@ -1171,31 +1172,4 @@ export interface HistorialContrasena {
   id_usuario_01: number;
   hashed_password_01: string;
   fecha_cambio_01: Date;
-}
-
-/**
- * Intento de Login
- * Tabla: tbl_02_intento_login
- */
-export interface IntentoLogin {
-  id_intento_02: number;
-  id_usuario_02?: number;
-  attempted_email: string;
-  ip_address_02?: string;
-  exitoso_02: boolean;
-  fecha_intento_02: Date;
-}
-
-/**
- * Sesión
- * Tabla: tbl_03_sesion
- */
-export interface Sesion {
-  id_sesion_03: string;
-  id_usuario_03: number;
-  token_sesion_03: string;
-  fecha_creacion_03: Date;
-  fecha_expiracion_03: Date;
-  ip_address_03?: string;
-  user_agent_03?: string;
 }

@@ -11,7 +11,7 @@ import {
   ApiResponse
 } from '../types.js';
 import PdfPrinter from 'pdfmake';
-import { TDocumentDefinitions } from 'pdfmake/interfaces';
+import type { PdfDocumentDefinition } from '../utils/pdfTypes.js';
 
 // Tablas reales según el esquema de base de datos
 const TABLA_ASIGNACION = 'tbl_12_productomain';
@@ -1027,7 +1027,7 @@ export const generarReportePDF = async (req: Request, res: Response): Promise<vo
     }
 
     // Definir el documento PDF
-    const docDefinition: TDocumentDefinitions = {
+    const docDefinition: PdfDocumentDefinition = {
       pageSize: 'A4',
       pageOrientation: 'landscape',
       pageMargins: [40, 60, 40, 60],

@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import { pool } from '../db.js';
 import PdfPrinter from 'pdfmake';
-import { TDocumentDefinitions } from 'pdfmake/interfaces';
+import type { PdfDocumentDefinition } from '../utils/pdfTypes.js';
 import {
   MaestroConsumoInsumo,
   DetalleConsumoInsumo,
@@ -140,7 +140,7 @@ function buildActaInsumosPdfContent(
   filasInsumos: FilaActaInsumo[],
   observaciones: string | null,
   responsable: { nombre: string; fecha: string; hora: string }
-): TDocumentDefinitions['content'] {
+): PdfDocumentDefinition['content'] {
   const tableHeader = [
     { text: 'Item', style: 'tableHeader', alignment: 'center' as const },
     { text: 'Cantidad', style: 'tableHeader', alignment: 'center' as const },
@@ -285,7 +285,7 @@ function buildActaInsumosPdfContent(
   ];
 }
 
-const ACTA_PDF_STYLES: TDocumentDefinitions['styles'] = {
+const ACTA_PDF_STYLES: PdfDocumentDefinition['styles'] = {
   title: { fontSize: 14, bold: true },
   version: { fontSize: 8, color: '#666' },
   intro: { fontSize: 9 },
@@ -702,7 +702,7 @@ export const generarActaEntregaPDF = async (req: Request, res: Response): Promis
     };
 
     const printer = new PdfPrinter(fonts);
-    const docDefinition: TDocumentDefinitions = {
+    const docDefinition: PdfDocumentDefinition = {
       pageSize: 'LETTER',
       pageMargins: [40, 30, 40, 30],
       content: buildActaInsumosPdfContent(

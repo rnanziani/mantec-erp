@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import { pool } from '../db.js';
 import PdfPrinter from 'pdfmake';
-import { TDocumentDefinitions } from 'pdfmake/interfaces';
+import type { PdfDocumentDefinition } from '../utils/pdfTypes.js';
 import {
   AsignacionPrenda,
   DetalleAsignacionPrenda,
@@ -10,6 +10,7 @@ import {
   UpdateAsignacionPrendaDTO,
   ApiResponse
 } from '../types.js';
+import { asQueryString } from '../utils/queryParam.js';
 
 // Tablas según el esquema de base de datos
 const TABLA_ASIGNACION = 'tbl_09_asignacion_main';
@@ -776,7 +777,7 @@ export const generarActaEntregaPDF = async (req: Request, res: Response): Promis
       ]);
     });
 
-    const docDefinition: TDocumentDefinitions = {
+    const docDefinition: PdfDocumentDefinition = {
       pageSize: 'LETTER',
       pageMargins: [40, 30, 40, 30],
       content: [
@@ -958,7 +959,7 @@ export const getReporteDatos = async (req: Request, res: Response): Promise<void
       return;
     }
 
-    const params: (string | number)[] = [fechaDesde, fechaHasta];
+    const params: (string | number)[] = [asQueryString(fechaDesde), asQueryString(fechaHasta)];
     let paramIdx = 3;
 
     let whereClause = `WHERE am.fecha_09 >= $1::date AND am.fecha_09 <= $2::date`;
@@ -1058,7 +1059,7 @@ export const getReporteInconsistenciaActaEntregadoDetallePendiente = async (
       return;
     }
 
-    const params: (string | number)[] = [fechaDesde, fechaHasta];
+    const params: (string | number)[] = [asQueryString(fechaDesde), asQueryString(fechaHasta)];
     let paramIdx = 3;
 
     let whereClause = `WHERE am.fecha_09 >= $1::date AND am.fecha_09 <= $2::date
@@ -1146,7 +1147,7 @@ export const getReporteMaestro = async (req: Request, res: Response): Promise<vo
       return;
     }
 
-    const params: (string | number | boolean)[] = [fechaDesde, fechaHasta];
+    const params: (string | number | boolean)[] = [asQueryString(fechaDesde), asQueryString(fechaHasta)];
     let paramIdx = 3;
 
     let whereClause = `WHERE am.fecha_09 >= $1::date AND am.fecha_09 <= $2::date`;
@@ -1231,7 +1232,7 @@ export const getReporteResumenPorPrenda = async (req: Request, res: Response): P
       return;
     }
 
-    const params: (string | number)[] = [fechaDesde, fechaHasta];
+    const params: (string | number)[] = [asQueryString(fechaDesde), asQueryString(fechaHasta)];
     let paramIdx = 3;
 
     let whereClause = `WHERE am.fecha_09 >= $1::date AND am.fecha_09 <= $2::date`;
@@ -1317,7 +1318,7 @@ export const generarReportePDF = async (req: Request, res: Response): Promise<vo
       return;
     }
 
-    const params: (string | number)[] = [fechaDesde, fechaHasta];
+    const params: (string | number)[] = [asQueryString(fechaDesde), asQueryString(fechaHasta)];
     let paramIdx = 3;
 
     let whereClause = `WHERE am.fecha_09 >= $1::date AND am.fecha_09 <= $2::date`;
@@ -1484,7 +1485,7 @@ export const generarReportePDF = async (req: Request, res: Response): Promise<vo
       });
     });
 
-    const docDefinition: TDocumentDefinitions = {
+    const docDefinition: PdfDocumentDefinition = {
       pageSize: 'LETTER',
       pageOrientation: 'landscape',
       pageMargins: [30, 50, 30, 30],
