@@ -73,6 +73,18 @@ app.use(express.json({ limit: '1mb' }));
 // Protección global: JWT + permisos por ruta API
 app.use(apiPermissionGuard);
 
+// Raíz: orientación (Render abre esta URL al hacer clic en el servicio)
+app.get('/', (_req, res) => {
+  res.json({
+    success: true,
+    sistema: 'MANTEC ERP API',
+    mensaje: 'Backend operativo. Las rutas de la API usan el prefijo /api/',
+    health: '/api/mantec/health',
+    login: 'POST /api/auth/login',
+    documentacion: 'Despliega el frontend (React) por separado y configura VITE_API_URL con esta URL.',
+  });
+});
+
 // MANTEC Health check
 app.get('/api/mantec/health', (req, res) => {
   res.json({
