@@ -2,8 +2,9 @@ import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import dotenv from 'dotenv';
-import { testConnection } from './db.js';
+import { pool, testConnection } from './db.js';
 import { apiPermissionGuard } from './middleware/authMiddleware.js';
+import { validateProductionSecrets } from './utils/safeError.js';
 import marcasRoutes from './routes/marcasRoutes.js';
 import alternadoresRoutes from './routes/alternadoresRoutes.js';
 import estadoAlternadorRoutes from './routes/estadoAlternadorRoutes.js';
@@ -47,22 +48,82 @@ import prendaRoutes from './routes/prendaRoutes.js';
 import llantaRoutes from './routes/llantaRoutes.js';
 console.log('🔄 Servidor iniciando - Cargando rutas...');
 dotenv.config();
+validateProductionSecrets();
 const app = express();
 const PORT = process.env.PORT || 3001;
+function normalizeOrigin(url) {
+    return url.trim().replace(/\/$/, '');
+}
+const corsOrigins = [
+    process.env.FRONTEND_URL,
+    ...(process.env.CORS_ORIGINS?.split(',') ?? []),
+    ...(process.env.NODE_ENV !== 'production' ? ['http://localhost:5173', 'http://127.0.0.1:5173'] : []),
+]
+    .filter((v) => Boolean(v && v.trim()))
+    .map(normalizeOrigin);
+const uniqueCorsOrigins = [...new Set(corsOrigins)];
+/** Frontends Render (*.onrender.com) cuando FRONTEND_URL no coincide con la URL real del Static Site. */
+function isAllowedCorsOrigin(origin) {
+    const normalized = normalizeOrigin(origin);
+    if (uniqueCorsOrigins.includes(normalized))
+        return true;
+    if (process.env.NODE_ENV === 'production' && /^https:\/\/[\w-]+\.onrender\.com$/i.test(normalized)) {
+        return true;
+    }
+    return uniqueCorsOrigins.length === 0;
+}
+if (process.env.NODE_ENV === 'production') {
+    console.log('🌐 CORS orígenes permitidos:', uniqueCorsOrigins.length ? uniqueCorsOrigins.join(', ') : '(todos)');
+    console.log('🌐 CORS extra: cualquier https://*.onrender.com');
+}
 // Middleware MANTEC
 app.use(helmet());
-app.use(cors());
-app.use(express.json());
+app.use(cors({
+    origin(origin, callback) {
+        if (!origin) {
+            callback(null, true);
+            return;
+        }
+        if (isAllowedCorsOrigin(origin)) {
+            callback(null, origin);
+            return;
+        }
+        console.warn('CORS rechazado:', origin);
+        callback(null, false);
+    },
+    credentials: true,
+}));
+app.use(express.json({ limit: '1mb' }));
 // Protección global: JWT + permisos por ruta API
 app.use(apiPermissionGuard);
-// MANTEC Health check
-app.get('/api/mantec/health', (req, res) => {
+// Raíz: orientación (Render abre esta URL al hacer clic en el servicio)
+app.get('/', (_req, res) => {
     res.json({
-        status: 'OPERATIVO',
+        success: true,
+        sistema: 'MANTEC ERP API',
+        mensaje: 'Backend operativo. Las rutas de la API usan el prefijo /api/',
+        health: '/api/mantec/health',
+        login: 'POST /api/auth/login',
+        documentacion: 'Despliega el frontend (React) por separado y configura VITE_API_URL con esta URL.',
+    });
+});
+// MANTEC Health check (incluye estado de PostgreSQL)
+app.get('/api/mantec/health', async (_req, res) => {
+    let database = 'error';
+    try {
+        await pool.query('SELECT 1');
+        database = 'conectada';
+    }
+    catch {
+        database = 'error';
+    }
+    res.json({
+        status: database === 'conectada' ? 'OPERATIVO' : 'DEGRADADO',
+        database,
         sistema: 'MANTEC ERP',
         version: '1.0.0',
         modulo: 'Gestión de Alternadores',
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
     });
 });
 // Ruta de información del sistema
@@ -75,12 +136,6 @@ app.get('/api/mantec/info', (req, res) => {
         version: '1.0.0'
     });
 });
-// RUTA DE PRUEBA - Verificar que POST funciona
-app.post('/api/test-post', (req, res) => {
-    console.log('🧪 Test POST recibido');
-    res.json({ success: true, message: 'POST funciona correctamente' });
-});
-console.log('🧪 Ruta de prueba POST registrada en /api/test-post');
 // Rutas de la API
 app.use('/api/marcas', marcasRoutes);
 app.use('/api/alternadores', alternadoresRoutes);
@@ -125,6 +180,17 @@ app.use('/api/tallas', tallaRoutes);
 app.use('/api/prendas', prendaRoutes);
 app.use('/api/llantas', llantaRoutes);
 console.log('✅ Todas las rutas cargadas');
+app.use((_req, res) => {
+    res.status(404).json({ success: false, error: 'Ruta no encontrada' });
+});
+app.use((err, _req, res, _next) => {
+    console.error('Error no controlado:', err);
+    res.status(500).json({
+        success: false,
+        error: 'Error interno del servidor',
+        ...(process.env.NODE_ENV !== 'production' && { details: err.message }),
+    });
+});
 // Iniciar servidor
 const startServer = async () => {
     // Verificar conexión a la base de datos

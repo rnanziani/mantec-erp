@@ -2,17 +2,42 @@ import pg from 'pg';
 import dotenv from 'dotenv';
 dotenv.config();
 const { Pool } = pg;
-// Configuración del pool de conexiones a PostgreSQL
-export const pool = new Pool({
-    host: process.env.DB_HOST || 'localhost',
-    port: parseInt(process.env.DB_PORT || '5432'),
-    database: process.env.DB_NAME || 'mantec_erc',
-    user: process.env.DB_USER || 'postgres',
-    password: process.env.DB_PASSWORD || 'postgres',
-    max: 20, // Máximo de conexiones en el pool
+const POOL_OPTS = {
+    max: 20,
     idleTimeoutMillis: 30000,
-    connectionTimeoutMillis: 10000, // Aumentado a 10 segundos
-});
+    connectionTimeoutMillis: 10000,
+};
+/** Render PostgreSQL exige SSL; localhost no. */
+function sslForHost(host) {
+    if (process.env.DB_SSL === 'false')
+        return undefined;
+    if (process.env.DB_SSL === 'true')
+        return { rejectUnauthorized: false };
+    const isLocal = host === 'localhost' || host === '127.0.0.1';
+    if (isLocal)
+        return undefined;
+    return { rejectUnauthorized: false };
+}
+function buildPoolConfig() {
+    const databaseUrl = process.env.DATABASE_URL?.trim();
+    if (databaseUrl) {
+        const hostMatch = databaseUrl.match(/@([^:/]+)/);
+        const ssl = sslForHost(hostMatch?.[1] ?? '');
+        return { connectionString: databaseUrl, ...POOL_OPTS, ...(ssl ? { ssl } : {}) };
+    }
+    const host = process.env.DB_HOST || 'localhost';
+    const ssl = sslForHost(host);
+    return {
+        host,
+        port: parseInt(process.env.DB_PORT || '5432', 10),
+        database: process.env.DB_NAME || 'mantec_erc',
+        user: process.env.DB_USER || 'postgres',
+        password: process.env.DB_PASSWORD || 'postgres',
+        ...POOL_OPTS,
+        ...(ssl ? { ssl } : {}),
+    };
+}
+export const pool = new Pool(buildPoolConfig());
 // Evento para manejar errores del pool
 pool.on('error', (err) => {
     console.error('❌ Error inesperado en el pool de PostgreSQL:', err);

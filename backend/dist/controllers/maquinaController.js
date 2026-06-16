@@ -21,7 +21,7 @@ export const getAllMaquinas = async (req, res) => {
         const response = {
             success: true,
             data: result.rows,
-            count: result.rowCount
+            count: result.rowCount ?? undefined
         };
         res.json(response);
     }
@@ -115,7 +115,7 @@ export const createMaquina = async (req, res) => {
         }
         // Verificar si ya existe una máquina con el mismo número interno y empresa
         const duplicateCheck = await pool.query('SELECT idmaquina_11 FROM tbl_11_maquina WHERE numinterno_11 = $1 AND idempresa_11 = $2', [numinterno_11, idempresa_11]);
-        if (duplicateCheck.rowCount > 0) {
+        if ((duplicateCheck.rowCount ?? 0) > 0) {
             const response = {
                 success: false,
                 error: 'Ya existe una máquina con el mismo número interno para esta empresa'
@@ -197,7 +197,7 @@ export const updateMaquina = async (req, res) => {
             const finalNumInterno = numinterno_11 || currentMaquina.rows[0].numinterno_11;
             const finalIdEmpresa = idempresa_11 || currentMaquina.rows[0].idempresa_11;
             const duplicateCheck = await pool.query('SELECT idmaquina_11 FROM tbl_11_maquina WHERE numinterno_11 = $1 AND idempresa_11 = $2 AND idmaquina_11 != $3', [finalNumInterno, finalIdEmpresa, id]);
-            if (duplicateCheck.rowCount > 0) {
+            if ((duplicateCheck.rowCount ?? 0) > 0) {
                 const response = {
                     success: false,
                     error: 'Ya existe una máquina con el mismo número interno para esta empresa'
