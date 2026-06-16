@@ -52,11 +52,35 @@ pool.on('error', (err) => {
 // Función para verificar la conexión
 export const testConnection = async (): Promise<boolean> => {
   try {
-    console.log('🔄 Intentando conectar a PostgreSQL...');
-    console.log(`   Host: ${process.env.DB_HOST || 'localhost'}`);
-    console.log(`   Port: ${process.env.DB_PORT || '5432'}`);
-    console.log(`   Database: ${process.env.DB_NAME || 'mantec_erc'}`);
-    console.log(`   User: ${process.env.DB_USER || 'postgres'}`);
+///////////////////////////////////////////////////////////////////////////////////
+//    //conexion local
+//    console.log('🔄 Intentando conectar a PostgreSQL...');
+//    console.log(`   Host: ${process.env.DB_HOST || 'localhost'}`);
+//    console.log(`   Port: ${process.env.DB_PORT || '5432'}`);
+//    console.log(`   Database: ${process.env.DB_NAME || 'mantec_erc'}`);
+//    console.log(`   User: ${process.env.DB_USER || 'postgres'}`);
+
+
+///////////////////////////////////////////////////////////////////////////
+//// conexion web
+    // Extraer información de DATABASE_URL para mostrar
+    const dbUrl = process.env.DATABASE_URL;
+    let hostInfo = 'No definida';
+    let dbInfo = 'No definida';
+    
+    if (dbUrl) {
+      try {
+        const url = new URL(dbUrl);
+        hostInfo = url.hostname || 'No definido';
+        dbInfo = url.pathname?.substring(1) || 'No definida';
+      } catch (e) {
+        hostInfo = 'URL inválida';
+      }
+    }
+
+
+
+///////////////////////////////////////////////////////////////////////////    
     
     const client = await pool.connect();
     const result = await client.query('SELECT NOW()');
