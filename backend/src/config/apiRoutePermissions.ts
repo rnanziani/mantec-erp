@@ -63,6 +63,7 @@ export const API_PREFIX_RULES: Array<{
   { prefix: '/api/ordenes-trabajo', permission: 'MENU_OPERACIONES_ORDENES_TRABAJO' },
   { prefix: '/api/asignaciones-productos-aseo', permission: 'MENU_OPERACIONES_ASIGNACION_ASEO' },
   { prefix: '/api/asignaciones-prendas', permission: 'MENU_OPERACIONES_ASIGNACION_PRENDAS' },
+  { prefix: '/api/cargo-maquinas', permission: 'MENU_OPERACIONES_CARGO_MAQUINA' },
   { prefix: '/api/consumo-insumos', permission: 'MENU_OPERACIONES' },
 
   // Neumáticos (prefijos largos antes que cortos)

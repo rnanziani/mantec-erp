@@ -38,6 +38,7 @@ import CcostoView from './components/CcostoView';
 import EmpresaView from './components/EmpresaView';
 import InsumoView from './components/InsumoView';
 import ConsumoInsumoView from './components/ConsumoInsumoView';
+import CargoMaquinaView from './components/CargoMaquinaView';
 import MarcaNeumaticoView from './components/MarcaNeumaticoView';
 import NeumaticoView from './components/NeumaticoView';
 import EstadoNeumaticoView from './components/EstadoNeumaticoView';
@@ -131,6 +132,7 @@ function App() {
     'ordenes-trabajo': 'MENU_OPERACIONES_ORDENES_TRABAJO',
     'asignacion-productos-aseo': 'MENU_OPERACIONES_ASIGNACION_ASEO',
     'asignacion-prendas': 'MENU_OPERACIONES_ASIGNACION_PRENDAS',
+    'cargo-maquina': 'MENU_OPERACIONES_CARGO_MAQUINA',
     'bodegas': 'MENU_GESTION_ALTERNADORES_BODEGAS',
     'tipos-transaccion': 'MENU_GESTION_ALTERNADORES_TIPOS_TRANSACCION',
     'transacciones': 'MENU_GESTION_ALTERNADORES_MOVIMIENTOS',
@@ -462,6 +464,7 @@ function App() {
           {currentView === 'insumos' && hasRouteAccess('insumos') && <InsumoView />}
 
           {currentView === 'consumo-insumos' && hasRouteAccess('consumo-insumos') && <ConsumoInsumoView />}
+          {currentView === 'cargo-maquina' && hasRouteAccess('cargo-maquina') && <CargoMaquinaView />}
 
           {currentView === 'neumaticos' && hasRouteAccess('neumaticos') && <NeumaticoView />}
           {currentView === 'marcas-neumatico' && hasRouteAccess('marcas-neumatico') && <MarcaNeumaticoView />}

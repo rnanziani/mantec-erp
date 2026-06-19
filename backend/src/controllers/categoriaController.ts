@@ -5,7 +5,7 @@ import { Categoria, CreateCategoriaDTO, UpdateCategoriaDTO } from '../types.js';
 export const getAllCategorias = async (req: Request, res: Response): Promise<void> => {
   try {
     const result = await pool.query<Categoria>(
-      'SELECT id_categoria_42, categoria_42 FROM tbl_42_categoria ORDER BY id_categoria_42 ASC'
+      'SELECT id_categoria_42, categoria_42 FROM tbl_42_categoria ORDER BY categoria_42 ASC'
     );
     res.json({ success: true, data: result.rows, count: result.rowCount });
   } catch (error) {

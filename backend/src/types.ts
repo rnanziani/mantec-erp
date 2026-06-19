@@ -967,6 +967,58 @@ export interface UpdateAsignacionProductoAseoDTO {
 }
 
 /**
+ * Cargo Máquina (Maestro) — tbl_38_m_cargo_maquina
+ */
+export interface MaestroCargoMaquina {
+  idmcargomaquina_38: number;
+  idmaquina_38: number;
+  idtrabajador_38: number;
+  fecha_38: Date | string;
+  observacion_38?: string | null;
+  maquina_ppu?: string;
+  maquina_numinterno?: string;
+  maquina_descripcion?: string;
+  trabajador_nombre?: string;
+}
+
+/**
+ * Cargo Máquina (Detalle) — tbl_39_d_cargo_maquina
+ */
+export interface DetalleCargoMaquina {
+  iddcargomaquina_39: number;
+  idmcargomaquina_39: number;
+  idinsumo_39: number;
+  cantstd_39: number;
+  cantreal_39: number;
+  diferencia_39: number;
+  insumo_descripcion?: string;
+}
+
+export interface CreateMaestroCargoMaquinaDTO {
+  idmaquina_38: number;
+  idtrabajador_38: number;
+  fecha_38?: string;
+  observacion_38?: string | null;
+  detalles: Array<{
+    idinsumo_39: number;
+    cantstd_39: number;
+    cantreal_39: number;
+  }>;
+}
+
+export interface UpdateMaestroCargoMaquinaDTO {
+  idmaquina_38?: number;
+  idtrabajador_38?: number;
+  fecha_38?: string;
+  observacion_38?: string | null;
+  detalles?: Array<{
+    idinsumo_39: number;
+    cantstd_39: number;
+    cantreal_39: number;
+  }>;
+}
+
+/**
  * Asignación de Prendas (Maestro)
  * Tabla: tbl_09_asignacion_main
  */

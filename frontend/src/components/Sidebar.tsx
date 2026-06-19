@@ -59,7 +59,8 @@ const Sidebar: React.FC<SidebarProps> = ({ onNavigate, currentView }) => {
                 { id: 'ordenes-trabajo', label: 'Órdenes de Trabajo', icon: '🔧', path: 'ordenes-trabajo', permissionRequired: 'MENU_OPERACIONES_ORDENES_TRABAJO' },
                 { id: 'asignacion-productos-aseo', label: 'Asignación Productos Aseo', icon: '📋', path: 'asignacion-productos-aseo', permissionRequired: 'MENU_OPERACIONES_ASIGNACION_ASEO' },
                 { id: 'asignacion-prendas', label: 'Asignación de Prendas', icon: '👔', path: 'asignacion-prendas', permissionRequired: 'MENU_OPERACIONES_ASIGNACION_PRENDAS' },
-                { id: 'consumo-insumos', label: 'Consumo Insumos', icon: '📦', path: 'consumo-insumos', permissionRequired: 'MENU_OPERACIONES' }
+                { id: 'consumo-insumos', label: 'Consumo Insumos', icon: '📦', path: 'consumo-insumos', permissionRequired: 'MENU_OPERACIONES' },
+                { id: 'cargo-maquina', label: 'Cargo Máquina', icon: '🚛', path: 'cargo-maquina', permissionRequired: 'MENU_OPERACIONES_CARGO_MAQUINA' }
             ]
         },
         {

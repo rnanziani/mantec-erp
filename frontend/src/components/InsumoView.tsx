@@ -64,7 +64,11 @@ const InsumoView: React.FC = () => {
       const res = await fetch(CATEG_URL);
       const data: ApiResponse<Categoria[]> = await res.json();
       if (data.success && Array.isArray(data.data)) {
-        setCategorias(data.data);
+        setCategorias(
+          [...data.data].sort((a, b) =>
+            a.categoria_42.localeCompare(b.categoria_42, 'es', { sensitivity: 'base' })
+          )
+        );
       }
     } catch {}
   };
