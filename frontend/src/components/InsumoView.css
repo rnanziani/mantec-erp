@@ -1,5 +1,15 @@
 /* Estilos específicos para Insumos (complementa BodegaView.css) */
 
+.insumo-form-row {
+  grid-template-columns: minmax(180px, 1fr) minmax(220px, 2.5fr) minmax(120px, 1fr);
+}
+
+@media (max-width: 768px) {
+  .insumo-form-row {
+    grid-template-columns: 1fr;
+  }
+}
+
 .insumo-desc {
     font-weight: 500;
     color: #334155;

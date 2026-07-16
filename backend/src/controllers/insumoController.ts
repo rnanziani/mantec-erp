@@ -2,12 +2,17 @@ import { Request, Response } from 'express';
 import { pool } from '../db.js';
 import { Insumo, CreateInsumoDTO, UpdateInsumoDTO } from '../types.js';
 
+const INSUMO_SELECT = `
+  SELECT i.id_insumo_43, i.descripcion_43, i.precio_insumo_43, i.id_categoria_43,
+         i.codigo_insumo_43, i.id_marca_insumo_43, c.categoria_42, m.marca_insumo_37
+  FROM tbl_43_insumo i
+  INNER JOIN tbl_42_categoria c ON i.id_categoria_43 = c.id_categoria_42
+  LEFT JOIN tbl_37_marca_insumo m ON i.id_marca_insumo_43 = m.id_marca_insumo_37`;
+
 export const getAllInsumos = async (req: Request, res: Response): Promise<void> => {
   try {
     const result = await pool.query<Insumo>(
-      `SELECT i.id_insumo_43, i.descripcion_43, i.precio_insumo_43, i.id_categoria_43, c.categoria_42
-       FROM tbl_43_insumo i
-       INNER JOIN tbl_42_categoria c ON i.id_categoria_43 = c.id_categoria_42
+      `${INSUMO_SELECT}
        ORDER BY i.id_insumo_43 ASC`
     );
     res.json({ success: true, data: result.rows, count: result.rowCount });
@@ -24,9 +29,7 @@ export const getInsumoById = async (req: Request, res: Response): Promise<void> 
   try {
     const { id } = req.params;
     const result = await pool.query<Insumo>(
-      `SELECT i.id_insumo_43, i.descripcion_43, i.precio_insumo_43, i.id_categoria_43, c.categoria_42
-       FROM tbl_43_insumo i
-       INNER JOIN tbl_42_categoria c ON i.id_categoria_43 = c.id_categoria_42
+      `${INSUMO_SELECT}
        WHERE i.id_insumo_43 = $1`,
       [id]
     );
@@ -80,9 +83,7 @@ export const createInsumo = async (req: Request, res: Response): Promise<void> =
       insertedRow = result.rows[0] as any;
     }
     const withJoin = await pool.query<Insumo>(
-      `SELECT i.id_insumo_43, i.descripcion_43, i.precio_insumo_43, i.id_categoria_43, c.categoria_42
-       FROM tbl_43_insumo i
-       INNER JOIN tbl_42_categoria c ON i.id_categoria_43 = c.id_categoria_42
+      `${INSUMO_SELECT}
        WHERE i.id_insumo_43 = $1`,
       [insertedRow.id_insumo_43]
     );
@@ -135,9 +136,7 @@ export const updateInsumo = async (req: Request, res: Response): Promise<void> =
     );
     const updated = result.rows[0];
     const withJoin = await pool.query<Insumo>(
-      `SELECT i.id_insumo_43, i.descripcion_43, i.precio_insumo_43, i.id_categoria_43, c.categoria_42
-       FROM tbl_43_insumo i
-       INNER JOIN tbl_42_categoria c ON i.id_categoria_43 = c.id_categoria_42
+      `${INSUMO_SELECT}
        WHERE i.id_insumo_43 = $1`,
       [updated.id_insumo_43]
     );

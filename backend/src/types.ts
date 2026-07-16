@@ -421,6 +421,9 @@ export interface Insumo {
   precio_insumo_43: number;
   id_categoria_43: number;
   categoria_42?: string;
+  codigo_insumo_43?: string | null;
+  id_marca_insumo_43?: number | null;
+  marca_insumo_37?: string | null;
 }
 
 export interface CreateInsumoDTO {

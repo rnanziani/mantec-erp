@@ -157,8 +157,8 @@
 .loading { padding: 2rem; text-align: center; color: #64748B; }
 
 @media (max-width: 768px) {
-  .detalle-insumos-grid .data-table th:nth-child(n+4),
-  .detalle-insumos-grid .data-table td:nth-child(n+4) {
+  .detalle-insumos-grid .data-table th:nth-child(n+6),
+  .detalle-insumos-grid .data-table td:nth-child(n+6) {
     display: none;
   }
 }

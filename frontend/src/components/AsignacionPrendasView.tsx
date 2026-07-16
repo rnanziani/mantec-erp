@@ -7,6 +7,7 @@ import {
   exportReporteSoloMaestroToExcel,
   exportReporteResumenPrendasToExcel
 } from '../utils/exportUtils';
+import { filtrarTrabajadoresPorApellido } from '../utils/trabajadorSearch';
 import { apiUrl, openAuthenticatedBlob } from '../lib/apiClient';
 
 interface AsignacionPrenda {
@@ -762,30 +763,10 @@ const AsignacionPrendasView: React.FC = () => {
     setBulkEntregado('keep');
   };
 
-  // Filtrar trabajadores por apellido
-  const trabajadoresFiltrados = useMemo(() => {
-    if (!buscarApellido || buscarApellido.trim() === '') {
-      return trabajadores;
-    }
-    
-    const busqueda = buscarApellido.trim();
-    const apellidos = busqueda.split(/\s+/);
-    
-    return trabajadores.filter(t => {
-      if (apellidos.length === 1) {
-        const apellidoLower = apellidos[0].toLowerCase();
-        const coincidePaterno = t.apaterno_06 && t.apaterno_06.toLowerCase().includes(apellidoLower);
-        const coincideMaterno = t.amaterno_06 && t.amaterno_06.toLowerCase().includes(apellidoLower);
-        return coincidePaterno || coincideMaterno;
-      } else {
-        const primerApellidoLower = apellidos[0].toLowerCase();
-        const segundoApellidoLower = apellidos[1].toLowerCase();
-        const coincidePaterno = t.apaterno_06 && t.apaterno_06.toLowerCase().includes(primerApellidoLower);
-        const coincideMaterno = t.amaterno_06 && t.amaterno_06.toLowerCase().includes(segundoApellidoLower);
-        return coincidePaterno && coincideMaterno;
-      }
-    });
-  }, [trabajadores, buscarApellido]);
+  const trabajadoresFiltrados = useMemo(
+    () => filtrarTrabajadoresPorApellido(trabajadores, buscarApellido),
+    [trabajadores, buscarApellido]
+  );
 
   const rutByTrabajadorId = useMemo(() => {
     const map = new Map<number, string>();
@@ -2057,7 +2038,7 @@ const AsignacionPrendasView: React.FC = () => {
                 </button>
               </div>
               <small style={{ color: '#6c757d', fontSize: '0.85em', display: 'block', marginTop: '5px' }}>
-                💡 Tip: Escribe un apellido para búsqueda amplia, o dos apellidos para búsqueda precisa
+                💡 Tip: Un apellido = búsqueda amplia. Varios = paterno compuesto + materno (ej. SAN MARTIN OBANDO).
               </small>
             </div>
 

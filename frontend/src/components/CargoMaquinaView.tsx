@@ -4,6 +4,7 @@ import './ConsumoInsumoView.css';
 import Pagination from './shared/Pagination';
 import { showDeleteConfirm, showError, showSuccess } from '../utils/swal';
 import { exportToExcel } from '../utils/exportUtils';
+import { filtrarTrabajadoresPorApellido } from '../utils/trabajadorSearch';
 import { apiFetch, apiUrl } from '../lib/apiClient';
 
 interface MaestroCargoMaquina {
@@ -183,30 +184,10 @@ const CargoMaquinaView: React.FC = () => {
     );
   }, [maquinas, buscarPatente]);
 
-  const trabajadoresFiltrados = useMemo(() => {
-    if (!buscarApellido.trim()) return trabajadores;
-    const apellidos = buscarApellido.trim().split(/\s+/).map((a) => a.toLowerCase());
-    if (apellidos.length === 1) {
-      const word = apellidos[0];
-      const paterno = trabajadores.filter((t) =>
-        t.apaterno_06?.toLowerCase().startsWith(word)
-      );
-      const materno = trabajadores.filter(
-        (t) =>
-          t.amaterno_06?.toLowerCase().startsWith(word) &&
-          !paterno.some((p) => p.idtrabajador_06 === t.idtrabajador_06)
-      );
-      return [...paterno, ...materno];
-    }
-    const [primer, segundo] = apellidos;
-    return trabajadores
-      .filter(
-        (t) =>
-          t.apaterno_06?.toLowerCase().startsWith(primer) &&
-          t.amaterno_06?.toLowerCase().startsWith(segundo)
-      )
-      .sort((a, b) => (a.apaterno_06 || '').localeCompare(b.apaterno_06 || ''));
-  }, [trabajadores, buscarApellido]);
+  const trabajadoresFiltrados = useMemo(
+    () => filtrarTrabajadoresPorApellido(trabajadores, buscarApellido),
+    [trabajadores, buscarApellido]
+  );
 
   const processedRegistros = useMemo(() => {
     let data = [...registros];

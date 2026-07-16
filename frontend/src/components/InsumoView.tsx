@@ -309,7 +309,26 @@ const InsumoView: React.FC = () => {
         <div className="form-container">
           <h3>{editingId ? '✏️ Editar Insumo' : '➕ Nuevo Insumo'}</h3>
           <form ref={formRef} onSubmit={editingId ? handleUpdate : handleCreate}>
-            <div className="form-row">
+            <div className="form-row insumo-form-row">
+              <div className="form-group">
+                <label htmlFor="categoria">Categoría: *</label>
+                <select
+                  id="categoria"
+                  className="form-input"
+                  value={categoriaId}
+                  onChange={(e) => setCategoriaId(e.target.value)}
+                  required
+                  autoFocus
+                  aria-label="Seleccionar categoría"
+                >
+                  <option value="">Seleccione...</option>
+                  {categorias.map(c => (
+                    <option key={c.id_categoria_42} value={String(c.id_categoria_42)}>
+                      {c.categoria_42}
+                    </option>
+                  ))}
+                </select>
+              </div>
               <div className="form-group">
                 <label htmlFor="descripcion">Descripción: *</label>
                 <input
@@ -322,7 +341,6 @@ const InsumoView: React.FC = () => {
                   style={{ textTransform: 'uppercase' }}
                   maxLength={255}
                   required
-                  autoFocus
                 />
               </div>
               <div className="form-group">
@@ -338,24 +356,6 @@ const InsumoView: React.FC = () => {
                   min={0}
                   required
                 />
-              </div>
-              <div className="form-group">
-                <label htmlFor="categoria">Categoría: *</label>
-                <select
-                  id="categoria"
-                  className="form-input"
-                  value={categoriaId}
-                  onChange={(e) => setCategoriaId(e.target.value)}
-                  required
-                  aria-label="Seleccionar categoría"
-                >
-                  <option value="">Seleccione...</option>
-                  {categorias.map(c => (
-                    <option key={c.id_categoria_42} value={String(c.id_categoria_42)}>
-                      {c.categoria_42}
-                    </option>
-                  ))}
-                </select>
               </div>
             </div>
             <div className="form-actions">
