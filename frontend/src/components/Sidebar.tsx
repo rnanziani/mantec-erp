@@ -110,6 +110,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onNavigate, currentView }) => {
                 { id: 'tallas', label: 'Tallas', icon: '📏', path: 'tallas', permissionRequired: 'MENU_MANTENEDORES_TALLAS' },
                 { id: 'prendas', label: 'Prendas', icon: '👕', path: 'prendas', permissionRequired: 'MENU_MANTENEDORES_PRENDAS' },
                 { id: 'ccostos', label: 'Centros de Costo', icon: '🏷️', path: 'ccostos', permissionRequired: 'MENU_MANTENEDORES_CCOSTOS' },
+                { id: 'marcas-insumo', label: 'Marcas de Insumo', icon: '🏭', path: 'marcas-insumo', permissionRequired: 'MENU_MANTENEDORES_MARCAS_INSUMO' },
                 { id: 'insumos', label: 'Insumos', icon: '🧾', path: 'insumos', permissionRequired: 'MENU_MANTENEDORES_INSUMOS' }
             ]
         },

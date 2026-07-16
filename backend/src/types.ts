@@ -272,6 +272,19 @@ export interface UpdateCategoriaDTO {
   categoria_42: string;
 }
 
+export interface MarcaInsumo {
+  id_marca_insumo_37: number;
+  marca_insumo_37: string;
+}
+
+export interface CreateMarcaInsumoDTO {
+  marca_insumo_37: string;
+}
+
+export interface UpdateMarcaInsumoDTO {
+  marca_insumo_37: string;
+}
+
 export interface Ccosto {
   id_ccosto_45: number;
   ccosto_45: string;

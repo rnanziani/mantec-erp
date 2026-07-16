@@ -37,6 +37,7 @@ import PrendaView from './components/PrendaView';
 import CcostoView from './components/CcostoView';
 import EmpresaView from './components/EmpresaView';
 import InsumoView from './components/InsumoView';
+import MarcaInsumoView from './components/MarcaInsumoView';
 import ConsumoInsumoView from './components/ConsumoInsumoView';
 import CargoMaquinaView from './components/CargoMaquinaView';
 import MarcaNeumaticoView from './components/MarcaNeumaticoView';
@@ -153,6 +154,7 @@ function App() {
     'tallas': 'MENU_MANTENEDORES_TALLAS',
     'prendas': 'MENU_MANTENEDORES_PRENDAS',
     'ccostos': 'MENU_MANTENEDORES_CCOSTOS',
+    'marcas-insumo': 'MENU_MANTENEDORES_MARCAS_INSUMO',
     'insumos': 'MENU_MANTENEDORES_INSUMOS',
     'consumo-insumos': 'MENU_OPERACIONES',
     'neumaticos': 'MENU_NEUMATICOS_COD_TRAZABILIDAD',
@@ -460,6 +462,8 @@ function App() {
           {currentView === 'prendas' && hasRouteAccess('prendas') && <PrendaView />}
 
           {currentView === 'ccostos' && hasRouteAccess('ccostos') && <CcostoView />}
+
+          {currentView === 'marcas-insumo' && hasRouteAccess('marcas-insumo') && <MarcaInsumoView />}
 
           {currentView === 'insumos' && hasRouteAccess('insumos') && <InsumoView />}
 
