@@ -5,6 +5,7 @@ import Pagination from './shared/Pagination';
 import { showDeleteConfirm, showSuccess, showError } from '../utils/swal';
 import { exportToExcel } from '../utils/exportUtils';
 import { apiUrl, openAuthenticatedBlob } from '../lib/apiClient';
+import { filtrarTrabajadoresPorApellido } from '../utils/trabajadorSearch';
 
 interface MaestroConsumo {
   id_m_consumo_insumo_46: number;
@@ -63,12 +64,16 @@ interface Insumo {
   descripcion_43: string;
   precio_insumo_43: number;
   id_categoria_43?: number;
+  codigo_insumo_43?: string | null;
+  marca_insumo_37?: string | null;
 }
 
 interface LineaItem {
   id_categoria: number;
   id_insumo: number;
   descripcion: string;
+  codigo: string;
+  marca: string;
   cantidad: number;
   precio: number;
   total: number;
@@ -192,7 +197,7 @@ const ConsumoInsumoView: React.FC = () => {
   const [hora, setHora] = useState(new Date().toTimeString().slice(0, 5));
   const [observacion, setObservacion] = useState('');
   const [lineas, setLineas] = useState<LineaItem[]>([
-    { id_categoria: 0, id_insumo: 0, descripcion: '', cantidad: 0, precio: 0, total: 0, observacion: '', isMaster: true }
+    { id_categoria: 0, id_insumo: 0, descripcion: '', codigo: '', marca: '', cantidad: 0, precio: 0, total: 0, observacion: '', isMaster: true }
   ]);
 
 
@@ -335,37 +340,10 @@ const ConsumoInsumoView: React.FC = () => {
     return data;
   }, [consumos, searchTerm, filtroFechaDesde, filtroFechaHasta, sortConfig]);
 
-  const trabajadoresFiltrados = useMemo(() => {
-    if (!buscarApellido || buscarApellido.trim() === '') return trabajadores;
-    const busqueda = buscarApellido.trim();
-    const apellidos = busqueda.split(/\s+/).map((a) => a.toLowerCase());
-    if (apellidos.length === 1) {
-      const word = apellidos[0];
-      const paternoMatch = trabajadores.filter(
-        (t) => t.apaterno_06 != null && t.apaterno_06.toLowerCase().startsWith(word)
-      );
-      const maternoMatch = trabajadores.filter(
-        (t) =>
-          t.amaterno_06 != null &&
-          t.amaterno_06.toLowerCase().startsWith(word) &&
-          !paternoMatch.some((p) => p.idtrabajador_06 === t.idtrabajador_06)
-      );
-      return [...paternoMatch, ...maternoMatch];
-    }
-    const [primer, segundo] = apellidos;
-    return trabajadores
-      .filter(
-        (t) =>
-          t.apaterno_06 != null &&
-          t.apaterno_06.toLowerCase().startsWith(primer) &&
-          t.amaterno_06 != null &&
-          t.amaterno_06.toLowerCase().startsWith(segundo)
-      )
-      .sort((a, b) => {
-        const cmpP = (a.apaterno_06 || '').localeCompare(b.apaterno_06 || '');
-        return cmpP !== 0 ? cmpP : (a.amaterno_06 || '').localeCompare(b.amaterno_06 || '');
-      });
-  }, [trabajadores, buscarApellido]);
+  const trabajadoresFiltrados = useMemo(
+    () => filtrarTrabajadoresPorApellido(trabajadores, buscarApellido),
+    [trabajadores, buscarApellido]
+  );
 
   const ccostosFiltrados = useMemo(() => {
     if (!buscarCcosto || buscarCcosto.trim() === '') return ccostos;
@@ -404,7 +382,7 @@ const ConsumoInsumoView: React.FC = () => {
   const addLinea = () => {
     setLineas((prev) => [
       ...prev,
-      { id_categoria: 0, id_insumo: 0, descripcion: '', cantidad: 0, precio: 0, total: 0, observacion: '' }
+      { id_categoria: 0, id_insumo: 0, descripcion: '', codigo: '', marca: '', cantidad: 0, precio: 0, total: 0, observacion: '' }
     ]);
   };
 
@@ -420,11 +398,15 @@ const ConsumoInsumoView: React.FC = () => {
       if (field === 'id_categoria') {
         item.id_insumo = 0;
         item.descripcion = '';
+        item.codigo = '';
+        item.marca = '';
         item.precio = 0;
         item.total = 0;
       } else if (field === 'id_insumo') {
         const ins = insumos.find((i) => i.id_insumo_43 === value);
         item.descripcion = ins?.descripcion_43 || '';
+        item.codigo = ins?.codigo_insumo_43 || '';
+        item.marca = ins?.marca_insumo_37 || '';
         item.precio = ins?.precio_insumo_43 || 0;
         item.total = item.cantidad * item.precio;
       } else if (field === 'cantidad') {
@@ -447,7 +429,7 @@ const ConsumoInsumoView: React.FC = () => {
     setHora(new Date().toTimeString().slice(0, 5));
     setObservacion('');
     setLineas([
-      { id_categoria: 0, id_insumo: 0, descripcion: '', cantidad: 0, precio: 0, total: 0, observacion: '', isMaster: true }
+      { id_categoria: 0, id_insumo: 0, descripcion: '', codigo: '', marca: '', cantidad: 0, precio: 0, total: 0, observacion: '', isMaster: true }
     ]);
     setEditingId(null);
     setShowForm(false);
@@ -604,6 +586,16 @@ const ConsumoInsumoView: React.FC = () => {
   const getInsumoDescripcion = useCallback(
     (idInsumo: number, fallback?: string) =>
       insumos.find((i) => i.id_insumo_43 === idInsumo)?.descripcion_43 || fallback || '-',
+    [insumos]
+  );
+
+  const getInsumoCodigo = useCallback(
+    (idInsumo: number) => insumos.find((i) => i.id_insumo_43 === idInsumo)?.codigo_insumo_43 || '-',
+    [insumos]
+  );
+
+  const getInsumoMarca = useCallback(
+    (idInsumo: number) => insumos.find((i) => i.id_insumo_43 === idInsumo)?.marca_insumo_37 || '-',
     [insumos]
   );
 
@@ -873,7 +865,9 @@ const ConsumoInsumoView: React.FC = () => {
           id_categoria: insumoMaster?.id_categoria_43 || 0,
           id_insumo: maestro.id_insumo_46,
           descripcion: maestro.insumo_descripcion || '',
-                          cantidad: Math.trunc(maestro.cantidad_46),
+          codigo: insumoMaster?.codigo_insumo_43 || '',
+          marca: insumoMaster?.marca_insumo_37 || '',
+          cantidad: Math.trunc(maestro.cantidad_46),
           precio: insumoMaster?.precio_insumo_43 || 0,
           total: insumoMaster ? maestro.cantidad_46 * insumoMaster.precio_insumo_43 : 0,
           isMaster: true
@@ -885,6 +879,8 @@ const ConsumoInsumoView: React.FC = () => {
           id_categoria: insumoDet?.id_categoria_43 || 0,
           id_insumo: d.id_insumo_47,
           descripcion: d.insumo_descripcion || '',
+          codigo: insumoDet?.codigo_insumo_43 || '',
+          marca: insumoDet?.marca_insumo_37 || '',
           cantidad: Math.trunc(d.cantidad_47),
           precio: d.precio_insumo || 0,
           total: d.total_47,
@@ -902,7 +898,7 @@ const ConsumoInsumoView: React.FC = () => {
   return (
     <div className="bodega-view">
       <div className="view-header">
-        <h2>📦 Consumo de Insumos</h2>
+        <h2>📦 Asignación de Insumos</h2>
         <div style={{ display: 'flex', gap: '10px' }}>
           <button
             className="btn-primary"
@@ -1133,7 +1129,9 @@ const ConsumoInsumoView: React.FC = () => {
                   <thead>
                     <tr>
                       <th>Categoría *</th>
+                      <th>Código</th>
                       <th>Insumo *</th>
+                      <th>Marca</th>
                       <th>Cantidad *</th>
                       <th>Precio Unit.</th>
                       <th>Total</th>
@@ -1144,7 +1142,7 @@ const ConsumoInsumoView: React.FC = () => {
                   <tbody>
                     {lineas.length === 0 ? (
                       <tr>
-                        <td colSpan={7} style={{ textAlign: 'center', color: '#999' }}>
+                        <td colSpan={9} style={{ textAlign: 'center', color: '#999' }}>
                           No hay insumos asignados. Use "Agregar línea" para comenzar.
                         </td>
                       </tr>
@@ -1171,6 +1169,9 @@ const ConsumoInsumoView: React.FC = () => {
                                 ))}
                               </select>
                             </td>
+                            <td className="td-readonly" title={linea.codigo || undefined}>
+                              {linea.codigo || '-'}
+                            </td>
                             <td>
                               <select
                                 className="form-input form-input-sm"
@@ -1187,6 +1188,9 @@ const ConsumoInsumoView: React.FC = () => {
                                   </option>
                                 ))}
                               </select>
+                            </td>
+                            <td className="td-readonly" title={linea.marca || undefined}>
+                              {linea.marca || '-'}
                             </td>
                             <td>
                               <input
@@ -1498,7 +1502,9 @@ const ConsumoInsumoView: React.FC = () => {
                 <table className="data-table">
                   <thead>
                     <tr>
+                      <th>Código</th>
                       <th>Insumo</th>
+                      <th>Marca</th>
                       <th>Cantidad</th>
                       <th>Precio Unit.</th>
                       <th>Total</th>
@@ -1510,11 +1516,16 @@ const ConsumoInsumoView: React.FC = () => {
                     {detalleLineas.map((linea) => {
                       const precio = getPrecioInsumo(linea.id_insumo);
                       const total = linea.cantidad * precio;
+                      const codigo = getInsumoCodigo(linea.id_insumo);
+                      const marca = getInsumoMarca(linea.id_insumo);
                       return (
                         <tr
                           key={linea.key}
                           className={linea.isMaster ? '' : 'consumo-detalle-row'}
                         >
+                          <td className="td-readonly" title={codigo !== '-' ? codigo : undefined}>
+                            {codigo}
+                          </td>
                           <td>
                             {linea.editing ? (
                               <select
@@ -1535,6 +1546,9 @@ const ConsumoInsumoView: React.FC = () => {
                             ) : (
                               getInsumoDescripcion(linea.id_insumo)
                             )}
+                          </td>
+                          <td className="td-readonly" title={marca !== '-' ? marca : undefined}>
+                            {marca}
                           </td>
                           <td className="td-cantidad">
                             {linea.editing ? (

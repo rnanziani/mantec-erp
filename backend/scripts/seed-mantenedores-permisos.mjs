@@ -30,6 +30,7 @@ const MANTENEDORES = [
   { nombre: 'MENU_MANTENEDORES_TALLAS', descripcion: 'Tallas', orden: 6210 },
   { nombre: 'MENU_MANTENEDORES_PRENDAS', descripcion: 'Prendas', orden: 6220 },
   { nombre: 'MENU_MANTENEDORES_CCOSTOS', descripcion: 'Centros de costo', orden: 6230 },
+  { nombre: 'MENU_MANTENEDORES_MARCAS_INSUMO', descripcion: 'Marcas de insumo', orden: 6250 },
   { nombre: 'MENU_MANTENEDORES_INSUMOS', descripcion: 'Insumos', orden: 6240 },
 ];
 
@@ -82,7 +83,7 @@ async function main() {
 
   const parentId = ids.get('MENU_MANTENEDORES');
   const hijosNuevos = MANTENEDORES.filter(
-    (p) => p.orden >= 6180 || p.nombre === 'MENU_MANTENEDORES_EMPRESAS'
+    (p) => p.orden >= 6180 || p.nombre === 'MENU_MANTENEDORES_EMPRESAS' || p.nombre === 'MENU_MANTENEDORES_MARCAS_INSUMO'
   ).map((p) => p.nombre);
 
   const niveles = await pool.query(
@@ -94,7 +95,7 @@ async function main() {
       await assignToNivel(id_nivel_04, ids.get(nombre));
     }
   }
-  console.log(`Niveles con MENU_MANTENEDORES: ${niveles.rowCount} → permisos 6180-6240 asignados`);
+  console.log(`Niveles con MENU_MANTENEDORES: ${niveles.rowCount} → permisos 6180-6250 asignados`);
 
   const usuarios = await pool.query(
     `SELECT DISTINCT id_usuario_000 FROM tbl_000_usuario_permiso WHERE id_permiso_000 = $1`,

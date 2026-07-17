@@ -1,5 +1,53 @@
 /* Estilos específicos para Insumos (complementa BodegaView.css) */
 
+.insumo-form-row {
+  grid-template-columns: minmax(180px, 1fr) minmax(220px, 2.5fr) minmax(120px, 1fr);
+}
+
+.insumo-form-row-extra {
+  grid-template-columns: minmax(220px, 1.5fr) minmax(180px, 1fr);
+  margin-top: 0;
+}
+
+.insumo-form-row-extra .form-hint {
+  display: block;
+  font-size: 0.75rem;
+  color: #6c757d;
+  margin-top: 4px;
+}
+
+@media (max-width: 768px) {
+  .insumo-form-row {
+    grid-template-columns: 1fr;
+  }
+
+  .insumo-form-row-extra {
+    grid-template-columns: 1fr;
+  }
+
+  .insumo-filter-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+.insumo-filter-row {
+  display: grid;
+  grid-template-columns: minmax(200px, 1fr) minmax(260px, 2fr);
+  gap: 15px;
+  align-items: end;
+}
+
+.insumo-filter-row .form-group {
+  margin-bottom: 0;
+}
+
+.insumo-filter-row label {
+  display: block;
+  margin-bottom: 5px;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
 .insumo-desc {
     font-weight: 500;
     color: #334155;
@@ -12,5 +60,16 @@
 
 .insumo-cat {
     color: #64748b;
+    font-size: 0.9rem;
+}
+
+.insumo-codigo {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 0.85rem;
+    color: #475569;
+}
+
+.insumo-marca {
+    color: #334155;
     font-size: 0.9rem;
 }

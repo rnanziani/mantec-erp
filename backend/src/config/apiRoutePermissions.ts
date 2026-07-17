@@ -95,6 +95,7 @@ export const API_PREFIX_RULES: Array<{
   { prefix: '/api/maquinas', permission: 'MENU_MANTENEDORES_MAQUINAS', readAuthOnly: true },
   { prefix: '/api/ccostos', permission: 'MENU_MANTENEDORES_CCOSTOS', readAuthOnly: true },
   { prefix: '/api/insumos', permission: 'MENU_MANTENEDORES_INSUMOS', readAuthOnly: true },
+  { prefix: '/api/marcas-insumo', permission: 'MENU_MANTENEDORES_MARCAS_INSUMO', readAuthOnly: true },
   { prefix: '/api/tallas', permission: 'MENU_MANTENEDORES_TALLAS', readAuthOnly: true },
   { prefix: '/api/prendas', permission: 'MENU_MANTENEDORES_PRENDAS', readAuthOnly: true },
 ];

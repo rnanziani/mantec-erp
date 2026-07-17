@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import './BodegaView.css'; // Reutilizamos los mismos estilos
 import { showSuccess, showError, showDeleteConfirm } from '../utils/swal';
 import { apiUrl, openAuthenticatedBlob } from '../lib/apiClient';
+import { filtrarTrabajadoresPorApellido } from '../utils/trabajadorSearch';
 
 interface Asignacion {
   id_asignacion: number;
@@ -626,34 +627,10 @@ const AsignacionProductosAseoView: React.FC = () => {
     );
   }, [maquinas, buscarPatente]);
 
-  const trabajadoresFiltrados = useMemo(() => {
-    if (!buscarApellido || buscarApellido.trim() === '') {
-      return trabajadores;
-    }
-    const busqueda = buscarApellido.trim();
-    const apellidos = busqueda.split(/\s+/).map(a => a.toLowerCase());
-    if (apellidos.length === 1) {
-      const word = apellidos[0];
-      const paternoMatch = trabajadores.filter(t =>
-        t.apaterno_06 != null && t.apaterno_06.toLowerCase().startsWith(word)
-      );
-      const maternoMatch = trabajadores.filter(t =>
-        t.amaterno_06 != null && t.amaterno_06.toLowerCase().startsWith(word) &&
-        !paternoMatch.some(p => p.idtrabajador_06 === t.idtrabajador_06)
-      );
-      return [...paternoMatch, ...maternoMatch];
-    }
-    const [primer, segundo] = apellidos;
-    return trabajadores
-      .filter(t =>
-        t.apaterno_06 != null && t.apaterno_06.toLowerCase().startsWith(primer) &&
-        t.amaterno_06 != null && t.amaterno_06.toLowerCase().startsWith(segundo)
-      )
-      .sort((a, b) => {
-        const cmpP = (a.apaterno_06 || '').localeCompare(b.apaterno_06 || '');
-        return cmpP !== 0 ? cmpP : (a.amaterno_06 || '').localeCompare(b.amaterno_06 || '');
-      });
-  }, [trabajadores, buscarApellido]);
+  const trabajadoresFiltrados = useMemo(
+    () => filtrarTrabajadoresPorApellido(trabajadores, buscarApellido),
+    [trabajadores, buscarApellido]
+  );
 
   return (
     <div className="bodega-view">

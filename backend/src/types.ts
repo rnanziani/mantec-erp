@@ -272,6 +272,19 @@ export interface UpdateCategoriaDTO {
   categoria_42: string;
 }
 
+export interface MarcaInsumo {
+  id_marca_insumo_37: number;
+  marca_insumo_37: string;
+}
+
+export interface CreateMarcaInsumoDTO {
+  marca_insumo_37: string;
+}
+
+export interface UpdateMarcaInsumoDTO {
+  marca_insumo_37: string;
+}
+
 export interface Ccosto {
   id_ccosto_45: number;
   ccosto_45: string;
@@ -421,18 +434,25 @@ export interface Insumo {
   precio_insumo_43: number;
   id_categoria_43: number;
   categoria_42?: string;
+  codigo_insumo_43?: string | null;
+  id_marca_insumo_43?: number | null;
+  marca_insumo_37?: string | null;
 }
 
 export interface CreateInsumoDTO {
   descripcion_43?: string;
   precio_insumo_43: number;
   id_categoria_43: number;
+  codigo_insumo_43?: string | null;
+  id_marca_insumo_43?: number;
 }
 
 export interface UpdateInsumoDTO {
   descripcion_43?: string;
   precio_insumo_43?: number;
   id_categoria_43?: number;
+  codigo_insumo_43?: string | null;
+  id_marca_insumo_43?: number;
 }
 
 /**
