@@ -443,12 +443,16 @@ export interface CreateInsumoDTO {
   descripcion_43?: string;
   precio_insumo_43: number;
   id_categoria_43: number;
+  codigo_insumo_43?: string | null;
+  id_marca_insumo_43?: number;
 }
 
 export interface UpdateInsumoDTO {
   descripcion_43?: string;
   precio_insumo_43?: number;
   id_categoria_43?: number;
+  codigo_insumo_43?: string | null;
+  id_marca_insumo_43?: number;
 }
 
 /**

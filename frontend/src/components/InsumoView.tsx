@@ -11,11 +11,19 @@ interface Insumo {
   precio_insumo_43: number | string;
   id_categoria_43: number;
   categoria_42?: string;
+  codigo_insumo_43?: string | null;
+  id_marca_insumo_43?: number | null;
+  marca_insumo_37?: string | null;
 }
 
 interface Categoria {
   id_categoria_42: number;
   categoria_42: string;
+}
+
+interface MarcaInsumo {
+  id_marca_insumo_37: number;
+  marca_insumo_37: string;
 }
 
 interface ApiResponse<T = unknown> {
@@ -32,15 +40,19 @@ const InsumoView: React.FC = () => {
   const formRef = React.useRef<HTMLFormElement>(null);
   const [insumos, setInsumos] = useState<Insumo[]>([]);
   const [categorias, setCategorias] = useState<Categoria[]>([]);
+  const [marcas, setMarcas] = useState<MarcaInsumo[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string>('');
   const [amount, setAmount] = useState<string>('');
   const [descripcion, setDescripcion] = useState<string>('');
   const [categoriaId, setCategoriaId] = useState<string>('');
+  const [codigo, setCodigo] = useState<string>('');
+  const [marcaId, setMarcaId] = useState<string>('');
   const [editingId, setEditingId] = useState<number | null>(null);
   const [showForm, setShowForm] = useState<boolean>(false);
 
   const [searchTerm, setSearchTerm] = useState<string>('');
+  const [filtroCategoriaId, setFiltroCategoriaId] = useState<string>('');
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [itemsPerPage] = useState<number>(10);
   const [sortConfig, setSortConfig] = useState<{ key: SortKey; direction: 'asc' | 'desc' }>({
@@ -50,14 +62,40 @@ const InsumoView: React.FC = () => {
 
   const API_URL = apiUrl('/insumos');
   const CATEG_URL = apiUrl('/categorias');
+  const MARCAS_URL = apiUrl('/marcas-insumo');
+
+  const normalizeCodigoInput = (raw: string) => raw.replace(/[^0-9A-Za-z]/g, '').toUpperCase().slice(0, 20);
+
+  const buildPayload = () => ({
+    descripcion_43: descripcion.trim().toUpperCase(),
+    precio_insumo_43: parseFloat(amount),
+    id_categoria_43: parseInt(categoriaId, 10),
+    codigo_insumo_43: codigo.trim() ? codigo.trim() : null,
+    id_marca_insumo_43: parseInt(marcaId, 10)
+  });
 
   const formatAmount = (value: number | string) =>
     new Intl.NumberFormat('es-CL', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(Number(value));
 
   useEffect(() => {
     fetchCategorias();
+    fetchMarcas();
     fetchInsumos();
   }, []);
+
+  const fetchMarcas = async () => {
+    try {
+      const res = await fetch(MARCAS_URL);
+      const data: ApiResponse<MarcaInsumo[]> = await res.json();
+      if (data.success && Array.isArray(data.data)) {
+        setMarcas(
+          [...data.data].sort((a, b) =>
+            a.marca_insumo_37.localeCompare(b.marca_insumo_37, 'es', { sensitivity: 'base' })
+          )
+        );
+      }
+    } catch {}
+  };
 
   const fetchCategorias = async () => {
     try {
@@ -93,11 +131,15 @@ const InsumoView: React.FC = () => {
 
   const filteredAndSorted = useMemo(() => {
     const st = searchTerm.toLowerCase();
+    const catFilter = parseInt(filtroCategoriaId, 10);
     const list = insumos.filter(i => {
+      if (filtroCategoriaId && i.id_categoria_43 !== catFilter) return false;
       const cat = i.categoria_42 ? i.categoria_42.toLowerCase() : '';
+      const marca = i.marca_insumo_37 ? i.marca_insumo_37.toLowerCase() : '';
+      const codigoStr = i.codigo_insumo_43 ? i.codigo_insumo_43.toLowerCase() : '';
       const amountStr = Number(i.precio_insumo_43).toFixed(2);
       const desc = i.descripcion_43 ? i.descripcion_43.toLowerCase() : '';
-      return cat.includes(st) || amountStr.includes(st) || desc.includes(st);
+      return cat.includes(st) || marca.includes(st) || codigoStr.includes(st) || amountStr.includes(st) || desc.includes(st);
     });
     list.sort((a, b) => {
       const aRaw = a[sortConfig.key];
@@ -109,7 +151,9 @@ const InsumoView: React.FC = () => {
       return 0;
     });
     return list;
-  }, [insumos, searchTerm, sortConfig]);
+  }, [insumos, searchTerm, filtroCategoriaId, sortConfig]);
+
+  const hasActiveFilters = Boolean(searchTerm.trim() || filtroCategoriaId);
 
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
@@ -118,7 +162,7 @@ const InsumoView: React.FC = () => {
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm]);
+  }, [searchTerm, filtroCategoriaId]);
 
   const handleSort = (key: SortKey) => {
     setSortConfig(prev => ({
@@ -136,33 +180,49 @@ const InsumoView: React.FC = () => {
     setAmount('');
     setCategoriaId('');
     setDescripcion('');
+    setCodigo('');
+    setMarcaId('');
     setEditingId(null);
     setShowForm(false);
     setError('');
   };
 
-  const handleCreate = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const validateForm = async (): Promise<boolean> => {
     const num = parseFloat(amount);
     const cat = parseInt(categoriaId, 10);
+    const marca = parseInt(marcaId, 10);
     if (isNaN(num) || !isFinite(num)) {
       await showError('Campo requerido', 'El precio debe ser numérico');
-      return;
+      return false;
     }
     if (!cat) {
       await showError('Campo requerido', 'Debe seleccionar una categoría');
-      return;
+      return false;
+    }
+    if (!marca) {
+      await showError('Campo requerido', 'Debe seleccionar una marca');
+      return false;
     }
     if (!descripcion.trim()) {
       await showError('Campo requerido', 'La descripción es requerida');
-      return;
+      return false;
     }
+    if (codigo.trim() && codigo.trim().length !== 20) {
+      await showError('Validación', 'El código debe tener exactamente 20 caracteres alfanuméricos');
+      return false;
+    }
+    return true;
+  };
+
+  const handleCreate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!(await validateForm())) return;
     try {
       setError('');
       const res = await fetch(API_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ descripcion_43: descripcion.trim().toUpperCase(), precio_insumo_43: num, id_categoria_43: cat })
+        body: JSON.stringify(buildPayload())
       });
       const data: ApiResponse<Insumo> = await res.json();
       if (data.success) {
@@ -182,26 +242,13 @@ const InsumoView: React.FC = () => {
   const handleUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
     if (editingId === null) return;
-    const num = parseFloat(amount);
-    const cat = parseInt(categoriaId, 10);
-    if (isNaN(num) || !isFinite(num)) {
-      await showError('Campo requerido', 'El precio debe ser numérico');
-      return;
-    }
-    if (!cat) {
-      await showError('Campo requerido', 'Debe seleccionar una categoría');
-      return;
-    }
-    if (!descripcion.trim()) {
-      await showError('Campo requerido', 'La descripción es requerida');
-      return;
-    }
+    if (!(await validateForm())) return;
     try {
       setError('');
       const res = await fetch(`${API_URL}/${editingId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ descripcion_43: descripcion.trim().toUpperCase(), precio_insumo_43: num, id_categoria_43: cat })
+        body: JSON.stringify(buildPayload())
       });
       const data: ApiResponse<Insumo> = await res.json();
       if (data.success) {
@@ -241,6 +288,8 @@ const InsumoView: React.FC = () => {
     setAmount(Number(ins.precio_insumo_43).toFixed(2));
     setCategoriaId(String(ins.id_categoria_43));
     setDescripcion(ins.descripcion_43 || '');
+    setCodigo(ins.codigo_insumo_43 || '');
+    setMarcaId(ins.id_marca_insumo_43 ? String(ins.id_marca_insumo_43) : '');
     setShowForm(true);
     setError('');
   };
@@ -257,8 +306,10 @@ const InsumoView: React.FC = () => {
   const handleExport = async () => {
     const dataToExport = filteredAndSorted.map(i => ({
       ID: i.id_insumo_43,
+      Codigo: i.codigo_insumo_43 || '',
       Descripcion: i.descripcion_43,
       Precio: i.precio_insumo_43,
+      Marca: i.marca_insumo_37 || '',
       Categoria: i.categoria_42 || ''
     }));
     exportToExcel(dataToExport, 'insumos', 'Insumos');
@@ -358,6 +409,43 @@ const InsumoView: React.FC = () => {
                 />
               </div>
             </div>
+            <div className="form-row insumo-form-row-extra">
+              <div className="form-group">
+                <label htmlFor="codigo">Código:</label>
+                <input
+                  type="text"
+                  id="codigo"
+                  className="form-input"
+                  value={codigo}
+                  onChange={(e) => setCodigo(normalizeCodigoInput(e.target.value))}
+                  placeholder="20 caracteres alfanuméricos (opcional)"
+                  maxLength={20}
+                  pattern="[0-9A-Za-z]{0,20}"
+                  aria-describedby="codigo-hint"
+                />
+                <small id="codigo-hint" className="form-hint">
+                  {codigo.length}/20 — Dejar vacío si no aplica
+                </small>
+              </div>
+              <div className="form-group">
+                <label htmlFor="marca">Marca: *</label>
+                <select
+                  id="marca"
+                  className="form-input"
+                  value={marcaId}
+                  onChange={(e) => setMarcaId(e.target.value)}
+                  required
+                  aria-label="Seleccionar marca"
+                >
+                  <option value="">Seleccione...</option>
+                  {marcas.map((m) => (
+                    <option key={m.id_marca_insumo_37} value={String(m.id_marca_insumo_37)}>
+                      {m.marca_insumo_37}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
             <div className="form-actions">
               <button type="submit" className="btn-success">
                 {editingId ? '💾 Actualizar' : '➕ Crear'}
@@ -376,17 +464,41 @@ const InsumoView: React.FC = () => {
             Mostrando {currentItems.length} de {filteredAndSorted.length} registros
           </div>
         </div>
-        <input
-          type="text"
-          placeholder="🔍 Buscar por categoría o precio..."
-          value={searchTerm}
-          onChange={(e) => {
-            setSearchTerm(e.target.value.toUpperCase());
-            setCurrentPage(1);
-          }}
-          style={{ width: '100%', padding: '10px', fontSize: '14px', borderRadius: '4px', border: '1px solid #ced4da', textTransform: 'uppercase' }}
-          aria-label="Buscar insumo"
-        />
+        <div className="insumo-filter-row">
+          <div className="form-group insumo-filter-categoria">
+            <label htmlFor="filtro-categoria">Filtrar por categoría</label>
+            <select
+              id="filtro-categoria"
+              className="form-input"
+              value={filtroCategoriaId}
+              onChange={(e) => setFiltroCategoriaId(e.target.value)}
+              aria-label="Filtrar por categoría"
+            >
+              <option value="">Todas las categorías</option>
+              {categorias.map((c) => (
+                <option key={c.id_categoria_42} value={String(c.id_categoria_42)}>
+                  {c.categoria_42}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="form-group insumo-filter-buscar">
+            <label htmlFor="buscar-insumo">Buscar</label>
+            <input
+              id="buscar-insumo"
+              type="text"
+              placeholder="🔍 Descripción, código, marca, categoría o precio..."
+              value={searchTerm}
+              onChange={(e) => {
+                setSearchTerm(e.target.value.toUpperCase());
+                setCurrentPage(1);
+              }}
+              className="form-input"
+              style={{ textTransform: 'uppercase' }}
+              aria-label="Buscar insumo"
+            />
+          </div>
+        </div>
       </div>
 
       <div className="table-container">
@@ -396,9 +508,11 @@ const InsumoView: React.FC = () => {
               <th onClick={() => handleSort('id_insumo_43')} className="sortable" style={{ cursor: 'pointer' }}>
                 ID {getSortIndicator('id_insumo_43')}
               </th>
+              <th>CÓDIGO</th>
               <th onClick={() => handleSort('descripcion_43')} className="sortable" style={{ cursor: 'pointer' }}>
                 DESCRIPCIÓN {getSortIndicator('descripcion_43')}
               </th>
+              <th>MARCA</th>
               <th onClick={() => handleSort('precio_insumo_43')} className="sortable" style={{ cursor: 'pointer' }}>
                 PRECIO {getSortIndicator('precio_insumo_43')}
               </th>
@@ -408,12 +522,12 @@ const InsumoView: React.FC = () => {
           </thead>
           <tbody>
             {loading && insumos.length === 0 ? (
-              <tr><td colSpan={5}>Cargando...</td></tr>
+              <tr><td colSpan={7}>Cargando...</td></tr>
             ) : currentItems.length === 0 ? (
               <tr>
-                <td colSpan={5} className="no-data">
-                  {searchTerm
-                    ? `📋 No se encontraron insumos con "${searchTerm}"`
+                <td colSpan={7} className="no-data">
+                  {hasActiveFilters
+                    ? '📋 No se encontraron insumos con los filtros aplicados'
                     : '📋 No hay insumos registrados'}
                 </td>
               </tr>
@@ -421,7 +535,9 @@ const InsumoView: React.FC = () => {
               currentItems.map((ins) => (
                 <tr key={ins.id_insumo_43}>
                   <td>{ins.id_insumo_43}</td>
+                  <td className="insumo-codigo">{ins.codigo_insumo_43 || '-'}</td>
                   <td className="insumo-desc">{ins.descripcion_43}</td>
+                  <td className="insumo-marca">{ins.marca_insumo_37 || '-'}</td>
                   <td className="insumo-price">${formatAmount(ins.precio_insumo_43)}</td>
                   <td className="insumo-cat">{ins.categoria_42 || ''}</td>
                   <td className="actions">

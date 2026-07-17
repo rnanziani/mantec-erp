@@ -898,7 +898,7 @@ const ConsumoInsumoView: React.FC = () => {
   return (
     <div className="bodega-view">
       <div className="view-header">
-        <h2>📦 Consumo de Insumos</h2>
+        <h2>📦 Asignación de Insumos</h2>
         <div style={{ display: 'flex', gap: '10px' }}>
           <button
             className="btn-primary"
