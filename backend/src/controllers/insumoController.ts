@@ -13,10 +13,12 @@ function parseCodigoInsumo(raw: unknown): { value: string | null } | { error: st
   if (raw === undefined || raw === null) return { value: null };
   const trimmed = String(raw).trim();
   if (trimmed === '') return { value: null };
-  if (trimmed.length !== 20 || !/^[0-9A-Za-z]{20}$/.test(trimmed)) {
-    return { error: 'El código debe tener exactamente 20 caracteres alfanuméricos' };
+  const normalized = trimmed.replace(/[^0-9A-Za-z]/g, '').toUpperCase();
+  if (!normalized) return { value: null };
+  if (normalized.length > 20) {
+    return { error: 'El código no puede exceder 20 caracteres alfanuméricos' };
   }
-  return { value: trimmed };
+  return { value: normalized.padStart(20, '0') };
 }
 
 async function validateMarcaInsumo(id_marca_insumo_43: number): Promise<boolean> {

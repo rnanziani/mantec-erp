@@ -4,6 +4,8 @@ import './InsumoView.css';
 import { exportToExcel } from '../utils/exportUtils';
 import { showDeleteConfirm, showSuccess, showError } from '../utils/swal';
 import { apiUrl } from '../lib/apiClient';
+import { normalizeCodigoInsumoInput, padCodigoInsumo } from '../utils/codigoInsumo';
+import SearchableSelect from './shared/SearchableSelect';
 
 interface Insumo {
   id_insumo_43: number;
@@ -64,13 +66,17 @@ const InsumoView: React.FC = () => {
   const CATEG_URL = apiUrl('/categorias');
   const MARCAS_URL = apiUrl('/marcas-insumo');
 
-  const normalizeCodigoInput = (raw: string) => raw.replace(/[^0-9A-Za-z]/g, '').toUpperCase().slice(0, 20);
+  const applyCodigoPadding = () => {
+    const padded = padCodigoInsumo(codigo);
+    if (padded) setCodigo(padded);
+    return padded;
+  };
 
   const buildPayload = () => ({
     descripcion_43: descripcion.trim().toUpperCase(),
     precio_insumo_43: parseFloat(amount),
     id_categoria_43: parseInt(categoriaId, 10),
-    codigo_insumo_43: codigo.trim() ? codigo.trim() : null,
+    codigo_insumo_43: padCodigoInsumo(codigo),
     id_marca_insumo_43: parseInt(marcaId, 10)
   });
 
@@ -155,6 +161,15 @@ const InsumoView: React.FC = () => {
 
   const hasActiveFilters = Boolean(searchTerm.trim() || filtroCategoriaId);
 
+  const marcaOptions = useMemo(
+    () =>
+      marcas.map((m) => ({
+        value: String(m.id_marca_insumo_37),
+        label: m.marca_insumo_37
+      })),
+    [marcas]
+  );
+
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
   const currentItems = filteredAndSorted.slice(indexOfFirstItem, indexOfLastItem);
@@ -207,9 +222,12 @@ const InsumoView: React.FC = () => {
       await showError('Campo requerido', 'La descripción es requerida');
       return false;
     }
-    if (codigo.trim() && codigo.trim().length !== 20) {
-      await showError('Validación', 'El código debe tener exactamente 20 caracteres alfanuméricos');
-      return false;
+    if (codigo.trim()) {
+      const padded = applyCodigoPadding();
+      if (!padded || padded.length !== 20) {
+        await showError('Validación', 'El código debe tener exactamente 20 caracteres alfanuméricos');
+        return false;
+      }
     }
     return true;
   };
@@ -417,33 +435,29 @@ const InsumoView: React.FC = () => {
                   id="codigo"
                   className="form-input"
                   value={codigo}
-                  onChange={(e) => setCodigo(normalizeCodigoInput(e.target.value))}
-                  placeholder="20 caracteres alfanuméricos (opcional)"
+                  onChange={(e) => setCodigo(normalizeCodigoInsumoInput(e.target.value))}
+                  onBlur={() => { if (codigo.trim()) applyCodigoPadding(); }}
+                  placeholder="Ej: JBM54144 (se completa con ceros)"
                   maxLength={20}
                   pattern="[0-9A-Za-z]{0,20}"
                   aria-describedby="codigo-hint"
                 />
                 <small id="codigo-hint" className="form-hint">
-                  {codigo.length}/20 — Dejar vacío si no aplica
+                  {codigo.length}/20 — Se rellena con ceros a la izquierda al guardar. Vacío si no aplica.
                 </small>
               </div>
               <div className="form-group">
                 <label htmlFor="marca">Marca: *</label>
-                <select
+                <SearchableSelect
                   id="marca"
-                  className="form-input"
                   value={marcaId}
-                  onChange={(e) => setMarcaId(e.target.value)}
+                  onChange={setMarcaId}
+                  options={marcaOptions}
+                  placeholder="Buscar o seleccionar marca..."
                   required
                   aria-label="Seleccionar marca"
-                >
-                  <option value="">Seleccione...</option>
-                  {marcas.map((m) => (
-                    <option key={m.id_marca_insumo_37} value={String(m.id_marca_insumo_37)}>
-                      {m.marca_insumo_37}
-                    </option>
-                  ))}
-                </select>
+                  emptyMessage="No se encontraron marcas con ese criterio"
+                />
               </div>
             </div>
             <div className="form-actions">

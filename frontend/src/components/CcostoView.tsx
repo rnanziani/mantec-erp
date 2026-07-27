@@ -302,10 +302,10 @@ const CcostoView: React.FC = () => {
           placeholder="🔍 Buscar centro de costo..."
           value={searchTerm}
           onChange={(e) => {
-            setSearchTerm(e.target.value);
+            setSearchTerm(e.target.value.toUpperCase());
             setCurrentPage(1);
           }}
-          style={{ width: '100%', padding: '10px', fontSize: '14px', borderRadius: '4px', border: '1px solid #ced4da' }}
+          style={{ width: '100%', padding: '10px', fontSize: '14px', borderRadius: '4px', border: '1px solid #ced4da', textTransform: 'uppercase' }}
           aria-label="Buscar centro de costo"
         />
       </div>
