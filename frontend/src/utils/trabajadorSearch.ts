@@ -6,7 +6,12 @@ export interface TrabajadorApellidoSearch {
 }
 
 function norm(value: string): string {
-  return value.trim().toLowerCase().replace(/\s+/g, ' ');
+  return value
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/\s+/g, ' ');
 }
 
 function apellidosTexto(t: TrabajadorApellidoSearch): string {

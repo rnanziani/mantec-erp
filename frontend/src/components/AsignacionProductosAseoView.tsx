@@ -77,6 +77,7 @@ const AsignacionProductosAseoView: React.FC = () => {
   const [productos, setProductos] = useState<ProductoAseo[]>([]);
   const [maquinas, setMaquinas] = useState<Maquina[]>([]);
   const [trabajadores, setTrabajadores] = useState<Trabajador[]>([]);
+  const [trabajadoresLoaded, setTrabajadoresLoaded] = useState<boolean>(false);
   const [responsables, setResponsables] = useState<Responsable[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string>('');
@@ -202,16 +203,20 @@ const AsignacionProductosAseoView: React.FC = () => {
 
   const fetchTrabajadores = async () => {
     try {
+      setTrabajadoresLoaded(false);
       const response = await fetch(TRABAJADORES_URL);
       const data: ApiResponse = await response.json();
-      console.log('Trabajadores response:', data); // Debug
       if (data.success && Array.isArray(data.data)) {
         setTrabajadores(data.data);
       } else {
         console.error('Error en respuesta de trabajadores:', data);
+        setTrabajadores([]);
       }
     } catch (err) {
       console.error('Error al cargar trabajadores:', err);
+      setTrabajadores([]);
+    } finally {
+      setTrabajadoresLoaded(true);
     }
   };
 
@@ -811,9 +816,11 @@ const AsignacionProductosAseoView: React.FC = () => {
                       padding: '10px'
                     }}
                   >
-                    {trabajadores.length === 0
+                    {!trabajadoresLoaded
                       ? 'Cargando trabajadores...'
-                      : 'No se encontraron trabajadores con ese criterio'}
+                      : trabajadores.length === 0
+                        ? 'No hay trabajadores en el sistema. Verifique la carga de datos en la BD.'
+                        : 'No se encontraron trabajadores con ese criterio'}
                   </div>
                 )}
               </div>
