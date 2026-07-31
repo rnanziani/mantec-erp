@@ -6,6 +6,10 @@ import { showSuccess, showError, showDeleteConfirm } from '../utils/swal';
 import { exportToExcel } from '../utils/exportUtils';
 import { validateRut, formatRut } from '../utils/rutValidator';
 import { apiUrl } from '../lib/apiClient';
+import {
+  filtrarTrabajadoresPorApellido,
+  normalizeTrabajadorTexto
+} from '../utils/trabajadorSearch';
 
 interface Trabajador {
   idtrabajador_06: number;
@@ -267,37 +271,13 @@ const TrabajadorView: React.FC = () => {
     if (!buscarApellido || buscarApellido.trim() === '') {
       return trabajadores;
     }
-    const busqueda = buscarApellido.trim();
-    const termino = busqueda.toLowerCase();
-
     if (modoBusquedaNombre === 'nombre') {
-      return trabajadores.filter(t =>
-        t.nombre_06 != null && t.nombre_06.toLowerCase().startsWith(termino)
+      const termino = normalizeTrabajadorTexto(buscarApellido);
+      return trabajadores.filter(
+        (t) => t.nombre_06 != null && normalizeTrabajadorTexto(t.nombre_06).includes(termino)
       );
     }
-
-    const apellidos = busqueda.split(/\s+/).map(a => a.toLowerCase());
-    if (apellidos.length === 1) {
-      const word = apellidos[0];
-      const paternoMatch = trabajadores.filter(t =>
-        t.apaterno_06 != null && t.apaterno_06.toLowerCase().startsWith(word)
-      );
-      const maternoMatch = trabajadores.filter(t =>
-        t.amaterno_06 != null && t.amaterno_06.toLowerCase().startsWith(word) &&
-        !paternoMatch.some(p => p.idtrabajador_06 === t.idtrabajador_06)
-      );
-      return [...paternoMatch, ...maternoMatch];
-    }
-    const [primer, segundo] = apellidos;
-    return trabajadores
-      .filter(t =>
-        t.apaterno_06 != null && t.apaterno_06.toLowerCase().startsWith(primer) &&
-        t.amaterno_06 != null && t.amaterno_06.toLowerCase().startsWith(segundo)
-      )
-      .sort((a, b) => {
-        const cmpP = (a.apaterno_06 || '').localeCompare(b.apaterno_06 || '');
-        return cmpP !== 0 ? cmpP : (a.amaterno_06 || '').localeCompare(b.amaterno_06 || '');
-      });
+    return filtrarTrabajadoresPorApellido(trabajadores, buscarApellido);
   }, [trabajadores, buscarApellido, modoBusquedaNombre]);
 
   const filteredTrabajadores = useMemo(() => {
