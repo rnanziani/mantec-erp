@@ -63,6 +63,7 @@ El campo **Orden** en el catálogo agrupa permisos por posición en el sidebar:
 | 5000–5999 | Gestión Alternadores |
 | 6000–6999 | Mantenedores |
 | 7000–7999 | Reportes |
+| 8000–8999 | Pañol |
 
 ---
 
@@ -156,6 +157,14 @@ Extraído de `Sidebar.tsx` y `App.tsx`.
 | `MENU_MANTENEDORES_PRENDAS` | Prendas |
 | `MENU_MANTENEDORES_CCOSTOS` | Centros de costo |
 | `MENU_MANTENEDORES_INSUMOS` | Insumos |
+
+### Pañol (8000)
+
+| Permiso | Pantalla |
+|---------|----------|
+| `MENU_PANOL` | Menú Pañol (padre) |
+| `MENU_PANOL_HERRAMIENTAS` | Herramientas |
+| `MENU_PANOL_MOVIMIENTOS` | Movimientos |
 
 ### Reportes (7000)
 

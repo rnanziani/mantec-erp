@@ -40,6 +40,8 @@ import InsumoView from './components/InsumoView';
 import MarcaInsumoView from './components/MarcaInsumoView';
 import ConsumoInsumoView from './components/ConsumoInsumoView';
 import CargoMaquinaView from './components/CargoMaquinaView';
+import HerramientaView from './components/HerramientaView';
+import PanolMovimientoView from './components/PanolMovimientoView';
 import MarcaNeumaticoView from './components/MarcaNeumaticoView';
 import NeumaticoView from './components/NeumaticoView';
 import EstadoNeumaticoView from './components/EstadoNeumaticoView';
@@ -162,7 +164,9 @@ function App() {
     'estados-neumatico': 'MENU_NEUMATICOS_ESTADOS',
     'historial-neumatico': 'MENU_NEUMATICOS_HISTORIAL',
     'patrones-rotacion': 'MENU_NEUMATICOS_PATRONES_ROTACION',
-    'llantas': 'MENU_NEUMATICOS_TIPO_LLANTA'
+    'llantas': 'MENU_NEUMATICOS_TIPO_LLANTA',
+    'herramientas': 'MENU_PANOL_HERRAMIENTAS',
+    'movimientos-panol': 'MENU_PANOL_MOVIMIENTOS'
   };
 
   // Función para verificar si el usuario tiene acceso a una ruta
@@ -469,6 +473,8 @@ function App() {
 
           {currentView === 'consumo-insumos' && hasRouteAccess('consumo-insumos') && <ConsumoInsumoView />}
           {currentView === 'cargo-maquina' && hasRouteAccess('cargo-maquina') && <CargoMaquinaView />}
+          {currentView === 'herramientas' && hasRouteAccess('herramientas') && <HerramientaView />}
+          {currentView === 'movimientos-panol' && hasRouteAccess('movimientos-panol') && <PanolMovimientoView />}
 
           {currentView === 'neumaticos' && hasRouteAccess('neumaticos') && <NeumaticoView />}
           {currentView === 'marcas-neumatico' && hasRouteAccess('marcas-neumatico') && <MarcaNeumaticoView />}

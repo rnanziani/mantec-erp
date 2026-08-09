@@ -84,7 +84,7 @@ router.get('/:id/acta-datos', getActaDatos);
 
 /**
  * @route   GET /api/asignaciones-prendas/:id/acta-pdf
- * @desc    Generar PDF del Acta de Entrega de Uniforme (SIG F-622-005)
+ * @desc    Generar PDF del Registro de Entrega de EPP
  * @access  Public
  */
 router.get('/:id/acta-pdf', generarActaEntregaPDF);

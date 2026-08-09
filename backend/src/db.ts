@@ -24,8 +24,13 @@ function buildPoolConfig(): pg.PoolConfig {
   const databaseUrl = process.env.DATABASE_URL?.trim();
   if (databaseUrl) {
     const hostMatch = databaseUrl.match(/@([^:/]+)/);
-    const ssl = sslForHost(hostMatch?.[1] ?? '');
-    return { connectionString: databaseUrl, ...POOL_OPTS, ...(ssl ? { ssl } : {}) };
+    const host = hostMatch?.[1] ?? '';
+    const ssl = sslForHost(host);
+    return {
+      connectionString: databaseUrl,
+      ...POOL_OPTS,
+      ...(ssl ? { ssl } : {}),
+    };
   }
 
   const host = process.env.DB_HOST || 'localhost';
@@ -38,6 +43,35 @@ function buildPoolConfig(): pg.PoolConfig {
     password: process.env.DB_PASSWORD || 'postgres',
     ...POOL_OPTS,
     ...(ssl ? { ssl } : {}),
+  };
+}
+
+export function getDatabaseConfigHint(): {
+  mode: 'DATABASE_URL' | 'DB_HOST';
+  configured: boolean;
+  host?: string;
+  database?: string;
+} {
+  const databaseUrl = process.env.DATABASE_URL?.trim();
+  if (databaseUrl) {
+    try {
+      const url = new URL(databaseUrl);
+      return {
+        mode: 'DATABASE_URL',
+        configured: true,
+        host: url.hostname,
+        database: url.pathname.replace(/^\//, '') || undefined,
+      };
+    } catch {
+      return { mode: 'DATABASE_URL', configured: true, host: 'URL inválida' };
+    }
+  }
+
+  return {
+    mode: 'DB_HOST',
+    configured: Boolean(process.env.DB_HOST && process.env.DB_NAME && process.env.DB_USER),
+    host: process.env.DB_HOST || 'localhost',
+    database: process.env.DB_NAME || 'mantec_erc',
   };
 }
 

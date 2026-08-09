@@ -1,4 +1,7 @@
 import { Request, Response } from 'express';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import { pool } from '../db.js';
 import PdfPrinter from 'pdfmake';
 import type { PdfDocumentDefinition } from '../utils/pdfTypes.js';
@@ -20,6 +23,27 @@ const TABLA_RESPONSABLE = 'tbl_08_responsable_entrega';
 const TABLA_PRENDA = 'tbl_07_prenda';
 const TABLA_TALLA = 'tbl_16_tallas';
 const TABLA_EMPRESA = 'tbl_15_empresas';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+function loadActaAssetDataUrl(fileName: string): string | null {
+  try {
+    const fullPath = path.join(__dirname, '../../assets/acta-epp', fileName);
+    const base64 = fs.readFileSync(fullPath).toString('base64');
+    return `data:image/png;base64,${base64}`;
+  } catch {
+    return null;
+  }
+}
+
+function formatFechaEntregaCorta(date: Date | string): string {
+  const d = typeof date === 'string' ? new Date(date) : date;
+  const dd = String(d.getDate()).padStart(2, '0');
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const yy = String(d.getFullYear()).slice(-2);
+  return `${dd}/${mm}/${yy}`;
+}
 
 /**
  * Obtener todas las asignaciones de prendas
@@ -615,6 +639,8 @@ export const getActaDatos = async (req: Request, res: Response): Promise<void> =
     const nombreTrabajador = `${asignacion.nombre_06 || ''} ${asignacion.apaterno_06 || ''} ${asignacion.amaterno_06 || ''}`.trim();
     const nombreResponsable = 'Ricardo Nuñez Anziani';
 
+    const fechaEntrega = formatFechaEntregaCorta(asignacion.fecha_09);
+
     const response: ApiResponse<object> = {
       success: true,
       data: {
@@ -623,8 +649,10 @@ export const getActaDatos = async (req: Request, res: Response): Promise<void> =
           nombre: nombreTrabajador,
           rut: asignacion.ruttrabajador_06 || '',
           cargo: asignacion.nombre_cargo || '',
-          empresa: asignacion.empresa_nombre || ''
+          empresa: asignacion.empresa_nombre || '',
+          areaTrabajo: asignacion.empresa_nombre || ''
         },
+        fechaEntrega,
         prendas: filasPrendas,
         observaciones: asignacion.observaciones_09 || null,
         responsable: {
@@ -646,8 +674,9 @@ export const getActaDatos = async (req: Request, res: Response): Promise<void> =
 };
 
 /**
- * Generar PDF del Acta de Entrega de Uniforme (SIG F-622-005)
- * Todo en una sola página, tabla de prendas dinámica según cantidad entregada
+ * Generar PDF del Registro de Entrega de EPP
+ * Grilla dinámica: 1 registro = encabezado + 1 fila; N registros = encabezado + N filas.
+ * Sin columna "Motivo de Entrega".
  */
 export const generarActaEntregaPDF = async (req: Request, res: Response): Promise<void> => {
   try {
@@ -704,7 +733,6 @@ export const generarActaEntregaPDF = async (req: Request, res: Response): Promis
     const detallesResult = await pool.query(detallesQuery, [id]);
     const detalles = detallesResult.rows;
 
-    // Consolidar detalles: una línea por prenda+talla con cantidad total
     const prendasAgrupadas = new Map<string, { prenda: string; cantidad: number; talla: string; entregado: boolean }>();
     detalles.forEach((d: { prenda_nombre: string; talla_10: string; cantidad_10: number; entregado_10: boolean }) => {
       const prenda = d.prenda_nombre || 'N/A';
@@ -725,26 +753,14 @@ export const generarActaEntregaPDF = async (req: Request, res: Response): Promis
       }
     });
     const filasPrendas = Array.from(prendasAgrupadas.values());
-
-    const formatDate = (date: Date | string): string => {
-      const d = typeof date === 'string' ? new Date(date) : date;
-      return d.toLocaleDateString('es-CL', { day: '2-digit', month: '2-digit', year: 'numeric' });
-    };
-
-    const formatHora = (time: string): string => {
-      if (!time) return '';
-      const parts = time.split(':');
-      return parts.length >= 2 ? `${parts[0]}:${parts[1]}` : time;
-    };
-
-    const meses = ['ENERO', 'FEBRERO', 'MARZO', 'ABRIL', 'MAYO', 'JUNIO', 'JULIO', 'AGOSTO', 'SEPTIEMBRE', 'OCTUBRE', 'NOVIEMBRE', 'DICIEMBRE'];
-    const fechaObj = new Date(asignacion.fecha_09);
-    const dia = fechaObj.getDate();
-    const mes = meses[fechaObj.getMonth()];
-    const anio = fechaObj.getFullYear();
-
+    const fechaEntrega = formatFechaEntregaCorta(asignacion.fecha_09);
     const nombreTrabajador = `${asignacion.nombre_06 || ''} ${asignacion.apaterno_06 || ''} ${asignacion.amaterno_06 || ''}`.trim();
-    const nombreResponsable = 'Ricardo Nuñez Anziani';
+    const areaTrabajo = asignacion.empresa_nombre || '';
+
+    const logoDataUrl = loadActaAssetDataUrl('logo-transantin.png');
+    const qrDataUrl = loadActaAssetDataUrl('qr-sube-registro.png');
+    const cornerTopRightDataUrl = loadActaAssetDataUrl('epp-corner-top-right.png');
+    const cornerBottomLeftDataUrl = loadActaAssetDataUrl('epp-corner-bottom-left.png');
 
     const fonts = {
       Roboto: {
@@ -757,174 +773,252 @@ export const generarActaEntregaPDF = async (req: Request, res: Response): Promis
 
     const printer = new PdfPrinter(fonts);
 
-    const tableHeader = [
-      { text: 'Item', style: 'tableHeader', alignment: 'center' },
-      { text: 'Cantidad', style: 'tableHeader', alignment: 'center' },
-      { text: 'Talla', style: 'tableHeader', alignment: 'center' },
-      { text: 'Estado', style: 'tableHeader', alignment: 'center' },
-      { text: 'Estado Entrega', style: 'tableHeader', alignment: 'center' }
+    const labelCell = (text: string) => ({
+      text,
+      fillColor: '#6b6b6b',
+      color: '#ffffff',
+      bold: true,
+      fontSize: 8,
+      margin: [4, 5, 4, 5],
+      alignment: 'left' as const
+    });
+
+    const valueCell = (text: string) => ({
+      text: text || ' ',
+      fontSize: 9,
+      margin: [4, 5, 4, 5],
+      alignment: 'left' as const
+    });
+
+    const eppHeader = [
+      { text: 'N°', style: 'eppHeader', alignment: 'center' },
+      { text: 'Elemento de Protección Personal entregado', style: 'eppHeader', alignment: 'center' },
+      { text: 'Cantidad', style: 'eppHeader', alignment: 'center' },
+      { text: 'Modelo y talla', style: 'eppHeader', alignment: 'center' },
+      { text: 'Fecha de Entrega\n(DD/MM/AA)', style: 'eppHeader', alignment: 'center' },
+      { text: 'Firma', style: 'eppHeader', alignment: 'center' }
     ];
 
-    const tableBody: any[] = [tableHeader];
-
-    filasPrendas.forEach((fila) => {
-      tableBody.push([
-        { text: fila.prenda, style: 'tableCell' },
-        { text: String(fila.cantidad), style: 'tableCell', alignment: 'center' },
-        { text: fila.talla, style: 'tableCell', alignment: 'center' },
-        { text: 'Nuevo', style: 'tableCell', alignment: 'center' },
-        { text: fila.entregado ? 'Entregado' : 'Pendiente', style: 'tableCell', alignment: 'center' }
+    const eppBody: any[] = [eppHeader];
+    filasPrendas.forEach((fila, index) => {
+      eppBody.push([
+        { text: String(index + 1).padStart(2, '0'), style: 'eppCell', alignment: 'center' },
+        { text: fila.prenda, style: 'eppCell' },
+        { text: String(fila.cantidad), style: 'eppCell', alignment: 'center' },
+        { text: fila.talla || '', style: 'eppCell', alignment: 'center' },
+        { text: fechaEntrega, style: 'eppCell', alignment: 'center' },
+        { text: ' ', style: 'eppCell', margin: [0, 10, 0, 10] }
       ]);
+    });
+
+    if (eppBody.length === 1) {
+      eppBody.push([
+        { text: '', style: 'eppCell' },
+        { text: '', style: 'eppCell' },
+        { text: '', style: 'eppCell' },
+        { text: '', style: 'eppCell' },
+        { text: '', style: 'eppCell' },
+        { text: '', style: 'eppCell', margin: [0, 10, 0, 10] }
+      ]);
+    }
+
+    const headerColumns: any[] = [];
+    if (logoDataUrl) {
+      headerColumns.push({ image: logoDataUrl, width: 120, margin: [0, 0, 10, 0] });
+    } else {
+      headerColumns.push({
+        stack: [
+          { text: 'TS', fontSize: 16, bold: true, color: '#1565c0' },
+          { text: 'TranSantin', fontSize: 12, bold: true, color: '#1565c0' }
+        ],
+        width: 120
+      });
+    }
+    headerColumns.push({
+      stack: [
+        {
+          text: 'Departamento de Prevención de Riesgos Ocupacionales',
+          fontSize: 9,
+          color: '#666666',
+          alignment: 'center',
+          margin: [0, 2, 0, 4]
+        },
+        {
+          text: 'REGISTRO DE ENTREGA DE ELEMENTOS DE PROTECCIÓN PERSONAL (EPP)',
+          fontSize: 11,
+          bold: true,
+          color: '#555555',
+          alignment: 'center'
+        }
+      ],
+      width: '*'
+    });
+
+    const qrStack: any[] = [];
+    if (qrDataUrl) {
+      qrStack.push({ image: qrDataUrl, width: 95, alignment: 'center' });
+    } else {
+      qrStack.push({
+        canvas: [
+          { type: 'rect', x: 0, y: 0, w: 95, h: 95, lineWidth: 1, lineColor: '#000000' }
+        ],
+        alignment: 'center'
+      });
+    }
+    qrStack.push({
+      table: {
+        widths: [95],
+        body: [[{ text: 'SUBE EL REGISTRO', alignment: 'center', color: '#ffffff', bold: true, fontSize: 8, fillColor: '#000000', margin: [2, 4, 2, 4] }]]
+      },
+      layout: 'noBorders',
+      margin: [0, 4, 0, 0],
+      alignment: 'center'
     });
 
     const docDefinition: PdfDocumentDefinition = {
       pageSize: 'LETTER',
-      pageMargins: [40, 30, 40, 30],
+      pageMargins: [36, 36, 36, 40],
+      background: (_currentPage: number, pageSize: { width: number; height: number }) => {
+        const decorations: any[] = [];
+        if (cornerTopRightDataUrl) {
+          decorations.push({
+            image: cornerTopRightDataUrl,
+            width: 210,
+            absolutePosition: { x: pageSize.width - 185, y: -18 }
+          });
+        }
+        if (cornerBottomLeftDataUrl) {
+          decorations.push({
+            image: cornerBottomLeftDataUrl,
+            width: 210,
+            absolutePosition: { x: -40, y: pageSize.height - 175 }
+          });
+        }
+        return decorations;
+      },
       content: [
-        { text: 'ACTA DE ENTREGA DE CARGO', style: 'title', alignment: 'center', margin: [0, 0, 0, 4] },
-        { text: 'SIG F-622-005 Versión 001', style: 'version', alignment: 'right', margin: [0, 0, 0, 8] },
+        { columns: headerColumns, margin: [0, 0, 0, 14] },
         {
-          text: `En la ciudad de Santiago, ${dia} días del mes de ${mes} del año ${anio}, se procede a dejar constancia de la entrega de cargo al trabajador que a continuación se detalla:`,
-          style: 'intro',
+          text: 'Dando cumplimiento a lo establecido en el Artículo 68° de la Ley N°16.744 sobre Accidentes del Trabajo y Enfermedades Profesionales; y a lo dispuesto en el Artículo 13° del Decreto N° 44 sobre la Gestión Preventiva de los Riesgos Laborales Para un Entorno de Trabajo Seguro y Saludable, se entrega a:',
+          fontSize: 9,
+          // ~2 mm extra entre líneas (1 mm ≈ 2.83 pt → (9 + 5.7) / 9 ≈ 1.63)
+          lineHeight: 1.63,
+          alignment: 'justify',
           margin: [0, 0, 0, 10]
         },
-        { text: 'Datos del Trabajador:', style: 'sectionTitle', margin: [0, 0, 0, 6] },
-        {
-          columns: [
-            { text: 'Nombre:', style: 'fieldLabel', width: 60 },
-            { text: nombreTrabajador, style: 'fieldValue', width: '*' }
-          ],
-          margin: [0, 0, 0, 4]
-        },
-        {
-          columns: [
-            { text: 'Rut:', style: 'fieldLabel', width: 60 },
-            { text: asignacion.ruttrabajador_06 || '', style: 'fieldValue', width: '*' }
-          ],
-          margin: [0, 0, 0, 4]
-        },
-        {
-          columns: [
-            { text: 'Cargo:', style: 'fieldLabel', width: 60 },
-            { text: asignacion.nombre_cargo || '', style: 'fieldValue', width: '*' }
-          ],
-          margin: [0, 0, 0, 4]
-        },
-        {
-          columns: [
-            { text: 'Empresa:', style: 'fieldLabel', width: 60 },
-            { text: asignacion.empresa_nombre || '', style: 'fieldValue', width: '*' }
-          ],
-          margin: [0, 0, 0, 10]
-        },
-        { text: 'Detalle de insumos entregados', style: 'sectionTitle', margin: [0, 0, 0, 6] },
         {
           table: {
-            headerRows: 1,
-            widths: ['*', 55, 50, 50, 65],
-            body: tableBody
+            widths: [70, '*', 80, '*'],
+            body: [
+              [labelCell('Nombre'), valueCell(nombreTrabajador), labelCell('Cargo'), valueCell(asignacion.nombre_cargo || '')],
+              [labelCell('RUT'), valueCell(asignacion.ruttrabajador_06 || ''), labelCell('Área de Trabajo'), valueCell(areaTrabajo)]
+            ]
           },
           layout: {
-            hLineWidth: () => 0.5,
-            vLineWidth: () => 0.5
+            hLineWidth: () => 0.7,
+            vLineWidth: () => 0.7,
+            hLineColor: () => '#888888',
+            vLineColor: () => '#888888'
           },
-          margin: [0, 0, 0, 10]
+          margin: [0, 0, 0, 12]
         },
-        ...(asignacion.observaciones_09 ? [
-          {
-            columns: [
-              { text: 'Observaciones:', style: 'fieldLabel', width: 80 },
-              { text: asignacion.observaciones_09, style: 'fieldValue', width: '*' }
-            ],
-            margin: [0, 0, 0, 10]
-          }
-        ] : []),
-        { text: 'Responsabilidades:', style: 'sectionTitle', margin: [0, 0, 0, 6] },
-        { text: 'Usted se compromete a', style: 'paragraph', margin: [0, 0, 0, 4] },
         {
-          ul: [
-            'Usar los insumos únicamente durante sus funciones laborales.',
-            'Mantener los insumos en condiciones limpias y presentables.',
-            'No alterar ni modificar los insumos entregados.',
-            'Responder por el cuidado y conservación de los insumos entregados.',
-            'Reportar inmediatamente cualquier daño o pérdida al área correspondiente.',
-            'El mal uso o la negligencia en el cuidado de los insumos podrá ser objeto de observaciones o medidas disciplinarias conforme al reglamento interno.'
-          ],
-          style: 'listItem',
-          margin: [0, 0, 0, 10]
-        },
-        { text: 'Uso de Insumos de Cargo:', style: 'sectionTitle', margin: [0, 0, 0, 6] },
-        {
-          text: 'La empresa hace hincapié en la obligatoriedad del uso de los insumos de cargo durante todo el periodo de servicio activo. Su uso contribuye a:',
-          style: 'paragraph',
+          text: 'Los siguientes Elementos de Protección Personal:',
+          fontSize: 10,
           margin: [0, 0, 0, 6]
         },
         {
-          ul: [
-            'Proyectar una imagen profesional y ordenada de la empresa.',
-            'Generar confianza en los pasajeros.',
-            'Facilitar la identificación del personal por parte de usuarios.'
-          ],
-          style: 'listItem',
-          margin: [0, 0, 0, 10]
-        },
-        { text: 'Declaración del Trabajador:', style: 'sectionTitle', margin: [0, 0, 0, 6] },
-        {
-          text: 'Declaro haber recibido a conformidad los insumos antes detallados, los cuales se encuentran en buen estado y son de uso obligatorio durante mi jornada laboral. Asimismo, me comprometo a dar un uso adecuado y a conservarlos en buenas condiciones, haciéndome responsable de su cuidado.',
-          style: 'paragraph',
-          margin: [0, 0, 0, 10]
-        },
-        {
           table: {
-            widths: ['*', '*'],
-            body: [
-              [
-                { text: 'Firma', style: 'tableHeader', alignment: 'center' },
-                { text: 'Huella', style: 'tableHeader', alignment: 'center' }
-              ],
-              [
-                { text: '', style: 'tableCell', margin: [0, 25, 0, 0] },
-                { text: '', style: 'tableCell', margin: [0, 25, 0, 0] }
-              ]
-            ]
+            headerRows: 1,
+            widths: [28, '*', 48, 70, 72, 60],
+            body: eppBody
           },
-          layout: { hLineWidth: () => 0.5, vLineWidth: () => 0.5 },
+          layout: {
+            hLineWidth: () => 0.7,
+            vLineWidth: () => 0.7,
+            hLineColor: () => '#888888',
+            vLineColor: () => '#888888',
+            fillColor: (rowIndex: number) => (rowIndex === 0 ? '#6b6b6b' : null)
+          },
           margin: [0, 0, 0, 12]
         },
-        { text: 'Firma del encargado de Entrega', style: 'sectionTitle', margin: [0, 0, 0, 8] },
+        {
+          text: 'El trabajador declara haberlos recibido en forma gratuita y se compromete a utilizarlos correctamente y de forma permanente mientras se encuentre expuesto al riesgo, manteniéndolos en buen estado.',
+          bold: true,
+          fontSize: 9,
+          alignment: 'center',
+          margin: [0, 4, 0, 10]
+        },
+        {
+          canvas: [{ type: 'line', x1: 0, y1: 0, x2: 540, y2: 0, lineWidth: 1.2, lineColor: '#1565c0' }],
+          margin: [0, 0, 0, 12]
+        },
         {
           columns: [
-            { text: 'Nombre: ' + nombreResponsable, style: 'field', width: '*' },
-            { text: 'Fecha: ' + formatDate(asignacion.fecha_09) + ' ' + formatHora(asignacion.hora_09), style: 'field', width: 150 }
+            { width: 110, stack: qrStack },
+            {
+              width: '*',
+              stack: [
+                {
+                  text: 'INSTRUCCIONES PARA LA JEFATURA O CENTRO DE ABASTECIMIENTO',
+                  bold: true,
+                  fontSize: 9,
+                  margin: [0, 0, 0, 6]
+                },
+                {
+                  ol: [
+                    'Para llevar un registro adecuado de la entrega de Elementos de Protección Personal (EPP), cada vez que entregues un elemento a un trabajador, accede al Código QR desde tu celular y toma una fotografía del documento firmado por el trabajador.',
+                    'Almacena correctamente este registro de forma física. Puede ser solicitado en fiscalizaciones y será controlado por el Dpto de Prevención de Riesgos Ocupacionales.',
+                    'Como jefatura, es tu responsabilidad verificar que el trabajador cuente y utilice obligatoriamente sus EPP.'
+                  ],
+                  fontSize: 8,
+                  color: '#333333'
+                }
+              ],
+              margin: [12, 0, 0, 0]
+            }
           ]
         }
       ],
+      footer: (currentPage: number, pageCount: number) => ({
+        stack: [
+          {
+            canvas: [{ type: 'line', x1: 36, y1: 0, x2: 576, y2: 0, lineWidth: 0.5, lineColor: '#bbbbbb' }],
+            margin: [0, 0, 0, 4]
+          },
+          {
+            text: `Página ${currentPage} de ${pageCount} | Sistema de Gestión de Seguridad y Salud Ocupacional | Aprobado: IMC | Versión: 02 | F. Versión: 20251210`,
+            fontSize: 7,
+            color: '#888888',
+            alignment: 'left',
+            margin: [36, 0, 36, 2]
+          },
+          {
+            text: 'Departamento de Prevención de Riesgos Ocupacionales',
+            fontSize: 7,
+            color: '#888888',
+            alignment: 'center',
+            margin: [36, 0, 36, 0]
+          }
+        ]
+      }),
       styles: {
-        title: { fontSize: 14, bold: true },
-        version: { fontSize: 8, color: '#666' },
-        intro: { fontSize: 9 },
-        fieldLabel: { fontSize: 9 },
-        fieldValue: { fontSize: 9 },
-        field: { fontSize: 9 },
-        sectionTitle: { fontSize: 10, bold: true },
-        tableHeader: { fontSize: 8, bold: true, fillColor: '#e8e8e8' },
-        tableCell: { fontSize: 8 },
-        listItem: { fontSize: 8 },
-        paragraph: { fontSize: 8 }
+        eppHeader: { fontSize: 8, bold: true, color: '#ffffff', margin: [2, 4, 2, 4] },
+        eppCell: { fontSize: 8, margin: [3, 5, 3, 5] }
       },
       defaultStyle: { font: 'Roboto', fontSize: 9 }
     };
 
     const pdfDoc = printer.createPdfKitDocument(docDefinition);
     res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `attachment; filename=acta-entrega-cargo-${id}.pdf`);
+    res.setHeader('Content-Disposition', `attachment; filename=registro-entrega-epp-${id}.pdf`);
     pdfDoc.pipe(res);
     pdfDoc.end();
   } catch (error) {
     console.error('Error al generar acta PDF:', error);
     const response: ApiResponse<null> = {
       success: false,
-      error: 'Error al generar el acta de entrega',
+      error: 'Error al generar el registro de entrega EPP',
       message: error instanceof Error ? error.message : 'Error desconocido'
     };
     res.status(500).json(response);

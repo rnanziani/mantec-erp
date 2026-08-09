@@ -9,6 +9,241 @@
   font-weight: 600;
 }
 
+/* Registro EPP - vista previa / impresión */
+.epp-document {
+  position: relative;
+  overflow: hidden;
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: 12px;
+  line-height: 1.4;
+  color: #222;
+  background: #fff;
+  padding: 8px 4px 24px;
+}
+
+.epp-document::before,
+.epp-document::after {
+  content: '';
+  position: absolute;
+  width: 220px;
+  height: 170px;
+  pointer-events: none;
+  z-index: 0;
+  background-repeat: no-repeat;
+  background-size: contain;
+}
+
+.epp-document::before {
+  top: -28px;
+  right: -36px;
+  background-image: url('/acta-epp/epp-corner-top-right.svg');
+  background-position: top right;
+}
+
+.epp-document::after {
+  bottom: -24px;
+  left: -36px;
+  background-image: url('/acta-epp/epp-corner-bottom-left.svg');
+  background-position: bottom left;
+}
+
+.epp-document > * {
+  position: relative;
+  z-index: 1;
+}
+
+.epp-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  margin-bottom: 14px;
+}
+
+.epp-logo {
+  width: 150px;
+  max-width: 34%;
+  height: auto;
+  object-fit: contain;
+}
+
+.epp-header-text {
+  flex: 1;
+  text-align: center;
+  padding-top: 4px;
+}
+
+.epp-dept {
+  margin: 0 0 6px;
+  font-size: 11px;
+  color: #666;
+}
+
+.epp-title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
+  color: #555;
+  letter-spacing: 0.02em;
+  line-height: 1.25;
+}
+
+.epp-legal {
+  margin: 0 0 12px;
+  font-size: 11px;
+  text-align: justify;
+  /* +2 mm entre líneas respecto al interlineado base */
+  line-height: calc(1em + 2mm);
+}
+
+.epp-worker-table,
+.epp-items-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 12px;
+  font-size: 11px;
+}
+
+.epp-worker-table th,
+.epp-worker-table td,
+.epp-items-table th,
+.epp-items-table td {
+  border: 1px solid #888;
+  padding: 6px 8px;
+  vertical-align: middle;
+}
+
+.epp-worker-table th {
+  width: 110px;
+  background: #6b6b6b;
+  color: #fff;
+  font-weight: 700;
+  text-align: left;
+}
+
+.epp-worker-table td {
+  background: #fff;
+}
+
+.epp-items-intro {
+  margin: 0 0 6px;
+  font-size: 12px;
+}
+
+.epp-items-table thead th {
+  background: #6b6b6b;
+  color: #fff;
+  font-weight: 700;
+  text-align: center;
+  font-size: 10px;
+  line-height: 1.25;
+}
+
+.epp-items-table tbody td {
+  min-height: 28px;
+  text-align: center;
+}
+
+.epp-items-table tbody td.epp-item-name {
+  text-align: left;
+}
+
+.epp-declaration {
+  margin: 10px 0 12px;
+  font-size: 11px;
+  font-weight: 700;
+  text-align: center;
+}
+
+.epp-divider {
+  border: none;
+  border-top: 2px solid #1565c0;
+  margin: 0 0 14px;
+}
+
+.epp-instructions {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+  margin-bottom: 18px;
+}
+
+.epp-qr-block {
+  flex: 0 0 110px;
+  text-align: center;
+}
+
+.epp-qr {
+  width: 100px;
+  height: 100px;
+  object-fit: contain;
+  display: block;
+  margin: 0 auto;
+  border: 1px solid #ddd;
+}
+
+.epp-qr-label {
+  display: block;
+  margin-top: 4px;
+  background: #000;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 5px 4px;
+  letter-spacing: 0.03em;
+}
+
+.epp-instructions-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.epp-instructions-text h4 {
+  margin: 0 0 8px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.epp-instructions-text ol {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 10px;
+  color: #333;
+}
+
+.epp-instructions-text li {
+  margin-bottom: 6px;
+}
+
+.epp-footer {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid #bbb;
+  font-size: 9px;
+  color: #888;
+}
+
+.epp-footer-meta {
+  margin: 0 0 4px;
+}
+
+.epp-footer-dept {
+  margin: 0;
+  text-align: center;
+}
+
+@media (max-width: 640px) {
+  .epp-header {
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .epp-instructions {
+    flex-direction: column;
+    align-items: center;
+  }
+}
+
 /* ID asignación - nombre del trabajador encima de la grilla de prendas asignadas */
 .trabajador-summary-above-detail-grid {
   margin: 0 0 12px;

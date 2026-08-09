@@ -22,8 +22,13 @@ function buildPoolConfig() {
     const databaseUrl = process.env.DATABASE_URL?.trim();
     if (databaseUrl) {
         const hostMatch = databaseUrl.match(/@([^:/]+)/);
-        const ssl = sslForHost(hostMatch?.[1] ?? '');
-        return { connectionString: databaseUrl, ...POOL_OPTS, ...(ssl ? { ssl } : {}) };
+        const host = hostMatch?.[1] ?? '';
+        const ssl = sslForHost(host);
+        return {
+            connectionString: databaseUrl,
+            ...POOL_OPTS,
+            ...(ssl ? { ssl } : {}),
+        };
     }
     const host = process.env.DB_HOST || 'localhost';
     const ssl = sslForHost(host);
@@ -37,6 +42,29 @@ function buildPoolConfig() {
         ...(ssl ? { ssl } : {}),
     };
 }
+export function getDatabaseConfigHint() {
+    const databaseUrl = process.env.DATABASE_URL?.trim();
+    if (databaseUrl) {
+        try {
+            const url = new URL(databaseUrl);
+            return {
+                mode: 'DATABASE_URL',
+                configured: true,
+                host: url.hostname,
+                database: url.pathname.replace(/^\//, '') || undefined,
+            };
+        }
+        catch {
+            return { mode: 'DATABASE_URL', configured: true, host: 'URL inválida' };
+        }
+    }
+    return {
+        mode: 'DB_HOST',
+        configured: Boolean(process.env.DB_HOST && process.env.DB_NAME && process.env.DB_USER),
+        host: process.env.DB_HOST || 'localhost',
+        database: process.env.DB_NAME || 'mantec_erc',
+    };
+}
 export const pool = new Pool(buildPoolConfig());
 // Evento para manejar errores del pool
 pool.on('error', (err) => {
@@ -46,11 +74,30 @@ pool.on('error', (err) => {
 // Función para verificar la conexión
 export const testConnection = async () => {
     try {
-        console.log('🔄 Intentando conectar a PostgreSQL...');
-        console.log(`   Host: ${process.env.DB_HOST || 'localhost'}`);
-        console.log(`   Port: ${process.env.DB_PORT || '5432'}`);
-        console.log(`   Database: ${process.env.DB_NAME || 'mantec_erc'}`);
-        console.log(`   User: ${process.env.DB_USER || 'postgres'}`);
+        ///////////////////////////////////////////////////////////////////////////////////
+        //    //conexion local
+        //    console.log('🔄 Intentando conectar a PostgreSQL...');
+        //    console.log(`   Host: ${process.env.DB_HOST || 'localhost'}`);
+        //    console.log(`   Port: ${process.env.DB_PORT || '5432'}`);
+        //    console.log(`   Database: ${process.env.DB_NAME || 'mantec_erc'}`);
+        //    console.log(`   User: ${process.env.DB_USER || 'postgres'}`);
+        ///////////////////////////////////////////////////////////////////////////
+        //// conexion web
+        // Extraer información de DATABASE_URL para mostrar
+        const dbUrl = process.env.DATABASE_URL;
+        let hostInfo = 'No definida';
+        let dbInfo = 'No definida';
+        if (dbUrl) {
+            try {
+                const url = new URL(dbUrl);
+                hostInfo = url.hostname || 'No definido';
+                dbInfo = url.pathname?.substring(1) || 'No definida';
+            }
+            catch (e) {
+                hostInfo = 'URL inválida';
+            }
+        }
+        ///////////////////////////////////////////////////////////////////////////    
         const client = await pool.connect();
         const result = await client.query('SELECT NOW()');
         client.release();

@@ -1174,6 +1174,146 @@ export interface UpdateLlantaDTO {
 }
 
 // ============================================
+// PAÑOL — tbl_48 / tbl_49 / tbl_50
+// ============================================
+
+/** Herramienta — tbl_48_d_herramienta */
+export interface Herramienta {
+  idherramienta_48: number;
+  codigo_48: string;
+  nombre_48: string;
+  idmarca_insumo_48?: number | null;
+  marca_48?: string | null;
+  modelo_48?: string | null;
+  serie_48?: string | null;
+  ubicacion_48?: string | null;
+  valor_48: number;
+  stock_48: number;
+  stock_disponible_48: number;
+  foto_48?: string | null;
+  estado_48: string;
+  activo_48: boolean;
+  creado_en?: string | Date;
+  actualizado_en?: string | Date;
+  marca_insumo_nombre?: string;
+}
+
+export interface CreateHerramientaDTO {
+  codigo_48?: string;
+  nombre_48: string;
+  idmarca_insumo_48?: number | null;
+  marca_48?: string | null;
+  modelo_48?: string | null;
+  serie_48?: string | null;
+  ubicacion_48?: string | null;
+  valor_48?: number;
+  stock_48?: number;
+  stock_disponible_48?: number;
+  foto_48?: string | null;
+  estado_48?: string;
+  activo_48?: boolean;
+}
+
+export interface UpdateHerramientaDTO {
+  codigo_48?: string;
+  nombre_48?: string;
+  idmarca_insumo_48?: number | null;
+  marca_48?: string | null;
+  modelo_48?: string | null;
+  serie_48?: string | null;
+  ubicacion_48?: string | null;
+  valor_48?: number;
+  stock_48?: number;
+  stock_disponible_48?: number;
+  foto_48?: string | null;
+  estado_48?: string;
+  activo_48?: boolean;
+}
+
+/** Movimiento pañol maestro — tbl_49_m_panol */
+export interface MaestroPanol {
+  idmpanol_49: number;
+  folio_49?: string | null;
+  tipomovimiento_49: string;
+  idtrabajador_49: number;
+  idusuario_49: number;
+  idresponsableentrega_49?: number | null;
+  fecha_49: string | Date;
+  fechadevolucion_49?: string | Date | null;
+  estado_49: string;
+  observacion_49?: string | null;
+  firmatrabajador_49: string;
+  firmapanolero_49: string;
+  creado_en?: string | Date;
+  actualizado_en?: string | Date;
+  trabajador_nombre?: string;
+  trabajador_rut?: string;
+  usuario_nombre?: string;
+  responsable_nombre?: string;
+  /** Resumen de herramientas del movimiento con estado actual del catálogo */
+  herramientas_detalle?: Array<{
+    idherramienta: number;
+    codigo: string;
+    nombre: string;
+    estado: string;
+    stock: number;
+    stock_disponible: number;
+    cantidad: number;
+  }> | null;
+}
+
+/** Detalle pañol — tbl_50_d_panol */
+export interface DetallePanol {
+  iddpanol_50?: number;
+  idmpanol_50?: number;
+  idherramienta_50: number;
+  estadoentrega_50: string;
+  estadodevolucion_50?: string | null;
+  cantidad_50: number;
+  observacion_50?: string | null;
+  foto_50?: string | null;
+  creado_en?: string | Date;
+  actualizado_en?: string | Date;
+  herramienta_codigo?: string;
+  herramienta_nombre?: string;
+  herramienta_estado?: string;
+  herramienta_stock_disponible?: number;
+}
+
+export interface CreateMaestroPanolDTO {
+  tipomovimiento_49: string;
+  idtrabajador_49: number;
+  idresponsableentrega_49?: number | null;
+  fecha_49?: string | null;
+  fechadevolucion_49?: string | null;
+  estado_49?: string;
+  observacion_49?: string | null;
+  firmatrabajador_49: string;
+  firmapanolero_49: string;
+  detalles: Array<{
+    idherramienta_50: number;
+    estadoentrega_50?: string;
+    estadodevolucion_50?: string | null;
+    cantidad_50: number;
+    observacion_50?: string | null;
+    foto_50?: string | null;
+  }>;
+}
+
+export interface UpdateMaestroPanolDTO {
+  tipomovimiento_49?: string;
+  idtrabajador_49?: number;
+  idresponsableentrega_49?: number | null;
+  fecha_49?: string | null;
+  fechadevolucion_49?: string | null;
+  estado_49?: string;
+  observacion_49?: string | null;
+  firmatrabajador_49?: string;
+  firmapanolero_49?: string;
+  detalles?: CreateMaestroPanolDTO['detalles'];
+}
+
+// ============================================
 // AUTENTICACIÓN Y SEGURIDAD
 // ============================================
 

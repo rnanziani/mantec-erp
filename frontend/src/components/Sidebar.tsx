@@ -78,6 +78,16 @@ const Sidebar: React.FC<SidebarProps> = ({ onNavigate, currentView }) => {
             ]
         },
         {
+            id: 'panol',
+            label: 'Pañol',
+            icon: '🧰',
+            permissionRequired: 'MENU_PANOL',
+            children: [
+                { id: 'herramientas', label: 'Herramientas', icon: '🔧', path: 'herramientas', permissionRequired: 'MENU_PANOL_HERRAMIENTAS' },
+                { id: 'movimientos-panol', label: 'Movimientos', icon: '📋', path: 'movimientos-panol', permissionRequired: 'MENU_PANOL_MOVIMIENTOS' }
+            ]
+        },
+        {
             id: 'inventario',
             label: 'Gestion Alternadores',
             icon: '📦',

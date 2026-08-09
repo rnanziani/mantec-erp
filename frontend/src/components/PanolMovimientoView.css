@@ -1,0 +1,409 @@
+.panol-movimiento-view .panol-form {
+  margin-bottom: 20px;
+}
+
+/* Una sola línea: Tipo | Fecha | Estado | Trabajador | Responsable | Observación */
+.panol-movimiento-view .panol-cabecera-linea {
+  display: grid;
+  grid-template-columns:
+    minmax(110px, 0.7fr)
+    minmax(160px, 1fr)
+    minmax(120px, 0.8fr)
+    minmax(220px, 1.6fr)
+    minmax(160px, 1.1fr)
+    minmax(160px, 1.2fr);
+  gap: 10px;
+  align-items: start;
+  margin-bottom: 14px;
+}
+
+.panol-movimiento-view .panol-cabecera-linea .form-group {
+  margin-bottom: 0;
+  min-width: 0;
+}
+
+.panol-movimiento-view .panol-cabecera-linea label {
+  font-size: 0.82rem;
+  margin-bottom: 4px;
+  white-space: nowrap;
+}
+
+.panol-movimiento-view .panol-trabajador-list {
+  max-height: 110px;
+  overflow: auto;
+  border: 1px solid #ced4da;
+  border-radius: 6px;
+  margin-top: 6px;
+  background: #fff;
+}
+
+.panol-movimiento-view .panol-field-obs textarea {
+  min-height: 110px;
+  resize: vertical;
+}
+
+.panol-movimiento-view .panol-trabajador-item {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  text-align: left;
+  border: none;
+  border-bottom: 1px solid #eee;
+  background: transparent;
+  padding: 10px 12px;
+  cursor: pointer;
+  font-size: 0.95rem;
+}
+
+.panol-movimiento-view .panol-trabajador-item small {
+  opacity: 0.7;
+}
+
+.panol-movimiento-view .panol-trabajador-item.selected,
+.panol-movimiento-view .panol-trabajador-item:hover {
+  background: #e3f2fd;
+}
+
+.panol-movimiento-view .panol-detalle-box {
+  margin: 16px 0;
+  padding: 14px;
+  border: 1px solid #dbe3ef;
+  border-radius: 10px;
+  background: #f8fafc;
+}
+
+.panol-movimiento-view .panol-detalle-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.panol-movimiento-view .panol-detalle-header h4 {
+  margin: 0;
+  color: #1e3a5f;
+}
+
+.panol-movimiento-view .panol-detalle-count {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #475569;
+  background: #e2e8f0;
+  padding: 4px 10px;
+  border-radius: 999px;
+}
+
+.panol-movimiento-view .panol-detalle-add {
+  margin-bottom: 12px;
+}
+
+.panol-movimiento-view .panol-detalle-add-btn {
+  display: flex;
+  align-items: flex-end;
+}
+
+.panol-movimiento-view .panol-detalle-table-wrap {
+  margin-top: 4px;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
+}
+
+.panol-movimiento-view .panol-detalle-table tbody tr:nth-child(even) {
+  background: #f9f9f9;
+}
+
+.panol-movimiento-view .panol-detalle-table tbody tr:nth-child(odd) {
+  background: #fff;
+}
+
+.panol-movimiento-view .panol-detalle-table tbody tr:hover {
+  background: #eef5ff !important;
+}
+
+.panol-movimiento-view .panol-detalle-table td {
+  vertical-align: middle;
+}
+
+.panol-movimiento-view .panol-cant-input {
+  width: 72px;
+  margin: 0 auto;
+  text-align: center;
+  padding: 6px 8px;
+}
+
+.panol-movimiento-view .panol-estado-select {
+  min-width: 120px;
+  padding: 6px 8px;
+}
+
+.panol-movimiento-view .text-center {
+  text-align: center;
+}
+
+.panol-movimiento-view .panol-firmas {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin: 16px 0;
+}
+
+.panol-movimiento-view .panol-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin: 8px 0 14px;
+  padding: 12px 14px;
+  background: #f5f7fa;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+}
+
+.panol-movimiento-view .panol-total {
+  margin: 0;
+  font-size: 0.95rem;
+  color: #334155;
+}
+
+.panol-movimiento-view .panol-filters {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  align-items: center;
+  flex: 1;
+  justify-content: flex-end;
+}
+
+.panol-movimiento-view .panol-search {
+  min-width: min(100%, 280px);
+  max-width: 380px;
+  text-transform: uppercase;
+}
+
+.panol-movimiento-view .panol-filter-select {
+  min-width: 160px;
+}
+
+.panol-movimiento-view .panol-data-table tbody tr:nth-child(even) {
+  background: #f9f9f9;
+}
+
+.panol-movimiento-view .panol-data-table tbody tr:nth-child(odd) {
+  background: #fff;
+}
+
+.panol-movimiento-view .panol-data-table tbody tr:hover {
+  background: #eef5ff !important;
+}
+
+.panol-movimiento-view .panol-data-table td {
+  vertical-align: middle;
+  font-size: 0.92rem;
+}
+
+.panol-movimiento-view .panol-empty {
+  text-align: center;
+  padding: 28px 12px !important;
+  color: #64748b;
+}
+
+.panol-movimiento-view .actions {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  white-space: nowrap;
+}
+
+.panol-movimiento-view .actions .btn-edit,
+.panol-movimiento-view .actions .btn-delete {
+  min-width: 34px;
+  padding: 4px 8px;
+  font-size: 12px;
+}
+
+.panol-movimiento-view .badge-estado,
+.panol-movimiento-view .badge-tipo {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.panol-movimiento-view .badge-completada {
+  background: #e8f5e9;
+  color: #2e7d32;
+}
+
+.panol-movimiento-view .badge-pendiente {
+  background: #fff8e1;
+  color: #f57f17;
+}
+
+.panol-movimiento-view .badge-anulada {
+  background: #ffebee;
+  color: #c62828;
+}
+
+/* Estados del catálogo de herramientas (no del movimiento) */
+.panol-movimiento-view .badge-herr-disponible {
+  background: #e8f5e9;
+  color: #2e7d32;
+}
+
+.panol-movimiento-view .badge-herr-prestada {
+  background: #fff3e0;
+  color: #ef6c00;
+}
+
+.panol-movimiento-view .badge-herr-en_mantencion {
+  background: #e3f2fd;
+  color: #1565c0;
+}
+
+.panol-movimiento-view .badge-herr-perdida,
+.panol-movimiento-view .badge-herr-danada,
+.panol-movimiento-view .badge-herr-de_baja {
+  background: #ffebee;
+  color: #c62828;
+}
+
+.panol-movimiento-view .panol-herramientas-cell {
+  min-width: 160px;
+  max-width: 260px;
+}
+
+.panol-movimiento-view .panol-herramientas-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.panol-movimiento-view .panol-herramientas-list li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.85rem;
+}
+
+.panol-movimiento-view .panol-origen-banner {
+  margin-bottom: 12px;
+  padding: 10px 14px;
+  border-radius: 8px;
+  border: 1px solid #ffe0b2;
+  background: #fff8e1;
+  color: #e65100;
+  font-size: 0.92rem;
+  line-height: 1.4;
+}
+
+.panol-movimiento-view .btn-devolver {
+  border: none;
+  background: #fff3e0;
+  color: #ef6c00;
+  border-radius: 6px;
+  padding: 6px 8px;
+  cursor: pointer;
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.panol-movimiento-view .btn-devolver:hover {
+  background: #ffe0b2;
+}
+
+.panol-movimiento-view .badge-entrega-bloqueado {
+  background: #eceff1;
+  color: #455a64;
+  cursor: default;
+  user-select: none;
+}
+
+.panol-movimiento-view .panol-obs-cell {
+  max-width: 220px;
+  min-width: 120px;
+}
+
+.panol-movimiento-view .panol-obs-text {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  font-size: 0.85rem;
+  line-height: 1.35;
+  color: #334155;
+  word-break: break-word;
+}
+
+.panol-movimiento-view .panol-firma-cell {
+  text-align: center;
+  min-width: 90px;
+}
+
+.panol-movimiento-view .panol-firma-thumb {
+  width: 88px;
+  height: 42px;
+  object-fit: contain;
+  background: #fff;
+  border: 1px solid #cbd5e1;
+  border-radius: 4px;
+  display: inline-block;
+  vertical-align: middle;
+}
+
+.panol-movimiento-view .panol-firma-empty {
+  font-size: 0.75rem;
+  color: #94a3b8;
+}
+
+.panol-movimiento-view .badge-tipo-salida {
+  background: #e3f2fd;
+  color: #1565c0;
+}
+
+.panol-movimiento-view .badge-tipo-devolucion {
+  background: #f3e5f5;
+  color: #6a1b9a;
+}
+
+@media (max-width: 1200px) {
+  .panol-movimiento-view .panol-cabecera-linea {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 900px) {
+  .panol-movimiento-view .panol-cabecera-linea {
+    grid-template-columns: 1fr;
+  }
+
+  .panol-movimiento-view .panol-trabajador-list {
+    max-height: 160px;
+  }
+
+  .panol-movimiento-view .panol-firmas {
+    grid-template-columns: 1fr;
+  }
+
+  .panol-movimiento-view .panol-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .panol-movimiento-view .panol-filters {
+    justify-content: stretch;
+  }
+
+  .panol-movimiento-view .panol-search,
+  .panol-movimiento-view .panol-filter-select {
+    max-width: none;
+    width: 100%;
+  }
+}

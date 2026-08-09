@@ -2757,13 +2757,14 @@ const AsignacionPrendasView: React.FC = () => {
             onClick={(e) => e.stopPropagation()}
           >
             <div className="no-print" style={{ padding: '16px', borderBottom: '1px solid #eee', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
-              <h3 style={{ margin: 0 }}>📄 Vista Previa - Acta de Entrega de Cargo</h3>
+              <h3 style={{ margin: 0 }}>📄 Vista Previa - Registro de Entrega de EPP</h3>
               <div style={{ display: 'flex', gap: '8px' }}>
                 <button
                   className="btn-primary"
                   onClick={handlePrintActa}
                   disabled={!previewActaData}
                   style={{ backgroundColor: '#007bff' }}
+                  type="button"
                 >
                   🖨️ Imprimir
                 </button>
@@ -2777,10 +2778,11 @@ const AsignacionPrendasView: React.FC = () => {
                   }}
                   disabled={!previewActaData}
                   style={{ backgroundColor: '#28a745' }}
+                  type="button"
                 >
                   📥 Generar PDF
                 </button>
-                <button className="btn-secondary" onClick={closePreviewModal}>
+                <button className="btn-secondary" onClick={closePreviewModal} type="button">
                   ✕ Cerrar
                 </button>
               </div>
@@ -2788,87 +2790,121 @@ const AsignacionPrendasView: React.FC = () => {
 
             <div className="acta-preview-content" style={{ padding: '24px' }}>
               {loadingActa ? (
-                <div style={{ textAlign: 'center', padding: '40px' }}>⏳ Cargando acta...</div>
+                <div style={{ textAlign: 'center', padding: '40px' }}>⏳ Cargando registro...</div>
               ) : previewActaData ? (
-                <div
-                  className="acta-print-area"
-                  style={{
-                    fontFamily: 'Arial, sans-serif',
-                    fontSize: '12px',
-                    lineHeight: 1.4,
-                    color: '#333'
-                  }}
-                >
-                  <h2 style={{ textAlign: 'center', marginBottom: '4px', fontSize: '16px' }}>ACTA DE ENTREGA DE CARGO</h2>
-                  <p style={{ textAlign: 'right', fontSize: '10px', color: '#666', marginBottom: '12px' }}>SIG F-622-005 Versión 001</p>
-                  <p style={{ marginBottom: '12px' }}>
-                    En la ciudad de Santiago, {previewActaData.intro.dia} días del mes de {previewActaData.intro.mes} del año {previewActaData.intro.anio}, se procede a dejar constancia de la entrega de cargo al trabajador que a continuación se detalla:
+                <div className="acta-print-area epp-document">
+                  <header className="epp-header">
+                    <img
+                      className="epp-logo"
+                      src="/acta-epp/logo-transantin.svg"
+                      alt="Logo TranSantin"
+                    />
+                    <div className="epp-header-text">
+                      <p className="epp-dept">Departamento de Prevención de Riesgos Ocupacionales</p>
+                      <h2 className="epp-title">
+                        REGISTRO DE ENTREGA DE ELEMENTOS DE PROTECCIÓN PERSONAL (EPP)
+                      </h2>
+                    </div>
+                  </header>
+
+                  <p className="epp-legal">
+                    Dando cumplimiento a lo establecido en el Artículo 68° de la Ley N°16.744 sobre Accidentes del Trabajo y Enfermedades Profesionales; y a lo dispuesto en el Artículo 13° del Decreto N° 44 sobre la Gestión Preventiva de los Riesgos Laborales Para un Entorno de Trabajo Seguro y Saludable, se entrega a:
                   </p>
-                  <p style={{ fontWeight: 'bold', marginBottom: '8px' }}>Datos del Trabajador:</p>
-                  <p style={{ margin: '4px 0' }}><strong>Nombre:</strong> {previewActaData.trabajador.nombre}</p>
-                  <p style={{ margin: '4px 0' }}><strong>Rut:</strong> {previewActaData.trabajador.rut}</p>
-                  <p style={{ margin: '4px 0 12px 0' }}><strong>Cargo:</strong> {previewActaData.trabajador.cargo}</p>
-                  <p style={{ margin: '4px 0 12px 0' }}><strong>Empresa:</strong> {previewActaData.trabajador.empresa}</p>
-                  <p style={{ fontWeight: 'bold', marginBottom: '8px' }}>Detalle de insumos entregados</p>
-                  <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '12px', fontSize: '11px' }}>
+
+                  <table className="epp-worker-table" aria-label="Datos del trabajador">
+                    <tbody>
+                      <tr>
+                        <th scope="row">Nombre</th>
+                        <td>{previewActaData.trabajador.nombre}</td>
+                        <th scope="row">Cargo</th>
+                        <td>{previewActaData.trabajador.cargo}</td>
+                      </tr>
+                      <tr>
+                        <th scope="row">RUT</th>
+                        <td>{previewActaData.trabajador.rut}</td>
+                        <th scope="row">Área de Trabajo</th>
+                        <td>{previewActaData.trabajador.areaTrabajo || previewActaData.trabajador.empresa}</td>
+                      </tr>
+                    </tbody>
+                  </table>
+
+                  <p className="epp-items-intro">Los siguientes Elementos de Protección Personal:</p>
+
+                  <table className="epp-items-table" aria-label="Elementos de protección personal entregados">
                     <thead>
-                      <tr style={{ backgroundColor: '#e8e8e8' }}>
-                        <th style={{ border: '1px solid #ccc', padding: '6px', textAlign: 'center' }}>Item</th>
-                        <th style={{ border: '1px solid #ccc', padding: '6px', textAlign: 'center' }}>Cantidad</th>
-                        <th style={{ border: '1px solid #ccc', padding: '6px', textAlign: 'center' }}>Talla</th>
-                        <th style={{ border: '1px solid #ccc', padding: '6px', textAlign: 'center' }}>Estado</th>
-                        <th style={{ border: '1px solid #ccc', padding: '6px', textAlign: 'center' }}>Estado Entrega</th>
+                      <tr>
+                        <th scope="col" style={{ width: '48px' }}>N°</th>
+                        <th scope="col">Elemento de Protección Personal entregado</th>
+                        <th scope="col" style={{ width: '70px' }}>Cantidad</th>
+                        <th scope="col" style={{ width: '100px' }}>Modelo y talla</th>
+                        <th scope="col" style={{ width: '110px' }}>Fecha de Entrega (DD/MM/AA)</th>
+                        <th scope="col" style={{ width: '80px' }}>Firma</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {previewActaData.prendas.map((p: { prenda: string; cantidad: number; talla: string; entregado: boolean }, i: number) => (
-                        <tr key={i}>
-                          <td style={{ border: '1px solid #ccc', padding: '6px' }}>{p.prenda}</td>
-                          <td style={{ border: '1px solid #ccc', padding: '6px', textAlign: 'center' }}>{p.cantidad}</td>
-                          <td style={{ border: '1px solid #ccc', padding: '6px', textAlign: 'center' }}>{p.talla}</td>
-                          <td style={{ border: '1px solid #ccc', padding: '6px', textAlign: 'center' }}>Nuevo</td>
-                          <td style={{ border: '1px solid #ccc', padding: '6px', textAlign: 'center' }}>{p.entregado ? 'Entregado' : 'Pendiente'}</td>
+                      {previewActaData.prendas.length === 0 ? (
+                        <tr>
+                          <td>&nbsp;</td>
+                          <td className="epp-item-name">&nbsp;</td>
+                          <td>&nbsp;</td>
+                          <td>&nbsp;</td>
+                          <td>&nbsp;</td>
+                          <td aria-label="Espacio para firma">&nbsp;</td>
                         </tr>
-                      ))}
+                      ) : (
+                        previewActaData.prendas.map(
+                          (p: { prenda: string; cantidad: number; talla: string }, i: number) => (
+                            <tr key={`${p.prenda}-${p.talla}-${i}`}>
+                              <td>{String(i + 1).padStart(2, '0')}</td>
+                              <td className="epp-item-name">{p.prenda}</td>
+                              <td>{p.cantidad}</td>
+                              <td>{p.talla}</td>
+                              <td>{previewActaData.fechaEntrega}</td>
+                              <td aria-label="Espacio para firma">&nbsp;</td>
+                            </tr>
+                          )
+                        )
+                      )}
                     </tbody>
                   </table>
-                  {previewActaData.observaciones && (
-                    <p style={{ marginBottom: '12px' }}><strong>Observaciones:</strong> {previewActaData.observaciones}</p>
-                  )}
-                  <p style={{ fontWeight: 'bold', marginBottom: '6px' }}>Responsabilidades:</p>
-                  <p style={{ marginBottom: '4px' }}>Usted se compromete a</p>
-                  <ul style={{ margin: '4px 0 12px 20px', padding: 0 }}>
-                    <li>Usar los insumos únicamente durante sus funciones laborales.</li>
-                    <li>Mantener los insumos en condiciones limpias y presentables.</li>
-                    <li>No alterar ni modificar los insumos entregados.</li>
-                    <li>Responder por el cuidado y conservación de los insumos entregados.</li>
-                    <li>Reportar inmediatamente cualquier daño o pérdida al área correspondiente.</li>
-                    <li>El mal uso o la negligencia en el cuidado de los insumos podrá ser objeto de observaciones o medidas disciplinarias conforme al reglamento interno.</li>
-                  </ul>
-                  <p style={{ fontWeight: 'bold', marginBottom: '6px' }}>Uso de Insumos de Cargo:</p>
-                  <p style={{ marginBottom: '8px' }}>La empresa hace hincapié en la obligatoriedad del uso de los insumos de cargo durante todo el periodo de servicio activo. Su uso contribuye a:</p>
-                  <ul style={{ margin: '4px 0 12px 20px', padding: 0 }}>
-                    <li>Proyectar una imagen profesional y ordenada de la empresa.</li>
-                    <li>Generar confianza en los pasajeros.</li>
-                    <li>Facilitar la identificación del personal por parte de usuarios.</li>
-                  </ul>
-                  <p style={{ fontWeight: 'bold', marginBottom: '6px' }}>Declaración del Trabajador:</p>
-                  <p style={{ marginBottom: '12px' }}>Declaro haber recibido a conformidad los insumos antes detallados, los cuales se encuentran en buen estado y son de uso obligatorio durante mi jornada laboral. Asimismo, me comprometo a dar un uso adecuado y a conservarlos en buenas condiciones, haciéndome responsable de su cuidado.</p>
-                  <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '12px' }}>
-                    <tbody>
-                      <tr>
-                        <td style={{ border: '1px solid #ccc', padding: '8px', textAlign: 'center', width: '50%' }}>Firma</td>
-                        <td style={{ border: '1px solid #ccc', padding: '8px', textAlign: 'center', width: '50%' }}>Huella</td>
-                      </tr>
-                      <tr>
-                        <td style={{ border: '1px solid #ccc', height: '50px', verticalAlign: 'top' }}></td>
-                        <td style={{ border: '1px solid #ccc', height: '50px', verticalAlign: 'top' }}></td>
-                      </tr>
-                    </tbody>
-                  </table>
-                  <p style={{ fontWeight: 'bold', marginBottom: '4px' }}>Firma del encargado de Entrega</p>
-                  <p style={{ margin: 0 }}>Nombre: {previewActaData.responsable.nombre}</p>
-                  <p style={{ margin: 0 }}>Fecha: {previewActaData.responsable.fecha} {previewActaData.responsable.hora}</p>
+
+                  <p className="epp-declaration">
+                    El trabajador declara haberlos recibido en forma gratuita y se compromete a utilizarlos correctamente y de forma permanente mientras se encuentre expuesto al riesgo, manteniéndolos en buen estado.
+                  </p>
+
+                  <hr className="epp-divider" />
+
+                  <section className="epp-instructions" aria-label="Instrucciones y código QR">
+                    <div className="epp-qr-block">
+                      <img
+                        className="epp-qr"
+                        src="/acta-epp/qr-sube-registro.png"
+                        alt="Código QR para subir el registro firmado"
+                      />
+                      <span className="epp-qr-label">SUBE EL REGISTRO</span>
+                    </div>
+                    <div className="epp-instructions-text">
+                      <h4>Instrucciones para la jefatura o centro de abastecimiento</h4>
+                      <ol>
+                        <li>
+                          Para llevar un registro adecuado de la entrega de Elementos de Protección Personal (EPP), cada vez que entregues un elemento a un trabajador, accede al Código QR desde tu celular y toma una fotografía del documento firmado por el trabajador.
+                        </li>
+                        <li>
+                          Almacena correctamente este registro de forma física. Puede ser solicitado en fiscalizaciones y será controlado por el Dpto de Prevención de Riesgos Ocupacionales.
+                        </li>
+                        <li>
+                          Como jefatura, es tu responsabilidad verificar que el trabajador cuente y utilice obligatoriamente sus EPP.
+                        </li>
+                      </ol>
+                    </div>
+                  </section>
+
+                  <footer className="epp-footer">
+                    <p className="epp-footer-meta">
+                      Página 1 | Sistema de Gestión de Seguridad y Salud Ocupacional | Aprobado: IMC | Versión: 02 | F. Versión: 20251210
+                    </p>
+                    <p className="epp-footer-dept">Departamento de Prevención de Riesgos Ocupacionales</p>
+                  </footer>
                 </div>
               ) : null}
             </div>
@@ -2891,8 +2927,16 @@ const AsignacionPrendasView: React.FC = () => {
           .acta-preview-modal {
             box-shadow: none !important;
             max-height: none !important;
+            max-width: none !important;
           }
           .no-print { display: none !important; }
+          .epp-document,
+          .epp-document th,
+          .epp-document td,
+          .epp-qr-label {
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
         }
         @media print {
           .sidebar, .view-header, .no-print { display: none !important; }
@@ -2919,8 +2963,8 @@ const AsignacionPrendasView: React.FC = () => {
             print-color-adjust: exact;
           }
           @page {
-            size: letter landscape;
-            margin: 15mm;
+            size: letter portrait;
+            margin: 12mm;
           }
         }
         .sr-only {

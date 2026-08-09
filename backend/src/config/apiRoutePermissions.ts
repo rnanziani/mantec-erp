@@ -66,6 +66,10 @@ export const API_PREFIX_RULES: Array<{
   { prefix: '/api/cargo-maquinas', permission: 'MENU_OPERACIONES_CARGO_MAQUINA' },
   { prefix: '/api/consumo-insumos', permission: 'MENU_OPERACIONES' },
 
+  // Pañol
+  { prefix: '/api/herramientas', permission: 'MENU_PANOL_HERRAMIENTAS', readAuthOnly: true },
+  { prefix: '/api/panol', permission: 'MENU_PANOL_MOVIMIENTOS' },
+
   // Neumáticos (prefijos largos antes que cortos)
   { prefix: '/api/marcas-neumatico', permission: 'MENU_NEUMATICOS_MARCAS' },
   { prefix: '/api/estados-neumatico', permission: 'MENU_NEUMATICOS_ESTADOS' },
