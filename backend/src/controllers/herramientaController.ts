@@ -1,6 +1,33 @@
 import { Request, Response } from 'express';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import PdfPrinter from 'pdfmake';
+import type { PdfDocumentDefinition } from '../utils/pdfTypes.js';
 import { pool } from '../db.js';
-import { ApiResponse, CreateHerramientaDTO, Herramienta, UpdateHerramientaDTO } from '../types.js';
+import { CreateHerramientaDTO, Herramienta, UpdateHerramientaDTO } from '../types.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+function loadLogoDataUrl(): string | null {
+  try {
+    const fullPath = path.join(__dirname, '../../assets/acta-epp', 'logo-transantin.png');
+    const base64 = fs.readFileSync(fullPath).toString('base64');
+    return `data:image/png;base64,${base64}`;
+  } catch {
+    return null;
+  }
+}
+
+function formatMoney(value: unknown): string {
+  const n = Number(value ?? 0);
+  return new Intl.NumberFormat('es-CL', {
+    style: 'currency',
+    currency: 'CLP',
+    maximumFractionDigits: 0,
+  }).format(Number.isFinite(n) ? n : 0);
+}
 
 const TABLA = 'tbl_48_d_herramienta';
 
@@ -35,6 +62,32 @@ const SELECT_BASE = `
   FROM ${TABLA} h
   LEFT JOIN tbl_37_marca_insumo m ON h.idmarca_insumo_48 = m.id_marca_insumo_37
 `;
+
+async function listarHerramientasReporte(estado?: string, q?: string) {
+  const clauses: string[] = [];
+  const params: unknown[] = [];
+  let i = 1;
+
+  if (estado) {
+    clauses.push(`UPPER(h.estado_48) = $${i++}`);
+    params.push(String(estado).toUpperCase().trim());
+  }
+  if (q) {
+    const like = `%${String(q).trim().toUpperCase()}%`;
+    clauses.push(
+      `(UPPER(h.codigo_48) LIKE $${i} OR UPPER(h.nombre_48) LIKE $${i} OR UPPER(COALESCE(h.marca_48, '')) LIKE $${i} OR UPPER(COALESCE(m.marca_insumo_37, '')) LIKE $${i} OR UPPER(COALESCE(h.ubicacion_48, '')) LIKE $${i})`
+    );
+    params.push(like);
+    i++;
+  }
+
+  const where = clauses.length ? `WHERE ${clauses.join(' AND ')}` : '';
+  const result = await pool.query(
+    `${SELECT_BASE} ${where} ORDER BY h.codigo_48 ASC`,
+    params
+  );
+  return result.rows as Herramienta[];
+}
 
 function normalizeText(value: unknown): string | null {
   if (value == null) return null;
@@ -311,6 +364,193 @@ export const deleteHerramienta = async (req: Request, res: Response): Promise<vo
     res.status(500).json({
       success: false,
       error: 'Error al eliminar la herramienta',
+      message: error instanceof Error ? error.message : 'Error desconocido',
+    });
+  }
+};
+
+/** Datos JSON para vista previa del reporte de herramientas */
+export const getReporteHerramientasDatos = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const estado = typeof req.query.estado === 'string' ? req.query.estado : '';
+    const q = typeof req.query.q === 'string' ? req.query.q : '';
+    const rows = await listarHerramientasReporte(estado || undefined, q || undefined);
+    const ahora = new Date();
+    res.json({
+      success: true,
+      data: {
+        titulo: 'Inventario de Herramientas — Pañol',
+        generadoEn: ahora.toLocaleString('es-CL'),
+        filtros: {
+          estado: estado || 'TODOS',
+          busqueda: q || '',
+        },
+        total: rows.length,
+        items: rows.map((h) => ({
+          codigo: h.codigo_48,
+          nombre: h.nombre_48,
+          marca: h.marca_48 || h.marca_insumo_nombre || '',
+          ubicacion: h.ubicacion_48 || '',
+          valor: Number(h.valor_48 ?? 0),
+          valorFmt: formatMoney(h.valor_48),
+          stock: Number(h.stock_48 ?? 0),
+          disponible: Number(h.stock_disponible_48 ?? 0),
+          estado: h.estado_48,
+        })),
+      },
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: 'Error al obtener datos del reporte',
+      message: error instanceof Error ? error.message : 'Error desconocido',
+    });
+  }
+};
+
+/** PDF sobrio: logo TranSantin, borde fino gris, tipografía elegante */
+export const generarReporteHerramientasPDF = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const estado = typeof req.query.estado === 'string' ? req.query.estado : '';
+    const q = typeof req.query.q === 'string' ? req.query.q : '';
+    const rows = await listarHerramientasReporte(estado || undefined, q || undefined);
+    const logo = loadLogoDataUrl();
+    const generadoEn = new Date().toLocaleString('es-CL');
+
+    const body: any[] = [
+      [
+        { text: 'Código', style: 'th', alignment: 'left' },
+        { text: 'Nombre', style: 'th', alignment: 'left' },
+        { text: 'Marca', style: 'th', alignment: 'left' },
+        { text: 'Ubicación', style: 'th', alignment: 'left' },
+        { text: 'Valor', style: 'th', alignment: 'right' },
+        { text: 'Stock', style: 'th', alignment: 'center' },
+        { text: 'Disp.', style: 'th', alignment: 'center' },
+        { text: 'Estado', style: 'th', alignment: 'left' },
+      ],
+    ];
+
+    rows.forEach((h) => {
+      body.push([
+        { text: h.codigo_48 || '', style: 'td' },
+        { text: h.nombre_48 || '', style: 'td' },
+        { text: h.marca_48 || h.marca_insumo_nombre || '—', style: 'td' },
+        { text: h.ubicacion_48 || '—', style: 'td' },
+        { text: formatMoney(h.valor_48), style: 'td', alignment: 'right' },
+        { text: String(h.stock_48 ?? 0), style: 'td', alignment: 'center' },
+        { text: String(h.stock_disponible_48 ?? 0), style: 'td', alignment: 'center' },
+        { text: h.estado_48 || '', style: 'td' },
+      ]);
+    });
+
+    if (rows.length === 0) {
+      body.push([
+        { text: 'Sin herramientas para los filtros seleccionados', style: 'td', colSpan: 8, alignment: 'center' },
+        {}, {}, {}, {}, {}, {}, {},
+      ]);
+    }
+
+    const fonts = {
+      Roboto: {
+        normal: 'Helvetica',
+        bold: 'Helvetica-Bold',
+        italics: 'Helvetica-Oblique',
+        bolditalics: 'Helvetica-BoldOblique',
+      },
+    };
+    const printer = new PdfPrinter(fonts);
+
+    const borderColor = '#c5cdd6';
+
+    const docDefinition: PdfDocumentDefinition = {
+      pageSize: 'LETTER',
+      pageOrientation: 'landscape',
+      pageMargins: [36, 36, 36, 40],
+      content: [
+        {
+          columns: [
+            logo
+              ? { image: logo, width: 95, margin: [0, 0, 14, 0] }
+              : { text: 'TranSantin', fontSize: 13, bold: true, color: '#334155', width: 95, margin: [0, 6, 14, 0] },
+            {
+              width: '*',
+              stack: [
+                {
+                  text: 'Inventario de Herramientas — Pañol',
+                  fontSize: 14,
+                  bold: true,
+                  color: '#1e293b',
+                  margin: [0, 4, 0, 4],
+                },
+                {
+                  text: `Generado: ${generadoEn}  ·  Total: ${rows.length}  ·  Estado: ${estado || 'TODOS'}${q ? `  ·  Búsqueda: ${q}` : ''}`,
+                  fontSize: 8,
+                  color: '#64748b',
+                },
+              ],
+            },
+          ],
+          margin: [0, 0, 0, 14],
+        },
+        {
+          table: {
+            headerRows: 1,
+            widths: [62, '*', 70, 70, 58, 36, 36, 72],
+            body,
+          },
+          layout: {
+            hLineWidth: (i: number, node: { table: { body: unknown[] } }) =>
+              i === 0 || i === 1 || i === node.table.body.length ? 0.7 : 0.4,
+            vLineWidth: () => 0.4,
+            hLineColor: () => borderColor,
+            vLineColor: () => borderColor,
+            paddingLeft: () => 5,
+            paddingRight: () => 5,
+            paddingTop: () => 4,
+            paddingBottom: () => 4,
+            fillColor: (rowIndex: number) => {
+              if (rowIndex === 0) return '#f8fafc';
+              return rowIndex % 2 === 0 ? '#fcfcfd' : null;
+            },
+          },
+        },
+      ],
+      footer: (currentPage: number, pageCount: number) => ({
+        columns: [
+          {
+            text: 'TranSantin · Pañol · Uso interno',
+            fontSize: 7,
+            color: '#94a3b8',
+            margin: [36, 0, 0, 0],
+          },
+          {
+            text: `Página ${currentPage} de ${pageCount}`,
+            alignment: 'right',
+            fontSize: 7,
+            color: '#94a3b8',
+            margin: [0, 0, 36, 0],
+          },
+        ],
+      }),
+      styles: {
+        th: { fontSize: 8, bold: true, color: '#475569' },
+        td: { fontSize: 8, color: '#1e293b' },
+      },
+      defaultStyle: { font: 'Roboto', fontSize: 8, color: '#1e293b' },
+    };
+
+    const pdfDoc = printer.createPdfKitDocument(docDefinition);
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename=inventario-herramientas-panol.pdf`
+    );
+    pdfDoc.pipe(res);
+    pdfDoc.end();
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: 'Error al generar el PDF de herramientas',
       message: error instanceof Error ? error.message : 'Error desconocido',
     });
   }

@@ -5,7 +5,7 @@ import Pagination from './shared/Pagination';
 import SearchableSelect from './shared/SearchableSelect';
 import { exportToExcel } from '../utils/exportUtils';
 import { showDeleteConfirm, showError, showSuccess } from '../utils/swal';
-import { apiFetch, apiUrl } from '../lib/apiClient';
+import { apiFetch, apiUrl, openAuthenticatedBlob } from '../lib/apiClient';
 
 interface Herramienta {
   idherramienta_48: number;
@@ -35,6 +35,26 @@ interface ApiResponse<T = unknown> {
   message?: string;
   error?: string;
 }
+
+type ReporteItem = {
+  codigo: string;
+  nombre: string;
+  marca: string;
+  ubicacion: string;
+  valor: number;
+  valorFmt: string;
+  stock: number;
+  disponible: number;
+  estado: string;
+};
+
+type ReporteDatos = {
+  titulo: string;
+  generadoEn: string;
+  filtros: { estado: string; busqueda: string };
+  total: number;
+  items: ReporteItem[];
+};
 
 const ESTADOS = ['DISPONIBLE', 'PRESTADA', 'EN_MANTENCION', 'PERDIDA', 'DANADA', 'DE_BAJA'] as const;
 
@@ -70,6 +90,9 @@ const HerramientaView: React.FC = () => {
     key: keyof Herramienta;
     direction: 'asc' | 'desc';
   }>({ key: 'idherramienta_48', direction: 'desc' });
+  const [showReporte, setShowReporte] = useState(false);
+  const [loadingReporte, setLoadingReporte] = useState(false);
+  const [reporte, setReporte] = useState<ReporteDatos | null>(null);
 
   const API_URL = apiUrl('/herramientas');
   const MARCAS_URL = apiUrl('/marcas-insumo');
@@ -294,6 +317,46 @@ const HerramientaView: React.FC = () => {
     );
   };
 
+  const buildReporteQuery = () => {
+    const params = new URLSearchParams();
+    if (filtroEstado) params.set('estado', filtroEstado);
+    if (searchTerm.trim()) params.set('q', searchTerm.trim());
+    const qs = params.toString();
+    return qs ? `?${qs}` : '';
+  };
+
+  const openReportePreview = async () => {
+    try {
+      setLoadingReporte(true);
+      setShowReporte(true);
+      setReporte(null);
+      const res = await apiFetch(`${API_URL}/reporte/datos${buildReporteQuery()}`);
+      const data: ApiResponse<ReporteDatos> = await res.json();
+      if (data.success && data.data) {
+        setReporte(data.data);
+      } else {
+        setShowReporte(false);
+        await showError('Error', data.error || 'No se pudieron cargar los datos del reporte');
+      }
+    } catch {
+      setShowReporte(false);
+      await showError('Error', 'Error de conexión al cargar el reporte');
+    } finally {
+      setLoadingReporte(false);
+    }
+  };
+
+  const downloadReportePdf = () => {
+    openAuthenticatedBlob(`/herramientas/reporte/pdf${buildReporteQuery()}`).catch(() =>
+      showError('Error', 'No se pudo abrir el PDF')
+    );
+  };
+
+  const closeReporte = () => {
+    setShowReporte(false);
+    setReporte(null);
+  };
+
   const setUpper = (key: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement>) => {
     setForm((prev) => ({ ...prev, [key]: e.target.value.toUpperCase() }));
   };
@@ -312,6 +375,14 @@ const HerramientaView: React.FC = () => {
             Guardar
           </button>
           <button type="button" className="btn-info" onClick={handleExport}>Exportar</button>
+          <button
+            type="button"
+            className="btn-secondary"
+            onClick={openReportePreview}
+            title="Vista previa y PDF del inventario"
+          >
+            Reporte
+          </button>
           <button type="button" className="btn-secondary" onClick={() => { window.location.hash = 'dashboard'; }}>
             Salir
           </button>
@@ -511,6 +582,107 @@ const HerramientaView: React.FC = () => {
         itemsPerPage={itemsPerPage}
         onPageChange={setCurrentPage}
       />
+
+      {showReporte && (
+        <div
+          className="herramienta-reporte-overlay"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="herramienta-reporte-title"
+          onClick={closeReporte}
+        >
+          <div className="herramienta-reporte-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="herramienta-reporte-toolbar">
+              <h3 id="herramienta-reporte-title">Vista previa — Inventario Pañol</h3>
+              <div className="herramienta-reporte-actions">
+                <button
+                  type="button"
+                  className="btn-primary"
+                  disabled={loadingReporte || !reporte}
+                  onClick={downloadReportePdf}
+                >
+                  Descargar PDF
+                </button>
+                <button type="button" className="btn-secondary" onClick={closeReporte}>
+                  Cerrar
+                </button>
+              </div>
+            </div>
+
+            <div className="herramienta-reporte-content">
+              {loadingReporte ? (
+                <div className="herramienta-reporte-loading">Cargando reporte...</div>
+              ) : reporte ? (
+                <article className="herramienta-reporte-doc" aria-label="Vista previa del reporte">
+                  <header className="herramienta-reporte-header">
+                    <img
+                      className="herramienta-reporte-logo"
+                      src="/acta-epp/logo-transantin.svg"
+                      alt="Logo TranSantin"
+                    />
+                    <div className="herramienta-reporte-heading">
+                      <h2>{reporte.titulo}</h2>
+                      <p>
+                        Generado: {reporte.generadoEn}
+                        {' · '}
+                        Total: {reporte.total}
+                        {' · '}
+                        Estado: {reporte.filtros.estado}
+                        {reporte.filtros.busqueda
+                          ? ` · Búsqueda: ${reporte.filtros.busqueda}`
+                          : ''}
+                      </p>
+                    </div>
+                  </header>
+
+                  <div className="herramienta-reporte-table-wrap">
+                    <table className="herramienta-reporte-table">
+                      <thead>
+                        <tr>
+                          <th scope="col">Código</th>
+                          <th scope="col">Nombre</th>
+                          <th scope="col">Marca</th>
+                          <th scope="col">Ubicación</th>
+                          <th scope="col" className="text-right">Valor</th>
+                          <th scope="col" className="text-center">Stock</th>
+                          <th scope="col" className="text-center">Disp.</th>
+                          <th scope="col">Estado</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {reporte.items.length === 0 ? (
+                          <tr>
+                            <td colSpan={8} className="text-center">
+                              Sin herramientas para los filtros seleccionados
+                            </td>
+                          </tr>
+                        ) : (
+                          reporte.items.map((row) => (
+                            <tr key={row.codigo}>
+                              <td>{row.codigo}</td>
+                              <td>{row.nombre}</td>
+                              <td>{row.marca || '—'}</td>
+                              <td>{row.ubicacion || '—'}</td>
+                              <td className="text-right herramienta-valor">{row.valorFmt}</td>
+                              <td className="text-center">{row.stock}</td>
+                              <td className="text-center">{row.disponible}</td>
+                              <td>{row.estado}</td>
+                            </tr>
+                          ))
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  <footer className="herramienta-reporte-footer">
+                    TranSantin · Pañol · Uso interno
+                  </footer>
+                </article>
+              ) : null}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
