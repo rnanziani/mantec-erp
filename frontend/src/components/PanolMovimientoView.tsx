@@ -99,6 +99,10 @@ const PanolMovimientoView: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filtroTipo, setFiltroTipo] = useState('');
   const [filtroEstado, setFiltroEstado] = useState('');
+  const [filtroFechaDesde, setFiltroFechaDesde] = useState('');
+  const [filtroFechaHasta, setFiltroFechaHasta] = useState('');
+  const [filtroTrabajador, setFiltroTrabajador] = useState('');
+  const [filtroHerramienta, setFiltroHerramienta] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
   const [sortConfig, setSortConfig] = useState<{
@@ -192,8 +196,40 @@ const PanolMovimientoView: React.FC = () => {
     });
   }, [herramientas, detalles, tipo]);
 
+  const trabajadoresFiltroOpciones = useMemo(() => {
+    const map = new Map<number, string>();
+    registros.forEach((m) => {
+      if (m.idtrabajador_49 && m.trabajador_nombre) {
+        map.set(m.idtrabajador_49, m.trabajador_nombre.trim());
+      }
+    });
+    return Array.from(map.entries())
+      .map(([id, nombre]) => ({ id, nombre }))
+      .sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'));
+  }, [registros]);
+
+  const herramientasFiltroOpciones = useMemo(() => {
+    const map = new Map<number, { codigo: string; nombre: string }>();
+    registros.forEach((m) => {
+      (m.herramientas_detalle || []).forEach((h) => {
+        if (h.idherramienta && !map.has(h.idherramienta)) {
+          map.set(h.idherramienta, {
+            codigo: h.codigo || '',
+            nombre: h.nombre || '',
+          });
+        }
+      });
+    });
+    return Array.from(map.entries())
+      .map(([id, info]) => ({ id, ...info }))
+      .sort((a, b) => a.codigo.localeCompare(b.codigo, 'es', { numeric: true }));
+  }, [registros]);
+
   const filteredAndSorted = useMemo(() => {
     const q = searchTerm.trim().toLowerCase();
+    const desde = filtroFechaDesde ? new Date(`${filtroFechaDesde}T00:00:00`) : null;
+    const hasta = filtroFechaHasta ? new Date(`${filtroFechaHasta}T23:59:59.999`) : null;
+
     let list = registros.filter((m) => {
       const herrText = Array.isArray(m.herramientas_detalle)
         ? m.herramientas_detalle
@@ -212,7 +248,33 @@ const PanolMovimientoView: React.FC = () => {
         herrText.includes(q);
       const matchTipo = !filtroTipo || m.tipomovimiento_49 === filtroTipo;
       const matchEstado = !filtroEstado || m.estado_49 === filtroEstado;
-      return matchText && matchTipo && matchEstado;
+      const matchTrabajador =
+        !filtroTrabajador || String(m.idtrabajador_49) === filtroTrabajador;
+      const matchHerramienta =
+        !filtroHerramienta ||
+        (Array.isArray(m.herramientas_detalle) &&
+          m.herramientas_detalle.some(
+            (h) => String(h.idherramienta) === filtroHerramienta
+          ));
+
+      let matchFecha = true;
+      if (desde || hasta) {
+        const f = new Date(m.fecha_49);
+        if (Number.isNaN(f.getTime())) matchFecha = false;
+        else {
+          if (desde && f < desde) matchFecha = false;
+          if (hasta && f > hasta) matchFecha = false;
+        }
+      }
+
+      return (
+        matchText &&
+        matchTipo &&
+        matchEstado &&
+        matchTrabajador &&
+        matchHerramienta &&
+        matchFecha
+      );
     });
 
     list = [...list].sort((a, b) => {
@@ -237,7 +299,17 @@ const PanolMovimientoView: React.FC = () => {
     });
 
     return list;
-  }, [registros, searchTerm, filtroTipo, filtroEstado, sortConfig]);
+  }, [
+    registros,
+    searchTerm,
+    filtroTipo,
+    filtroEstado,
+    filtroFechaDesde,
+    filtroFechaHasta,
+    filtroTrabajador,
+    filtroHerramienta,
+    sortConfig,
+  ]);
 
   const totalPages = Math.max(1, Math.ceil(filteredAndSorted.length / itemsPerPage));
   const pageItems = filteredAndSorted.slice(
@@ -247,7 +319,25 @@ const PanolMovimientoView: React.FC = () => {
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, filtroTipo, filtroEstado]);
+  }, [
+    searchTerm,
+    filtroTipo,
+    filtroEstado,
+    filtroFechaDesde,
+    filtroFechaHasta,
+    filtroTrabajador,
+    filtroHerramienta,
+  ]);
+
+  const limpiarFiltros = () => {
+    setSearchTerm('');
+    setFiltroTipo('');
+    setFiltroEstado('');
+    setFiltroFechaDesde('');
+    setFiltroFechaHasta('');
+    setFiltroTrabajador('');
+    setFiltroHerramienta('');
+  };
 
   const handleSort = (key: keyof MaestroPanol) => {
     setSortConfig((prev) => ({
@@ -851,15 +941,27 @@ const PanolMovimientoView: React.FC = () => {
         <p className="panol-total">
           Total: <strong>{filteredAndSorted.length}</strong> movimientos
         </p>
-        <div className="panol-filters">
-          <input
-            type="search"
-            className="form-input panol-search"
-            placeholder="🔍 BUSCAR MOVIMIENTO..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value.toUpperCase())}
-            aria-label="Buscar movimientos"
-          />
+        <div className="panol-filters" role="search" aria-label="Filtros de movimientos">
+          <label className="panol-filter-field">
+            <span>Desde</span>
+            <input
+              type="date"
+              className="form-input panol-filter-date"
+              value={filtroFechaDesde}
+              onChange={(e) => setFiltroFechaDesde(e.target.value)}
+              aria-label="Fecha desde"
+            />
+          </label>
+          <label className="panol-filter-field">
+            <span>Hasta</span>
+            <input
+              type="date"
+              className="form-input panol-filter-date"
+              value={filtroFechaHasta}
+              onChange={(e) => setFiltroFechaHasta(e.target.value)}
+              aria-label="Fecha hasta"
+            />
+          </label>
           <select
             className="form-input panol-filter-select"
             value={filtroTipo}
@@ -881,6 +983,48 @@ const PanolMovimientoView: React.FC = () => {
             <option value="COMPLETADA">COMPLETADA</option>
             <option value="ANULADA">ANULADA</option>
           </select>
+          <select
+            className="form-input panol-filter-select panol-filter-wide"
+            value={filtroTrabajador}
+            onChange={(e) => setFiltroTrabajador(e.target.value)}
+            aria-label="Filtrar por trabajador"
+          >
+            <option value="">Todos los trabajadores</option>
+            {trabajadoresFiltroOpciones.map((t) => (
+              <option key={t.id} value={t.id}>
+                {t.nombre}
+              </option>
+            ))}
+          </select>
+          <select
+            className="form-input panol-filter-select panol-filter-wide"
+            value={filtroHerramienta}
+            onChange={(e) => setFiltroHerramienta(e.target.value)}
+            aria-label="Filtrar por herramienta"
+          >
+            <option value="">Todas las herramientas</option>
+            {herramientasFiltroOpciones.map((h) => (
+              <option key={h.id} value={h.id}>
+                {h.codigo} - {h.nombre}
+              </option>
+            ))}
+          </select>
+          <input
+            type="search"
+            className="form-input panol-search"
+            placeholder="🔍 BUSCAR MOVIMIENTO..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value.toUpperCase())}
+            aria-label="Buscar movimientos"
+          />
+          <button
+            type="button"
+            className="btn-secondary panol-filter-clear"
+            onClick={limpiarFiltros}
+            aria-label="Limpiar filtros"
+          >
+            Limpiar
+          </button>
         </div>
       </div>
 
@@ -932,10 +1076,18 @@ const PanolMovimientoView: React.FC = () => {
                       <ul className="panol-herramientas-list" aria-label={`Herramientas de ${m.folio_49 || m.idmpanol_49}`}>
                         {m.herramientas_detalle.map((h) => (
                           <li key={`${m.idmpanol_49}-${h.idherramienta}`}>
-                            <strong title={h.nombre}>{h.codigo}</strong>
+                            <span className="panol-herr-line">
+                              <strong>{h.codigo}</strong>
+                              {h.nombre ? (
+                                <span className="panol-herr-nombre" title={h.nombre}>
+                                  {' '}
+                                  - {h.nombre}
+                                </span>
+                              ) : null}
+                            </span>
                             <span
                               className={badgeEstadoHerramienta(h.estado)}
-                              title={`${h.nombre} — disponible: ${h.stock_disponible}`}
+                              title={`${h.nombre || h.codigo} — disponible: ${h.stock_disponible}`}
                             >
                               {h.estado}
                             </span>

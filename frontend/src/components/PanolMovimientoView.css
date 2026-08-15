@@ -149,10 +149,9 @@
 
 .panol-movimiento-view .panol-toolbar {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
+  flex-direction: column;
+  align-items: stretch;
   gap: 12px;
-  flex-wrap: wrap;
   margin: 8px 0 14px;
   padding: 12px 14px;
   background: #f5f7fa;
@@ -170,19 +169,49 @@
   display: flex;
   gap: 10px;
   flex-wrap: wrap;
-  align-items: center;
-  flex: 1;
-  justify-content: flex-end;
+  align-items: flex-end;
+}
+
+.panol-movimiento-view .panol-filter-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #64748b;
+}
+
+.panol-movimiento-view .panol-filter-date {
+  min-width: 145px;
 }
 
 .panol-movimiento-view .panol-search {
-  min-width: min(100%, 280px);
-  max-width: 380px;
+  min-width: min(100%, 220px);
+  max-width: 320px;
   text-transform: uppercase;
 }
 
 .panol-movimiento-view .panol-filter-select {
-  min-width: 160px;
+  min-width: 150px;
+}
+
+.panol-movimiento-view .panol-filter-wide {
+  min-width: 220px;
+  max-width: 280px;
+}
+
+.panol-movimiento-view .panol-filter-clear {
+  white-space: nowrap;
+}
+
+.panol-movimiento-view .panol-herr-line {
+  display: inline;
+  min-width: 0;
+}
+
+.panol-movimiento-view .panol-herr-nombre {
+  color: #475569;
+  font-weight: 500;
 }
 
 .panol-movimiento-view .panol-data-table tbody tr:nth-child(even) {
@@ -272,8 +301,8 @@
 }
 
 .panol-movimiento-view .panol-herramientas-cell {
-  min-width: 160px;
-  max-width: 260px;
+  min-width: 220px;
+  max-width: 340px;
 }
 
 .panol-movimiento-view .panol-herramientas-list {
