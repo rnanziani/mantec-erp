@@ -1,0 +1,91 @@
+.session-expiry-banner {
+  position: fixed;
+  z-index: 1250;
+  max-width: min(340px, calc(100vw - 24px));
+  display: flex;
+  align-items: stretch;
+  gap: 0;
+  padding: 0;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 55%, #d97706 100%);
+  color: #1f2937;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.22);
+  border: 1px solid rgba(146, 64, 14, 0.25);
+  font-size: 0.8rem;
+  line-height: 1.25;
+  user-select: none;
+  touch-action: none;
+  cursor: grab;
+}
+
+.session-expiry-banner.is-dragging {
+  cursor: grabbing;
+  opacity: 0.95;
+  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.3);
+}
+
+.session-expiry-banner-drag {
+  flex: 0 0 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.7rem;
+  letter-spacing: -0.12em;
+  color: rgba(31, 41, 55, 0.55);
+  background: rgba(255, 255, 255, 0.18);
+  border-radius: 10px 0 0 10px;
+  border-right: 1px solid rgba(146, 64, 14, 0.15);
+}
+
+.session-expiry-banner-body {
+  flex: 1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.45rem 0.65rem;
+  padding: 0.4rem 0.55rem 0.4rem 0.5rem;
+  min-width: 0;
+}
+
+.session-expiry-banner-text {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  min-width: 0;
+}
+
+.session-expiry-banner-label {
+  font-weight: 700;
+  font-size: 0.82rem;
+}
+
+.session-expiry-banner-hint {
+  font-size: 0.7rem;
+  color: rgba(31, 41, 55, 0.78);
+}
+
+.session-expiry-banner-actions {
+  display: flex;
+  gap: 0.35rem;
+  flex-wrap: wrap;
+}
+
+.session-expiry-banner-btn {
+  padding: 0.22rem 0.55rem !important;
+  font-size: 0.72rem !important;
+  line-height: 1.2 !important;
+  border-radius: 6px !important;
+  cursor: pointer;
+}
+
+@media (max-width: 480px) {
+  .session-expiry-banner {
+    max-width: calc(100vw - 16px);
+  }
+
+  .session-expiry-banner-body {
+    padding: 0.35rem 0.45rem;
+  }
+}
