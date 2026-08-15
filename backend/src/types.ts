@@ -1314,6 +1314,198 @@ export interface UpdateMaestroPanolDTO {
 }
 
 // ============================================
+// ENTREGA EPP — tbl_51 / tbl_52 / tbl_53 / tbl_54 / tbl_55
+// ============================================
+
+/** Tipo de elemento EPP — tbl_51_tipo_elemento */
+export interface TipoElementoEpp {
+  idtipo_elemento_51: number;
+  tipo_elemento_51: string;
+  descripcion_51?: string | null;
+  activo_51: boolean;
+  creado_en?: string | Date;
+  actualizado_en?: string | Date;
+}
+
+export interface CreateTipoElementoEppDTO {
+  tipo_elemento_51: string;
+  descripcion_51?: string | null;
+  activo_51?: boolean;
+}
+
+export interface UpdateTipoElementoEppDTO {
+  tipo_elemento_51?: string;
+  descripcion_51?: string | null;
+  activo_51?: boolean;
+}
+
+/** Categoría de elemento EPP — tbl_52_categoria_elemento */
+export interface CategoriaElementoEpp {
+  idcategoria_elemento_52: number;
+  idtipo_elemento_52: number;
+  categoria_52: string;
+  descripcion_52?: string | null;
+  activo_52: boolean;
+  creado_en?: string | Date;
+  actualizado_en?: string | Date;
+  tipo_elemento_nombre?: string;
+}
+
+export interface CreateCategoriaElementoEppDTO {
+  idtipo_elemento_52: number;
+  categoria_52: string;
+  descripcion_52?: string | null;
+  activo_52?: boolean;
+}
+
+export interface UpdateCategoriaElementoEppDTO {
+  idtipo_elemento_52?: number;
+  categoria_52?: string;
+  descripcion_52?: string | null;
+  activo_52?: boolean;
+}
+
+/** Elemento EPP — tbl_53_elemento */
+export interface ElementoEpp {
+  idelemento_53: number;
+  codigo_53: string;
+  nombre_53: string;
+  idcategoria_53: number;
+  idtipo_elemento_53: number;
+  idmarca_53?: number | null;
+  descripcion_53?: string | null;
+  unidad_medida_53: string;
+  stock_actual_53: number;
+  stock_minimo_53: number;
+  valor_unitario_53?: number | null;
+  activo_53: boolean;
+  creado_en?: string | Date;
+  actualizado_en?: string | Date;
+  tipo_elemento_nombre?: string;
+  categoria_nombre?: string;
+  marca_nombre?: string;
+}
+
+export interface CreateElementoEppDTO {
+  codigo_53?: string;
+  nombre_53: string;
+  idcategoria_53: number;
+  idtipo_elemento_53: number;
+  idmarca_53?: number | null;
+  descripcion_53?: string | null;
+  unidad_medida_53?: string;
+  stock_actual_53?: number;
+  stock_minimo_53?: number;
+  valor_unitario_53?: number | null;
+  activo_53?: boolean;
+}
+
+export interface UpdateElementoEppDTO {
+  codigo_53?: string;
+  nombre_53?: string;
+  idcategoria_53?: number;
+  idtipo_elemento_53?: number;
+  idmarca_53?: number | null;
+  descripcion_53?: string | null;
+  unidad_medida_53?: string;
+  stock_actual_53?: number;
+  stock_minimo_53?: number;
+  valor_unitario_53?: number | null;
+  activo_53?: boolean;
+}
+
+/** Entrega EPP maestro — tbl_54_m_entrega_epp */
+export interface MaestroEntregaEpp {
+  identregaepp_54: number;
+  folio_54?: string | null;
+  idtrabajador_54: number;
+  idccosto_54?: number | null;
+  idempresa_54: number;
+  idcargo_54: number;
+  idresponsableentrega_54?: number | null;
+  fecha_entrega_54: string | Date;
+  hora_entrega_54?: string;
+  lugar_entrega_54?: string | null;
+  motivo_entrega_54: string;
+  nombre_responsable_54?: string | null;
+  rut_responsable_54?: string | null;
+  observaciones_54?: string | null;
+  estado_54: string;
+  creado_en?: string | Date;
+  actualizado_en?: string | Date;
+  trabajador_nombre?: string;
+  trabajador_rut?: string;
+  empresa_nombre?: string;
+  cargo_nombre?: string;
+  ccosto_nombre?: string;
+  responsable_nombre?: string;
+}
+
+/** Detalle entrega EPP — tbl_55_d_entrega_epp */
+export interface DetalleEntregaEpp {
+  iddetalleentrega_55?: number;
+  identregaepp_55?: number;
+  idelemento_55: number;
+  idtalla_55?: number | null;
+  idmarca_55?: number | null;
+  cantidad_55: number;
+  valor_unitario_55?: number | null;
+  estadoentrega_55: string;
+  observacion_55?: string | null;
+  creado_en?: string | Date;
+  actualizado_en?: string | Date;
+  elemento_codigo?: string;
+  elemento_nombre?: string;
+  elemento_stock?: number;
+  talla_nombre?: string;
+  marca_nombre?: string;
+}
+
+export interface CreateMaestroEntregaEppDTO {
+  folio_54?: string | null;
+  idtrabajador_54: number;
+  idccosto_54?: number | null;
+  idempresa_54: number;
+  idcargo_54: number;
+  idresponsableentrega_54?: number | null;
+  fecha_entrega_54: string;
+  hora_entrega_54?: string | null;
+  lugar_entrega_54?: string | null;
+  motivo_entrega_54?: string;
+  nombre_responsable_54?: string | null;
+  rut_responsable_54?: string | null;
+  observaciones_54?: string | null;
+  estado_54?: string;
+  detalles: Array<{
+    idelemento_55: number;
+    idtalla_55?: number | null;
+    idmarca_55?: number | null;
+    cantidad_55: number;
+    valor_unitario_55?: number | null;
+    estadoentrega_55?: string;
+    observacion_55?: string | null;
+  }>;
+}
+
+export interface UpdateMaestroEntregaEppDTO {
+  folio_54?: string | null;
+  idtrabajador_54?: number;
+  idccosto_54?: number | null;
+  idempresa_54?: number;
+  idcargo_54?: number;
+  idresponsableentrega_54?: number | null;
+  fecha_entrega_54?: string;
+  hora_entrega_54?: string | null;
+  lugar_entrega_54?: string | null;
+  motivo_entrega_54?: string;
+  nombre_responsable_54?: string | null;
+  rut_responsable_54?: string | null;
+  observaciones_54?: string | null;
+  estado_54?: string;
+  detalles?: CreateMaestroEntregaEppDTO['detalles'];
+}
+
+// ============================================
 // AUTENTICACIÓN Y SEGURIDAD
 // ============================================
 

@@ -256,8 +256,59 @@ async function validarDevolucion(
 
 export const getAllPanol = async (_req: Request, res: Response): Promise<void> => {
   try {
+    // DISTINCT ON evita filas duplicadas si algún JOIN multiplica (p. ej. datos sucios en prod)
     const result = await pool.query<MaestroPanol>(
-      `${MAESTRO_SELECT} ORDER BY m.fecha_49 DESC, m.idmpanol_49 DESC`
+      `SELECT * FROM (
+         SELECT DISTINCT ON (m.idmpanol_49)
+           m.idmpanol_49,
+           m.folio_49,
+           m.tipomovimiento_49,
+           m.idtrabajador_49,
+           m.idusuario_49,
+           m.idresponsableentrega_49,
+           m.fecha_49,
+           m.fechadevolucion_49,
+           m.estado_49,
+           m.observacion_49,
+           m.firmatrabajador_49,
+           m.firmapanolero_49,
+           m.creado_en,
+           m.actualizado_en,
+           CONCAT(t.nombre_06, ' ', COALESCE(t.apaterno_06, ''), ' ', COALESCE(t.amaterno_06, '')) AS trabajador_nombre,
+           t.ruttrabajador_06 AS trabajador_rut,
+           u.username AS usuario_nombre,
+           CONCAT(
+             COALESCE(r.nombreresponsableentrega_08, ''), ' ',
+             COALESCE(r.apaternoresponsableentrega_08, ''), ' ',
+             COALESCE(r.amaternoresponsableentrega_08, '')
+           ) AS responsable_nombre,
+           (
+             SELECT COALESCE(
+               json_agg(
+                 json_build_object(
+                   'idherramienta', h.idherramienta_48,
+                   'codigo', h.codigo_48,
+                   'nombre', h.nombre_48,
+                   'estado', h.estado_48,
+                   'stock', h.stock_48,
+                   'stock_disponible', h.stock_disponible_48,
+                   'cantidad', d.cantidad_50
+                 )
+                 ORDER BY h.codigo_48
+               ),
+               '[]'::json
+             )
+             FROM ${TABLA_D} d
+             INNER JOIN tbl_48_d_herramienta h ON h.idherramienta_48 = d.idherramienta_50
+             WHERE d.idmpanol_50 = m.idmpanol_49
+           ) AS herramientas_detalle
+         FROM ${TABLA_M} m
+         INNER JOIN tbl_06_trabajador t ON m.idtrabajador_49 = t.idtrabajador_06
+         LEFT JOIN tbl_00_usuario u ON m.idusuario_49 = u.id_usuario_00
+         LEFT JOIN tbl_08_responsable_entrega r ON m.idresponsableentrega_49 = r.idresponsableentrega_08
+         ORDER BY m.idmpanol_49 DESC
+       ) panol_uniq
+       ORDER BY fecha_49 DESC, idmpanol_49 DESC`
     );
     res.json({ success: true, data: result.rows, count: result.rowCount ?? undefined });
   } catch (error) {

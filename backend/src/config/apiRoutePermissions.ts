@@ -70,6 +70,12 @@ export const API_PREFIX_RULES: Array<{
   { prefix: '/api/herramientas', permission: 'MENU_PANOL_HERRAMIENTAS', readAuthOnly: true },
   { prefix: '/api/panol', permission: 'MENU_PANOL_MOVIMIENTOS' },
 
+  // Entrega EPP (catálogos con lectura autenticada para lookups)
+  { prefix: '/api/epp-tipos', permission: 'MENU_EPP_TIPOS', readAuthOnly: true },
+  { prefix: '/api/epp-categorias', permission: 'MENU_EPP_CATEGORIAS', readAuthOnly: true },
+  { prefix: '/api/epp-elementos', permission: 'MENU_EPP_ELEMENTOS', readAuthOnly: true },
+  { prefix: '/api/epp-entregas', permission: 'MENU_EPP_ENTREGAS' },
+
   // Neumáticos (prefijos largos antes que cortos)
   { prefix: '/api/marcas-neumatico', permission: 'MENU_NEUMATICOS_MARCAS' },
   { prefix: '/api/estados-neumatico', permission: 'MENU_NEUMATICOS_ESTADOS' },

@@ -88,6 +88,18 @@ const Sidebar: React.FC<SidebarProps> = ({ onNavigate, currentView }) => {
             ]
         },
         {
+            id: 'epp',
+            label: 'Entrega EPP',
+            icon: '🦺',
+            permissionRequired: 'MENU_EPP',
+            children: [
+                { id: 'tipos-epp', label: 'Tipos', icon: '📂', path: 'tipos-epp', permissionRequired: 'MENU_EPP_TIPOS' },
+                { id: 'categorias-epp', label: 'Categorías', icon: '🏷️', path: 'categorias-epp', permissionRequired: 'MENU_EPP_CATEGORIAS' },
+                { id: 'elementos-epp', label: 'Elementos', icon: '🧤', path: 'elementos-epp', permissionRequired: 'MENU_EPP_ELEMENTOS' },
+                { id: 'entregas-epp', label: 'Entregas', icon: '📋', path: 'entregas-epp', permissionRequired: 'MENU_EPP_ENTREGAS' },
+            ]
+        },
+        {
             id: 'inventario',
             label: 'Gestion Alternadores',
             icon: '📦',

@@ -1,0 +1,339 @@
+.entrega-epp-view .epp-form {
+  margin-bottom: 20px;
+}
+
+.entrega-epp-view .epp-cabecera {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(160px, 1fr));
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.entrega-epp-view .epp-cabecera .form-group {
+  margin-bottom: 0;
+  min-width: 0;
+}
+
+.entrega-epp-view .epp-trabajador-list {
+  max-height: 110px;
+  overflow: auto;
+  border: 1px solid #ced4da;
+  border-radius: 6px;
+  margin-top: 6px;
+  background: #fff;
+}
+
+.entrega-epp-view .epp-trabajador-item {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  text-align: left;
+  border: none;
+  border-bottom: 1px solid #eee;
+  background: transparent;
+  padding: 10px 12px;
+  cursor: pointer;
+  font-size: 0.95rem;
+}
+
+.entrega-epp-view .epp-trabajador-item small {
+  opacity: 0.7;
+}
+
+.entrega-epp-view .epp-trabajador-item.selected,
+.entrega-epp-view .epp-trabajador-item:hover {
+  background: #e3f2fd;
+}
+
+.entrega-epp-view .epp-detalle-box {
+  margin: 16px 0;
+  padding: 14px;
+  border: 1px solid #dbe3ef;
+  border-radius: 10px;
+  background: #f8fafc;
+}
+
+.entrega-epp-view .epp-detalle-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.entrega-epp-view .epp-detalle-add {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr 0.7fr 1fr auto;
+  gap: 8px;
+  align-items: end;
+  margin-bottom: 12px;
+}
+
+.entrega-epp-view .epp-detalle-add .form-group {
+  margin-bottom: 0;
+}
+
+.entrega-epp-view .epp-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin: 8px 0 14px;
+  padding: 12px 14px;
+  background: #f5f7fa;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+}
+
+.entrega-epp-view .epp-total {
+  margin: 0;
+  font-size: 0.95rem;
+  color: #334155;
+}
+
+.entrega-epp-view .epp-filters {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  align-items: center;
+  flex: 1;
+  justify-content: flex-end;
+}
+
+.entrega-epp-view .epp-search {
+  min-width: min(100%, 280px);
+  max-width: 360px;
+  text-transform: uppercase;
+}
+
+.entrega-epp-view .actions {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  white-space: nowrap;
+}
+
+.entrega-epp-view .epp-empty {
+  text-align: center;
+  padding: 28px 12px !important;
+  color: #64748b;
+}
+
+.entrega-epp-view .badge-estado {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  background: #eceff1;
+  color: #37474f;
+}
+
+.entrega-epp-view .badge-entregado {
+  background: #e8f5e9;
+  color: #2e7d32;
+}
+
+.entrega-epp-view .badge-anulado {
+  background: #ffebee;
+  color: #c62828;
+}
+
+.entrega-epp-view .badge-pendiente_firma {
+  background: #fff3e0;
+  color: #ef6c00;
+}
+
+.entrega-epp-view .btn-acta {
+  border: none;
+  background: #e3f2fd;
+  color: #1565c0;
+  border-radius: 6px;
+  padding: 6px 8px;
+  cursor: pointer;
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.entrega-epp-view .btn-acta:hover {
+  background: #bbdefb;
+}
+
+.entrega-epp-view .acta-preview-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.55);
+  z-index: 1200;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  overflow: auto;
+  padding: 24px 12px;
+}
+
+.entrega-epp-view .acta-preview-modal {
+  width: min(900px, 100%);
+  background: #fff;
+  border-radius: 10px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.25);
+  margin-bottom: 24px;
+}
+
+.entrega-epp-view .acta-preview-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 18px;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.entrega-epp-view .acta-preview-toolbar h3 {
+  margin: 0;
+  font-size: 1.05rem;
+}
+
+.entrega-epp-view .acta-preview-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.entrega-epp-view .acta-preview-content {
+  padding: 20px 24px 28px;
+  max-height: min(80vh, 900px);
+  overflow: auto;
+}
+
+.entrega-epp-view .epp-acta-loading {
+  text-align: center;
+  padding: 40px;
+  color: #64748b;
+}
+
+.entrega-epp-view .epp-registro-doc {
+  color: #1e293b;
+  font-size: 0.95rem;
+  line-height: 1.45;
+}
+
+.entrega-epp-view .epp-registro-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+
+.entrega-epp-view .epp-registro-logo {
+  width: 120px;
+  height: auto;
+}
+
+.entrega-epp-view .epp-registro-header h2 {
+  margin: 0;
+  font-size: 1.05rem;
+  text-align: center;
+  flex: 1;
+  letter-spacing: 0.01em;
+}
+
+.entrega-epp-view .epp-registro-fecha {
+  margin: 0 0 12px;
+}
+
+.entrega-epp-view .epp-registro-legal {
+  text-align: justify;
+  margin: 0 0 14px;
+}
+
+.entrega-epp-view .epp-registro-trabajador {
+  margin: 0 0 16px;
+}
+
+.entrega-epp-view .epp-registro-trabajador div {
+  display: grid;
+  grid-template-columns: 160px 1fr;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.entrega-epp-view .epp-registro-trabajador dt {
+  font-weight: 700;
+  margin: 0;
+}
+
+.entrega-epp-view .epp-registro-trabajador dd {
+  margin: 0;
+}
+
+.entrega-epp-view .epp-registro-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 18px;
+  font-size: 0.9rem;
+}
+
+.entrega-epp-view .epp-registro-table th,
+.entrega-epp-view .epp-registro-table td {
+  border: 1px solid #94a3b8;
+  padding: 8px 10px;
+}
+
+.entrega-epp-view .epp-registro-table th {
+  background: #eceff1;
+  text-align: center;
+}
+
+.entrega-epp-view .epp-registro-declaracion h3 {
+  margin: 0 0 8px;
+  font-size: 1rem;
+}
+
+.entrega-epp-view .epp-registro-declaracion ul {
+  margin: 8px 0 0;
+  padding-left: 1.25rem;
+}
+
+.entrega-epp-view .epp-registro-declaracion li {
+  margin-bottom: 6px;
+}
+
+.entrega-epp-view .epp-registro-firmas {
+  margin-top: 20px;
+}
+
+.entrega-epp-view .epp-registro-folio {
+  margin-top: 12px;
+  color: #64748b;
+  font-size: 0.85rem;
+}
+
+@media (max-width: 1100px) {
+  .entrega-epp-view .epp-cabecera {
+    grid-template-columns: repeat(2, minmax(160px, 1fr));
+  }
+
+  .entrega-epp-view .epp-detalle-add {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 700px) {
+  .entrega-epp-view .epp-cabecera,
+  .entrega-epp-view .epp-detalle-add {
+    grid-template-columns: 1fr;
+  }
+
+  .entrega-epp-view .epp-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .entrega-epp-view .epp-search {
+    max-width: none;
+    width: 100%;
+  }
+}

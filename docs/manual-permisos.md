@@ -64,6 +64,7 @@ El campo **Orden** en el catálogo agrupa permisos por posición en el sidebar:
 | 6000–6999 | Mantenedores |
 | 7000–7999 | Reportes |
 | 8000–8999 | Pañol |
+| 9000–9999 | Entrega EPP |
 
 ---
 
@@ -165,6 +166,18 @@ Extraído de `Sidebar.tsx` y `App.tsx`.
 | `MENU_PANOL` | Menú Pañol (padre) |
 | `MENU_PANOL_HERRAMIENTAS` | Herramientas |
 | `MENU_PANOL_MOVIMIENTOS` | Movimientos |
+
+### Entrega EPP (9000)
+
+| Permiso | Pantalla |
+|---------|----------|
+| `MENU_EPP` | Menú Entrega EPP (padre) |
+| `MENU_EPP_TIPOS` | Tipos de elemento |
+| `MENU_EPP_CATEGORIAS` | Categorías |
+| `MENU_EPP_ELEMENTOS` | Elementos (catálogo / stock) |
+| `MENU_EPP_ENTREGAS` | Registro de entregas |
+
+> Seed: `node backend/scripts/seed-epp-permisos.mjs`
 
 ### Reportes (7000)
 

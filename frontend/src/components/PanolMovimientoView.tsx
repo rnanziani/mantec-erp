@@ -120,6 +120,19 @@ const PanolMovimientoView: React.FC = () => {
   const [cantidadSel, setCantidadSel] = useState('1');
   /** Folio de la SALIDA de origen al crear una DEVOLUCION rápida */
   const [origenSalidaFolio, setOrigenSalidaFolio] = useState('');
+  const [saving, setSaving] = useState(false);
+  const savingRef = useRef(false);
+
+  const dedupeMovimientos = (rows: MaestroPanol[]) => {
+    const seen = new Set<number>();
+    const unique: MaestroPanol[] = [];
+    for (const row of rows) {
+      if (seen.has(row.idmpanol_49)) continue;
+      seen.add(row.idmpanol_49);
+      unique.push(row);
+    }
+    return unique;
+  };
 
   const fetchAll = async () => {
     try {
@@ -134,8 +147,9 @@ const PanolMovimientoView: React.FC = () => {
       const hData: ApiResponse<Herramienta[]> = await h.json();
       const tData: ApiResponse<Trabajador[]> = await t.json();
       const rData: ApiResponse<Responsable[]> = await r.json();
-      if (pData.success && Array.isArray(pData.data)) setRegistros(pData.data);
-      else setError(pData.error || 'Error al cargar movimientos');
+      if (pData.success && Array.isArray(pData.data)) {
+        setRegistros(dedupeMovimientos(pData.data));
+      } else setError(pData.error || 'Error al cargar movimientos');
       if (hData.success && Array.isArray(hData.data)) setHerramientas(hData.data);
       if (tData.success && Array.isArray(tData.data)) setTrabajadores(tData.data);
       if (rData.success && Array.isArray(rData.data)) setResponsables(rData.data);
@@ -456,6 +470,7 @@ const PanolMovimientoView: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (savingRef.current) return;
     if (!idTrabajador) {
       await showError('Validación', 'Seleccione un trabajador');
       return;
@@ -491,6 +506,8 @@ const PanolMovimientoView: React.FC = () => {
       })),
     };
 
+    savingRef.current = true;
+    setSaving(true);
     try {
       const url = editingId ? `${API_URL}/${editingId}` : API_URL;
       const res = await apiFetch(url, {
@@ -507,6 +524,9 @@ const PanolMovimientoView: React.FC = () => {
       }
     } catch {
       await showError('Error', 'Error de conexión');
+    } finally {
+      savingRef.current = false;
+      setSaving(false);
     }
   };
 
@@ -538,7 +558,14 @@ const PanolMovimientoView: React.FC = () => {
         <h2>Movimientos de Pañol</h2>
         <div className="header-actions">
           <button type="button" className="btn-primary" onClick={() => { resetForm(); setShowForm(true); }}>+ Nuevo</button>
-          <button type="button" className="btn-success" disabled={!showForm} onClick={() => formRef.current?.requestSubmit()}>Guardar</button>
+          <button
+            type="button"
+            className="btn-success"
+            disabled={!showForm || saving}
+            onClick={() => formRef.current?.requestSubmit()}
+          >
+            {saving ? 'Guardando...' : 'Guardar'}
+          </button>
           <button type="button" className="btn-secondary" onClick={() => { window.location.hash = 'dashboard'; }}>Salir</button>
         </div>
       </div>
@@ -811,8 +838,10 @@ const PanolMovimientoView: React.FC = () => {
             </div>
 
             <div className="form-actions">
-              <button type="submit" className="btn-success">{editingId ? 'Actualizar' : 'Registrar'}</button>
-              <button type="button" className="btn-secondary" onClick={resetForm}>Cancelar</button>
+              <button type="submit" className="btn-success" disabled={saving}>
+                {saving ? 'Guardando...' : editingId ? 'Actualizar' : 'Registrar'}
+              </button>
+              <button type="button" className="btn-secondary" onClick={resetForm} disabled={saving}>Cancelar</button>
             </div>
           </form>
         </div>
@@ -881,8 +910,8 @@ const PanolMovimientoView: React.FC = () => {
                 </td>
               </tr>
             ) : (
-              pageItems.map((m) => (
-                <tr key={m.idmpanol_49}>
+              pageItems.map((m, idx) => (
+                <tr key={`${m.idmpanol_49}-${idx}`}>
                   <td>{m.idmpanol_49}</td>
                   <td><strong>{m.folio_49 || '-'}</strong></td>
                   <td>

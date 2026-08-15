@@ -42,6 +42,10 @@ import ConsumoInsumoView from './components/ConsumoInsumoView';
 import CargoMaquinaView from './components/CargoMaquinaView';
 import HerramientaView from './components/HerramientaView';
 import PanolMovimientoView from './components/PanolMovimientoView';
+import TipoElementoEppView from './components/TipoElementoEppView';
+import CategoriaElementoEppView from './components/CategoriaElementoEppView';
+import ElementoEppView from './components/ElementoEppView';
+import EntregaEppView from './components/EntregaEppView';
 import MarcaNeumaticoView from './components/MarcaNeumaticoView';
 import NeumaticoView from './components/NeumaticoView';
 import EstadoNeumaticoView from './components/EstadoNeumaticoView';
@@ -166,7 +170,11 @@ function App() {
     'patrones-rotacion': 'MENU_NEUMATICOS_PATRONES_ROTACION',
     'llantas': 'MENU_NEUMATICOS_TIPO_LLANTA',
     'herramientas': 'MENU_PANOL_HERRAMIENTAS',
-    'movimientos-panol': 'MENU_PANOL_MOVIMIENTOS'
+    'movimientos-panol': 'MENU_PANOL_MOVIMIENTOS',
+    'tipos-epp': 'MENU_EPP_TIPOS',
+    'categorias-epp': 'MENU_EPP_CATEGORIAS',
+    'elementos-epp': 'MENU_EPP_ELEMENTOS',
+    'entregas-epp': 'MENU_EPP_ENTREGAS',
   };
 
   // Función para verificar si el usuario tiene acceso a una ruta
@@ -475,6 +483,10 @@ function App() {
           {currentView === 'cargo-maquina' && hasRouteAccess('cargo-maquina') && <CargoMaquinaView />}
           {currentView === 'herramientas' && hasRouteAccess('herramientas') && <HerramientaView />}
           {currentView === 'movimientos-panol' && hasRouteAccess('movimientos-panol') && <PanolMovimientoView />}
+          {currentView === 'tipos-epp' && hasRouteAccess('tipos-epp') && <TipoElementoEppView />}
+          {currentView === 'categorias-epp' && hasRouteAccess('categorias-epp') && <CategoriaElementoEppView />}
+          {currentView === 'elementos-epp' && hasRouteAccess('elementos-epp') && <ElementoEppView />}
+          {currentView === 'entregas-epp' && hasRouteAccess('entregas-epp') && <EntregaEppView />}
 
           {currentView === 'neumaticos' && hasRouteAccess('neumaticos') && <NeumaticoView />}
           {currentView === 'marcas-neumatico' && hasRouteAccess('marcas-neumatico') && <MarcaNeumaticoView />}
