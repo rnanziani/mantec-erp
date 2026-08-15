@@ -370,7 +370,8 @@ function App() {
           {showSidebar &&
             sessionStatus?.debeAdvertir &&
             !sessionStatus.sessionExpired &&
-            !sessionExpiredMessage && (
+            !sessionExpiredMessage &&
+            sessionStatus.segundosRestantes <= 30 && (
               <SessionExpiryBanner
                 minutosRestantes={Math.floor(sessionStatus.segundosRestantes / 60)}
                 segundosRestantes={sessionStatus.segundosRestantes % 60}

@@ -46,14 +46,9 @@ const SessionExpiryBanner: React.FC<Props> = ({
   const [pos, setPos] = useState<Pos | null>(() => loadPos());
 
   const totalSec = minutosRestantes * 60 + segundosRestantes;
-  const mm = String(minutosRestantes).padStart(2, '0');
-  const ss = String(segundosRestantes % 60).padStart(2, '0');
-  const label =
-    totalSec <= 60
-      ? `Expira en ${Math.max(0, totalSec)}s`
-      : `Expira en ${mm}:${ss}`;
+  const label = `Sesión: ${Math.max(0, totalSec)}s`;
 
-  /** Posición por defecto: abajo a la derecha (no cubre + Nuevo / Guardar / etc.) */
+  /** Posición por defecto: abajo a la derecha (no cubre la barra de acciones) */
   useEffect(() => {
     if (pos || !panelRef.current) return;
     const rect = panelRef.current.getBoundingClientRect();
@@ -145,7 +140,7 @@ const SessionExpiryBanner: React.FC<Props> = ({
       <div className="session-expiry-banner-body">
         <p className="session-expiry-banner-text">
           <span className="session-expiry-banner-label">{label}</span>
-          <span className="session-expiry-banner-hint">Guarde o extienda</span>
+          <span className="session-expiry-banner-hint">Extienda para continuar</span>
         </p>
         <div className="session-expiry-banner-actions">
           <button

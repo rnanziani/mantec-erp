@@ -625,15 +625,15 @@ export const getSessionStatus = async (req: Request, res: Response) => {
     const minutosRestantes = Math.max(0, Math.floor(tiempoRestante / (1000 * 60)));
     const segundosRestantes = Math.max(0, Math.floor((tiempoRestante % (1000 * 60)) / 1000));
 
-    // Obtener parámetro de minutos de advertencia
+    // Advertir solo en los últimos N segundos (por defecto 30)
     const { obtenerParametroNumero } = await import('../utils/parametrosUtils.js');
-    const minutosAdvertencia = await obtenerParametroNumero('SESSION_WARNING_MINUTES', 5);
-    
+    const segundosAdvertencia = await obtenerParametroNumero('SESSION_WARNING_SECONDS', 30);
+
     // Calcular segundos totales restantes
     const segundosTotalesRestantes = minutosRestantes * 60 + segundosRestantes;
-    
-    // Advertir si quedan menos minutos que el parámetro, O si quedan 30 segundos o menos (siempre)
-    const debeAdvertir = (minutosRestantes <= minutosAdvertencia && minutosRestantes > 0) || segundosTotalesRestantes <= 30;
+
+    const debeAdvertir =
+      segundosTotalesRestantes > 0 && segundosTotalesRestantes <= segundosAdvertencia;
 
     // Obtener días restantes de contraseña para aviso de caducidad (5 días antes)
     let diasRestantesPassword: number | undefined;
@@ -656,7 +656,7 @@ export const getSessionStatus = async (req: Request, res: Response) => {
         segundosRestantes,
         fechaExpiracion: fechaExpiracion.toISOString(),
         debeAdvertir,
-        minutosAdvertencia,
+        segundosAdvertencia,
         diasRestantesPassword,
         passwordExpired
       }

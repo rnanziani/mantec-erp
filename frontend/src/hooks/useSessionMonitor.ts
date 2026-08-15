@@ -6,7 +6,9 @@ interface SessionStatus {
   minutosRestantes: number;
   segundosRestantes: number;
   debeAdvertir: boolean;
-  minutosAdvertencia: number;
+  /** @deprecated usar segundosAdvertencia */
+  minutosAdvertencia?: number;
+  segundosAdvertencia?: number;
   fechaExpiracion?: string;
   diasRestantesPassword?: number;
   passwordExpired?: boolean;

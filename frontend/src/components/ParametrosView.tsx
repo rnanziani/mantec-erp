@@ -288,6 +288,10 @@ const ParametrosView: React.FC = () => {
             expirar. Si no existe, se usa SESSION_TIMEOUT_MINUTES × 60.
           </li>
           <li>
+            <strong>SESSION_WARNING_SECONDS:</strong> Segundos antes de expirar en que aparece el
+            aviso compacto (por defecto 30). Al extender la sesión, el aviso desaparece.
+          </li>
+          <li>
             <strong>PASSWORD_EXPIRATION_DAYS:</strong> Número de días antes de que una contraseña
             expire.
           </li>
