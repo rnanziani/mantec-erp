@@ -938,10 +938,10 @@ const PanolMovimientoView: React.FC = () => {
       )}
 
       <div className="panol-toolbar">
-        <p className="panol-total">
-          Total: <strong>{filteredAndSorted.length}</strong> movimientos
-        </p>
         <div className="panol-filters" role="search" aria-label="Filtros de movimientos">
+          <p className="panol-total">
+            Total: <strong>{filteredAndSorted.length}</strong>
+          </p>
           <label className="panol-filter-field">
             <span>Desde</span>
             <input
@@ -968,7 +968,7 @@ const PanolMovimientoView: React.FC = () => {
             onChange={(e) => setFiltroTipo(e.target.value)}
             aria-label="Filtrar por tipo"
           >
-            <option value="">Todos los tipos</option>
+            <option value="">Tipo</option>
             <option value="SALIDA">SALIDA</option>
             <option value="DEVOLUCION">DEVOLUCION</option>
           </select>
@@ -978,7 +978,7 @@ const PanolMovimientoView: React.FC = () => {
             onChange={(e) => setFiltroEstado(e.target.value)}
             aria-label="Filtrar por estado"
           >
-            <option value="">Todos los estados</option>
+            <option value="">Estado</option>
             <option value="PENDIENTE">PENDIENTE</option>
             <option value="COMPLETADA">COMPLETADA</option>
             <option value="ANULADA">ANULADA</option>
@@ -989,7 +989,7 @@ const PanolMovimientoView: React.FC = () => {
             onChange={(e) => setFiltroTrabajador(e.target.value)}
             aria-label="Filtrar por trabajador"
           >
-            <option value="">Todos los trabajadores</option>
+            <option value="">Trabajador</option>
             {trabajadoresFiltroOpciones.map((t) => (
               <option key={t.id} value={t.id}>
                 {t.nombre}
@@ -1002,7 +1002,7 @@ const PanolMovimientoView: React.FC = () => {
             onChange={(e) => setFiltroHerramienta(e.target.value)}
             aria-label="Filtrar por herramienta"
           >
-            <option value="">Todas las herramientas</option>
+            <option value="">Herramienta</option>
             {herramientasFiltroOpciones.map((h) => (
               <option key={h.id} value={h.id}>
                 {h.codigo} - {h.nombre}
@@ -1012,7 +1012,7 @@ const PanolMovimientoView: React.FC = () => {
           <input
             type="search"
             className="form-input panol-search"
-            placeholder="🔍 BUSCAR MOVIMIENTO..."
+            placeholder="🔍 BUSCAR..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value.toUpperCase())}
             aria-label="Buscar movimientos"

@@ -148,60 +148,79 @@
 }
 
 .panol-movimiento-view .panol-toolbar {
-  display: flex;
-  flex-direction: column;
-  align-items: stretch;
-  gap: 12px;
   margin: 8px 0 14px;
-  padding: 12px 14px;
+  padding: 8px 10px;
   background: #f5f7fa;
   border: 1px solid #e2e8f0;
   border-radius: 8px;
+  overflow-x: auto;
 }
 
 .panol-movimiento-view .panol-total {
   margin: 0;
-  font-size: 0.95rem;
+  font-size: 0.85rem;
   color: #334155;
+  white-space: nowrap;
+  flex: 0 0 auto;
 }
 
 .panol-movimiento-view .panol-filters {
   display: flex;
-  gap: 10px;
-  flex-wrap: wrap;
-  align-items: flex-end;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 6px;
+  min-width: max-content;
+  width: 100%;
 }
 
 .panol-movimiento-view .panol-filter-field {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
+  align-items: center;
   gap: 4px;
-  font-size: 0.75rem;
+  font-size: 0.72rem;
   font-weight: 600;
   color: #64748b;
+  white-space: nowrap;
+  flex: 0 0 auto;
 }
 
 .panol-movimiento-view .panol-filter-date {
-  min-width: 145px;
+  width: 128px;
+  min-width: 118px;
+  padding: 6px 8px;
+  font-size: 0.82rem;
 }
 
 .panol-movimiento-view .panol-search {
-  min-width: min(100%, 220px);
-  max-width: 320px;
+  width: 150px;
+  min-width: 130px;
+  max-width: 180px;
+  flex: 0 0 auto;
   text-transform: uppercase;
+  padding: 6px 8px;
+  font-size: 0.82rem;
 }
 
 .panol-movimiento-view .panol-filter-select {
-  min-width: 150px;
+  width: 118px;
+  min-width: 100px;
+  flex: 0 0 auto;
+  padding: 6px 8px;
+  font-size: 0.82rem;
 }
 
 .panol-movimiento-view .panol-filter-wide {
-  min-width: 220px;
-  max-width: 280px;
+  width: 170px;
+  min-width: 140px;
+  max-width: 190px;
 }
 
 .panol-movimiento-view .panol-filter-clear {
   white-space: nowrap;
+  flex: 0 0 auto;
+  padding: 6px 10px;
+  font-size: 0.82rem;
 }
 
 .panol-movimiento-view .panol-herr-line {
@@ -422,17 +441,19 @@
   }
 
   .panol-movimiento-view .panol-toolbar {
-    flex-direction: column;
-    align-items: stretch;
+    overflow-x: auto;
   }
 
   .panol-movimiento-view .panol-filters {
-    justify-content: stretch;
+    flex-wrap: nowrap;
+    justify-content: flex-start;
   }
 
   .panol-movimiento-view .panol-search,
-  .panol-movimiento-view .panol-filter-select {
+  .panol-movimiento-view .panol-filter-select,
+  .panol-movimiento-view .panol-filter-wide,
+  .panol-movimiento-view .panol-filter-date {
+    width: auto;
     max-width: none;
-    width: 100%;
   }
 }
