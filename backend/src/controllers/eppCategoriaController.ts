@@ -28,6 +28,43 @@ function normalizeText(value: unknown): string | null {
   return t ? t.toUpperCase() : null;
 }
 
+/** Clave de unicidad: mayúsculas, sin tildes y espacios colapsados. */
+function normalizeKey(value: unknown): string {
+  return String(value ?? '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toUpperCase();
+}
+
+/**
+ * La categoría debe ser única en todo el catálogo EPP (no solo por tipo).
+ * Evita "ZAPATOS DE SEGURIDAD" bajo PROTECCIÓN DE PIES y otra vez bajo AUDITIVA.
+ */
+async function findCategoriaDuplicada(
+  nombre: string,
+  excludeId?: string | number
+): Promise<{ id: number; tipoNombre?: string } | null> {
+  const result = await pool.query<{
+    idcategoria_elemento_52: number;
+    categoria_52: string;
+    tipo_elemento_nombre: string;
+  }>(
+    `SELECT c.idcategoria_elemento_52, c.categoria_52, t.tipo_elemento_51 AS tipo_elemento_nombre
+     FROM ${TABLA} c
+     INNER JOIN tbl_51_tipo_elemento t ON c.idtipo_elemento_52 = t.idtipo_elemento_51`
+  );
+  const key = normalizeKey(nombre);
+  const hit = result.rows.find(
+    (row) =>
+      normalizeKey(row.categoria_52) === key &&
+      (excludeId === undefined || String(row.idcategoria_elemento_52) !== String(excludeId))
+  );
+  if (!hit) return null;
+  return { id: hit.idcategoria_elemento_52, tipoNombre: hit.tipo_elemento_nombre };
+}
+
 export const getAllCategoriasEpp = async (_req: Request, res: Response): Promise<void> => {
   try {
     const result = await pool.query<CategoriaElementoEpp>(
@@ -87,15 +124,11 @@ export const createCategoriaEpp = async (req: Request, res: Response): Promise<v
       return;
     }
 
-    const dup = await pool.query(
-      `SELECT idcategoria_elemento_52 FROM ${TABLA}
-       WHERE idtipo_elemento_52 = $1 AND categoria_52 = $2`,
-      [body.idtipo_elemento_52, categoria]
-    );
-    if ((dup.rowCount ?? 0) > 0) {
+    const dup = await findCategoriaDuplicada(categoria);
+    if (dup) {
       res.status(400).json({
         success: false,
-        error: 'Ya existe esa categoría para el tipo seleccionado',
+        error: `Ya existe la categoría "${categoria}"${dup.tipoNombre ? ` (tipo: ${dup.tipoNombre})` : ''}`,
       });
       return;
     }
@@ -123,6 +156,15 @@ export const createCategoriaEpp = async (req: Request, res: Response): Promise<v
       message: 'Categoría de elemento EPP creada exitosamente',
     });
   } catch (error) {
+    console.error('Error createCategoriaEpp:', error);
+    const pgCode = (error as { code?: string })?.code;
+    if (pgCode === '23505') {
+      res.status(400).json({
+        success: false,
+        error: 'Ya existe esa categoría (nombre duplicado)',
+      });
+      return;
+    }
     res.status(500).json({
       success: false,
       error: 'Error al crear la categoría de elemento EPP',
@@ -147,7 +189,6 @@ export const updateCategoriaEpp = async (req: Request, res: Response): Promise<v
     }
 
     const actual = exists.rows[0];
-    const idTipo = body.idtipo_elemento_52 ?? actual.idtipo_elemento_52;
     const categoria =
       body.categoria_52 !== undefined
         ? normalizeText(body.categoria_52)
@@ -170,15 +211,11 @@ export const updateCategoriaEpp = async (req: Request, res: Response): Promise<v
     }
 
     if (body.categoria_52 !== undefined || body.idtipo_elemento_52 !== undefined) {
-      const dup = await pool.query(
-        `SELECT idcategoria_elemento_52 FROM ${TABLA}
-         WHERE idtipo_elemento_52 = $1 AND categoria_52 = $2 AND idcategoria_elemento_52 <> $3`,
-        [idTipo, categoria, id]
-      );
-      if ((dup.rowCount ?? 0) > 0) {
+      const dup = await findCategoriaDuplicada(categoria as string, id);
+      if (dup) {
         res.status(400).json({
           success: false,
-          error: 'Ya existe esa categoría para el tipo seleccionado',
+          error: `Ya existe la categoría "${categoria}"${dup.tipoNombre ? ` (tipo: ${dup.tipoNombre})` : ''}`,
         });
         return;
       }

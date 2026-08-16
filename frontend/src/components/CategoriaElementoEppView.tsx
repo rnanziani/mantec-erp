@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import './BodegaView.css';
 import './CategoriaElementoEppView.css';
 import Pagination from './shared/Pagination';
+import SearchableSelect from './shared/SearchableSelect';
 import { exportToExcel } from '../utils/exportUtils';
 import { showDeleteConfirm, showError, showSuccess } from '../utils/swal';
 import { apiFetch, apiUrl } from '../lib/apiClient';
@@ -76,6 +77,20 @@ const CategoriaElementoEppView: React.FC = () => {
   useEffect(() => {
     fetchData();
   }, []);
+
+  const tipoOptions = useMemo(
+    () =>
+      [...tipos]
+        .filter((t) => t.activo_51 || String(t.idtipo_elemento_51) === form.idtipo_elemento_52)
+        .sort((a, b) =>
+          a.tipo_elemento_51.localeCompare(b.tipo_elemento_51, 'es', { sensitivity: 'base' })
+        )
+        .map((t) => ({
+          value: String(t.idtipo_elemento_51),
+          label: t.tipo_elemento_51,
+        })),
+    [tipos, form.idtipo_elemento_52]
+  );
 
   const filteredAndSorted = useMemo(() => {
     const q = searchTerm.trim().toLowerCase();
@@ -161,9 +176,30 @@ const CategoriaElementoEppView: React.FC = () => {
       await showError('Validación', 'La categoría es requerida');
       return;
     }
+    const nombreCat = form.categoria_52.trim().toUpperCase();
+    const keyCat = nombreCat
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/\s+/g, ' ');
+    const dupLocal = items.find((c) => {
+      if (editingId && c.idcategoria_elemento_52 === editingId) return false;
+      const k = c.categoria_52
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/\s+/g, ' ')
+        .toUpperCase();
+      return k === keyCat;
+    });
+    if (dupLocal) {
+      await showError(
+        'Duplicado',
+        `Ya existe la categoría "${dupLocal.categoria_52}" (tipo: ${dupLocal.tipo_elemento_nombre || '—'}). No se puede repetir el nombre.`
+      );
+      return;
+    }
     const payload = {
       idtipo_elemento_52: Number(form.idtipo_elemento_52),
-      categoria_52: form.categoria_52.trim().toUpperCase(),
+      categoria_52: nombreCat,
       descripcion_52: form.descripcion_52.trim().toUpperCase() || null,
       activo_52: form.activo_52,
     };
@@ -245,20 +281,16 @@ const CategoriaElementoEppView: React.FC = () => {
             <div className="form-row form-row-3">
               <div className="form-group">
                 <label htmlFor="idtipo_elemento_52">Tipo *</label>
-                <select
+                <SearchableSelect
                   id="idtipo_elemento_52"
-                  className="form-input"
                   value={form.idtipo_elemento_52}
-                  onChange={(e) => setForm((p) => ({ ...p, idtipo_elemento_52: e.target.value }))}
+                  onChange={(value) => setForm((p) => ({ ...p, idtipo_elemento_52: value }))}
+                  options={tipoOptions}
+                  placeholder="Buscar tipo..."
                   required
-                >
-                  <option value="">Seleccione tipo...</option>
-                  {tipos.filter((t) => t.activo_51 || String(t.idtipo_elemento_51) === form.idtipo_elemento_52).map((t) => (
-                    <option key={t.idtipo_elemento_51} value={t.idtipo_elemento_51}>
-                      {t.tipo_elemento_51}
-                    </option>
-                  ))}
-                </select>
+                  aria-label="Buscar o seleccionar tipo"
+                  emptyMessage="No se encontraron tipos"
+                />
               </div>
               <div className="form-group">
                 <label htmlFor="categoria_52">Categoría *</label>

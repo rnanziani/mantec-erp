@@ -24,12 +24,15 @@ const SELECT_BASE = `
     e.activo_53,
     e.creado_en,
     e.actualizado_en,
+    t.idclase_51,
+    cl.clase_56 AS clase_nombre,
     t.tipo_elemento_51 AS tipo_elemento_nombre,
     c.categoria_52 AS categoria_nombre,
     m.marca_insumo_37 AS marca_nombre
   FROM ${TABLA} e
   INNER JOIN tbl_51_tipo_elemento t ON e.idtipo_elemento_53 = t.idtipo_elemento_51
   INNER JOIN tbl_52_categoria_elemento c ON e.idcategoria_53 = c.idcategoria_elemento_52
+  LEFT JOIN tbl_56_clase_elemento cl ON t.idclase_51 = cl.idclase_56
   LEFT JOIN tbl_37_marca_insumo m ON e.idmarca_53 = m.id_marca_insumo_37
 `;
 

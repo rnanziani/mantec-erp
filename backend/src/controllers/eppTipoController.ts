@@ -28,6 +28,31 @@ function normalizeText(value: unknown): string | null {
   return t ? t.toUpperCase() : null;
 }
 
+/** Clave de unicidad: mayúsculas, sin tildes y espacios colapsados. */
+function normalizeKey(value: unknown): string {
+  return String(value ?? '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toUpperCase();
+}
+
+async function findTipoDuplicado(
+  nombre: string,
+  excludeId?: string | number
+): Promise<boolean> {
+  const result = await pool.query<{ idtipo_elemento_51: number; tipo_elemento_51: string }>(
+    `SELECT idtipo_elemento_51, tipo_elemento_51 FROM ${TABLA}`
+  );
+  const key = normalizeKey(nombre);
+  return result.rows.some(
+    (row) =>
+      normalizeKey(row.tipo_elemento_51) === key &&
+      (excludeId === undefined || String(row.idtipo_elemento_51) !== String(excludeId))
+  );
+}
+
 export const getAllTiposEpp = async (_req: Request, res: Response): Promise<void> => {
   try {
     const result = await pool.query<TipoElementoEpp>(
@@ -86,11 +111,8 @@ export const createTipoEpp = async (req: Request, res: Response): Promise<void> 
       return;
     }
 
-    const dup = await pool.query(
-      `SELECT idtipo_elemento_51 FROM ${TABLA} WHERE tipo_elemento_51 = $1`,
-      [tipo]
-    );
-    if ((dup.rowCount ?? 0) > 0) {
+    const dup = await findTipoDuplicado(tipo);
+    if (dup) {
       res.status(400).json({ success: false, error: 'Ya existe un tipo con ese nombre' });
       return;
     }
@@ -181,12 +203,8 @@ export const updateTipoEpp = async (req: Request, res: Response): Promise<void> 
         res.status(400).json({ success: false, error: 'El tipo no puede estar vacío' });
         return;
       }
-      const dup = await pool.query(
-        `SELECT idtipo_elemento_51 FROM ${TABLA}
-         WHERE tipo_elemento_51 = $1 AND idtipo_elemento_51 <> $2`,
-        [tipo, id]
-      );
-      if ((dup.rowCount ?? 0) > 0) {
+      const dup = await findTipoDuplicado(tipo, id);
+      if (dup) {
         res.status(400).json({ success: false, error: 'Ya existe un tipo con ese nombre' });
         return;
       }

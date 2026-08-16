@@ -58,6 +58,8 @@ interface ElementoEpp {
   valor_unitario_53?: number | null;
   activo_53: boolean;
   idmarca_53?: number | null;
+  idclase_51?: number | null;
+  clase_nombre?: string;
 }
 
 interface Trabajador {
@@ -163,6 +165,10 @@ const EntregaEppView: React.FC = () => {
   const [editingId, setEditingId] = useState<number | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [filtroEstado, setFiltroEstado] = useState('');
+  const [filtroFechaDesde, setFiltroFechaDesde] = useState('');
+  const [filtroFechaHasta, setFiltroFechaHasta] = useState('');
+  const [filtroTrabajadorId, setFiltroTrabajadorId] = useState('');
+  const [filtroEmpresaId, setFiltroEmpresaId] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
   const [sortConfig, setSortConfig] = useState<{
@@ -271,16 +277,85 @@ const EntregaEppView: React.FC = () => {
     [marcas]
   );
 
+  const claseOptions = useMemo(
+    () =>
+      [...clases]
+        .filter((c) => c.activo_56 !== false)
+        .sort((a, b) => a.clase_56.localeCompare(b.clase_56, 'es', { sensitivity: 'base' }))
+        .map((c) => ({
+          value: String(c.idclase_56),
+          label: c.clase_56,
+        })),
+    [clases]
+  );
+
   const elementosDisponibles = useMemo(
     () =>
       elementos.filter(
         (el) =>
           el.activo_53 &&
           Number(el.stock_actual_53) > 0 &&
-          !detalles.some((d) => d.idelemento_55 === el.idelemento_53)
+          !detalles.some((d) => d.idelemento_55 === el.idelemento_53) &&
+          Boolean(idClase) &&
+          String(el.idclase_51 ?? '') === idClase
       ),
-    [elementos, detalles]
+    [elementos, detalles, idClase]
   );
+
+  const elementoOptions = useMemo(
+    () =>
+      [...elementosDisponibles]
+        .sort((a, b) =>
+          `${a.codigo_53} ${a.nombre_53}`.localeCompare(
+            `${b.codigo_53} ${b.nombre_53}`,
+            'es',
+            { sensitivity: 'base' }
+          )
+        )
+        .map((el) => ({
+          value: String(el.idelemento_53),
+          label: `${el.codigo_53} — ${el.nombre_53} (stock: ${el.stock_actual_53})`,
+        })),
+    [elementosDisponibles]
+  );
+
+  const trabajadorFiltroOptions = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const m of registros) {
+      if (m.idtrabajador_54 && m.trabajador_nombre) {
+        map.set(String(m.idtrabajador_54), m.trabajador_nombre);
+      }
+    }
+    for (const t of trabajadores) {
+      const key = String(t.idtrabajador_06);
+      if (!map.has(key)) {
+        const label =
+          `${t.apaterno_06 || ''} ${t.amaterno_06 || ''} ${t.nombre_06}`.trim() ||
+          `Trabajador ${key}`;
+        map.set(key, label);
+      }
+    }
+    return [...map.entries()]
+      .map(([value, label]) => ({ value, label }))
+      .sort((a, b) => a.label.localeCompare(b.label, 'es', { sensitivity: 'base' }));
+  }, [registros, trabajadores]);
+
+  const empresaFiltroOptions = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const m of registros) {
+      if (m.idempresa_54 && m.empresa_nombre) {
+        map.set(String(m.idempresa_54), m.empresa_nombre);
+      }
+    }
+    // Completa con catálogo de empresas (aunque aún no haya entregas)
+    for (const emp of empresas) {
+      const key = String(emp.idempresa_15);
+      if (!map.has(key)) map.set(key, emp.nombreempresa_15);
+    }
+    return [...map.entries()]
+      .map(([value, label]) => ({ value, label }))
+      .sort((a, b) => a.label.localeCompare(b.label, 'es', { sensitivity: 'base' }));
+  }, [registros, empresas]);
 
   const filteredAndSorted = useMemo(() => {
     const q = searchTerm.trim().toLowerCase();
@@ -296,7 +371,20 @@ const EntregaEppView: React.FC = () => {
         (m.estado_54 || '').toLowerCase().includes(q) ||
         (m.observaciones_54 || '').toLowerCase().includes(q);
       const matchEstado = !filtroEstado || m.estado_54 === filtroEstado;
-      return matchText && matchEstado;
+      const fecha = String(m.fecha_entrega_54 || '').slice(0, 10);
+      const matchDesde = !filtroFechaDesde || (!!fecha && fecha >= filtroFechaDesde);
+      const matchHasta = !filtroFechaHasta || (!!fecha && fecha <= filtroFechaHasta);
+      const matchTrabajador =
+        !filtroTrabajadorId || String(m.idtrabajador_54) === filtroTrabajadorId;
+      const matchEmpresa = !filtroEmpresaId || String(m.idempresa_54) === filtroEmpresaId;
+      return (
+        matchText &&
+        matchEstado &&
+        matchDesde &&
+        matchHasta &&
+        matchTrabajador &&
+        matchEmpresa
+      );
     });
 
     list = [...list].sort((a, b) => {
@@ -321,7 +409,16 @@ const EntregaEppView: React.FC = () => {
     });
 
     return list;
-  }, [registros, searchTerm, filtroEstado, sortConfig]);
+  }, [
+    registros,
+    searchTerm,
+    filtroEstado,
+    filtroFechaDesde,
+    filtroFechaHasta,
+    filtroTrabajadorId,
+    filtroEmpresaId,
+    sortConfig,
+  ]);
 
   const totalPages = Math.max(1, Math.ceil(filteredAndSorted.length / itemsPerPage));
   const pageItems = filteredAndSorted.slice(
@@ -331,7 +428,32 @@ const EntregaEppView: React.FC = () => {
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, filtroEstado]);
+  }, [
+    searchTerm,
+    filtroEstado,
+    filtroFechaDesde,
+    filtroFechaHasta,
+    filtroTrabajadorId,
+    filtroEmpresaId,
+  ]);
+
+  const limpiarFiltros = () => {
+    setSearchTerm('');
+    setFiltroEstado('');
+    setFiltroFechaDesde('');
+    setFiltroFechaHasta('');
+    setFiltroTrabajadorId('');
+    setFiltroEmpresaId('');
+  };
+
+  const hayFiltrosActivos = Boolean(
+    searchTerm.trim() ||
+      filtroEstado ||
+      filtroFechaDesde ||
+      filtroFechaHasta ||
+      filtroTrabajadorId ||
+      filtroEmpresaId
+  );
 
   const handleSort = (key: keyof MaestroEntregaEpp) => {
     setSortConfig((prev) => ({
@@ -384,6 +506,10 @@ const EntregaEppView: React.FC = () => {
   };
 
   const addDetalle = () => {
+    if (!idClase) {
+      showError('Validación', 'Seleccione primero la clase (EPP o Ropa de Trabajo)');
+      return;
+    }
     const idEl = Number(elementoSel);
     const cant = Number(cantidadSel);
     if (!idEl || !cant || cant < 1) {
@@ -393,6 +519,10 @@ const EntregaEppView: React.FC = () => {
     const el = elementos.find((x) => x.idelemento_53 === idEl);
     if (!el) {
       showError('Validación', 'Elemento no encontrado');
+      return;
+    }
+    if (String(el.idclase_51 ?? '') !== idClase) {
+      showError('Validación', 'El elemento no pertenece a la clase seleccionada');
       return;
     }
     if (Number(el.stock_actual_53) < cant) {
@@ -490,7 +620,7 @@ const EntregaEppView: React.FC = () => {
       return;
     }
     if (!idClase) {
-      await showError('Validación', 'Seleccione la clase (EPP o Ropa de Trabajo)');
+      await showError('Validación', 'Seleccione la clase en el detalle (EPP o Ropa de Trabajo)');
       return;
     }
     if (!fecha) {
@@ -635,26 +765,6 @@ const EntregaEppView: React.FC = () => {
           <h3>{editingId ? `Editar entrega #${editingId}` : 'Nueva entrega de EPP o Ropa de Trabajo'}</h3>
           <form ref={formRef} onSubmit={handleSubmit}>
             <div className="epp-cabecera">
-              <div className="form-group">
-                <label htmlFor="clase_entrega">Clase *</label>
-                <select
-                  id="clase_entrega"
-                  className="form-input"
-                  value={idClase}
-                  onChange={(e) => setIdClase(e.target.value)}
-                  required
-                  aria-label="Clasificar entrega como EPP o Ropa de Trabajo"
-                >
-                  <option value="">Seleccione...</option>
-                  {clases
-                    .filter((c) => c.activo_56 !== false)
-                    .map((c) => (
-                      <option key={c.idclase_56} value={c.idclase_56}>
-                        {c.clase_56}
-                      </option>
-                    ))}
-                </select>
-              </div>
               <div className="form-group">
                 <label htmlFor="fecha_entrega">Fecha *</label>
                 <input
@@ -803,25 +913,50 @@ const EntregaEppView: React.FC = () => {
 
               <div className="epp-detalle-add">
                 <div className="form-group">
+                  <label htmlFor="clase_detalle">Clase *</label>
+                  <SearchableSelect
+                    id="clase_detalle"
+                    value={idClase}
+                    onChange={(value) => {
+                      if (value !== idClase) {
+                        setDetalles([]);
+                        setElementoSel('');
+                        setMarcaSel('');
+                      }
+                      setIdClase(value);
+                    }}
+                    options={claseOptions}
+                    placeholder="EPP / Ropa de Trabajo..."
+                    required
+                    aria-label="Seleccionar clase para filtrar elementos"
+                    emptyMessage="No se encontraron clases"
+                  />
+                </div>
+                <div className="form-group">
                   <label htmlFor="elemento-sel">Elemento</label>
-                  <select
+                  <SearchableSelect
                     id="elemento-sel"
-                    className="form-input"
                     value={elementoSel}
-                    onChange={(e) => {
-                      const id = e.target.value;
+                    onChange={(id) => {
                       setElementoSel(id);
                       const el = elementos.find((x) => String(x.idelemento_53) === id);
                       if (el?.idmarca_53) setMarcaSel(String(el.idmarca_53));
+                      else if (!id) setMarcaSel('');
                     }}
-                  >
-                    <option value="">Seleccione...</option>
-                    {elementosDisponibles.map((el) => (
-                      <option key={el.idelemento_53} value={el.idelemento_53}>
-                        {el.codigo_53} — {el.nombre_53} (stock: {el.stock_actual_53})
-                      </option>
-                    ))}
-                  </select>
+                    options={elementoOptions}
+                    placeholder={
+                      idClase
+                        ? 'Buscar elemento (código o nombre)...'
+                        : 'Primero seleccione la clase'
+                    }
+                    disabled={!idClase}
+                    aria-label="Buscar o seleccionar elemento"
+                    emptyMessage={
+                      idClase
+                        ? 'No hay elementos con stock para esta clase'
+                        : 'Seleccione una clase'
+                    }
+                  />
                 </div>
                 <div className="form-group">
                   <label htmlFor="talla-sel">Talla</label>
@@ -830,6 +965,7 @@ const EntregaEppView: React.FC = () => {
                     className="form-input"
                     value={tallaSel}
                     onChange={(e) => setTallaSel(e.target.value)}
+                    disabled={!idClase}
                   >
                     <option value="">Opcional...</option>
                     {tallas.map((t) => (
@@ -845,6 +981,7 @@ const EntregaEppView: React.FC = () => {
                     onChange={setMarcaSel}
                     options={marcaOptions}
                     placeholder="Buscar marca..."
+                    disabled={!idClase}
                     aria-label="Buscar o seleccionar marca"
                     emptyMessage="No se encontraron marcas"
                   />
@@ -858,6 +995,7 @@ const EntregaEppView: React.FC = () => {
                     className="form-input"
                     value={cantidadSel}
                     onChange={(e) => setCantidadSel(e.target.value)}
+                    disabled={!idClase}
                   />
                 </div>
                 <div className="form-group">
@@ -867,6 +1005,7 @@ const EntregaEppView: React.FC = () => {
                     className="form-input"
                     value={estadoSel}
                     onChange={(e) => setEstadoSel(e.target.value)}
+                    disabled={!idClase}
                   >
                     {ESTADOS_DETALLE.map((est) => (
                       <option key={est} value={est}>
@@ -875,7 +1014,7 @@ const EntregaEppView: React.FC = () => {
                     ))}
                   </select>
                 </div>
-                <button type="button" className="btn-primary" onClick={addDetalle}>
+                <button type="button" className="btn-primary" onClick={addDetalle} disabled={!idClase}>
                   Agregar
                 </button>
               </div>
@@ -991,8 +1130,54 @@ const EntregaEppView: React.FC = () => {
             onChange={(e) => setSearchTerm(e.target.value.toUpperCase())}
             aria-label="Buscar entregas EPP"
           />
+          <label className="epp-filter-date" htmlFor="filtro-fecha-desde">
+            <span>Desde</span>
+            <input
+              id="filtro-fecha-desde"
+              type="date"
+              className="form-input"
+              value={filtroFechaDesde}
+              onChange={(e) => setFiltroFechaDesde(e.target.value)}
+              aria-label="Filtrar desde fecha"
+            />
+          </label>
+          <label className="epp-filter-date" htmlFor="filtro-fecha-hasta">
+            <span>Hasta</span>
+            <input
+              id="filtro-fecha-hasta"
+              type="date"
+              className="form-input"
+              value={filtroFechaHasta}
+              onChange={(e) => setFiltroFechaHasta(e.target.value)}
+              aria-label="Filtrar hasta fecha"
+            />
+          </label>
+          <div className="epp-filter-select">
+            <SearchableSelect
+              id="filtro-trabajador"
+              value={filtroTrabajadorId}
+              onChange={setFiltroTrabajadorId}
+              options={trabajadorFiltroOptions}
+              placeholder="Filtrar trabajador..."
+              uppercase={false}
+              aria-label="Filtrar por trabajador"
+              emptyMessage="Sin trabajadores en entregas"
+            />
+          </div>
+          <div className="epp-filter-select">
+            <SearchableSelect
+              id="filtro-empresa"
+              value={filtroEmpresaId}
+              onChange={setFiltroEmpresaId}
+              options={empresaFiltroOptions}
+              placeholder="Filtrar empresa..."
+              uppercase={false}
+              aria-label="Filtrar por empresa"
+              emptyMessage="Sin empresas"
+            />
+          </div>
           <select
-            className="form-input"
+            className="form-input epp-filter-estado"
             value={filtroEstado}
             onChange={(e) => setFiltroEstado(e.target.value)}
             aria-label="Filtrar por estado"
@@ -1002,6 +1187,16 @@ const EntregaEppView: React.FC = () => {
             <option value="ANULADO">ANULADO</option>
             <option value="PENDIENTE_FIRMA">PENDIENTE_FIRMA</option>
           </select>
+          {hayFiltrosActivos && (
+            <button
+              type="button"
+              className="btn-secondary epp-clear-filters"
+              onClick={limpiarFiltros}
+              aria-label="Limpiar todos los filtros"
+            >
+              Limpiar
+            </button>
+          )}
         </div>
       </div>
 

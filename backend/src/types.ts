@@ -1407,6 +1407,8 @@ export interface ElementoEpp {
   activo_53: boolean;
   creado_en?: string | Date;
   actualizado_en?: string | Date;
+  idclase_51?: number | null;
+  clase_nombre?: string;
   tipo_elemento_nombre?: string;
   categoria_nombre?: string;
   marca_nombre?: string;

@@ -1,6 +1,12 @@
 .searchable-select {
   position: relative;
   width: 100%;
+  z-index: 1;
+}
+
+/* Al abrir, sube por encima de campos vecinos (grids, filas del formulario). */
+.searchable-select.is-open {
+  z-index: 200;
 }
 
 .searchable-select-input {
@@ -10,7 +16,7 @@
 
 .searchable-select-list {
   position: absolute;
-  z-index: 50;
+  z-index: 210;
   top: calc(100% + 4px);
   left: 0;
   right: 0;

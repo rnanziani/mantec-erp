@@ -12,6 +12,8 @@
 .entrega-epp-view .epp-cabecera .form-group {
   margin-bottom: 0;
   min-width: 0;
+  /* Evita que el dropdown del SearchableSelect quede recortado en el grid */
+  overflow: visible;
 }
 
 .entrega-epp-view .epp-trabajador-list {
@@ -63,7 +65,7 @@
 
 .entrega-epp-view .epp-detalle-add {
   display: grid;
-  grid-template-columns: 2fr 1fr 1fr 0.7fr 1fr auto;
+  grid-template-columns: 1.2fr 2fr 0.9fr 1.1fr 0.7fr 1fr auto;
   gap: 8px;
   align-items: end;
   margin-bottom: 12px;
@@ -71,6 +73,8 @@
 
 .entrega-epp-view .epp-detalle-add .form-group {
   margin-bottom: 0;
+  min-width: 0;
+  overflow: visible;
 }
 
 .entrega-epp-view .epp-toolbar {
@@ -96,15 +100,44 @@
   display: flex;
   gap: 10px;
   flex-wrap: wrap;
-  align-items: center;
+  align-items: flex-end;
   flex: 1;
   justify-content: flex-end;
 }
 
 .entrega-epp-view .epp-search {
-  min-width: min(100%, 280px);
-  max-width: 360px;
+  min-width: min(100%, 220px);
+  max-width: 280px;
   text-transform: uppercase;
+}
+
+.entrega-epp-view .epp-filter-date {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 140px;
+}
+
+.entrega-epp-view .epp-filter-date span {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.entrega-epp-view .epp-filter-select {
+  min-width: min(100%, 200px);
+  max-width: 260px;
+  flex: 1 1 180px;
+}
+
+.entrega-epp-view .epp-filter-estado {
+  min-width: 160px;
+}
+
+.entrega-epp-view .epp-clear-filters {
+  white-space: nowrap;
 }
 
 .entrega-epp-view .actions {

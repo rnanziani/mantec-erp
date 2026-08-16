@@ -38,6 +38,8 @@ interface ElementoEpp {
   stock_minimo_53: number;
   valor_unitario_53?: number | null;
   activo_53: boolean;
+  idclase_51?: number | null;
+  clase_nombre?: string;
   tipo_elemento_nombre?: string;
   categoria_nombre?: string;
   marca_nombre?: string;
@@ -77,6 +79,7 @@ const ElementoEppView: React.FC = () => {
   const [form, setForm] = useState(emptyForm);
   const [searchTerm, setSearchTerm] = useState('');
   const [filtroTipo, setFiltroTipo] = useState('');
+  const [filtroClase, setFiltroClase] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
   const [sortConfig, setSortConfig] = useState<{
@@ -136,11 +139,42 @@ const ElementoEppView: React.FC = () => {
 
   const marcaOptions = useMemo(
     () =>
-      marcas.map((m) => ({
-        value: String(m.id_marca_insumo_37),
-        label: m.marca_insumo_37,
-      })),
+      [...marcas]
+        .sort((a, b) =>
+          a.marca_insumo_37.localeCompare(b.marca_insumo_37, 'es', { sensitivity: 'base' })
+        )
+        .map((m) => ({
+          value: String(m.id_marca_insumo_37),
+          label: m.marca_insumo_37,
+        })),
     [marcas]
+  );
+
+  const tipoOptions = useMemo(
+    () =>
+      [...tipos]
+        .filter((t) => t.activo_51 || String(t.idtipo_elemento_51) === form.idtipo_elemento_53)
+        .sort((a, b) =>
+          a.tipo_elemento_51.localeCompare(b.tipo_elemento_51, 'es', { sensitivity: 'base' })
+        )
+        .map((t) => ({
+          value: String(t.idtipo_elemento_51),
+          label: t.tipo_elemento_51,
+        })),
+    [tipos, form.idtipo_elemento_53]
+  );
+
+  const categoriaOptions = useMemo(
+    () =>
+      [...categoriasFiltradas]
+        .sort((a, b) =>
+          a.categoria_52.localeCompare(b.categoria_52, 'es', { sensitivity: 'base' })
+        )
+        .map((c) => ({
+          value: String(c.idcategoria_elemento_52),
+          label: c.categoria_52,
+        })),
+    [categoriasFiltradas]
   );
 
   const filteredAndSorted = useMemo(() => {
@@ -150,11 +184,13 @@ const ElementoEppView: React.FC = () => {
         !q ||
         el.codigo_53.toLowerCase().includes(q) ||
         el.nombre_53.toLowerCase().includes(q) ||
+        (el.clase_nombre || '').toLowerCase().includes(q) ||
         (el.tipo_elemento_nombre || '').toLowerCase().includes(q) ||
         (el.categoria_nombre || '').toLowerCase().includes(q) ||
         (el.marca_nombre || '').toLowerCase().includes(q);
       const matchTipo = !filtroTipo || String(el.idtipo_elemento_53) === filtroTipo;
-      return matchText && matchTipo;
+      const matchClase = !filtroClase || String(el.idclase_51) === filtroClase;
+      return matchText && matchTipo && matchClase;
     });
 
     list = [...list].sort((a, b) => {
@@ -174,7 +210,19 @@ const ElementoEppView: React.FC = () => {
     });
 
     return list;
-  }, [items, searchTerm, filtroTipo, sortConfig]);
+  }, [items, searchTerm, filtroTipo, filtroClase, sortConfig]);
+
+  const claseFiltroOptions = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const el of items) {
+      if (el.idclase_51 != null && el.clase_nombre) {
+        map.set(String(el.idclase_51), el.clase_nombre);
+      }
+    }
+    return [...map.entries()]
+      .map(([value, label]) => ({ value, label }))
+      .sort((a, b) => a.label.localeCompare(b.label, 'es', { sensitivity: 'base' }));
+  }, [items]);
 
   const totalPages = Math.max(1, Math.ceil(filteredAndSorted.length / itemsPerPage));
   const pageItems = filteredAndSorted.slice(
@@ -184,7 +232,7 @@ const ElementoEppView: React.FC = () => {
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, filtroTipo]);
+  }, [searchTerm, filtroTipo, filtroClase]);
 
   const handleSort = (key: keyof ElementoEpp) => {
     setSortConfig((prev) => ({
@@ -328,6 +376,7 @@ const ElementoEppView: React.FC = () => {
         ID: el.idelemento_53,
         Código: el.codigo_53,
         Nombre: el.nombre_53,
+        Clase: el.clase_nombre || '',
         Tipo: el.tipo_elemento_nombre || '',
         Categoría: el.categoria_nombre || '',
         Marca: el.marca_nombre || '',
@@ -413,42 +462,34 @@ const ElementoEppView: React.FC = () => {
             <div className="form-row form-row-3">
               <div className="form-group">
                 <label htmlFor="idtipo_elemento_53">Tipo *</label>
-                <select
+                <SearchableSelect
                   id="idtipo_elemento_53"
-                  className="form-input"
                   value={form.idtipo_elemento_53}
-                  onChange={(e) => handleTipoChange(e.target.value)}
+                  onChange={handleTipoChange}
+                  options={tipoOptions}
+                  placeholder="Buscar tipo..."
                   required
-                >
-                  <option value="">Seleccione tipo...</option>
-                  {tipos
-                    .filter((t) => t.activo_51 || String(t.idtipo_elemento_51) === form.idtipo_elemento_53)
-                    .map((t) => (
-                      <option key={t.idtipo_elemento_51} value={t.idtipo_elemento_51}>
-                        {t.tipo_elemento_51}
-                      </option>
-                    ))}
-                </select>
+                  aria-label="Buscar o seleccionar tipo de elemento"
+                  emptyMessage="No se encontraron tipos"
+                />
               </div>
               <div className="form-group">
                 <label htmlFor="idcategoria_53">Categoría *</label>
-                <select
+                <SearchableSelect
                   id="idcategoria_53"
-                  className="form-input"
                   value={form.idcategoria_53}
-                  onChange={(e) => setForm((p) => ({ ...p, idcategoria_53: e.target.value }))}
+                  onChange={(value) => setForm((p) => ({ ...p, idcategoria_53: value }))}
+                  options={categoriaOptions}
+                  placeholder={
+                    form.idtipo_elemento_53
+                      ? 'Buscar categoría...'
+                      : 'Primero elija tipo'
+                  }
                   required
                   disabled={!form.idtipo_elemento_53}
-                >
-                  <option value="">
-                    {form.idtipo_elemento_53 ? 'Seleccione categoría...' : 'Primero elija tipo'}
-                  </option>
-                  {categoriasFiltradas.map((c) => (
-                    <option key={c.idcategoria_elemento_52} value={c.idcategoria_elemento_52}>
-                      {c.categoria_52}
-                    </option>
-                  ))}
-                </select>
+                  aria-label="Buscar o seleccionar categoría"
+                  emptyMessage="No se encontraron categorías para este tipo"
+                />
               </div>
               <div className="form-group">
                 <label htmlFor="unidad_medida_53">Unidad</label>
@@ -543,6 +584,19 @@ const ElementoEppView: React.FC = () => {
           />
           <select
             className="form-input"
+            value={filtroClase}
+            onChange={(e) => setFiltroClase(e.target.value)}
+            aria-label="Filtrar por clase"
+          >
+            <option value="">Todas las clases</option>
+            {claseFiltroOptions.map((c) => (
+              <option key={c.value} value={c.value}>
+                {c.label}
+              </option>
+            ))}
+          </select>
+          <select
+            className="form-input"
             value={filtroTipo}
             onChange={(e) => setFiltroTipo(e.target.value)}
             aria-label="Filtrar por tipo"
@@ -563,6 +617,7 @@ const ElementoEppView: React.FC = () => {
             <tr>
               <th className={sortClass('codigo_53')} onClick={() => handleSort('codigo_53')}>Código</th>
               <th className={sortClass('nombre_53')} onClick={() => handleSort('nombre_53')}>Nombre</th>
+              <th className={sortClass('clase_nombre')} onClick={() => handleSort('clase_nombre')}>Clase</th>
               <th className={sortClass('tipo_elemento_nombre')} onClick={() => handleSort('tipo_elemento_nombre')}>Tipo</th>
               <th className={sortClass('categoria_nombre')} onClick={() => handleSort('categoria_nombre')}>Categoría</th>
               <th className={sortClass('marca_nombre')} onClick={() => handleSort('marca_nombre')}>Marca</th>
@@ -575,13 +630,14 @@ const ElementoEppView: React.FC = () => {
           <tbody>
             {pageItems.length === 0 ? (
               <tr>
-                <td colSpan={9} className="epp-empty">No hay elementos registrados</td>
+                <td colSpan={10} className="epp-empty">No hay elementos registrados</td>
               </tr>
             ) : (
               pageItems.map((el) => (
                 <tr key={el.idelemento_53}>
                   <td><strong>{el.codigo_53}</strong></td>
                   <td>{el.nombre_53}</td>
+                  <td>{el.clase_nombre || '-'}</td>
                   <td>{el.tipo_elemento_nombre || '-'}</td>
                   <td>{el.categoria_nombre || '-'}</td>
                   <td>{el.marca_nombre || '-'}</td>

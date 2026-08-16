@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import './BodegaView.css';
 import './TipoElementoEppView.css';
 import Pagination from './shared/Pagination';
+import SearchableSelect from './shared/SearchableSelect';
 import { exportToExcel } from '../utils/exportUtils';
 import { showDeleteConfirm, showError, showSuccess } from '../utils/swal';
 import { apiFetch, apiUrl } from '../lib/apiClient';
@@ -75,6 +76,18 @@ const TipoElementoEppView: React.FC = () => {
   useEffect(() => {
     fetchData();
   }, []);
+
+  const claseOptions = useMemo(
+    () =>
+      [...clases]
+        .filter((c) => c.activo_56 !== false)
+        .sort((a, b) => a.clase_56.localeCompare(b.clase_56, 'es', { sensitivity: 'base' }))
+        .map((c) => ({
+          value: String(c.idclase_56),
+          label: c.clase_56,
+        })),
+    [clases]
+  );
 
   const filteredAndSorted = useMemo(() => {
     const q = searchTerm.trim().toLowerCase();
@@ -159,9 +172,30 @@ const TipoElementoEppView: React.FC = () => {
       await showError('Validación', 'El tipo es requerido');
       return;
     }
+    const nombreTipo = form.tipo_elemento_51.trim().toUpperCase();
+    const keyTipo = nombreTipo
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/\s+/g, ' ');
+    const dupLocal = items.find((t) => {
+      if (editingId && t.idtipo_elemento_51 === editingId) return false;
+      const k = t.tipo_elemento_51
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/\s+/g, ' ')
+        .toUpperCase();
+      return k === keyTipo;
+    });
+    if (dupLocal) {
+      await showError(
+        'Duplicado',
+        `Ya existe el tipo "${dupLocal.tipo_elemento_51}". No se puede crear otro con el mismo nombre.`
+      );
+      return;
+    }
     const payload = {
       idclase_51: Number(form.idclase_51),
-      tipo_elemento_51: form.tipo_elemento_51.trim().toUpperCase(),
+      tipo_elemento_51: nombreTipo,
       descripcion_51: form.descripcion_51.trim().toUpperCase() || null,
       activo_51: form.activo_51,
     };
@@ -244,23 +278,16 @@ const TipoElementoEppView: React.FC = () => {
             <div className="form-row form-row-3">
               <div className="form-group">
                 <label htmlFor="idclase_51">Clase *</label>
-                <select
+                <SearchableSelect
                   id="idclase_51"
-                  className="form-input"
                   value={form.idclase_51}
-                  onChange={(e) => setForm((p) => ({ ...p, idclase_51: e.target.value }))}
+                  onChange={(value) => setForm((p) => ({ ...p, idclase_51: value }))}
+                  options={claseOptions}
+                  placeholder="Buscar clase (EPP / Ropa de Trabajo)..."
                   required
-                  aria-label="Clase EPP o Ropa de Trabajo"
-                >
-                  <option value="">Seleccione...</option>
-                  {clases
-                    .filter((c) => c.activo_56 !== false)
-                    .map((c) => (
-                      <option key={c.idclase_56} value={c.idclase_56}>
-                        {c.clase_56}
-                      </option>
-                    ))}
-                </select>
+                  aria-label="Buscar o seleccionar clase"
+                  emptyMessage="No se encontraron clases"
+                />
               </div>
               <div className="form-group">
                 <label htmlFor="tipo_elemento_51">Tipo *</label>

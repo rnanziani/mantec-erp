@@ -19,6 +19,14 @@ interface SearchableSelectProps {
   'aria-label'?: string;
 }
 
+/** Normaliza para filtrar sin importar mayúsculas ni tildes. */
+const normalizeForSearch = (text: string) =>
+  text
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim();
+
 const SearchableSelect: React.FC<SearchableSelectProps> = ({
   id,
   value,
@@ -32,6 +40,7 @@ const SearchableSelect: React.FC<SearchableSelectProps> = ({
   'aria-label': ariaLabel
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
 
@@ -41,9 +50,11 @@ const SearchableSelect: React.FC<SearchableSelectProps> = ({
   );
 
   const filteredOptions = useMemo(() => {
-    const query = search.trim().toLowerCase();
+    const query = normalizeForSearch(search);
     if (!query) return options;
-    return options.filter((option) => option.label.toLowerCase().includes(query));
+    return options.filter((option) =>
+      normalizeForSearch(option.label).includes(query)
+    );
   }, [options, search]);
 
   useEffect(() => {
@@ -61,8 +72,10 @@ const SearchableSelect: React.FC<SearchableSelectProps> = ({
 
   const handleFocus = () => {
     if (disabled) return;
+    // Vaciar el texto de búsqueda al abrir: así al digitar se filtra de cero
+    // (no se concatena sobre el label ya seleccionado).
+    setSearch('');
     setOpen(true);
-    setSearch(selected?.label ?? '');
   };
 
   const handleSelect = (optionValue: string) => {
@@ -71,22 +84,50 @@ const SearchableSelect: React.FC<SearchableSelectProps> = ({
     setSearch('');
   };
 
+  const handleInputChange = (raw: string) => {
+    const next = normalizeInput(raw);
+    setSearch(next);
+    setOpen(true);
+
+    // Si borra todo, limpia la selección.
+    if (!next.trim()) {
+      onChange('');
+      return;
+    }
+
+    // Si lo escrito ya no coincide con lo seleccionado, libera el value
+    // para que el filtro no quede “anclado” a la opción anterior.
+    if (selected && !normalizeForSearch(selected.label).includes(normalizeForSearch(next))) {
+      onChange('');
+    }
+  };
+
+  // Abierto: muestra lo que el usuario escribe. Cerrado: muestra la opción elegida.
   const displayValue = open ? search : (selected?.label ?? '');
+  const inputPlaceholder =
+    open && selected ? selected.label : placeholder;
 
   return (
-    <div className="searchable-select" ref={containerRef}>
+    <div
+      className={`searchable-select${open ? ' is-open' : ''}`}
+      ref={containerRef}
+    >
       <input
+        ref={inputRef}
         type="text"
         id={id}
         className="form-input searchable-select-input"
         value={displayValue}
-        onChange={(e) => {
-          setSearch(normalizeInput(e.target.value));
-          setOpen(true);
-          if (!e.target.value.trim()) onChange('');
-        }}
+        onChange={(e) => handleInputChange(e.target.value)}
         onFocus={handleFocus}
-        placeholder={placeholder}
+        onKeyDown={(e) => {
+          if (e.key === 'Escape') {
+            setOpen(false);
+            setSearch('');
+            inputRef.current?.blur();
+          }
+        }}
+        placeholder={inputPlaceholder}
         disabled={disabled}
         autoComplete="off"
         aria-label={ariaLabel}
