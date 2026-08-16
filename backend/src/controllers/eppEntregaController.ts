@@ -118,6 +118,7 @@ const MAESTRO_SELECT = `
     m.identregaepp_54,
     m.folio_54,
     m.idtrabajador_54,
+    m.idclase_54,
     m.idccosto_54,
     m.idempresa_54,
     m.idcargo_54,
@@ -137,6 +138,7 @@ const MAESTRO_SELECT = `
     emp.nombreempresa_15 AS empresa_nombre,
     car.cargo_14 AS cargo_nombre,
     cc.ccosto_45 AS ccosto_nombre,
+    cl.clase_56 AS clase_nombre,
     CONCAT(
       COALESCE(r.nombreresponsableentrega_08, ''), ' ',
       COALESCE(r.apaternoresponsableentrega_08, ''), ' ',
@@ -147,6 +149,7 @@ const MAESTRO_SELECT = `
   INNER JOIN tbl_15_empresas emp ON m.idempresa_54 = emp.idempresa_15
   INNER JOIN tbl_14_cargo car ON m.idcargo_54 = car.idcargo_14
   LEFT JOIN tbl_45_ccosto cc ON m.idccosto_54 = cc.id_ccosto_45
+  LEFT JOIN tbl_56_clase_elemento cl ON m.idclase_54 = cl.idclase_56
   LEFT JOIN tbl_08_responsable_entrega r ON m.idresponsableentrega_54 = r.idresponsableentrega_08
 `;
 
@@ -332,6 +335,10 @@ export const createEntregaEpp = async (req: Request, res: Response): Promise<voi
       res.status(400).json({ success: false, error: 'Cargo es requerido' });
       return;
     }
+    if (!body.idclase_54) {
+      res.status(400).json({ success: false, error: 'Clase (EPP / Ropa de Trabajo) es requerida' });
+      return;
+    }
     if (!body.fecha_entrega_54) {
       res.status(400).json({ success: false, error: 'Fecha de entrega es requerida' });
       return;
@@ -362,19 +369,20 @@ export const createEntregaEpp = async (req: Request, res: Response): Promise<voi
 
     const insertM = await client.query(
       `INSERT INTO ${TABLA_M} (
-        folio_54, idtrabajador_54, idccosto_54, idempresa_54, idcargo_54,
+        folio_54, idtrabajador_54, idclase_54, idccosto_54, idempresa_54, idcargo_54,
         idresponsableentrega_54, fecha_entrega_54, hora_entrega_54, lugar_entrega_54,
         motivo_entrega_54, nombre_responsable_54, rut_responsable_54,
         observaciones_54, estado_54
       ) VALUES (
-        $1, $2, $3, $4, $5,
-        $6, $7, COALESCE($8::time, CURRENT_TIME), $9,
-        $10, $11, $12,
-        $13, $14
+        $1, $2, $3, $4, $5, $6,
+        $7, $8, COALESCE($9::time, CURRENT_TIME), $10,
+        $11, $12, $13,
+        $14, $15
       ) RETURNING identregaepp_54`,
       [
         body.folio_54?.trim() || null,
         body.idtrabajador_54,
+        body.idclase_54,
         body.idccosto_54 || null,
         body.idempresa_54,
         body.idcargo_54,
@@ -470,6 +478,7 @@ export const updateEntregaEpp = async (req: Request, res: Response): Promise<voi
 
     if (body.folio_54 !== undefined) push('folio_54', body.folio_54?.trim() || null);
     if (body.idtrabajador_54 !== undefined) push('idtrabajador_54', body.idtrabajador_54);
+    if (body.idclase_54 !== undefined) push('idclase_54', body.idclase_54 || null);
     if (body.idccosto_54 !== undefined) push('idccosto_54', body.idccosto_54 || null);
     if (body.idempresa_54 !== undefined) push('idempresa_54', body.idempresa_54);
     if (body.idcargo_54 !== undefined) push('idcargo_54', body.idcargo_54);

@@ -73,6 +73,7 @@ CREATE TABLE IF NOT EXISTS public.tbl_54_m_entrega_epp (
     identregaepp_54 serial4 NOT NULL,
     folio_54 varchar(30) NULL,
     idtrabajador_54 int4 NOT NULL,
+    idclase_54 int4 NULL,
     idccosto_54 int4 NULL,
     idempresa_54 int4 NOT NULL,
     idcargo_54 int4 NOT NULL,
@@ -94,6 +95,7 @@ CREATE TABLE IF NOT EXISTS public.tbl_54_m_entrega_epp (
 
 CREATE UNIQUE INDEX IF NOT EXISTS uq_idx_tbl_54_folio ON public.tbl_54_m_entrega_epp (folio_54) WHERE folio_54 IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_tbl_54_entrega_trabajador ON public.tbl_54_m_entrega_epp (idtrabajador_54);
+CREATE INDEX IF NOT EXISTS idx_tbl_54_entrega_clase ON public.tbl_54_m_entrega_epp (idclase_54);
 CREATE INDEX IF NOT EXISTS idx_tbl_54_entrega_ccosto ON public.tbl_54_m_entrega_epp (idccosto_54);
 CREATE INDEX IF NOT EXISTS idx_tbl_54_entrega_empresa ON public.tbl_54_m_entrega_epp (idempresa_54);
 CREATE INDEX IF NOT EXISTS idx_tbl_54_entrega_cargo ON public.tbl_54_m_entrega_epp (idcargo_54);
@@ -151,6 +153,11 @@ END IF; END $$;
 DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'fk_tbl_54_trabajador') THEN
     ALTER TABLE public.tbl_54_m_entrega_epp ADD CONSTRAINT fk_tbl_54_trabajador
     FOREIGN KEY (idtrabajador_54) REFERENCES public.tbl_06_trabajador(idtrabajador_06) ON DELETE RESTRICT ON UPDATE CASCADE;
+END IF; END $$;
+
+DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'fk_tbl_54_clase') THEN
+    ALTER TABLE public.tbl_54_m_entrega_epp ADD CONSTRAINT fk_tbl_54_clase
+    FOREIGN KEY (idclase_54) REFERENCES public.tbl_56_clase_elemento(idclase_56) ON DELETE RESTRICT ON UPDATE CASCADE;
 END IF; END $$;
 
 DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'fk_tbl_54_ccosto') THEN

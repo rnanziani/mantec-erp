@@ -1441,6 +1441,7 @@ export interface MaestroEntregaEpp {
   identregaepp_54: number;
   folio_54?: string | null;
   idtrabajador_54: number;
+  idclase_54?: number | null;
   idccosto_54?: number | null;
   idempresa_54: number;
   idcargo_54: number;
@@ -1460,6 +1461,7 @@ export interface MaestroEntregaEpp {
   empresa_nombre?: string;
   cargo_nombre?: string;
   ccosto_nombre?: string;
+  clase_nombre?: string;
   responsable_nombre?: string;
 }
 
@@ -1486,6 +1488,7 @@ export interface DetalleEntregaEpp {
 export interface CreateMaestroEntregaEppDTO {
   folio_54?: string | null;
   idtrabajador_54: number;
+  idclase_54: number;
   idccosto_54?: number | null;
   idempresa_54: number;
   idcargo_54: number;
@@ -1512,6 +1515,7 @@ export interface CreateMaestroEntregaEppDTO {
 export interface UpdateMaestroEntregaEppDTO {
   folio_54?: string | null;
   idtrabajador_54?: number;
+  idclase_54?: number | null;
   idccosto_54?: number | null;
   idempresa_54?: number;
   idcargo_54?: number;

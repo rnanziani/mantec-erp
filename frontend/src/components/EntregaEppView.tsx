@@ -31,6 +31,7 @@ interface MaestroEntregaEpp {
   identregaepp_54: number;
   folio_54?: string | null;
   idtrabajador_54: number;
+  idclase_54?: number | null;
   idccosto_54?: number | null;
   idempresa_54: number;
   idcargo_54: number;
@@ -45,6 +46,7 @@ interface MaestroEntregaEpp {
   empresa_nombre?: string;
   cargo_nombre?: string;
   ccosto_nombre?: string;
+  clase_nombre?: string;
   responsable_nombre?: string;
 }
 
@@ -81,6 +83,12 @@ interface Cargo {
 interface Ccosto {
   id_ccosto_45: number;
   ccosto_45: string;
+}
+
+interface ClaseElemento {
+  idclase_56: number;
+  clase_56: string;
+  activo_56?: boolean;
 }
 
 interface Responsable {
@@ -132,6 +140,7 @@ const TRABAJADORES_URL = apiUrl('/trabajadores');
 const EMPRESAS_URL = apiUrl('/empresas');
 const CARGOS_URL = apiUrl('/cargos');
 const CCOSTOS_URL = apiUrl('/ccostos');
+const CLASES_URL = apiUrl('/epp-clases');
 const RESPONSABLES_URL = apiUrl('/responsables-entrega');
 const TALLAS_URL = apiUrl('/tallas');
 const MARCAS_URL = apiUrl('/marcas-insumo');
@@ -144,6 +153,7 @@ const EntregaEppView: React.FC = () => {
   const [empresas, setEmpresas] = useState<Empresa[]>([]);
   const [cargos, setCargos] = useState<Cargo[]>([]);
   const [ccostos, setCcostos] = useState<Ccosto[]>([]);
+  const [clases, setClases] = useState<ClaseElemento[]>([]);
   const [responsables, setResponsables] = useState<Responsable[]>([]);
   const [tallas, setTallas] = useState<Talla[]>([]);
   const [marcas, setMarcas] = useState<MarcaInsumo[]>([]);
@@ -165,6 +175,7 @@ const EntregaEppView: React.FC = () => {
   const [idEmpresa, setIdEmpresa] = useState('');
   const [idCargo, setIdCargo] = useState('');
   const [idCcosto, setIdCcosto] = useState('');
+  const [idClase, setIdClase] = useState('');
   const [idResponsable, setIdResponsable] = useState('');
   const [fecha, setFecha] = useState(() => new Date().toISOString().slice(0, 10));
   const [lugar, setLugar] = useState('');
@@ -186,13 +197,14 @@ const EntregaEppView: React.FC = () => {
   const fetchAll = async () => {
     try {
       setLoading(true);
-      const [e, el, t, emp, car, cc, r, ta, m] = await Promise.all([
+      const [e, el, t, emp, car, cc, cl, r, ta, m] = await Promise.all([
         apiFetch(API_URL),
         apiFetch(ELEMENTOS_URL),
         apiFetch(TRABAJADORES_URL),
         apiFetch(EMPRESAS_URL),
         apiFetch(CARGOS_URL),
         apiFetch(CCOSTOS_URL),
+        apiFetch(CLASES_URL),
         apiFetch(RESPONSABLES_URL),
         apiFetch(TALLAS_URL),
         apiFetch(MARCAS_URL),
@@ -203,6 +215,7 @@ const EntregaEppView: React.FC = () => {
       const empData: ApiResponse<Empresa[]> = await emp.json();
       const carData: ApiResponse<Cargo[]> = await car.json();
       const ccData: ApiResponse<Ccosto[]> = await cc.json();
+      const clData: ApiResponse<ClaseElemento[]> = await cl.json();
       const rData: ApiResponse<Responsable[]> = await r.json();
       const taData: ApiResponse<Talla[]> = await ta.json();
       const mData: ApiResponse<MarcaInsumo[]> = await m.json();
@@ -214,6 +227,7 @@ const EntregaEppView: React.FC = () => {
       if (empData.success && Array.isArray(empData.data)) setEmpresas(empData.data);
       if (carData.success && Array.isArray(carData.data)) setCargos(carData.data);
       if (ccData.success && Array.isArray(ccData.data)) setCcostos(ccData.data);
+      if (clData.success && Array.isArray(clData.data)) setClases(clData.data);
       if (rData.success && Array.isArray(rData.data)) setResponsables(rData.data);
       if (taData.success && Array.isArray(taData.data)) setTallas(taData.data);
       if (mData.success && Array.isArray(mData.data)) setMarcas(mData.data);
@@ -278,6 +292,7 @@ const EntregaEppView: React.FC = () => {
         (m.empresa_nombre || '').toLowerCase().includes(q) ||
         (m.cargo_nombre || '').toLowerCase().includes(q) ||
         (m.motivo_entrega_54 || '').toLowerCase().includes(q) ||
+        (m.clase_nombre || '').toLowerCase().includes(q) ||
         (m.estado_54 || '').toLowerCase().includes(q) ||
         (m.observaciones_54 || '').toLowerCase().includes(q);
       const matchEstado = !filtroEstado || m.estado_54 === filtroEstado;
@@ -344,6 +359,7 @@ const EntregaEppView: React.FC = () => {
     setIdEmpresa('');
     setIdCargo('');
     setIdCcosto('');
+    setIdClase('');
     setIdResponsable('');
     setFecha(new Date().toISOString().slice(0, 10));
     setLugar('');
@@ -435,6 +451,7 @@ const EntregaEppView: React.FC = () => {
       setIdEmpresa(String(maestro.idempresa_54));
       setIdCargo(String(maestro.idcargo_54));
       setIdCcosto(maestro.idccosto_54 ? String(maestro.idccosto_54) : '');
+      setIdClase(maestro.idclase_54 ? String(maestro.idclase_54) : '');
       setIdResponsable(
         maestro.idresponsableentrega_54 ? String(maestro.idresponsableentrega_54) : ''
       );
@@ -472,6 +489,10 @@ const EntregaEppView: React.FC = () => {
       await showError('Validación', 'Seleccione un cargo');
       return;
     }
+    if (!idClase) {
+      await showError('Validación', 'Seleccione la clase (EPP o Ropa de Trabajo)');
+      return;
+    }
     if (!fecha) {
       await showError('Validación', 'Indique la fecha de entrega');
       return;
@@ -501,6 +522,7 @@ const EntregaEppView: React.FC = () => {
       idtrabajador_54: Number(idTrabajador),
       idempresa_54: Number(idEmpresa),
       idcargo_54: Number(idCargo),
+      idclase_54: Number(idClase),
       idccosto_54: idCcosto ? Number(idCcosto) : null,
       idresponsableentrega_54: idResponsable ? Number(idResponsable) : null,
       fecha_entrega_54: fecha,
@@ -587,12 +609,12 @@ const EntregaEppView: React.FC = () => {
   const nombreResponsable = (r: Responsable) =>
     `${r.nombreresponsableentrega_08} ${r.apaternoresponsableentrega_08 || ''} ${r.amaternoresponsableentrega_08 || ''}`.trim();
 
-  if (loading) return <div className="loading">Cargando entregas EPP...</div>;
+  if (loading) return <div className="loading">Cargando entregas...</div>;
 
   return (
     <div className="bodega-view entrega-epp-view">
       <div className="view-header">
-        <h2>Entregas de EPP</h2>
+        <h2>Entregas de EPP o Ropa de Trabajo</h2>
         <div className="header-actions">
           <button type="button" className="btn-primary" onClick={() => { resetForm(); setShowForm(true); }}>
             + Nuevo
@@ -610,9 +632,29 @@ const EntregaEppView: React.FC = () => {
 
       {showForm && (
         <div className="form-container epp-form">
-          <h3>{editingId ? `Editar entrega #${editingId}` : 'Nueva entrega EPP'}</h3>
+          <h3>{editingId ? `Editar entrega #${editingId}` : 'Nueva entrega de EPP o Ropa de Trabajo'}</h3>
           <form ref={formRef} onSubmit={handleSubmit}>
             <div className="epp-cabecera">
+              <div className="form-group">
+                <label htmlFor="clase_entrega">Clase *</label>
+                <select
+                  id="clase_entrega"
+                  className="form-input"
+                  value={idClase}
+                  onChange={(e) => setIdClase(e.target.value)}
+                  required
+                  aria-label="Clasificar entrega como EPP o Ropa de Trabajo"
+                >
+                  <option value="">Seleccione...</option>
+                  {clases
+                    .filter((c) => c.activo_56 !== false)
+                    .map((c) => (
+                      <option key={c.idclase_56} value={c.idclase_56}>
+                        {c.clase_56}
+                      </option>
+                    ))}
+                </select>
+              </div>
               <div className="form-group">
                 <label htmlFor="fecha_entrega">Fecha *</label>
                 <input
@@ -968,6 +1010,7 @@ const EntregaEppView: React.FC = () => {
           <thead>
             <tr>
               <th className={sortClass('folio_54')} onClick={() => handleSort('folio_54')}>Folio</th>
+              <th className={sortClass('clase_nombre')} onClick={() => handleSort('clase_nombre')}>Clase</th>
               <th className={sortClass('fecha_entrega_54')} onClick={() => handleSort('fecha_entrega_54')}>Fecha</th>
               <th className={sortClass('trabajador_nombre')} onClick={() => handleSort('trabajador_nombre')}>Trabajador</th>
               <th className={sortClass('empresa_nombre')} onClick={() => handleSort('empresa_nombre')}>Empresa</th>
@@ -981,12 +1024,13 @@ const EntregaEppView: React.FC = () => {
           <tbody>
             {pageItems.length === 0 ? (
               <tr>
-                <td colSpan={9} className="epp-empty">No hay entregas registradas</td>
+                <td colSpan={10} className="epp-empty">No hay entregas registradas</td>
               </tr>
             ) : (
               pageItems.map((m) => (
                 <tr key={m.identregaepp_54}>
                   <td><strong>{m.folio_54 || '-'}</strong></td>
+                  <td>{m.clase_nombre || '-'}</td>
                   <td>{formatFecha(String(m.fecha_entrega_54))}</td>
                   <td>{m.trabajador_nombre || '-'}</td>
                   <td>{m.empresa_nombre || '-'}</td>
