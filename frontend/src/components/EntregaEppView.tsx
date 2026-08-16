@@ -124,7 +124,7 @@ const MOTIVOS = [
   'CAMBIO DE CARGO',
 ] as const;
 
-const ESTADOS_DETALLE = ['BUENA', 'REGULAR', 'DANADA'] as const;
+const ESTADOS_DETALLE = ['NUEVO/A', 'BUENA', 'REGULAR', 'DANADA'] as const;
 
 const API_URL = apiUrl('/epp-entregas');
 const ELEMENTOS_URL = apiUrl('/epp-elementos');
@@ -827,7 +827,9 @@ const EntregaEppView: React.FC = () => {
                     onChange={(e) => setEstadoSel(e.target.value)}
                   >
                     {ESTADOS_DETALLE.map((est) => (
-                      <option key={est} value={est}>{est}</option>
+                      <option key={est} value={est}>
+                        {est === 'DANADA' ? 'DAÑADA' : est}
+                      </option>
                     ))}
                   </select>
                 </div>

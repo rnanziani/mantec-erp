@@ -111,7 +111,7 @@ const MOTIVOS = new Set([
   'CAMBIO DE CARGO',
 ]);
 const ESTADOS_MAESTRO = new Set(['ENTREGADO', 'ANULADO', 'PENDIENTE_FIRMA']);
-const ESTADOS_DETALLE = new Set(['BUENA', 'REGULAR', 'DANADA']);
+const ESTADOS_DETALLE = new Set(['NUEVO/A', 'BUENA', 'REGULAR', 'DANADA']);
 
 const MAESTRO_SELECT = `
   SELECT
@@ -191,7 +191,9 @@ function validarDetalles(
     seen.add(d.idelemento_55);
     if (!d.cantidad_55 || d.cantidad_55 < 1) return 'La cantidad debe ser mayor a 0';
     const estado = String(d.estadoentrega_55 || 'BUENA').toUpperCase();
-    if (!ESTADOS_DETALLE.has(estado)) return 'Estado de entrega inválido (BUENA, REGULAR, DANADA)';
+    if (!ESTADOS_DETALLE.has(estado)) {
+      return 'Estado de entrega inválido (NUEVO/A, BUENA, REGULAR, DANADA)';
+    }
     if (d.valor_unitario_55 != null && Number(d.valor_unitario_55) < 0) {
       return 'El valor unitario no puede ser negativo';
     }

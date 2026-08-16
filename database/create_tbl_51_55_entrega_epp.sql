@@ -116,7 +116,7 @@ CREATE TABLE IF NOT EXISTS public.tbl_55_d_entrega_epp (
     actualizado_en timestamptz DEFAULT CURRENT_TIMESTAMP NULL,
     CONSTRAINT tbl_55_d_entrega_epp_pkey PRIMARY KEY (iddetalleentrega_55),
     CONSTRAINT chk_tbl_55_cantidad_positiva CHECK (cantidad_55 > 0),
-    CONSTRAINT chk_tbl_55_estado_entrega_valido CHECK (estadoentrega_55 IN ('BUENA', 'REGULAR', 'DANADA')),
+    CONSTRAINT chk_tbl_55_estado_entrega_valido CHECK (estadoentrega_55 IN ('NUEVO/A', 'BUENA', 'REGULAR', 'DANADA')),
     CONSTRAINT chk_tbl_55_valor_no_negativo CHECK (valor_unitario_55 IS NULL OR valor_unitario_55 >= 0),
     CONSTRAINT uq_tbl_55_detalle UNIQUE (identregaepp_55, idelemento_55)
 );
