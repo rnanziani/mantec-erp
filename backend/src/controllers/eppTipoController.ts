@@ -8,6 +8,20 @@ import {
 
 const TABLA = 'tbl_51_tipo_elemento';
 
+const SELECT_BASE = `
+  SELECT
+    t.idtipo_elemento_51,
+    t.idclase_51,
+    t.tipo_elemento_51,
+    t.descripcion_51,
+    t.activo_51,
+    t.creado_en,
+    t.actualizado_en,
+    c.clase_56 AS clase_nombre
+  FROM ${TABLA} t
+  LEFT JOIN tbl_56_clase_elemento c ON t.idclase_51 = c.idclase_56
+`;
+
 function normalizeText(value: unknown): string | null {
   if (value == null) return null;
   const t = String(value).trim();
@@ -17,9 +31,7 @@ function normalizeText(value: unknown): string | null {
 export const getAllTiposEpp = async (_req: Request, res: Response): Promise<void> => {
   try {
     const result = await pool.query<TipoElementoEpp>(
-      `SELECT idtipo_elemento_51, tipo_elemento_51, descripcion_51, activo_51, creado_en, actualizado_en
-       FROM ${TABLA}
-       ORDER BY tipo_elemento_51 ASC`
+      `${SELECT_BASE} ORDER BY t.tipo_elemento_51 ASC`
     );
     res.json({ success: true, data: result.rows, count: result.rowCount ?? undefined });
   } catch (error) {
@@ -35,9 +47,7 @@ export const getTipoEppById = async (req: Request, res: Response): Promise<void>
   try {
     const { id } = req.params;
     const result = await pool.query<TipoElementoEpp>(
-      `SELECT idtipo_elemento_51, tipo_elemento_51, descripcion_51, activo_51, creado_en, actualizado_en
-       FROM ${TABLA}
-       WHERE idtipo_elemento_51 = $1`,
+      `${SELECT_BASE} WHERE t.idtipo_elemento_51 = $1`,
       [id]
     );
     if (result.rowCount === 0) {
@@ -62,6 +72,19 @@ export const createTipoEpp = async (req: Request, res: Response): Promise<void> 
       res.status(400).json({ success: false, error: 'El tipo es requerido' });
       return;
     }
+    if (!body.idclase_51) {
+      res.status(400).json({ success: false, error: 'La clase (EPP / Ropa de Trabajo) es requerida' });
+      return;
+    }
+
+    const claseOk = await pool.query(
+      `SELECT idclase_56 FROM tbl_56_clase_elemento WHERE idclase_56 = $1 AND activo_56 = true`,
+      [body.idclase_51]
+    );
+    if ((claseOk.rowCount ?? 0) === 0) {
+      res.status(400).json({ success: false, error: 'Clase inválida o inactiva' });
+      return;
+    }
 
     const dup = await pool.query(
       `SELECT idtipo_elemento_51 FROM ${TABLA} WHERE tipo_elemento_51 = $1`,
@@ -73,22 +96,43 @@ export const createTipoEpp = async (req: Request, res: Response): Promise<void> 
     }
 
     const result = await pool.query<TipoElementoEpp>(
-      `INSERT INTO ${TABLA} (tipo_elemento_51, descripcion_51, activo_51)
-       VALUES ($1, $2, $3)
+      `INSERT INTO ${TABLA} (idclase_51, tipo_elemento_51, descripcion_51, activo_51)
+       VALUES ($1, $2, $3, $4)
        RETURNING *`,
       [
+        body.idclase_51,
         tipo,
         normalizeText(body.descripcion_51),
         body.activo_51 !== undefined ? body.activo_51 : true,
       ]
     );
 
+    const full = await pool.query<TipoElementoEpp>(
+      `${SELECT_BASE} WHERE t.idtipo_elemento_51 = $1`,
+      [result.rows[0].idtipo_elemento_51]
+    );
+
     res.status(201).json({
       success: true,
-      data: result.rows[0],
+      data: full.rows[0],
       message: 'Tipo de elemento EPP creado exitosamente',
     });
   } catch (error) {
+    console.error('Error createTipoEpp:', error);
+    const pgCode = (error as { code?: string })?.code;
+    if (pgCode === '23505') {
+      res.status(400).json({ success: false, error: 'Ya existe un tipo con ese nombre' });
+      return;
+    }
+    if (pgCode === '23502') {
+      const col = (error as { column?: string })?.column || 'desconocido';
+      res.status(400).json({
+        success: false,
+        error: `Falta un campo obligatorio (${col})`,
+        message: error instanceof Error ? error.message : 'Error desconocido',
+      });
+      return;
+    }
     res.status(500).json({
       success: false,
       error: 'Error al crear el tipo de elemento EPP',
@@ -115,6 +159,22 @@ export const updateTipoEpp = async (req: Request, res: Response): Promise<void> 
     const values: unknown[] = [];
     let i = 1;
 
+    if (body.idclase_51 !== undefined) {
+      if (!body.idclase_51) {
+        res.status(400).json({ success: false, error: 'La clase es requerida' });
+        return;
+      }
+      const claseOk = await pool.query(
+        `SELECT idclase_56 FROM tbl_56_clase_elemento WHERE idclase_56 = $1 AND activo_56 = true`,
+        [body.idclase_51]
+      );
+      if ((claseOk.rowCount ?? 0) === 0) {
+        res.status(400).json({ success: false, error: 'Clase inválida o inactiva' });
+        return;
+      }
+      updates.push(`idclase_51 = $${i++}`);
+      values.push(body.idclase_51);
+    }
     if (body.tipo_elemento_51 !== undefined) {
       const tipo = normalizeText(body.tipo_elemento_51);
       if (!tipo) {
@@ -148,14 +208,19 @@ export const updateTipoEpp = async (req: Request, res: Response): Promise<void> 
     }
 
     values.push(id);
-    const result = await pool.query<TipoElementoEpp>(
-      `UPDATE ${TABLA} SET ${updates.join(', ')} WHERE idtipo_elemento_51 = $${i} RETURNING *`,
+    await pool.query(
+      `UPDATE ${TABLA} SET ${updates.join(', ')} WHERE idtipo_elemento_51 = $${i}`,
       values
+    );
+
+    const full = await pool.query<TipoElementoEpp>(
+      `${SELECT_BASE} WHERE t.idtipo_elemento_51 = $1`,
+      [id]
     );
 
     res.json({
       success: true,
-      data: result.rows[0],
+      data: full.rows[0],
       message: 'Tipo de elemento EPP actualizado exitosamente',
     });
   } catch (error) {

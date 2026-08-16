@@ -6,11 +6,19 @@ import { exportToExcel } from '../utils/exportUtils';
 import { showDeleteConfirm, showError, showSuccess } from '../utils/swal';
 import { apiFetch, apiUrl } from '../lib/apiClient';
 
+interface ClaseElemento {
+  idclase_56: number;
+  clase_56: string;
+  activo_56?: boolean;
+}
+
 interface TipoElementoEpp {
   idtipo_elemento_51: number;
+  idclase_51: number;
   tipo_elemento_51: string;
   descripcion_51?: string | null;
   activo_51: boolean;
+  clase_nombre?: string;
 }
 
 interface ApiResponse<T = unknown> {
@@ -21,6 +29,7 @@ interface ApiResponse<T = unknown> {
 }
 
 const emptyForm = {
+  idclase_51: '',
   tipo_elemento_51: '',
   descripcion_51: '',
   activo_51: true,
@@ -29,6 +38,7 @@ const emptyForm = {
 const TipoElementoEppView: React.FC = () => {
   const formRef = React.useRef<HTMLFormElement>(null);
   const [items, setItems] = useState<TipoElementoEpp[]>([]);
+  const [clases, setClases] = useState<ClaseElemento[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [showForm, setShowForm] = useState(false);
@@ -43,15 +53,18 @@ const TipoElementoEppView: React.FC = () => {
   }>({ key: 'idtipo_elemento_51', direction: 'desc' });
 
   const API_URL = apiUrl('/epp-tipos');
+  const CLASES_URL = apiUrl('/epp-clases');
 
   const fetchData = async () => {
     try {
       setLoading(true);
       setError('');
-      const res = await apiFetch(API_URL);
+      const [res, resCl] = await Promise.all([apiFetch(API_URL), apiFetch(CLASES_URL)]);
       const data: ApiResponse<TipoElementoEpp[]> = await res.json();
+      const clData: ApiResponse<ClaseElemento[]> = await resCl.json();
       if (data.success && Array.isArray(data.data)) setItems(data.data);
       else setError(data.error || 'Error al cargar tipos EPP');
+      if (clData.success && Array.isArray(clData.data)) setClases(clData.data);
     } catch {
       setError('Error de conexión con el servidor');
     } finally {
@@ -69,7 +82,8 @@ const TipoElementoEppView: React.FC = () => {
       if (!q) return true;
       return (
         t.tipo_elemento_51.toLowerCase().includes(q) ||
-        (t.descripcion_51 || '').toLowerCase().includes(q)
+        (t.descripcion_51 || '').toLowerCase().includes(q) ||
+        (t.clase_nombre || '').toLowerCase().includes(q)
       );
     });
 
@@ -127,6 +141,7 @@ const TipoElementoEppView: React.FC = () => {
   const startEdit = (t: TipoElementoEpp) => {
     setEditingId(t.idtipo_elemento_51);
     setForm({
+      idclase_51: t.idclase_51 ? String(t.idclase_51) : '',
       tipo_elemento_51: t.tipo_elemento_51,
       descripcion_51: t.descripcion_51 || '',
       activo_51: t.activo_51,
@@ -136,11 +151,16 @@ const TipoElementoEppView: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!form.idclase_51) {
+      await showError('Validación', 'Seleccione la clase (EPP o Ropa de Trabajo)');
+      return;
+    }
     if (!form.tipo_elemento_51.trim()) {
       await showError('Validación', 'El tipo es requerido');
       return;
     }
     const payload = {
+      idclase_51: Number(form.idclase_51),
       tipo_elemento_51: form.tipo_elemento_51.trim().toUpperCase(),
       descripcion_51: form.descripcion_51.trim().toUpperCase() || null,
       activo_51: form.activo_51,
@@ -157,7 +177,8 @@ const TipoElementoEppView: React.FC = () => {
         resetForm();
         await showSuccess(editingId ? 'Actualizado' : 'Creado', data.message || 'OK');
       } else {
-        await showError('Error', data.error || 'No se pudo guardar');
+        const detalle = [data.error, data.message].filter(Boolean).join(' — ');
+        await showError('Error', detalle || 'No se pudo guardar');
       }
     } catch {
       await showError('Error', 'Error de conexión');
@@ -165,7 +186,7 @@ const TipoElementoEppView: React.FC = () => {
   };
 
   const handleDelete = async (id: number) => {
-    const ok = await showDeleteConfirm('este tipo de elemento EPP');
+    const ok = await showDeleteConfirm('este tipo de elemento');
     if (!ok) return;
     try {
       const res = await apiFetch(`${API_URL}/${id}`, { method: 'DELETE' });
@@ -185,6 +206,7 @@ const TipoElementoEppView: React.FC = () => {
     await exportToExcel(
       filteredAndSorted.map((t) => ({
         ID: t.idtipo_elemento_51,
+        Clase: t.clase_nombre || '',
         Tipo: t.tipo_elemento_51,
         Descripción: t.descripcion_51 || '',
         Activo: t.activo_51 ? 'Sí' : 'No',
@@ -193,12 +215,12 @@ const TipoElementoEppView: React.FC = () => {
     );
   };
 
-  if (loading) return <div className="loading">Cargando tipos EPP...</div>;
+  if (loading) return <div className="loading">Cargando tipos...</div>;
 
   return (
     <div className="bodega-view tipo-elemento-epp-view">
       <div className="view-header">
-        <h2>Tipos de Elemento EPP</h2>
+        <h2>Tipos de Elemento (EPP / Ropa de Trabajo)</h2>
         <div className="header-actions">
           <button type="button" className="btn-primary" onClick={() => { resetForm(); setShowForm(true); }}>
             + Nuevo
@@ -220,6 +242,26 @@ const TipoElementoEppView: React.FC = () => {
           <h3>{editingId ? 'Editar tipo' : 'Nuevo tipo'}</h3>
           <form ref={formRef} onSubmit={handleSubmit}>
             <div className="form-row form-row-3">
+              <div className="form-group">
+                <label htmlFor="idclase_51">Clase *</label>
+                <select
+                  id="idclase_51"
+                  className="form-input"
+                  value={form.idclase_51}
+                  onChange={(e) => setForm((p) => ({ ...p, idclase_51: e.target.value }))}
+                  required
+                  aria-label="Clase EPP o Ropa de Trabajo"
+                >
+                  <option value="">Seleccione...</option>
+                  {clases
+                    .filter((c) => c.activo_56 !== false)
+                    .map((c) => (
+                      <option key={c.idclase_56} value={c.idclase_56}>
+                        {c.clase_56}
+                      </option>
+                    ))}
+                </select>
+              </div>
               <div className="form-group">
                 <label htmlFor="tipo_elemento_51">Tipo *</label>
                 <input
@@ -268,10 +310,10 @@ const TipoElementoEppView: React.FC = () => {
         <input
           type="search"
           className="form-input epp-search"
-          placeholder="🔍 BUSCAR TIPO..."
+          placeholder="🔍 BUSCAR TIPO O CLASE..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value.toUpperCase())}
-          aria-label="Buscar tipos EPP"
+          aria-label="Buscar tipos"
         />
       </div>
 
@@ -280,6 +322,7 @@ const TipoElementoEppView: React.FC = () => {
           <thead>
             <tr>
               <th className={sortClass('idtipo_elemento_51')} onClick={() => handleSort('idtipo_elemento_51')}>ID</th>
+              <th className={sortClass('clase_nombre')} onClick={() => handleSort('clase_nombre')}>Clase</th>
               <th className={sortClass('tipo_elemento_51')} onClick={() => handleSort('tipo_elemento_51')}>Tipo</th>
               <th className={sortClass('descripcion_51')} onClick={() => handleSort('descripcion_51')}>Descripción</th>
               <th className={sortClass('activo_51')} onClick={() => handleSort('activo_51')}>Activo</th>
@@ -289,12 +332,13 @@ const TipoElementoEppView: React.FC = () => {
           <tbody>
             {pageItems.length === 0 ? (
               <tr>
-                <td colSpan={5} className="epp-empty">No hay tipos registrados</td>
+                <td colSpan={6} className="epp-empty">No hay tipos registrados</td>
               </tr>
             ) : (
               pageItems.map((t) => (
                 <tr key={t.idtipo_elemento_51}>
                   <td>{t.idtipo_elemento_51}</td>
+                  <td>{t.clase_nombre || '-'}</td>
                   <td><strong>{t.tipo_elemento_51}</strong></td>
                   <td>{t.descripcion_51 || '-'}</td>
                   <td>

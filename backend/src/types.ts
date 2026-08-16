@@ -1342,20 +1342,24 @@ export interface UpdateClaseElementoEppDTO {
 /** Tipo de elemento EPP — tbl_51_tipo_elemento */
 export interface TipoElementoEpp {
   idtipo_elemento_51: number;
+  idclase_51: number;
   tipo_elemento_51: string;
   descripcion_51?: string | null;
   activo_51: boolean;
   creado_en?: string | Date;
   actualizado_en?: string | Date;
+  clase_nombre?: string;
 }
 
 export interface CreateTipoElementoEppDTO {
+  idclase_51: number;
   tipo_elemento_51: string;
   descripcion_51?: string | null;
   activo_51?: boolean;
 }
 
 export interface UpdateTipoElementoEppDTO {
+  idclase_51?: number;
   tipo_elemento_51?: string;
   descripcion_51?: string | null;
   activo_51?: boolean;

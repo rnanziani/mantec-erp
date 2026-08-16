@@ -9,6 +9,7 @@ BEGIN;
 -- TABLA 1: tbl_51_tipo_elemento
 CREATE TABLE IF NOT EXISTS public.tbl_51_tipo_elemento (
     idtipo_elemento_51 serial4 NOT NULL,
+    idclase_51 int4 NOT NULL,
     tipo_elemento_51 varchar(100) NOT NULL,
     descripcion_51 text NULL,
     activo_51 boolean DEFAULT true NOT NULL,
@@ -20,6 +21,7 @@ CREATE TABLE IF NOT EXISTS public.tbl_51_tipo_elemento (
 );
 
 CREATE INDEX IF NOT EXISTS idx_tbl_51_tipo_activo ON public.tbl_51_tipo_elemento (activo_51);
+CREATE INDEX IF NOT EXISTS idx_tbl_51_tipo_clase ON public.tbl_51_tipo_elemento (idclase_51);
 
 -- TABLA 2: tbl_52_categoria_elemento
 CREATE TABLE IF NOT EXISTS public.tbl_52_categoria_elemento (
@@ -130,6 +132,11 @@ CREATE INDEX IF NOT EXISTS idx_tbl_55_detalle_marca ON public.tbl_55_d_entrega_e
 CREATE INDEX IF NOT EXISTS idx_tbl_55_detalle_estado ON public.tbl_55_d_entrega_epp (estadoentrega_55);
 
 -- FOREIGN KEYS
+DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'fk_tbl_51_clase') THEN
+    ALTER TABLE public.tbl_51_tipo_elemento ADD CONSTRAINT fk_tbl_51_clase
+    FOREIGN KEY (idclase_51) REFERENCES public.tbl_56_clase_elemento(idclase_56) ON DELETE RESTRICT ON UPDATE CASCADE;
+END IF; END $$;
+
 DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'fk_tbl_52_tipo') THEN
     ALTER TABLE public.tbl_52_categoria_elemento ADD CONSTRAINT fk_tbl_52_tipo
     FOREIGN KEY (idtipo_elemento_52) REFERENCES public.tbl_51_tipo_elemento(idtipo_elemento_51) ON DELETE RESTRICT ON UPDATE CASCADE;
