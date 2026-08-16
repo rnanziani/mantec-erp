@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import './BodegaView.css';
 import './EntregaEppView.css';
 import Pagination from './shared/Pagination';
+import SearchableSelect from './shared/SearchableSelect';
 import { showDeleteConfirm, showError, showSuccess } from '../utils/swal';
 import { filtrarTrabajadoresPorApellido } from '../utils/trabajadorSearch';
 import { apiFetch, apiUrl, openAuthenticatedBlob } from '../lib/apiClient';
@@ -230,6 +231,30 @@ const EntregaEppView: React.FC = () => {
   const trabajadoresFiltrados = useMemo(
     () => filtrarTrabajadoresPorApellido(trabajadores, buscarTrabajador).slice(0, 20),
     [trabajadores, buscarTrabajador]
+  );
+
+  const ccostoOptions = useMemo(
+    () =>
+      [...ccostos]
+        .sort((a, b) => a.ccosto_45.localeCompare(b.ccosto_45, 'es', { sensitivity: 'base' }))
+        .map((c) => ({
+          value: String(c.id_ccosto_45),
+          label: c.ccosto_45,
+        })),
+    [ccostos]
+  );
+
+  const marcaOptions = useMemo(
+    () =>
+      [...marcas]
+        .sort((a, b) =>
+          a.marca_insumo_37.localeCompare(b.marca_insumo_37, 'es', { sensitivity: 'base' })
+        )
+        .map((m) => ({
+          value: String(m.id_marca_insumo_37),
+          label: m.marca_insumo_37,
+        })),
+    [marcas]
   );
 
   const elementosDisponibles = useMemo(
@@ -688,19 +713,15 @@ const EntregaEppView: React.FC = () => {
 
               <div className="form-group">
                 <label htmlFor="ccosto">Centro de costo</label>
-                <select
+                <SearchableSelect
                   id="ccosto"
-                  className="form-input"
                   value={idCcosto}
-                  onChange={(e) => setIdCcosto(e.target.value)}
-                >
-                  <option value="">Opcional...</option>
-                  {ccostos.map((c) => (
-                    <option key={c.id_ccosto_45} value={c.id_ccosto_45}>
-                      {c.ccosto_45}
-                    </option>
-                  ))}
-                </select>
+                  onChange={setIdCcosto}
+                  options={ccostoOptions}
+                  placeholder="Buscar centro de costo..."
+                  aria-label="Buscar o seleccionar centro de costo"
+                  emptyMessage="No se encontraron centros de costo"
+                />
               </div>
 
               <div className="form-group">
@@ -776,19 +797,15 @@ const EntregaEppView: React.FC = () => {
                 </div>
                 <div className="form-group">
                   <label htmlFor="marca-sel">Marca</label>
-                  <select
+                  <SearchableSelect
                     id="marca-sel"
-                    className="form-input"
                     value={marcaSel}
-                    onChange={(e) => setMarcaSel(e.target.value)}
-                  >
-                    <option value="">Opcional...</option>
-                    {marcas.map((m) => (
-                      <option key={m.id_marca_insumo_37} value={m.id_marca_insumo_37}>
-                        {m.marca_insumo_37}
-                      </option>
-                    ))}
-                  </select>
+                    onChange={setMarcaSel}
+                    options={marcaOptions}
+                    placeholder="Buscar marca..."
+                    aria-label="Buscar o seleccionar marca"
+                    emptyMessage="No se encontraron marcas"
+                  />
                 </div>
                 <div className="form-group">
                   <label htmlFor="cantidad-sel">Cantidad</label>
