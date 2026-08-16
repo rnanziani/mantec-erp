@@ -110,13 +110,13 @@ CREATE TABLE IF NOT EXISTS public.tbl_55_d_entrega_epp (
     idmarca_55 int4 NULL,
     cantidad_55 int4 NOT NULL DEFAULT 1,
     valor_unitario_55 numeric(12, 2) DEFAULT 0 NULL,
-    estadoentrega_55 varchar(20) DEFAULT 'BUENA' NOT NULL,
+    estadoentrega_55 varchar(20) DEFAULT 'BUENO/A' NOT NULL,
     observacion_55 text NULL,
     creado_en timestamptz DEFAULT CURRENT_TIMESTAMP NULL,
     actualizado_en timestamptz DEFAULT CURRENT_TIMESTAMP NULL,
     CONSTRAINT tbl_55_d_entrega_epp_pkey PRIMARY KEY (iddetalleentrega_55),
     CONSTRAINT chk_tbl_55_cantidad_positiva CHECK (cantidad_55 > 0),
-    CONSTRAINT chk_tbl_55_estado_entrega_valido CHECK (estadoentrega_55 IN ('NUEVO/A', 'BUENA', 'REGULAR', 'DANADA')),
+    CONSTRAINT chk_tbl_55_estado_entrega_valido CHECK (estadoentrega_55 IN ('NUEVO/A', 'BUENO/A', 'USADO/A', 'DAÑADO/A')),
     CONSTRAINT chk_tbl_55_valor_no_negativo CHECK (valor_unitario_55 IS NULL OR valor_unitario_55 >= 0),
     CONSTRAINT uq_tbl_55_detalle UNIQUE (identregaepp_55, idelemento_55)
 );

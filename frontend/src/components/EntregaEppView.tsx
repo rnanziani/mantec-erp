@@ -124,7 +124,7 @@ const MOTIVOS = [
   'CAMBIO DE CARGO',
 ] as const;
 
-const ESTADOS_DETALLE = ['NUEVO/A', 'BUENA', 'REGULAR', 'DANADA'] as const;
+const ESTADOS_DETALLE = ['NUEVO/A', 'BUENO/A', 'USADO/A', 'DAÑADO/A'] as const;
 
 const API_URL = apiUrl('/epp-entregas');
 const ELEMENTOS_URL = apiUrl('/epp-elementos');
@@ -176,7 +176,7 @@ const EntregaEppView: React.FC = () => {
   const [tallaSel, setTallaSel] = useState('');
   const [marcaSel, setMarcaSel] = useState('');
   const [cantidadSel, setCantidadSel] = useState('1');
-  const [estadoSel, setEstadoSel] = useState('BUENA');
+  const [estadoSel, setEstadoSel] = useState('BUENO/A');
 
   const [showActa, setShowActa] = useState(false);
   const [loadingActa, setLoadingActa] = useState(false);
@@ -354,7 +354,7 @@ const EntregaEppView: React.FC = () => {
     setTallaSel('');
     setMarcaSel('');
     setCantidadSel('1');
-    setEstadoSel('BUENA');
+    setEstadoSel('BUENO/A');
     setError('');
   };
 
@@ -406,7 +406,7 @@ const EntregaEppView: React.FC = () => {
     setTallaSel('');
     setMarcaSel('');
     setCantidadSel('1');
-    setEstadoSel('BUENA');
+    setEstadoSel('BUENO/A');
   };
 
   const removeDetalle = (idelemento: number) => {
@@ -448,7 +448,7 @@ const EntregaEppView: React.FC = () => {
           idtalla_55: d.idtalla_55 ? String(d.idtalla_55) : '',
           idmarca_55: d.idmarca_55 ? String(d.idmarca_55) : '',
           cantidad_55: d.cantidad_55,
-          estadoentrega_55: d.estadoentrega_55 || 'BUENA',
+          estadoentrega_55: d.estadoentrega_55 || 'BUENO/A',
           observacion_55: d.observacion_55 || '',
         }))
       );
@@ -828,7 +828,7 @@ const EntregaEppView: React.FC = () => {
                   >
                     {ESTADOS_DETALLE.map((est) => (
                       <option key={est} value={est}>
-                        {est === 'DANADA' ? 'DAÑADA' : est}
+                        {est}
                       </option>
                     ))}
                   </select>

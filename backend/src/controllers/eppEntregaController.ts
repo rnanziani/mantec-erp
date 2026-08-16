@@ -111,7 +111,7 @@ const MOTIVOS = new Set([
   'CAMBIO DE CARGO',
 ]);
 const ESTADOS_MAESTRO = new Set(['ENTREGADO', 'ANULADO', 'PENDIENTE_FIRMA']);
-const ESTADOS_DETALLE = new Set(['NUEVO/A', 'BUENA', 'REGULAR', 'DANADA']);
+const ESTADOS_DETALLE = new Set(['NUEVO/A', 'BUENO/A', 'USADO/A', 'DAÑADO/A']);
 
 const MAESTRO_SELECT = `
   SELECT
@@ -190,9 +190,9 @@ function validarDetalles(
     if (seen.has(d.idelemento_55)) return 'No se puede repetir el mismo elemento en el detalle';
     seen.add(d.idelemento_55);
     if (!d.cantidad_55 || d.cantidad_55 < 1) return 'La cantidad debe ser mayor a 0';
-    const estado = String(d.estadoentrega_55 || 'BUENA').toUpperCase();
+    const estado = String(d.estadoentrega_55 || 'BUENO/A').toUpperCase();
     if (!ESTADOS_DETALLE.has(estado)) {
-      return 'Estado de entrega inválido (NUEVO/A, BUENA, REGULAR, DANADA)';
+      return 'Estado de entrega inválido (NUEVO/A, BUENO/A, USADO/A, DAÑADO/A)';
     }
     if (d.valor_unitario_55 != null && Number(d.valor_unitario_55) < 0) {
       return 'El valor unitario no puede ser negativo';
@@ -263,7 +263,7 @@ async function insertarDetalles(
         d.idmarca_55 || null,
         d.cantidad_55,
         valor,
-        String(d.estadoentrega_55 || 'BUENA').toUpperCase(),
+        String(d.estadoentrega_55 || 'BUENO/A').toUpperCase(),
         d.observacion_55?.trim() ? String(d.observacion_55).trim().toUpperCase() : null,
       ]
     );
