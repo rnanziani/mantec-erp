@@ -43,6 +43,7 @@ import CargoMaquinaView from './components/CargoMaquinaView';
 import HerramientaView from './components/HerramientaView';
 import PanolMovimientoView from './components/PanolMovimientoView';
 import TipoElementoEppView from './components/TipoElementoEppView';
+import ClaseElementoEppView from './components/ClaseElementoEppView';
 import CategoriaElementoEppView from './components/CategoriaElementoEppView';
 import ElementoEppView from './components/ElementoEppView';
 import EntregaEppView from './components/EntregaEppView';
@@ -171,6 +172,7 @@ function App() {
     'llantas': 'MENU_NEUMATICOS_TIPO_LLANTA',
     'herramientas': 'MENU_PANOL_HERRAMIENTAS',
     'movimientos-panol': 'MENU_PANOL_MOVIMIENTOS',
+    'clases-epp': 'MENU_EPP_CLASES',
     'tipos-epp': 'MENU_EPP_TIPOS',
     'categorias-epp': 'MENU_EPP_CATEGORIAS',
     'elementos-epp': 'MENU_EPP_ELEMENTOS',
@@ -484,6 +486,7 @@ function App() {
           {currentView === 'cargo-maquina' && hasRouteAccess('cargo-maquina') && <CargoMaquinaView />}
           {currentView === 'herramientas' && hasRouteAccess('herramientas') && <HerramientaView />}
           {currentView === 'movimientos-panol' && hasRouteAccess('movimientos-panol') && <PanolMovimientoView />}
+          {currentView === 'clases-epp' && hasRouteAccess('clases-epp') && <ClaseElementoEppView />}
           {currentView === 'tipos-epp' && hasRouteAccess('tipos-epp') && <TipoElementoEppView />}
           {currentView === 'categorias-epp' && hasRouteAccess('categorias-epp') && <CategoriaElementoEppView />}
           {currentView === 'elementos-epp' && hasRouteAccess('elementos-epp') && <ElementoEppView />}

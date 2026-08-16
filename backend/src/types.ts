@@ -1314,8 +1314,30 @@ export interface UpdateMaestroPanolDTO {
 }
 
 // ============================================
-// ENTREGA EPP — tbl_51 / tbl_52 / tbl_53 / tbl_54 / tbl_55
+// ENTREGA EPP / ROPA DE TRABAJO — tbl_51..tbl_56
 // ============================================
+
+/** Clase de elemento — tbl_56_clase_elemento */
+export interface ClaseElementoEpp {
+  idclase_56: number;
+  clase_56: string;
+  descripcion_56?: string | null;
+  activo_56: boolean;
+  creado_en?: string | Date;
+  actualizado_en?: string | Date;
+}
+
+export interface CreateClaseElementoEppDTO {
+  clase_56: string;
+  descripcion_56?: string | null;
+  activo_56?: boolean;
+}
+
+export interface UpdateClaseElementoEppDTO {
+  clase_56?: string;
+  descripcion_56?: string | null;
+  activo_56?: boolean;
+}
 
 /** Tipo de elemento EPP — tbl_51_tipo_elemento */
 export interface TipoElementoEpp {

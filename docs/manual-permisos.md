@@ -167,17 +167,19 @@ Extraído de `Sidebar.tsx` y `App.tsx`.
 | `MENU_PANOL_HERRAMIENTAS` | Herramientas |
 | `MENU_PANOL_MOVIMIENTOS` | Movimientos |
 
-### Entrega EPP (9000)
+### Entrega de EPP / Ropa de Trabajo (9000)
 
 | Permiso | Pantalla |
 |---------|----------|
-| `MENU_EPP` | Menú Entrega EPP (padre) |
+| `MENU_EPP` | Menú Entrega de EPP / Ropa de Trabajo (padre) |
+| `MENU_EPP_CLASES` | Clases de elemento |
 | `MENU_EPP_TIPOS` | Tipos de elemento |
 | `MENU_EPP_CATEGORIAS` | Categorías |
 | `MENU_EPP_ELEMENTOS` | Elementos (catálogo / stock) |
 | `MENU_EPP_ENTREGAS` | Registro de entregas |
 
-> Seed: `node backend/scripts/seed-epp-permisos.mjs`
+> Seed: `node backend/scripts/seed-epp-permisos.mjs`  
+> Tabla clases: `database/create_tbl_56_clase_elemento.sql`
 
 ### Reportes (7000)
 

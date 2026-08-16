@@ -70,7 +70,8 @@ export const API_PREFIX_RULES: Array<{
   { prefix: '/api/herramientas', permission: 'MENU_PANOL_HERRAMIENTAS', readAuthOnly: true },
   { prefix: '/api/panol', permission: 'MENU_PANOL_MOVIMIENTOS' },
 
-  // Entrega EPP (catálogos con lectura autenticada para lookups)
+  // Entrega de EPP / Ropa de Trabajo (catálogos con lectura autenticada para lookups)
+  { prefix: '/api/epp-clases', permission: 'MENU_EPP_CLASES', readAuthOnly: true },
   { prefix: '/api/epp-tipos', permission: 'MENU_EPP_TIPOS', readAuthOnly: true },
   { prefix: '/api/epp-categorias', permission: 'MENU_EPP_CATEGORIAS', readAuthOnly: true },
   { prefix: '/api/epp-elementos', permission: 'MENU_EPP_ELEMENTOS', readAuthOnly: true },

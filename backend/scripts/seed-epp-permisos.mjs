@@ -1,6 +1,6 @@
 /**
- * Catálogo: menú EPP (rango 9000).
- * Asigna a Super Admin (nivel 1) y a niveles con MENU_OPERACIONES.
+ * Catálogo: menú Entrega de EPP / Ropa de Trabajo (rango 9000).
+ * Actualiza descripciones, crea MENU_EPP_CLASES y asigna a Super Admin / MENU_OPERACIONES.
  */
 import dotenv from 'dotenv';
 import pg from 'pg';
@@ -30,11 +30,36 @@ function buildPool() {
 const pool = buildPool();
 
 const EPP = [
-  { nombre: 'MENU_EPP', descripcion: 'Acceso al menú Entrega EPP', orden: 9000 },
-  { nombre: 'MENU_EPP_TIPOS', descripcion: 'CRUD tipos de elemento EPP', orden: 9010 },
-  { nombre: 'MENU_EPP_CATEGORIAS', descripcion: 'CRUD categorías de elemento EPP', orden: 9020 },
-  { nombre: 'MENU_EPP_ELEMENTOS', descripcion: 'CRUD catálogo de elementos EPP', orden: 9030 },
-  { nombre: 'MENU_EPP_ENTREGAS', descripcion: 'Registro de entregas de EPP', orden: 9040 },
+  {
+    nombre: 'MENU_EPP',
+    descripcion: 'Acceso al menú Entrega de EPP / Ropa de Trabajo',
+    orden: 9000,
+  },
+  {
+    nombre: 'MENU_EPP_CLASES',
+    descripcion: 'CRUD clases de elemento (EPP / Ropa de Trabajo)',
+    orden: 9005,
+  },
+  {
+    nombre: 'MENU_EPP_TIPOS',
+    descripcion: 'CRUD tipos de elemento (EPP / Ropa de Trabajo)',
+    orden: 9010,
+  },
+  {
+    nombre: 'MENU_EPP_CATEGORIAS',
+    descripcion: 'CRUD categorías de elemento (EPP / Ropa de Trabajo)',
+    orden: 9020,
+  },
+  {
+    nombre: 'MENU_EPP_ELEMENTOS',
+    descripcion: 'CRUD catálogo de elementos (EPP / Ropa de Trabajo)',
+    orden: 9030,
+  },
+  {
+    nombre: 'MENU_EPP_ENTREGAS',
+    descripcion: 'Registro de entregas de EPP / Ropa de Trabajo',
+    orden: 9040,
+  },
 ];
 
 async function ensurePermiso({ nombre, descripcion, orden }) {
@@ -89,7 +114,7 @@ async function main() {
     await assignToNivel(1, idPermiso);
   }
 
-  console.log('\nEPP:', EPP.length, 'permisos listos');
+  console.log('\nEPP / Ropa de Trabajo:', EPP.length, 'permisos listos');
   await pool.end();
 }
 
