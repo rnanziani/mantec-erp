@@ -28,15 +28,31 @@
   display: flex;
   gap: 10px;
   flex-wrap: wrap;
-  align-items: center;
+  align-items: flex-end;
   flex: 1;
   justify-content: flex-end;
 }
 
-.elemento-epp-view .epp-search {
-  min-width: min(100%, 280px);
-  max-width: 360px;
+.elemento-epp-view .epp-filter-nombre {
+  min-width: min(100%, 180px);
+  max-width: 240px;
   text-transform: uppercase;
+}
+
+.elemento-epp-view .epp-filter-select {
+  min-width: min(100%, 170px);
+  max-width: 220px;
+  flex: 1 1 160px;
+}
+
+.elemento-epp-view .epp-search {
+  min-width: min(100%, 180px);
+  max-width: 240px;
+  text-transform: uppercase;
+}
+
+.elemento-epp-view .epp-clear-filters {
+  white-space: nowrap;
 }
 
 .elemento-epp-view .text-center {
@@ -105,8 +121,11 @@
     justify-content: stretch;
   }
 
+  .elemento-epp-view .epp-filter-nombre,
+  .elemento-epp-view .epp-filter-select,
   .elemento-epp-view .epp-search {
     max-width: none;
     width: 100%;
+    flex: 1 1 100%;
   }
 }

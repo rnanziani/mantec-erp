@@ -9,8 +9,10 @@ import { apiFetch, apiUrl } from '../lib/apiClient';
 
 interface TipoElementoEpp {
   idtipo_elemento_51: number;
+  idclase_51?: number | null;
   tipo_elemento_51: string;
   activo_51: boolean;
+  clase_nombre?: string;
 }
 
 interface CategoriaElementoEpp {
@@ -78,8 +80,10 @@ const ElementoEppView: React.FC = () => {
   const [editingId, setEditingId] = useState<number | null>(null);
   const [form, setForm] = useState(emptyForm);
   const [searchTerm, setSearchTerm] = useState('');
+  const [filtroNombre, setFiltroNombre] = useState('');
   const [filtroTipo, setFiltroTipo] = useState('');
   const [filtroClase, setFiltroClase] = useState('');
+  const [filtroCategoria, setFiltroCategoria] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
   const [sortConfig, setSortConfig] = useState<{
@@ -179,6 +183,7 @@ const ElementoEppView: React.FC = () => {
 
   const filteredAndSorted = useMemo(() => {
     const q = searchTerm.trim().toLowerCase();
+    const nombreQ = filtroNombre.trim().toLowerCase();
     let list = items.filter((el) => {
       const matchText =
         !q ||
@@ -188,9 +193,12 @@ const ElementoEppView: React.FC = () => {
         (el.tipo_elemento_nombre || '').toLowerCase().includes(q) ||
         (el.categoria_nombre || '').toLowerCase().includes(q) ||
         (el.marca_nombre || '').toLowerCase().includes(q);
+      const matchNombre = !nombreQ || el.nombre_53.toLowerCase().includes(nombreQ);
       const matchTipo = !filtroTipo || String(el.idtipo_elemento_53) === filtroTipo;
       const matchClase = !filtroClase || String(el.idclase_51) === filtroClase;
-      return matchText && matchTipo && matchClase;
+      const matchCategoria =
+        !filtroCategoria || String(el.idcategoria_53) === filtroCategoria;
+      return matchText && matchNombre && matchTipo && matchClase && matchCategoria;
     });
 
     list = [...list].sort((a, b) => {
@@ -210,7 +218,15 @@ const ElementoEppView: React.FC = () => {
     });
 
     return list;
-  }, [items, searchTerm, filtroTipo, filtroClase, sortConfig]);
+  }, [
+    items,
+    searchTerm,
+    filtroNombre,
+    filtroTipo,
+    filtroClase,
+    filtroCategoria,
+    sortConfig,
+  ]);
 
   const claseFiltroOptions = useMemo(() => {
     const map = new Map<string, string>();
@@ -219,10 +235,54 @@ const ElementoEppView: React.FC = () => {
         map.set(String(el.idclase_51), el.clase_nombre);
       }
     }
+    for (const t of tipos) {
+      if (t.idclase_51 != null && t.clase_nombre) {
+        map.set(String(t.idclase_51), t.clase_nombre);
+      }
+    }
     return [...map.entries()]
       .map(([value, label]) => ({ value, label }))
       .sort((a, b) => a.label.localeCompare(b.label, 'es', { sensitivity: 'base' }));
-  }, [items]);
+  }, [items, tipos]);
+
+  const tipoFiltroOptions = useMemo(
+    () =>
+      [...tipos]
+        .filter((t) => !filtroClase || String(t.idclase_51 ?? '') === filtroClase)
+        .sort((a, b) =>
+          a.tipo_elemento_51.localeCompare(b.tipo_elemento_51, 'es', { sensitivity: 'base' })
+        )
+        .map((t) => ({
+          value: String(t.idtipo_elemento_51),
+          label: t.tipo_elemento_51,
+        })),
+    [tipos, filtroClase]
+  );
+
+  const categoriaFiltroOptions = useMemo(
+    () =>
+      [...categorias]
+        .filter((c) => {
+          if (filtroTipo) return String(c.idtipo_elemento_52) === filtroTipo;
+          if (filtroClase) {
+            const tipoIds = new Set(
+              tipos
+                .filter((t) => String(t.idclase_51 ?? '') === filtroClase)
+                .map((t) => String(t.idtipo_elemento_51))
+            );
+            return tipoIds.has(String(c.idtipo_elemento_52));
+          }
+          return true;
+        })
+        .sort((a, b) =>
+          a.categoria_52.localeCompare(b.categoria_52, 'es', { sensitivity: 'base' })
+        )
+        .map((c) => ({
+          value: String(c.idcategoria_elemento_52),
+          label: c.categoria_52,
+        })),
+    [categorias, tipos, filtroTipo, filtroClase]
+  );
 
   const totalPages = Math.max(1, Math.ceil(filteredAndSorted.length / itemsPerPage));
   const pageItems = filteredAndSorted.slice(
@@ -232,7 +292,59 @@ const ElementoEppView: React.FC = () => {
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, filtroTipo, filtroClase]);
+  }, [searchTerm, filtroNombre, filtroTipo, filtroClase, filtroCategoria]);
+
+  const limpiarFiltros = () => {
+    setSearchTerm('');
+    setFiltroNombre('');
+    setFiltroClase('');
+    setFiltroTipo('');
+    setFiltroCategoria('');
+  };
+
+  const hayFiltrosActivos = Boolean(
+    searchTerm.trim() ||
+      filtroNombre.trim() ||
+      filtroClase ||
+      filtroTipo ||
+      filtroCategoria
+  );
+
+  const handleClaseFiltroChange = (value: string) => {
+    setFiltroClase(value);
+    if (value) {
+      const tipoOk = tipos.some(
+        (t) =>
+          String(t.idtipo_elemento_51) === filtroTipo &&
+          String(t.idclase_51 ?? '') === value
+      );
+      if (!tipoOk) {
+        setFiltroTipo('');
+        setFiltroCategoria('');
+      } else {
+        const catOk = categorias.some(
+          (c) =>
+            String(c.idcategoria_elemento_52) === filtroCategoria &&
+            String(c.idtipo_elemento_52) === filtroTipo
+        );
+        if (!catOk) setFiltroCategoria('');
+      }
+    }
+  };
+
+  const handleTipoFiltroChange = (value: string) => {
+    setFiltroTipo(value);
+    if (value) {
+      const catOk = categorias.some(
+        (c) =>
+          String(c.idcategoria_elemento_52) === filtroCategoria &&
+          String(c.idtipo_elemento_52) === value
+      );
+      if (!catOk) setFiltroCategoria('');
+    } else {
+      setFiltroCategoria('');
+    }
+  };
 
   const handleSort = (key: keyof ElementoEpp) => {
     setSortConfig((prev) => ({
@@ -576,38 +688,66 @@ const ElementoEppView: React.FC = () => {
         <div className="epp-filters">
           <input
             type="search"
+            className="form-input epp-filter-nombre"
+            placeholder="Filtrar por nombre..."
+            value={filtroNombre}
+            onChange={(e) => setFiltroNombre(e.target.value.toUpperCase())}
+            aria-label="Filtrar por nombre"
+          />
+          <div className="epp-filter-select">
+            <SearchableSelect
+              id="filtro-clase-elemento"
+              value={filtroClase}
+              onChange={handleClaseFiltroChange}
+              options={claseFiltroOptions}
+              placeholder="Filtrar clase..."
+              uppercase={false}
+              aria-label="Filtrar por clase"
+              emptyMessage="Sin clases"
+            />
+          </div>
+          <div className="epp-filter-select">
+            <SearchableSelect
+              id="filtro-tipo-elemento"
+              value={filtroTipo}
+              onChange={handleTipoFiltroChange}
+              options={tipoFiltroOptions}
+              placeholder="Filtrar tipo..."
+              uppercase={false}
+              aria-label="Filtrar por tipo"
+              emptyMessage="Sin tipos para esta clase"
+            />
+          </div>
+          <div className="epp-filter-select">
+            <SearchableSelect
+              id="filtro-categoria-elemento"
+              value={filtroCategoria}
+              onChange={setFiltroCategoria}
+              options={categoriaFiltroOptions}
+              placeholder="Filtrar categoría..."
+              uppercase={false}
+              aria-label="Filtrar por categoría"
+              emptyMessage="Sin categorías"
+            />
+          </div>
+          <input
+            type="search"
             className="form-input epp-search"
-            placeholder="🔍 BUSCAR ELEMENTO..."
+            placeholder="🔍 BUSCAR (código, marca...)"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value.toUpperCase())}
-            aria-label="Buscar elementos EPP"
+            aria-label="Búsqueda general de elementos EPP"
           />
-          <select
-            className="form-input"
-            value={filtroClase}
-            onChange={(e) => setFiltroClase(e.target.value)}
-            aria-label="Filtrar por clase"
-          >
-            <option value="">Todas las clases</option>
-            {claseFiltroOptions.map((c) => (
-              <option key={c.value} value={c.value}>
-                {c.label}
-              </option>
-            ))}
-          </select>
-          <select
-            className="form-input"
-            value={filtroTipo}
-            onChange={(e) => setFiltroTipo(e.target.value)}
-            aria-label="Filtrar por tipo"
-          >
-            <option value="">Todos los tipos</option>
-            {tipos.map((t) => (
-              <option key={t.idtipo_elemento_51} value={t.idtipo_elemento_51}>
-                {t.tipo_elemento_51}
-              </option>
-            ))}
-          </select>
+          {hayFiltrosActivos && (
+            <button
+              type="button"
+              className="btn-secondary epp-clear-filters"
+              onClick={limpiarFiltros}
+              aria-label="Limpiar todos los filtros"
+            >
+              Limpiar
+            </button>
+          )}
         </div>
       </div>
 
