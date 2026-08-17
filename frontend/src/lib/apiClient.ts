@@ -63,7 +63,11 @@ export function apiFetch(input: RequestInfo | URL, init: RequestInit = {}): Prom
 /** Abre un PDF (u otro blob) en nueva pestaña con autenticación JWT */
 export async function openAuthenticatedBlob(url: string, mimeType = 'application/pdf'): Promise<void> {
   const token = localStorage.getItem('token');
-  const absoluteUrl = apiUrl(url.startsWith('/') ? url : `/${url}`);
+  // Acepta URL absoluta (http/https) o ruta relativa (/asignaciones-... o asignaciones-...)
+  const absoluteUrl =
+    url.startsWith('http://') || url.startsWith('https://')
+      ? url
+      : apiUrl(url.startsWith('/') ? url : `/${url}`);
   const response = await fetch(absoluteUrl, {
     headers: token ? { Authorization: `Bearer ${token}` } : {},
   });
@@ -72,7 +76,18 @@ export async function openAuthenticatedBlob(url: string, mimeType = 'application
     throw new Error('Sesión expirada');
   }
   if (!response.ok) {
-    throw new Error(`Error ${response.status}: no se pudo obtener el archivo`);
+    let detalle = '';
+    try {
+      const body = await response.clone().json();
+      detalle = body?.error || body?.message || '';
+    } catch {
+      // respuesta no JSON (p. ej. HTML 404)
+    }
+    throw new Error(
+      detalle
+        ? `Error ${response.status}: ${detalle}`
+        : `Error ${response.status}: no se pudo obtener el archivo`
+    );
   }
   const blob = await response.blob();
   const typedBlob = mimeType ? new Blob([blob], { type: mimeType }) : blob;

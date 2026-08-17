@@ -11,6 +11,7 @@ interface ActaEntregaEppData {
   folio?: string;
   intro: { dia: number; mes: string; anio: number };
   empresaLegal: { nombre: string; rut: string };
+  clase?: { id: number | null; nombre: string; tipo: 'EPP' | 'ROPA' };
   trabajador: { nombre: string; rut: string; cargo: string };
   elementos: Array<{
     codigo: string;
@@ -1295,7 +1296,11 @@ const EntregaEppView: React.FC = () => {
         >
           <div className="acta-preview-modal" onClick={(e) => e.stopPropagation()}>
             <div className="acta-preview-toolbar">
-              <h3 id="acta-epp-title">Registro de Entrega EPP</h3>
+              <h3 id="acta-epp-title">
+                {previewActa?.clase?.tipo === 'ROPA'
+                  ? 'Registro de Entrega — Ropa de Trabajo'
+                  : 'Registro de Entrega — EPP'}
+              </h3>
               <div className="acta-preview-actions">
                 <button
                   type="button"
@@ -1321,124 +1326,161 @@ const EntregaEppView: React.FC = () => {
                 <div className="epp-acta-loading">Cargando registro...</div>
               ) : previewActa ? (
                 <article className="epp-registro-doc">
-                  <header className="epp-registro-header">
-                    <img
-                      className="epp-registro-logo"
-                      src="/acta-epp/logo-transantin.svg"
-                      alt="Logo TranSantin"
-                    />
-                    <h2>REGISTRO DE ENTREGA DE ELEMENTOS DE PROTECCIÓN PERSONAL</h2>
-                  </header>
+                  {(() => {
+                    const esRopa = previewActa.clase?.tipo === 'ROPA';
+                    const titulo = esRopa
+                      ? 'REGISTRO DE ENTREGA DE ROPA DE TRABAJO'
+                      : 'REGISTRO DE ENTREGA DE ELEMENTOS DE PROTECCIÓN PERSONAL';
+                    const codigoDoc = esRopa ? 'SIG F-622-006' : 'SIG F-622-007';
+                    const objetoLargo = esRopa
+                      ? 'Ropa de Trabajo'
+                      : 'Elementos de Protección Personal (EPP)';
+                    const legalEntrega = esRopa
+                      ? 'hace entrega de la siguiente Ropa de Trabajo al trabajador:'
+                      : 'hace entrega de los siguientes Elementos de Protección Personal (EPP) al trabajador:';
+                    const declaracionIntro = esRopa
+                      ? 'Declaro haber recibido la Ropa de Trabajo detallada en el presente registro, en buen estado y apta para su utilización. Asimismo, declaro que:'
+                      : 'Declaro haber recibido los Elementos de Protección Personal (EPP) detallados en el presente registro, en buen estado y aptos para su utilización. Asimismo, declaro que:';
+                    const compromisos = esRopa
+                      ? [
+                          'Utilizaré la ropa de trabajo de manera permanente cuando la naturaleza de mis funciones o la evaluación de riesgos así lo requiera.',
+                          'He recibido información y/o capacitación respecto del uso, cuidado, almacenamiento y mantenimiento de la ropa de trabajo entregada.',
+                          'Me comprometo a conservar las prendas que he recibido en buenas condiciones de uso, informando oportunamente cualquier deterioro, pérdida o desperfecto.',
+                          'No modificaré las prendas recibidas ni las utilizaré para fines distintos de aquellos para los cuales fueron diseñadas y fueron entregadas.',
+                          'Entiendo que el uso de la ropa de trabajo recibida constituye una medida obligatoria y forma parte de mis obligaciones laborales.',
+                          'En caso de pérdida, daño por uso indebido o negligencia comprobada, la empresa podrá aplicar las medidas establecidas en el Reglamento Interno de Orden, Higiene y Seguridad.',
+                          'En caso de pérdida de la ropa de trabajo, la reposición será imputable al trabajador.',
+                        ]
+                      : [
+                          'Utilizaré los EPP de manera permanente cuando la naturaleza de mis funciones o la evaluación de riesgos así lo requiera.',
+                          'He recibido información y/o capacitación respecto del uso, limitaciones, cuidado, almacenamiento y mantenimiento de los EPP entregados.',
+                          'Me comprometo a conservar los elementos que he recibido en buenas condiciones de uso, informando oportunamente cualquier deterioro, pérdida o desperfecto.',
+                          'No modificaré los elementos recibidos ni los utilizaré para fines distintos de aquellos para los cuales fueron diseñados y fueron entregados.',
+                          'Entiendo que el uso de los EPP recibidos constituye una medida obligatoria de control de riesgos y forma parte de mis obligaciones en materia de seguridad y salud en el trabajo.',
+                          'En caso de pérdida, daño por uso indebido o negligencia comprobada, la empresa podrá aplicar las medidas establecidas en el Reglamento Interno de Orden, Higiene y Seguridad.',
+                          'En cuanto al uniforme, en caso de pérdida, la reposición será imputable al trabajador.',
+                        ];
 
-                  <p className="epp-registro-fecha">
-                    A {previewActa.intro.dia} de {previewActa.intro.mes} de {previewActa.intro.anio}
-                  </p>
+                    return (
+                      <>
+                        <p className="epp-registro-code">
+                          {codigoDoc}
+                          <br />
+                          Versión 001
+                        </p>
 
-                  <p className="epp-registro-legal">
-                    {previewActa.empresaLegal.nombre}, RUT {previewActa.empresaLegal.rut}, en cumplimiento
-                    de la Ley N° 16.744, el Decreto Supremo N° 44 y el reglamento interno de la empresa,
-                    hace entrega de Elementos de Protección Personal (EPP) al trabajador que se
-                    individualiza a continuación:
-                  </p>
+                        <header className="epp-registro-header">
+                          <img
+                            className="epp-registro-logo"
+                            src="/acta-epp/logo-transantin.svg"
+                            alt="Logo TranSantin"
+                          />
+                          <h2>{titulo}</h2>
+                        </header>
 
-                  <dl className="epp-registro-trabajador">
-                    <div>
-                      <dt>Trabajador</dt>
-                      <dd>{previewActa.trabajador.nombre}</dd>
-                    </div>
-                    <div>
-                      <dt>Cédula de Identidad</dt>
-                      <dd>{previewActa.trabajador.rut}</dd>
-                    </div>
-                    <div>
-                      <dt>Cargo</dt>
-                      <dd>{previewActa.trabajador.cargo}</dd>
-                    </div>
-                  </dl>
+                        <p className="epp-registro-legal">
+                          A <strong>{previewActa.intro.dia}</strong> de{' '}
+                          <strong>{previewActa.intro.mes}</strong> de{' '}
+                          <strong>{previewActa.intro.anio}</strong>,{' '}
+                          <strong>{previewActa.empresaLegal.nombre}</strong>, RUT{' '}
+                          <strong>{previewActa.empresaLegal.rut}</strong>, en cumplimiento de lo
+                          establecido en la Ley Nº 16.744, el Decreto Supremo Nº 44 del Ministerio
+                          del Trabajo y Previsión Social y el Reglamento Interno de Orden, Higiene y
+                          Seguridad de la empresa, {legalEntrega}
+                        </p>
 
-                  <table className="epp-registro-table" aria-label="Elementos entregados">
-                    <thead>
-                      <tr>
-                        <th scope="col">Código</th>
-                        <th scope="col">Elemento</th>
-                        <th scope="col">Tipo</th>
-                        <th scope="col">Categoría</th>
-                        <th scope="col">Cant.</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {previewActa.elementos.length === 0 ? (
-                        <tr>
-                          <td colSpan={5}>Sin elementos</td>
-                        </tr>
-                      ) : (
-                        previewActa.elementos.map((e, i) => (
-                          <tr key={`${e.codigo}-${i}`}>
-                            <td>{e.codigo}</td>
-                            <td>{e.elemento}</td>
-                            <td>{e.tipo}</td>
-                            <td>{e.categoria}</td>
-                            <td className="text-center">{e.cantidad}</td>
-                          </tr>
-                        ))
-                      )}
-                    </tbody>
-                  </table>
+                        <h3 className="epp-registro-section">Datos del Trabajador</h3>
+                        <table
+                          className="epp-registro-worker-table"
+                          aria-label="Datos del trabajador"
+                        >
+                          <tbody>
+                            <tr>
+                              <th scope="row">Trabajador</th>
+                              <td>{previewActa.trabajador.nombre}</td>
+                            </tr>
+                            <tr>
+                              <th scope="row">Cédula de Identidad</th>
+                              <td>{previewActa.trabajador.rut}</td>
+                            </tr>
+                            <tr>
+                              <th scope="row">Cargo</th>
+                              <td>{previewActa.trabajador.cargo}</td>
+                            </tr>
+                          </tbody>
+                        </table>
 
-                  <section className="epp-registro-declaracion" aria-labelledby="decl-trab">
-                    <h3 id="decl-trab">Declaración del trabajador</h3>
-                    <p>
-                      Declaro haber recibido conforme los Elementos de Protección Personal
-                      individualizados en este documento, en buen estado y aptos para su uso, y me
-                      comprometo a:
-                    </p>
-                    <ul>
-                      <li>
-                        Utilizar en forma permanente los elementos de protección personal entregados,
-                        de acuerdo a las funciones que desempeño.
-                      </li>
-                      <li>
-                        Haber recibido instrucción sobre el uso correcto y mantención de dichos
-                        elementos.
-                      </li>
-                      <li>
-                        Mantener los elementos en buen estado y comunicar de inmediato cualquier
-                        deterioro, daño o pérdida.
-                      </li>
-                      <li>
-                        No modificar los elementos ni utilizarlos para fines distintos a los
-                        diseñados.
-                      </li>
-                      <li>
-                        Entender que el uso de EPP es una medida de seguridad obligatoria y que su
-                        omisión puede generar riesgos para mi integridad.
-                      </li>
-                      <li>
-                        Que la pérdida o deterioro por negligencia puede dar lugar a medidas
-                        disciplinarias conforme al reglamento interno.
-                      </li>
-                      <li>
-                        Que en caso de extravío de uniformes, el valor será descontado al trabajador.
-                      </li>
-                    </ul>
-                  </section>
+                        <h3 className="epp-registro-section">
+                          Detalle de {objetoLargo} entregado
+                        </h3>
+                        <table
+                          className="epp-registro-table"
+                          aria-label={`${objetoLargo} entregados`}
+                        >
+                          <thead>
+                            <tr>
+                              <th scope="col">Código</th>
+                              <th scope="col">Elemento</th>
+                              <th scope="col">Tipo</th>
+                              <th scope="col">Categoría</th>
+                              <th scope="col">Cant.</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {previewActa.elementos.length === 0 ? (
+                              <tr>
+                                <td colSpan={5}>Sin elementos</td>
+                              </tr>
+                            ) : (
+                              previewActa.elementos.map((e, i) => (
+                                <tr key={`${e.codigo}-${i}`}>
+                                  <td>{e.codigo}</td>
+                                  <td className="epp-registro-item-name">{e.elemento}</td>
+                                  <td>{e.tipo}</td>
+                                  <td>{e.categoria}</td>
+                                  <td className="text-center">{e.cantidad}</td>
+                                </tr>
+                              ))
+                            )}
+                          </tbody>
+                        </table>
 
-                  <section className="epp-registro-firmas" aria-label="Firmas">
-                    <p>
-                      <strong>Firmado digitalmente por:</strong>
-                    </p>
-                    <p>
-                      Trabajador: {previewActa.firmas.trabajadorNombre}, cédula de identidad{' '}
-                      {previewActa.firmas.trabajadorRut}
-                    </p>
-                    <p>
-                      Encargado de Bodega: {previewActa.firmas.encargadoNombre}, cédula de identidad{' '}
-                      {previewActa.firmas.encargadoRut}
-                    </p>
-                    {previewActa.folio ? (
-                      <p className="epp-registro-folio">Folio: {previewActa.folio}</p>
-                    ) : null}
-                  </section>
+                        <section
+                          className="epp-registro-declaracion"
+                          aria-labelledby="decl-trab"
+                        >
+                          <h3 id="decl-trab">Declaración del trabajador</h3>
+                          <p>{declaracionIntro}</p>
+                          <ul>
+                            {compromisos.map((c) => (
+                              <li key={c.slice(0, 40)}>{c}</li>
+                            ))}
+                          </ul>
+                        </section>
+
+                        <section className="epp-registro-firmas" aria-label="Firma digital">
+                          <p>
+                            <strong>Firmado digitalmente por:</strong>
+                          </p>
+                          <p>
+                            Trabajador: {previewActa.firmas.trabajadorNombre}, cédula de identidad{' '}
+                            {previewActa.firmas.trabajadorRut}
+                          </p>
+                          <p>
+                            Encargado de Bodega: {previewActa.firmas.encargadoNombre}, cédula de
+                            identidad {previewActa.firmas.encargadoRut}
+                          </p>
+                          {previewActa.folio ? (
+                            <p className="epp-registro-folio">Folio: {previewActa.folio}</p>
+                          ) : null}
+                        </section>
+
+                        <footer className="epp-registro-footer">
+                          {codigoDoc} · Versión 001
+                        </footer>
+                      </>
+                    );
+                  })()}
                 </article>
               ) : null}
             </div>

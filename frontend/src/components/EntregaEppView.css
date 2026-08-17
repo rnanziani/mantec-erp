@@ -248,9 +248,18 @@
 }
 
 .entrega-epp-view .epp-registro-doc {
-  color: #1e293b;
+  color: #111;
   font-size: 0.95rem;
   line-height: 1.45;
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+.entrega-epp-view .epp-registro-code {
+  margin: 0 0 12px;
+  text-align: right;
+  font-size: 0.8rem;
+  color: #888;
+  line-height: 1.35;
 }
 
 .entrega-epp-view .epp-registro-header {
@@ -270,36 +279,41 @@
   font-size: 1.05rem;
   text-align: center;
   flex: 1;
-  letter-spacing: 0.01em;
-}
-
-.entrega-epp-view .epp-registro-fecha {
-  margin: 0 0 12px;
+  letter-spacing: 0.02em;
+  color: #111;
 }
 
 .entrega-epp-view .epp-registro-legal {
   text-align: justify;
-  margin: 0 0 14px;
-}
-
-.entrega-epp-view .epp-registro-trabajador {
   margin: 0 0 16px;
 }
 
-.entrega-epp-view .epp-registro-trabajador div {
-  display: grid;
-  grid-template-columns: 160px 1fr;
-  gap: 8px;
-  margin-bottom: 4px;
-}
-
-.entrega-epp-view .epp-registro-trabajador dt {
+.entrega-epp-view .epp-registro-section {
+  margin: 0 0 8px;
+  font-size: 0.95rem;
   font-weight: 700;
-  margin: 0;
+  color: #111;
 }
 
-.entrega-epp-view .epp-registro-trabajador dd {
-  margin: 0;
+.entrega-epp-view .epp-registro-worker-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 16px;
+  font-size: 0.9rem;
+}
+
+.entrega-epp-view .epp-registro-worker-table th,
+.entrega-epp-view .epp-registro-worker-table td {
+  border: 1px solid #888;
+  padding: 7px 10px;
+}
+
+.entrega-epp-view .epp-registro-worker-table th {
+  width: 160px;
+  background: #555;
+  color: #fff;
+  font-weight: 700;
+  text-align: left;
 }
 
 .entrega-epp-view .epp-registro-table {
@@ -311,13 +325,18 @@
 
 .entrega-epp-view .epp-registro-table th,
 .entrega-epp-view .epp-registro-table td {
-  border: 1px solid #94a3b8;
+  border: 1px solid #888;
   padding: 8px 10px;
 }
 
 .entrega-epp-view .epp-registro-table th {
-  background: #eceff1;
+  background: #555;
+  color: #fff;
   text-align: center;
+}
+
+.entrega-epp-view .epp-registro-item-name {
+  text-align: left;
 }
 
 .entrega-epp-view .epp-registro-declaracion h3 {
@@ -332,16 +351,27 @@
 
 .entrega-epp-view .epp-registro-declaracion li {
   margin-bottom: 6px;
+  text-align: justify;
 }
 
 .entrega-epp-view .epp-registro-firmas {
   margin-top: 20px;
+  line-height: 1.55;
 }
 
 .entrega-epp-view .epp-registro-folio {
   margin-top: 12px;
-  color: #64748b;
+  color: #888;
   font-size: 0.85rem;
+}
+
+.entrega-epp-view .epp-registro-footer {
+  margin-top: 20px;
+  padding-top: 10px;
+  border-top: 1px solid #ddd;
+  text-align: center;
+  font-size: 0.8rem;
+  color: #999;
 }
 
 @media (max-width: 1100px) {

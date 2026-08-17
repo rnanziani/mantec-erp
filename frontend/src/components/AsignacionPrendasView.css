@@ -258,3 +258,150 @@
   line-height: 1.35;
   overflow-wrap: anywhere;
 }
+
+/* Acta de Entrega de Uniforme — sobrio / elegante (SIG F-622-005) */
+.uniforme-document {
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: 12px;
+  line-height: 1.45;
+  color: #111;
+  background: #fff;
+  padding: 8px 8px 28px;
+}
+
+.uniforme-doc-code {
+  margin: 0 0 18px;
+  text-align: right;
+  font-size: 11px;
+  color: #888;
+  line-height: 1.35;
+}
+
+.uniforme-doc-title {
+  margin: 0 0 16px;
+  text-align: center;
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: #111;
+}
+
+.uniforme-doc-intro {
+  margin: 0 0 16px;
+  text-align: justify;
+  font-size: 12px;
+}
+
+.uniforme-section-title {
+  margin: 0 0 8px;
+  font-size: 13px;
+  font-weight: 700;
+  color: #111;
+}
+
+.uniforme-worker-table,
+.uniforme-items-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 16px;
+  font-size: 11px;
+}
+
+.uniforme-worker-table th,
+.uniforme-worker-table td,
+.uniforme-items-table th,
+.uniforme-items-table td {
+  border: 1px solid #888;
+  padding: 7px 8px;
+  vertical-align: middle;
+}
+
+.uniforme-worker-table th {
+  width: 110px;
+  background: #555;
+  color: #fff;
+  font-weight: 700;
+  text-align: left;
+}
+
+.uniforme-worker-table td {
+  background: #fff;
+}
+
+.uniforme-items-table thead th {
+  background: #555;
+  color: #fff;
+  font-weight: 700;
+  text-align: center;
+  font-size: 10px;
+  line-height: 1.25;
+}
+
+.uniforme-items-table tbody td {
+  min-height: 30px;
+  text-align: center;
+}
+
+.uniforme-items-table tbody td.uniforme-item-name {
+  text-align: left;
+}
+
+.uniforme-lead {
+  margin: 0 0 6px;
+  font-size: 12px;
+}
+
+.uniforme-list {
+  margin: 0 0 14px;
+  padding-left: 0;
+  list-style: none;
+  font-size: 12px;
+  color: #222;
+}
+
+.uniforme-list li {
+  position: relative;
+  padding-left: 1.1em;
+  margin-bottom: 4px;
+  text-align: justify;
+}
+
+.uniforme-list li::before {
+  content: '—';
+  position: absolute;
+  left: 0;
+  color: #444;
+}
+
+.uniforme-declaration {
+  margin: 0 0 28px;
+  font-size: 12px;
+  text-align: justify;
+  line-height: 1.5;
+}
+
+.uniforme-firma-digital {
+  margin: 8px 0 24px;
+  font-size: 12px;
+  color: #222;
+  line-height: 1.55;
+}
+
+.uniforme-firma-digital-title {
+  margin: 0 0 6px;
+  font-weight: 700;
+  color: #111;
+}
+
+.uniforme-firma-digital p {
+  margin: 0 0 4px;
+}
+
+.uniforme-footer {
+  margin-top: 8px;
+  padding-top: 10px;
+  border-top: 1px solid #ddd;
+  text-align: center;
+  font-size: 10px;
+  color: #999;
+}

@@ -2757,7 +2757,7 @@ const AsignacionPrendasView: React.FC = () => {
             onClick={(e) => e.stopPropagation()}
           >
             <div className="no-print" style={{ padding: '16px', borderBottom: '1px solid #eee', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
-              <h3 style={{ margin: 0 }}>📄 Vista Previa - Registro de Entrega de EPP</h3>
+              <h3 style={{ margin: 0 }}>📄 Vista Previa — Acta de Entrega de Uniforme</h3>
               <div style={{ display: 'flex', gap: '8px' }}>
                 <button
                   className="btn-primary"
@@ -2792,26 +2792,27 @@ const AsignacionPrendasView: React.FC = () => {
               {loadingActa ? (
                 <div style={{ textAlign: 'center', padding: '40px' }}>⏳ Cargando registro...</div>
               ) : previewActaData ? (
-                <div className="acta-print-area epp-document">
-                  <header className="epp-header">
-                    <img
-                      className="epp-logo"
-                      src="/acta-epp/logo-transantin.svg"
-                      alt="Logo TranSantin"
-                    />
-                    <div className="epp-header-text">
-                      <p className="epp-dept">Departamento de Prevención de Riesgos Ocupacionales</p>
-                      <h2 className="epp-title">
-                        REGISTRO DE ENTREGA DE ELEMENTOS DE PROTECCIÓN PERSONAL (EPP)
-                      </h2>
-                    </div>
-                  </header>
-
-                  <p className="epp-legal">
-                    Dando cumplimiento a lo establecido en el Artículo 68° de la Ley N°16.744 sobre Accidentes del Trabajo y Enfermedades Profesionales; y a lo dispuesto en el Artículo 13° del Decreto N° 44 sobre la Gestión Preventiva de los Riesgos Laborales Para un Entorno de Trabajo Seguro y Saludable, se entrega a:
+                <div className="acta-print-area uniforme-document">
+                  <p className="uniforme-doc-code" aria-label="Código del documento">
+                    SIG F-622-005
+                    <br />
+                    Versión 001
                   </p>
 
-                  <table className="epp-worker-table" aria-label="Datos del trabajador">
+                  <h2 className="uniforme-doc-title">ACTA DE ENTREGA DE UNIFORME</h2>
+
+                  <p className="uniforme-doc-intro">
+                    En la ciudad de Santiago,{' '}
+                    <strong>{previewActaData.intro?.dia}</strong> días del mes de{' '}
+                    <strong>
+                      {previewActaData.intro?.mes} del año {previewActaData.intro?.anio}
+                    </strong>
+                    , se procede a dejar constancia de la entrega del uniforme al trabajador que a
+                    continuación se detalla:
+                  </p>
+
+                  <h3 className="uniforme-section-title">Datos del Trabajador</h3>
+                  <table className="uniforme-worker-table" aria-label="Datos del trabajador">
                     <tbody>
                       <tr>
                         <th scope="row">Nombre</th>
@@ -2823,29 +2824,44 @@ const AsignacionPrendasView: React.FC = () => {
                         <th scope="row">RUT</th>
                         <td>{previewActaData.trabajador.rut}</td>
                         <th scope="row">Área de Trabajo</th>
-                        <td>{previewActaData.trabajador.areaTrabajo || previewActaData.trabajador.empresa}</td>
+                        <td>
+                          {previewActaData.trabajador.areaTrabajo ||
+                            previewActaData.trabajador.empresa}
+                        </td>
                       </tr>
                     </tbody>
                   </table>
 
-                  <p className="epp-items-intro">Los siguientes Elementos de Protección Personal:</p>
-
-                  <table className="epp-items-table" aria-label="Elementos de protección personal entregados">
+                  <h3 className="uniforme-section-title">Detalle del uniforme entregado</h3>
+                  <table
+                    className="uniforme-items-table"
+                    aria-label="Prendas de uniforme entregadas"
+                  >
                     <thead>
                       <tr>
-                        <th scope="col" style={{ width: '48px' }}>N°</th>
-                        <th scope="col">Elemento de Protección Personal entregado</th>
-                        <th scope="col" style={{ width: '70px' }}>Cantidad</th>
-                        <th scope="col" style={{ width: '100px' }}>Modelo y talla</th>
-                        <th scope="col" style={{ width: '110px' }}>Fecha de Entrega (DD/MM/AA)</th>
-                        <th scope="col" style={{ width: '80px' }}>Firma</th>
+                        <th scope="col" style={{ width: '48px' }}>
+                          Nº
+                        </th>
+                        <th scope="col">Prenda / Uniforme entregado</th>
+                        <th scope="col" style={{ width: '70px' }}>
+                          Cantidad
+                        </th>
+                        <th scope="col" style={{ width: '100px' }}>
+                          Modelo y talla
+                        </th>
+                        <th scope="col" style={{ width: '110px' }}>
+                          Fecha de Entrega (DD/MM/AA)
+                        </th>
+                        <th scope="col" style={{ width: '80px' }}>
+                          Firma
+                        </th>
                       </tr>
                     </thead>
                     <tbody>
                       {previewActaData.prendas.length === 0 ? (
                         <tr>
                           <td>&nbsp;</td>
-                          <td className="epp-item-name">&nbsp;</td>
+                          <td className="uniforme-item-name">&nbsp;</td>
                           <td>&nbsp;</td>
                           <td>&nbsp;</td>
                           <td>&nbsp;</td>
@@ -2856,7 +2872,7 @@ const AsignacionPrendasView: React.FC = () => {
                           (p: { prenda: string; cantidad: number; talla: string }, i: number) => (
                             <tr key={`${p.prenda}-${p.talla}-${i}`}>
                               <td>{String(i + 1).padStart(2, '0')}</td>
-                              <td className="epp-item-name">{p.prenda}</td>
+                              <td className="uniforme-item-name">{p.prenda}</td>
                               <td>{p.cantidad}</td>
                               <td>{p.talla}</td>
                               <td>{previewActaData.fechaEntrega}</td>
@@ -2868,42 +2884,52 @@ const AsignacionPrendasView: React.FC = () => {
                     </tbody>
                   </table>
 
-                  <p className="epp-declaration">
-                    El trabajador declara haberlos recibido en forma gratuita y se compromete a utilizarlos correctamente y de forma permanente mientras se encuentre expuesto al riesgo, manteniéndolos en buen estado.
+                  <h3 className="uniforme-section-title">Responsabilidades</h3>
+                  <p className="uniforme-lead">Usted se compromete a:</p>
+                  <ul className="uniforme-list">
+                    <li>Usar el uniforme únicamente durante sus funciones laborales.</li>
+                    <li>Mantener el uniforme en condiciones limpias y presentables.</li>
+                    <li>No alterar ni modificar el diseño del uniforme.</li>
+                    <li>Responder por el cuidado y conservación de las prendas entregadas.</li>
+                    <li>Reportar inmediatamente cualquier daño o pérdida al área correspondiente.</li>
+                    <li>
+                      El mal uso o la negligencia en el cuidado del uniforme podrá ser objeto de
+                      observaciones o medidas disciplinarias conforme al reglamento interno.
+                    </li>
+                  </ul>
+
+                  <h3 className="uniforme-section-title">Uso del Uniforme</h3>
+                  <p className="uniforme-lead">
+                    La empresa hace hincapié en la obligatoriedad del uso del uniforme completo
+                    durante todo el periodo de servicio activo. El uso del uniforme contribuye a:
+                  </p>
+                  <ul className="uniforme-list">
+                    <li>Proyectar una imagen profesional y ordenada de la empresa.</li>
+                    <li>Generar confianza en los pasajeros.</li>
+                    <li>Facilitar la identificación del personal por parte de usuarios.</li>
+                  </ul>
+
+                  <h3 className="uniforme-section-title">Declaración del Trabajador</h3>
+                  <p className="uniforme-declaration">
+                    Declaro haber recibido a conformidad las prendas antes detalladas, las cuales se
+                    encuentran en buen estado y son de uso obligatorio durante mi jornada laboral.
+                    Asimismo, me comprometo a dar un uso adecuado al uniforme y a conservarlo en
+                    buenas condiciones, haciéndome responsable de su cuidado.
                   </p>
 
-                  <hr className="epp-divider" />
-
-                  <section className="epp-instructions" aria-label="Instrucciones y código QR">
-                    <div className="epp-qr-block">
-                      <img
-                        className="epp-qr"
-                        src="/acta-epp/qr-sube-registro.png"
-                        alt="Código QR para subir el registro firmado"
-                      />
-                      <span className="epp-qr-label">SUBE EL REGISTRO</span>
-                    </div>
-                    <div className="epp-instructions-text">
-                      <h4>Instrucciones para la jefatura o centro de abastecimiento</h4>
-                      <ol>
-                        <li>
-                          Para llevar un registro adecuado de la entrega de Elementos de Protección Personal (EPP), cada vez que entregues un elemento a un trabajador, accede al Código QR desde tu celular y toma una fotografía del documento firmado por el trabajador.
-                        </li>
-                        <li>
-                          Almacena correctamente este registro de forma física. Puede ser solicitado en fiscalizaciones y será controlado por el Dpto de Prevención de Riesgos Ocupacionales.
-                        </li>
-                        <li>
-                          Como jefatura, es tu responsabilidad verificar que el trabajador cuente y utilice obligatoriamente sus EPP.
-                        </li>
-                      </ol>
-                    </div>
-                  </section>
-
-                  <footer className="epp-footer">
-                    <p className="epp-footer-meta">
-                      Página 1 | Sistema de Gestión de Seguridad y Salud Ocupacional | Aprobado: IMC | Versión: 02 | F. Versión: 20251210
+                  <div className="uniforme-firma-digital" aria-label="Firma digital">
+                    <p className="uniforme-firma-digital-title">Firmado digitalmente por:</p>
+                    <p>
+                      Trabajador: {previewActaData.trabajador.nombre || '—'}, cédula de identidad{' '}
+                      {previewActaData.trabajador.rut || '—'}
                     </p>
-                    <p className="epp-footer-dept">Departamento de Prevención de Riesgos Ocupacionales</p>
+                    <p>
+                      Encargado de Bodega: Ricardo Nuñez Anziani, cédula de identidad 10.050.993-8
+                    </p>
+                  </div>
+
+                  <footer className="uniforme-footer">
+                    SIG F-622-005 · Versión 001
                   </footer>
                 </div>
               ) : null}
@@ -2930,10 +2956,9 @@ const AsignacionPrendasView: React.FC = () => {
             max-width: none !important;
           }
           .no-print { display: none !important; }
-          .epp-document,
-          .epp-document th,
-          .epp-document td,
-          .epp-qr-label {
+          .uniforme-document,
+          .uniforme-document th,
+          .uniforme-document td {
             -webkit-print-color-adjust: exact !important;
             print-color-adjust: exact !important;
           }

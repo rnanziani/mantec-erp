@@ -75,10 +75,19 @@ async function cargarDatosActaEntrega(id: string) {
     ENCARGADO_BODEGA.nombre;
   const responsableRut = (m.rut_responsable_54 || ENCARGADO_BODEGA.rut).trim();
 
+  const claseNombre = String(m.clase_nombre || '').trim();
+  const esRopa = /ropa/i.test(claseNombre);
+  const tipoActa: 'EPP' | 'ROPA' = esRopa ? 'ROPA' : 'EPP';
+
   return {
     folio: m.folio_54 || '',
     intro: { dia, mes, anio },
     empresaLegal: EMPRESA_LEGAL,
+    clase: {
+      id: m.idclase_54 ?? null,
+      nombre: claseNombre || (esRopa ? 'ROPA DE TRABAJO' : 'EPP'),
+      tipo: tipoActa,
+    },
     trabajador: {
       nombre: (m.trabajador_nombre || '').trim(),
       rut: m.trabajador_rut || '',
@@ -97,6 +106,53 @@ async function cargarDatosActaEntrega(id: string) {
       encargadoNombre: responsableNombre,
       encargadoRut: responsableRut,
     },
+  };
+}
+
+/** Textos legales del acta según clase (EPP vs Ropa de Trabajo). */
+function buildActaCopy(tipo: 'EPP' | 'ROPA') {
+  if (tipo === 'ROPA') {
+    return {
+      titulo: 'REGISTRO DE ENTREGA DE ROPA DE TRABAJO',
+      codigoDoc: 'SIG F-622-006',
+      objetoCorto: 'Ropa de Trabajo',
+      objetoLargo: 'Ropa de Trabajo',
+      legalEntrega:
+        'hace entrega de la siguiente Ropa de Trabajo al trabajador:',
+      declaracionIntro:
+        'Declaro haber recibido la Ropa de Trabajo detallada en el presente registro, en buen estado y apta para su utilización. Asimismo, declaro que:',
+      compromisos: [
+        'Utilizaré la ropa de trabajo de manera permanente cuando la naturaleza de mis funciones o la evaluación de riesgos así lo requiera.',
+        'He recibido información y/o capacitación respecto del uso, cuidado, almacenamiento y mantenimiento de la ropa de trabajo entregada.',
+        'Me comprometo a conservar las prendas que he recibido en buenas condiciones de uso, informando oportunamente cualquier deterioro, pérdida o desperfecto.',
+        'No modificaré las prendas recibidas ni las utilizaré para fines distintos de aquellos para los cuales fueron diseñadas y fueron entregadas.',
+        'Entiendo que el uso de la ropa de trabajo recibida constituye una medida obligatoria y forma parte de mis obligaciones laborales.',
+        'En caso de pérdida, daño por uso indebido o negligencia comprobada, la empresa podrá aplicar las medidas establecidas en el Reglamento Interno de Orden, Higiene y Seguridad.',
+        'En caso de pérdida de la ropa de trabajo, la reposición será imputable al trabajador.',
+      ],
+      filenamePrefix: 'registro-entrega-ropa-trabajo',
+    };
+  }
+
+  return {
+    titulo: 'REGISTRO DE ENTREGA DE ELEMENTOS DE PROTECCIÓN PERSONAL',
+    codigoDoc: 'SIG F-622-007',
+    objetoCorto: 'EPP',
+    objetoLargo: 'Elementos de Protección Personal (EPP)',
+    legalEntrega:
+      'hace entrega de los siguientes Elementos de Protección Personal (EPP) al trabajador:',
+    declaracionIntro:
+      'Declaro haber recibido los Elementos de Protección Personal (EPP) detallados en el presente registro, en buen estado y aptos para su utilización. Asimismo, declaro que:',
+    compromisos: [
+      'Utilizaré los EPP de manera permanente cuando la naturaleza de mis funciones o la evaluación de riesgos así lo requiera.',
+      'He recibido información y/o capacitación respecto del uso, limitaciones, cuidado, almacenamiento y mantenimiento de los EPP entregados.',
+      'Me comprometo a conservar los elementos que he recibido en buenas condiciones de uso, informando oportunamente cualquier deterioro, pérdida o desperfecto.',
+      'No modificaré los elementos recibidos ni los utilizaré para fines distintos de aquellos para los cuales fueron diseñados y fueron entregados.',
+      'Entiendo que el uso de los EPP recibidos constituye una medida obligatoria de control de riesgos y forma parte de mis obligaciones en materia de seguridad y salud en el trabajo.',
+      'En caso de pérdida, daño por uso indebido o negligencia comprobada, la empresa podrá aplicar las medidas establecidas en el Reglamento Interno de Orden, Higiene y Seguridad.',
+      'En cuanto al uniforme, en caso de pérdida, la reposición será imputable al trabajador.',
+    ],
+    filenamePrefix: 'registro-entrega-epp',
   };
 }
 
@@ -611,7 +667,7 @@ export const getActaDatosEntregaEpp = async (req: Request, res: Response): Promi
   }
 };
 
-/** PDF: Registro de Entrega de Elementos de Protección Personal */
+/** PDF: Registro de Entrega EPP o Ropa de Trabajo (estilo sobrio estándar) */
 export const generarActaEntregaEppPDF = async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
@@ -621,6 +677,7 @@ export const generarActaEntregaEppPDF = async (req: Request, res: Response): Pro
       return;
     }
 
+    const copy = buildActaCopy(data.clase.tipo);
     const logoDataUrl = loadActaAssetDataUrl('logo-transantin.png');
     const fonts = {
       Roboto: {
@@ -632,45 +689,57 @@ export const generarActaEntregaEppPDF = async (req: Request, res: Response): Pro
     };
     const printer = new PdfPrinter(fonts);
 
+    const tableLayout = {
+      hLineWidth: () => 0.6,
+      vLineWidth: () => 0.6,
+      hLineColor: () => '#888888',
+      vLineColor: () => '#888888',
+    };
+
+    const labelCell = (text: string) => ({
+      text,
+      fillColor: '#555555',
+      color: '#ffffff',
+      bold: true,
+      fontSize: 8,
+      margin: [5, 6, 5, 6],
+    });
+
+    const valueCell = (text: string) => ({
+      text: text || ' ',
+      fontSize: 9,
+      margin: [5, 6, 5, 6],
+    });
+
     const tableBody: any[] = [
       [
-        { text: 'Código', style: 'th', alignment: 'center' },
-        { text: 'Elemento', style: 'th', alignment: 'center' },
-        { text: 'Tipo', style: 'th', alignment: 'center' },
-        { text: 'Categoría', style: 'th', alignment: 'center' },
-        { text: 'Cant.', style: 'th', alignment: 'center' },
+        { text: 'Código', style: 'gridHeader', alignment: 'center' },
+        { text: 'Elemento', style: 'gridHeader', alignment: 'center' },
+        { text: 'Tipo', style: 'gridHeader', alignment: 'center' },
+        { text: 'Categoría', style: 'gridHeader', alignment: 'center' },
+        { text: 'Cant.', style: 'gridHeader', alignment: 'center' },
       ],
     ];
 
     if (data.elementos.length === 0) {
       tableBody.push([
-        { text: '-', style: 'td', alignment: 'center' },
-        { text: 'Sin elementos', style: 'td', alignment: 'center' },
-        { text: '-', style: 'td', alignment: 'center' },
-        { text: '-', style: 'td', alignment: 'center' },
-        { text: '-', style: 'td', alignment: 'center' },
+        { text: '-', style: 'gridCell', alignment: 'center' },
+        { text: 'Sin elementos', style: 'gridCell', alignment: 'center' },
+        { text: '-', style: 'gridCell', alignment: 'center' },
+        { text: '-', style: 'gridCell', alignment: 'center' },
+        { text: '-', style: 'gridCell', alignment: 'center' },
       ]);
     } else {
       data.elementos.forEach((e) => {
         tableBody.push([
-          { text: e.codigo, style: 'td', alignment: 'center' },
-          { text: e.elemento, style: 'td' },
-          { text: e.tipo, style: 'td' },
-          { text: e.categoria, style: 'td' },
-          { text: String(e.cantidad), style: 'td', alignment: 'center' },
+          { text: e.codigo, style: 'gridCell', alignment: 'center' },
+          { text: e.elemento, style: 'gridCell' },
+          { text: e.tipo, style: 'gridCell' },
+          { text: e.categoria, style: 'gridCell' },
+          { text: String(e.cantidad), style: 'gridCell', alignment: 'center' },
         ]);
       });
     }
-
-    const compromisos = [
-      'Utilizar en forma permanente los elementos de protección personal entregados, de acuerdo a las funciones que desempeño.',
-      'Haber recibido instrucción sobre el uso correcto y mantención de dichos elementos.',
-      'Mantener los elementos en buen estado y comunicar de inmediato cualquier deterioro, daño o pérdida.',
-      'No modificar los elementos ni utilizarlos para fines distintos a los diseñados.',
-      'Entender que el uso de EPP es una medida de seguridad obligatoria y que su omisión puede generar riesgos para mi integridad.',
-      'Que la pérdida o deterioro por negligencia puede dar lugar a medidas disciplinarias conforme al reglamento interno.',
-      'Que en caso de extravío de uniformes, el valor será descontado al trabajador.',
-    ];
 
     const headerCols: any[] = [];
     if (logoDataUrl) {
@@ -680,49 +749,84 @@ export const generarActaEntregaEppPDF = async (req: Request, res: Response): Pro
         text: 'TranSantin',
         fontSize: 14,
         bold: true,
-        color: '#1565c0',
+        color: '#333333',
         width: 110,
       });
     }
     headerCols.push({
-      text: 'REGISTRO DE ENTREGA DE ELEMENTOS DE PROTECCIÓN PERSONAL',
-      fontSize: 12,
-      bold: true,
-      alignment: 'center',
-      margin: [0, 8, 0, 0],
+      stack: [
+        {
+          text: copy.titulo,
+          fontSize: 11,
+          bold: true,
+          alignment: 'center',
+          color: '#111111',
+          margin: [0, 6, 0, 0],
+        },
+      ],
       width: '*',
     });
 
     const docDefinition: PdfDocumentDefinition = {
       pageSize: 'LETTER',
-      pageMargins: [48, 40, 48, 40],
+      pageMargins: [48, 42, 48, 48],
       content: [
-        { columns: headerCols, margin: [0, 0, 0, 16] },
         {
-          text: `A ${data.intro.dia} de ${data.intro.mes} de ${data.intro.anio}`,
-          fontSize: 10,
+          text: `${copy.codigoDoc}\nVersión 001`,
+          fontSize: 8,
+          color: '#888888',
+          alignment: 'right',
           margin: [0, 0, 0, 10],
         },
+        { columns: headerCols, margin: [0, 0, 0, 14] },
         {
-          text:
-            `${EMPRESA_LEGAL.nombre}, RUT ${EMPRESA_LEGAL.rut}, en cumplimiento de la Ley N° 16.744, ` +
-            `el Decreto Supremo N° 44 y el reglamento interno de la empresa, hace entrega de Elementos de Protección Personal (EPP) al trabajador que se individualiza a continuación:`,
-          fontSize: 9,
+          text: [
+            { text: 'A ', fontSize: 10 },
+            { text: String(data.intro.dia), bold: true, fontSize: 10 },
+            { text: ' de ', fontSize: 10 },
+            { text: String(data.intro.mes), bold: true, fontSize: 10 },
+            { text: ' de ', fontSize: 10 },
+            { text: String(data.intro.anio), bold: true, fontSize: 10 },
+            { text: ', ', fontSize: 10 },
+            { text: EMPRESA_LEGAL.nombre, bold: true, fontSize: 10 },
+            { text: ', RUT ', fontSize: 10 },
+            { text: EMPRESA_LEGAL.rut, bold: true, fontSize: 10 },
+            {
+              text:
+                ', en cumplimiento de lo establecido en la Ley Nº 16.744, el Decreto Supremo Nº 44 del Ministerio del Trabajo y Previsión Social y el Reglamento Interno de Orden, Higiene y Seguridad de la empresa, ' +
+                copy.legalEntrega,
+              fontSize: 10,
+            },
+          ],
           alignment: 'justify',
           lineHeight: 1.35,
           margin: [0, 0, 0, 12],
         },
         {
-          text: [
-            { text: 'Trabajador: ', bold: true },
-            `${data.trabajador.nombre}\n`,
-            { text: 'Cédula de Identidad: ', bold: true },
-            `${data.trabajador.rut}\n`,
-            { text: 'Cargo: ', bold: true },
-            `${data.trabajador.cargo}`,
-          ],
+          text: 'Datos del Trabajador',
           fontSize: 10,
-          margin: [0, 0, 0, 12],
+          bold: true,
+          color: '#111111',
+          margin: [0, 0, 0, 6],
+        },
+        {
+          table: {
+            widths: [90, '*'],
+            body: [
+              [labelCell('Trabajador'), valueCell(data.trabajador.nombre)],
+              [labelCell('Cédula de Identidad'), valueCell(data.trabajador.rut)],
+              [labelCell('Cargo'), valueCell(data.trabajador.cargo)],
+            ],
+          },
+          layout: tableLayout,
+          margin: [0, 0, 0, 14],
+        },
+        {
+          text: `Detalle de ${copy.objetoLargo} entregado`,
+          fontSize: 10,
+          bold: true,
+          color: '#111111',
+          margin: [0, 0, 0, 6],
         },
         {
           table: {
@@ -731,41 +835,38 @@ export const generarActaEntregaEppPDF = async (req: Request, res: Response): Pro
             body: tableBody,
           },
           layout: {
-            hLineWidth: () => 0.6,
-            vLineWidth: () => 0.6,
-            hLineColor: () => '#666666',
-            vLineColor: () => '#666666',
-            fillColor: (rowIndex: number) => (rowIndex === 0 ? '#eceff1' : null),
+            ...tableLayout,
+            fillColor: (rowIndex: number) => (rowIndex === 0 ? '#555555' : null),
           },
           margin: [0, 0, 0, 14],
         },
         {
           text: 'Declaración del trabajador',
           bold: true,
-          fontSize: 11,
+          fontSize: 10,
+          color: '#111111',
           margin: [0, 4, 0, 6],
         },
         {
-          text:
-            'Declaro haber recibido conforme los Elementos de Protección Personal individualizados en este documento, ' +
-            'en buen estado y aptos para su uso, y me comprometo a:',
+          text: copy.declaracionIntro,
           fontSize: 9,
           alignment: 'justify',
           margin: [0, 0, 0, 6],
         },
         {
-          ul: compromisos,
+          ul: copy.compromisos,
           fontSize: 9,
+          color: '#222222',
           margin: [0, 0, 0, 16],
         },
         {
           text: 'Firmado digitalmente por:',
           bold: true,
           fontSize: 10,
-          margin: [0, 8, 0, 8],
+          margin: [0, 8, 0, 6],
         },
         {
-          text: `Trabajador: ${data.firmas.trabajadorNombre}, cédula de identidad ${data.firmas.trabajadorRut}`,
+          text: `Trabajador: ${data.firmas.trabajadorNombre || '—'}, cédula de identidad ${data.firmas.trabajadorRut || '—'}`,
           fontSize: 9,
           margin: [0, 0, 0, 4],
         },
@@ -777,30 +878,37 @@ export const generarActaEntregaEppPDF = async (req: Request, res: Response): Pro
           ? {
               text: `Folio: ${data.folio}`,
               fontSize: 8,
-              color: '#666666',
+              color: '#888888',
               margin: [0, 16, 0, 0],
             }
           : { text: '' },
       ],
+      footer: (currentPage: number, pageCount: number) => ({
+        text: `${copy.codigoDoc} · Versión 001 · Página ${currentPage} de ${pageCount}`,
+        fontSize: 7,
+        color: '#999999',
+        alignment: 'center',
+        margin: [48, 0, 48, 0],
+      }),
       styles: {
-        th: { fontSize: 8, bold: true, margin: [3, 4, 3, 4] },
-        td: { fontSize: 8, margin: [3, 4, 3, 4] },
+        gridHeader: { fontSize: 8, bold: true, color: '#ffffff', margin: [3, 5, 3, 5] },
+        gridCell: { fontSize: 8, margin: [3, 5, 3, 5] },
       },
-      defaultStyle: { font: 'Roboto', fontSize: 9 },
+      defaultStyle: { font: 'Roboto', fontSize: 9, color: '#111111' },
     };
 
     const pdfDoc = printer.createPdfKitDocument(docDefinition);
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader(
       'Content-Disposition',
-      `attachment; filename=registro-entrega-epp-${data.folio || id}.pdf`
+      `attachment; filename=${copy.filenamePrefix}-${data.folio || id}.pdf`
     );
     pdfDoc.pipe(res);
     pdfDoc.end();
   } catch (error) {
     res.status(500).json({
       success: false,
-      error: 'Error al generar el PDF de entrega EPP',
+      error: 'Error al generar el PDF de entrega',
       message: error instanceof Error ? error.message : 'Error desconocido',
     });
   }
