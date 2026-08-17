@@ -1336,20 +1336,21 @@ const EntregaEppView: React.FC = () => {
                       ? 'Ropa de Trabajo'
                       : 'Elementos de Protección Personal (EPP)';
                     const legalEntrega = esRopa
-                      ? 'hace entrega de la siguiente Ropa de Trabajo al trabajador:'
+                      ? 'hace entrega de uniforme institucional a:'
                       : 'hace entrega de los siguientes Elementos de Protección Personal (EPP) al trabajador:';
+                    const declaracionTitulo = esRopa
+                      ? 'Declaraciones del trabajador'
+                      : 'Declaración del trabajador';
                     const declaracionIntro = esRopa
-                      ? 'Declaro haber recibido la Ropa de Trabajo detallada en el presente registro, en buen estado y apta para su utilización. Asimismo, declaro que:'
+                      ? 'El trabajador declara:'
                       : 'Declaro haber recibido los Elementos de Protección Personal (EPP) detallados en el presente registro, en buen estado y aptos para su utilización. Asimismo, declaro que:';
                     const compromisos = esRopa
                       ? [
-                          'Utilizaré la ropa de trabajo de manera permanente cuando la naturaleza de mis funciones o la evaluación de riesgos así lo requiera.',
-                          'He recibido información y/o capacitación respecto del uso, cuidado, almacenamiento y mantenimiento de la ropa de trabajo entregada.',
-                          'Me comprometo a conservar las prendas que he recibido en buenas condiciones de uso, informando oportunamente cualquier deterioro, pérdida o desperfecto.',
-                          'No modificaré las prendas recibidas ni las utilizaré para fines distintos de aquellos para los cuales fueron diseñadas y fueron entregadas.',
-                          'Entiendo que el uso de la ropa de trabajo recibida constituye una medida obligatoria y forma parte de mis obligaciones laborales.',
-                          'En caso de pérdida, daño por uso indebido o negligencia comprobada, la empresa podrá aplicar las medidas establecidas en el Reglamento Interno de Orden, Higiene y Seguridad.',
-                          'En caso de pérdida de la ropa de trabajo, la reposición será imputable al trabajador.',
+                          'Haber recibido conforme las prendas detalladas en la presente acta.',
+                          'Comprometerse a utilizar el uniforme de manera obligatoria durante su jornada laboral.',
+                          'Mantener las prendas en buen estado, higiene y presentación.',
+                          'Asumir responsabilidad por el cuidado del uniforme entregado.',
+                          'En caso de pérdida la reposición será imputable al trabajador.',
                         ]
                       : [
                           'Utilizaré los EPP de manera permanente cuando la naturaleza de mis funciones o la evaluación de riesgos así lo requiera.',
@@ -1379,14 +1380,26 @@ const EntregaEppView: React.FC = () => {
                         </header>
 
                         <p className="epp-registro-legal">
-                          A <strong>{previewActa.intro.dia}</strong> de{' '}
-                          <strong>{previewActa.intro.mes}</strong> de{' '}
-                          <strong>{previewActa.intro.anio}</strong>,{' '}
-                          <strong>{previewActa.empresaLegal.nombre}</strong>, RUT{' '}
-                          <strong>{previewActa.empresaLegal.rut}</strong>, en cumplimiento de lo
-                          establecido en la Ley Nº 16.744, el Decreto Supremo Nº 44 del Ministerio
-                          del Trabajo y Previsión Social y el Reglamento Interno de Orden, Higiene y
-                          Seguridad de la empresa, {legalEntrega}
+                          {esRopa ? (
+                            <>
+                              A <strong>{previewActa.intro.dia}</strong> de{' '}
+                              <strong>{previewActa.intro.mes}</strong> de{' '}
+                              <strong>{previewActa.intro.anio}</strong>, la{' '}
+                              <strong>{previewActa.empresaLegal.nombre}</strong>, Rut{' '}
+                              <strong>{previewActa.empresaLegal.rut}</strong> {legalEntrega}
+                            </>
+                          ) : (
+                            <>
+                              A <strong>{previewActa.intro.dia}</strong> de{' '}
+                              <strong>{previewActa.intro.mes}</strong> de{' '}
+                              <strong>{previewActa.intro.anio}</strong>,{' '}
+                              <strong>{previewActa.empresaLegal.nombre}</strong>, RUT{' '}
+                              <strong>{previewActa.empresaLegal.rut}</strong>, en cumplimiento de lo
+                              establecido en la Ley Nº 16.744, el Decreto Supremo Nº 44 del
+                              Ministerio del Trabajo y Previsión Social y el Reglamento Interno de
+                              Orden, Higiene y Seguridad de la empresa, {legalEntrega}
+                            </>
+                          )}
                         </p>
 
                         <h3 className="epp-registro-section">Datos del Trabajador</h3>
@@ -1449,7 +1462,7 @@ const EntregaEppView: React.FC = () => {
                           className="epp-registro-declaracion"
                           aria-labelledby="decl-trab"
                         >
-                          <h3 id="decl-trab">Declaración del trabajador</h3>
+                          <h3 id="decl-trab">{declaracionTitulo}</h3>
                           <p>{declaracionIntro}</p>
                           <ul>
                             {compromisos.map((c) => (

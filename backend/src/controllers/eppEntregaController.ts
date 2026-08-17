@@ -40,6 +40,42 @@ const MESES = [
   'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre',
 ];
 
+/** Extrae día/mes/año de fecha_entrega (DATE de PG o string YYYY-MM-DD). */
+function partesFechaEntrega(value: Date | string | null | undefined): {
+  dia: number;
+  mes: string;
+  anio: number;
+} {
+  if (value instanceof Date && !Number.isNaN(value.getTime())) {
+    // node-pg entrega DATE en medianoche UTC; usar UTC evita correr el día
+    return {
+      dia: value.getUTCDate(),
+      mes: MESES[value.getUTCMonth()] || 'enero',
+      anio: value.getUTCFullYear(),
+    };
+  }
+
+  const raw = String(value ?? '').trim();
+  const iso = raw.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (iso) {
+    const anio = Number(iso[1]);
+    const mesNum = Number(iso[2]);
+    const dia = Number(iso[3]);
+    return {
+      dia,
+      mes: MESES[mesNum - 1] || 'enero',
+      anio,
+    };
+  }
+
+  const hoy = new Date();
+  return {
+    dia: hoy.getDate(),
+    mes: MESES[hoy.getMonth()] || 'enero',
+    anio: hoy.getFullYear(),
+  };
+}
+
 async function cargarDatosActaEntrega(id: string) {
   const maestroRes = await pool.query(
     `${MAESTRO_SELECT} WHERE m.identregaepp_54 = $1`,
@@ -64,11 +100,7 @@ async function cargarDatosActaEntrega(id: string) {
     [id]
   );
 
-  const fechaRaw = String(m.fecha_entrega_54).slice(0, 10);
-  const [anioNum, mesNum, diaNum] = fechaRaw.split('-').map((n) => Number(n));
-  const dia = diaNum || 1;
-  const mes = MESES[(mesNum || 1) - 1] || 'enero';
-  const anio = anioNum || new Date().getFullYear();
+  const { dia, mes, anio } = partesFechaEntrega(m.fecha_entrega_54);
 
   const responsableNombre =
     (m.nombre_responsable_54 || m.responsable_nombre || ENCARGADO_BODEGA.nombre || '').trim() ||
@@ -117,18 +149,16 @@ function buildActaCopy(tipo: 'EPP' | 'ROPA') {
       codigoDoc: 'SIG F-622-006',
       objetoCorto: 'Ropa de Trabajo',
       objetoLargo: 'Ropa de Trabajo',
-      legalEntrega:
-        'hace entrega de la siguiente Ropa de Trabajo al trabajador:',
-      declaracionIntro:
-        'Declaro haber recibido la Ropa de Trabajo detallada en el presente registro, en buen estado y apta para su utilización. Asimismo, declaro que:',
+      introCorto: true,
+      legalEntrega: 'hace entrega de uniforme institucional a:',
+      declaracionTitulo: 'Declaraciones del trabajador',
+      declaracionIntro: 'El trabajador declara:',
       compromisos: [
-        'Utilizaré la ropa de trabajo de manera permanente cuando la naturaleza de mis funciones o la evaluación de riesgos así lo requiera.',
-        'He recibido información y/o capacitación respecto del uso, cuidado, almacenamiento y mantenimiento de la ropa de trabajo entregada.',
-        'Me comprometo a conservar las prendas que he recibido en buenas condiciones de uso, informando oportunamente cualquier deterioro, pérdida o desperfecto.',
-        'No modificaré las prendas recibidas ni las utilizaré para fines distintos de aquellos para los cuales fueron diseñadas y fueron entregadas.',
-        'Entiendo que el uso de la ropa de trabajo recibida constituye una medida obligatoria y forma parte de mis obligaciones laborales.',
-        'En caso de pérdida, daño por uso indebido o negligencia comprobada, la empresa podrá aplicar las medidas establecidas en el Reglamento Interno de Orden, Higiene y Seguridad.',
-        'En caso de pérdida de la ropa de trabajo, la reposición será imputable al trabajador.',
+        'Haber recibido conforme las prendas detalladas en la presente acta.',
+        'Comprometerse a utilizar el uniforme de manera obligatoria durante su jornada laboral.',
+        'Mantener las prendas en buen estado, higiene y presentación.',
+        'Asumir responsabilidad por el cuidado del uniforme entregado.',
+        'En caso de pérdida la reposición será imputable al trabajador.',
       ],
       filenamePrefix: 'registro-entrega-ropa-trabajo',
     };
@@ -139,8 +169,10 @@ function buildActaCopy(tipo: 'EPP' | 'ROPA') {
     codigoDoc: 'SIG F-622-007',
     objetoCorto: 'EPP',
     objetoLargo: 'Elementos de Protección Personal (EPP)',
+    introCorto: false,
     legalEntrega:
       'hace entrega de los siguientes Elementos de Protección Personal (EPP) al trabajador:',
+    declaracionTitulo: 'Declaración del trabajador',
     declaracionIntro:
       'Declaro haber recibido los Elementos de Protección Personal (EPP) detallados en el presente registro, en buen estado y aptos para su utilización. Asimismo, declaro que:',
     compromisos: [
@@ -179,7 +211,7 @@ const MAESTRO_SELECT = `
     m.idempresa_54,
     m.idcargo_54,
     m.idresponsableentrega_54,
-    m.fecha_entrega_54,
+    to_char(m.fecha_entrega_54, 'YYYY-MM-DD') AS fecha_entrega_54,
     m.hora_entrega_54,
     m.lugar_entrega_54,
     m.motivo_entrega_54,
@@ -780,24 +812,38 @@ export const generarActaEntregaEppPDF = async (req: Request, res: Response): Pro
         },
         { columns: headerCols, margin: [0, 0, 0, 14] },
         {
-          text: [
-            { text: 'A ', fontSize: 10 },
-            { text: String(data.intro.dia), bold: true, fontSize: 10 },
-            { text: ' de ', fontSize: 10 },
-            { text: String(data.intro.mes), bold: true, fontSize: 10 },
-            { text: ' de ', fontSize: 10 },
-            { text: String(data.intro.anio), bold: true, fontSize: 10 },
-            { text: ', ', fontSize: 10 },
-            { text: EMPRESA_LEGAL.nombre, bold: true, fontSize: 10 },
-            { text: ', RUT ', fontSize: 10 },
-            { text: EMPRESA_LEGAL.rut, bold: true, fontSize: 10 },
-            {
-              text:
-                ', en cumplimiento de lo establecido en la Ley Nº 16.744, el Decreto Supremo Nº 44 del Ministerio del Trabajo y Previsión Social y el Reglamento Interno de Orden, Higiene y Seguridad de la empresa, ' +
-                copy.legalEntrega,
-              fontSize: 10,
-            },
-          ],
+          text: copy.introCorto
+            ? [
+                { text: 'A ', fontSize: 10 },
+                { text: String(data.intro.dia), bold: true, fontSize: 10 },
+                { text: ' de ', fontSize: 10 },
+                { text: String(data.intro.mes), bold: true, fontSize: 10 },
+                { text: ' de ', fontSize: 10 },
+                { text: String(data.intro.anio), bold: true, fontSize: 10 },
+                { text: ', la ', fontSize: 10 },
+                { text: EMPRESA_LEGAL.nombre, bold: true, fontSize: 10 },
+                { text: ', Rut ', fontSize: 10 },
+                { text: EMPRESA_LEGAL.rut, bold: true, fontSize: 10 },
+                { text: ` ${copy.legalEntrega}`, fontSize: 10 },
+              ]
+            : [
+                { text: 'A ', fontSize: 10 },
+                { text: String(data.intro.dia), bold: true, fontSize: 10 },
+                { text: ' de ', fontSize: 10 },
+                { text: String(data.intro.mes), bold: true, fontSize: 10 },
+                { text: ' de ', fontSize: 10 },
+                { text: String(data.intro.anio), bold: true, fontSize: 10 },
+                { text: ', ', fontSize: 10 },
+                { text: EMPRESA_LEGAL.nombre, bold: true, fontSize: 10 },
+                { text: ', RUT ', fontSize: 10 },
+                { text: EMPRESA_LEGAL.rut, bold: true, fontSize: 10 },
+                {
+                  text:
+                    ', en cumplimiento de lo establecido en la Ley Nº 16.744, el Decreto Supremo Nº 44 del Ministerio del Trabajo y Previsión Social y el Reglamento Interno de Orden, Higiene y Seguridad de la empresa, ' +
+                    copy.legalEntrega,
+                  fontSize: 10,
+                },
+              ],
           alignment: 'justify',
           lineHeight: 1.35,
           margin: [0, 0, 0, 12],
@@ -841,7 +887,7 @@ export const generarActaEntregaEppPDF = async (req: Request, res: Response): Pro
           margin: [0, 0, 0, 14],
         },
         {
-          text: 'Declaración del trabajador',
+          text: copy.declaracionTitulo,
           bold: true,
           fontSize: 10,
           color: '#111111',
