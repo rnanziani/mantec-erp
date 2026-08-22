@@ -4,7 +4,7 @@ import './BodegaView.css';
 import { apiUrl } from '../lib/apiClient';
 
 interface Bodega {
-    id_bodega_27: number;
+    id_ubicacion_27: number;
     descripcion_27: string;
     activo: boolean;
     created_at: string;
@@ -17,6 +17,7 @@ const BodegaView: React.FC = () => {
     const [showForm, setShowForm] = useState(false);
     const [editingId, setEditingId] = useState<number | null>(null);
     const [descripcion, setDescripcion] = useState('');
+    const [activo, setActivo] = useState(true);
 
     // Estados para búsqueda y ordenamiento
     const [filtro, setFiltro] = useState('');
@@ -55,7 +56,10 @@ const BodegaView: React.FC = () => {
             const response = await fetch(url, {
                 method,
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ descripcion_27: descripcion })
+                body: JSON.stringify({
+                    descripcion_27: descripcion,
+                    activo,
+                })
             });
 
             const data = await response.json();
@@ -98,13 +102,15 @@ const BodegaView: React.FC = () => {
     };
 
     const handleEdit = (bodega: Bodega) => {
-        setEditingId(bodega.id_bodega_27);
+        setEditingId(bodega.id_ubicacion_27);
         setDescripcion(bodega.descripcion_27);
+        setActivo(bodega.activo !== false);
         setShowForm(true);
     };
 
     const resetForm = () => {
         setDescripcion('');
+        setActivo(true);
         setEditingId(null);
         setShowForm(false);
     };
@@ -132,7 +138,7 @@ const BodegaView: React.FC = () => {
             const lowerFiltro = filtro.toLowerCase();
             data = data.filter(b =>
                 b.descripcion_27.toLowerCase().includes(lowerFiltro) ||
-                b.id_bodega_27.toString().includes(lowerFiltro)
+                b.id_ubicacion_27.toString().includes(lowerFiltro)
             );
         }
 
@@ -158,7 +164,16 @@ const BodegaView: React.FC = () => {
                 <h2>🏢 Gestión de Bodegas</h2>
                 <button
                     className="btn-primary"
-                    onClick={() => setShowForm(!showForm)}
+                    onClick={() => {
+                        if (showForm) {
+                            resetForm();
+                        } else {
+                            setDescripcion('');
+                            setActivo(true);
+                            setEditingId(null);
+                            setShowForm(true);
+                        }
+                    }}
                 >
                     {showForm ? '✕ Cancelar' : '+ Nueva Bodega'}
                 </button>
@@ -169,14 +184,30 @@ const BodegaView: React.FC = () => {
                     <h3>{editingId ? 'Editar Bodega' : 'Nueva Bodega'}</h3>
                     <form onSubmit={handleSubmit}>
                         <div className="form-group">
-                            <label>Descripción de la Bodega *</label>
+                            <label htmlFor="bodega-descripcion">Descripción de la Bodega *</label>
                             <input
+                                id="bodega-descripcion"
                                 type="text"
                                 value={descripcion}
                                 onChange={(e) => setDescripcion(e.target.value)}
                                 required
                                 placeholder="Ej: Bodega Central"
                             />
+                        </div>
+                        <div className="form-group checkbox-group">
+                            <label htmlFor="bodega-activo">
+                                <input
+                                    id="bodega-activo"
+                                    type="checkbox"
+                                    checked={activo}
+                                    onChange={(e) => setActivo(e.target.checked)}
+                                    aria-describedby="bodega-activo-help"
+                                />
+                                {activo ? 'Activo' : 'Inactivo'}
+                            </label>
+                            <p id="bodega-activo-help" className="form-help-text">
+                                Desmarca para deshabilitar esta ubicación / bodega.
+                            </p>
                         </div>
                         <div className="form-actions">
                             <button type="submit" className="btn-primary" disabled={loading}>
@@ -206,8 +237,8 @@ const BodegaView: React.FC = () => {
                     <thead>
                         <tr>
                             <th 
-                                onClick={() => handleSort('id_bodega_27')} 
-                                className={`sortable ${sortConfig && sortConfig.key === 'id_bodega_27' ? (sortConfig.direction === 'asc' ? 'sort-asc' : 'sort-desc') : ''}`}
+                                onClick={() => handleSort('id_ubicacion_27')} 
+                                className={`sortable ${sortConfig && sortConfig.key === 'id_ubicacion_27' ? (sortConfig.direction === 'asc' ? 'sort-asc' : 'sort-desc') : ''}`}
                             >
                                 ID
                             </th>
@@ -233,8 +264,8 @@ const BodegaView: React.FC = () => {
                             <tr><td colSpan={4}>No hay bodegas registradas</td></tr>
                         ) : (
                             processedBodegas.map((bodega) => (
-                                <tr key={bodega.id_bodega_27}>
-                                    <td>{bodega.id_bodega_27}</td>
+                                <tr key={bodega.id_ubicacion_27}>
+                                    <td>{bodega.id_ubicacion_27}</td>
                                     <td>{bodega.descripcion_27}</td>
                                     <td>
                                         <span className={`status-badge ${bodega.activo ? 'active' : 'inactive'}`}>
@@ -251,7 +282,7 @@ const BodegaView: React.FC = () => {
                                         </button>
                                         <button
                                             className={`btn-toggle ${bodega.activo ? 'btn-danger' : 'btn-success'}`}
-                                            onClick={() => handleToggleStatus(bodega.id_bodega_27)}
+                                            onClick={() => handleToggleStatus(bodega.id_ubicacion_27)}
                                             title={bodega.activo ? 'Desactivar' : 'Activar'}
                                         >
                                             {bodega.activo ? '🚫' : '✅'}

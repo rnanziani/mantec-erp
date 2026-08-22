@@ -3,6 +3,7 @@ import './BodegaView.css';
 import './PanolMovimientoView.css';
 import Pagination from './shared/Pagination';
 import SignaturePad from './shared/SignaturePad';
+import SearchableSelect from './shared/SearchableSelect';
 import { showDeleteConfirm, showError, showSuccess } from '../utils/swal';
 import { filtrarTrabajadoresPorApellido } from '../utils/trabajadorSearch';
 import { apiFetch, apiUrl } from '../lib/apiClient';
@@ -195,6 +196,15 @@ const PanolMovimientoView: React.FC = () => {
       return Number(h.stock_disponible_48) > 0;
     });
   }, [herramientas, detalles, tipo]);
+
+  const herramientasOptions = useMemo(
+    () =>
+      herramientasDisponibles.map((h) => ({
+        value: String(h.idherramienta_48),
+        label: `${h.codigo_48} - ${h.nombre_48} [${h.estado_48}] (disp: ${h.stock_disponible_48})`,
+      })),
+    [herramientasDisponibles]
+  );
 
   const trabajadoresFiltroOpciones = useMemo(() => {
     const map = new Map<number, string>();
@@ -763,19 +773,15 @@ const PanolMovimientoView: React.FC = () => {
               <div className="panol-detalle-add form-row form-row-3">
                 <div className="form-group">
                   <label htmlFor="herr">Herramienta</label>
-                  <select
+                  <SearchableSelect
                     id="herr"
-                    className="form-input"
                     value={herramientaSel}
-                    onChange={(e) => setHerramientaSel(e.target.value)}
-                  >
-                    <option value="">Seleccione...</option>
-                    {herramientasDisponibles.map((h) => (
-                      <option key={h.idherramienta_48} value={h.idherramienta_48}>
-                        {h.codigo_48} - {h.nombre_48} [{h.estado_48}] (disp: {h.stock_disponible_48})
-                      </option>
-                    ))}
-                  </select>
+                    onChange={setHerramientaSel}
+                    options={herramientasOptions}
+                    placeholder="Buscar por código o nombre..."
+                    aria-label="Buscar y seleccionar herramienta"
+                    emptyMessage="No se encontraron herramientas con ese criterio"
+                  />
                 </div>
                 <div className="form-group">
                   <label htmlFor="cant">Cantidad</label>

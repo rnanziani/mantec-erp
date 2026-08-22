@@ -171,6 +171,64 @@ export const createTransaccion = async (req: Request, res: Response): Promise<vo
       return;
     }
 
+    // El trigger de BD resta 1 en origen; validar stock antes de insertar
+    const stockOrigenRes = await pool.query<{
+      cantidad_26: string | number;
+      ubicacion: string;
+      cod_alternador_19: string;
+    }>(
+      `SELECT e.cantidad_26,
+              u.descripcion_27 AS ubicacion,
+              a.cod_alternador_19
+       FROM tbl_26_existencia e
+       INNER JOIN tbl_27_ubicacion u ON u.id_ubicacion_27 = e.id_ubicacion_26
+       INNER JOIN tbl_19_alternador a ON a.id_alternador_19 = e.id_alternador_26
+       WHERE e.id_alternador_26 = $1
+         AND e.id_ubicacion_26 = $2`,
+      [id_alternador_28, id_ubicacion_origen_28]
+    );
+
+    const stockOrigen = stockOrigenRes.rows[0];
+    const cantidadOrigen = stockOrigen ? Number(stockOrigen.cantidad_26) : 0;
+
+    if (cantidadOrigen < 1) {
+      const otrosRes = await pool.query<{ ubicacion: string; cantidad_26: string | number }>(
+        `SELECT u.descripcion_27 AS ubicacion, e.cantidad_26
+         FROM tbl_26_existencia e
+         INNER JOIN tbl_27_ubicacion u ON u.id_ubicacion_27 = e.id_ubicacion_26
+         WHERE e.id_alternador_26 = $1
+           AND e.cantidad_26 >= 1
+         ORDER BY u.descripcion_27`,
+        [id_alternador_28]
+      );
+
+      const cod = stockOrigen?.cod_alternador_19
+        ? ` ${stockOrigen.cod_alternador_19}`
+        : '';
+      const ubicacion = stockOrigen?.ubicacion || 'origen';
+      let mensaje =
+        `No hay stock suficiente del alternador${cod} en "${ubicacion}" ` +
+        `(disponible: ${cantidadOrigen}). No se puede registrar una salida.`;
+
+      if (otrosRes.rows.length > 0) {
+        const detalle = otrosRes.rows
+          .map((r) => `${r.ubicacion} (${r.cantidad_26})`)
+          .join(', ');
+        mensaje += ` Stock disponible en: ${detalle}.`;
+      } else {
+        mensaje +=
+          ' Verifique Existencias o registre primero una entrada a esa ubicación.';
+      }
+
+      const response: ApiResponse<null> = {
+        success: false,
+        error: 'Stock insuficiente en ubicación de origen',
+        message: mensaje
+      };
+      res.status(400).json(response);
+      return;
+    }
+
     // Usar fecha y hora proporcionadas o valores por defecto
     const fecha = fecha_28 || new Date().toISOString().split('T')[0];
     const hora = hora_28 || new Date().toTimeString().split(' ')[0].substring(0, 5);
@@ -209,12 +267,38 @@ export const createTransaccion = async (req: Request, res: Response): Promise<vo
 
     res.status(201).json(response);
   } catch (error) {
-    const msg = error instanceof Error ? error.message : 'Error desconocido';
+    const pgError = error as { code?: string; constraint?: string; message?: string };
     console.error('Error al crear transacción:', error);
+
+    if (
+      pgError.code === '23514' &&
+      String(pgError.constraint || '').includes('chk_cantidad_no_negativa')
+    ) {
+      const response: ApiResponse<null> = {
+        success: false,
+        error: 'Stock insuficiente',
+        message:
+          'La transacción dejaría el inventario en negativo. Verifique el stock en la ubicación de origen antes de registrar la salida.'
+      };
+      res.status(400).json(response);
+      return;
+    }
+
+    // Excepciones RAISE del trigger de stock (P0001)
+    if (pgError.code === 'P0001' || /stock insuficiente|no existe registro de existencia/i.test(String(pgError.message || ''))) {
+      const response: ApiResponse<null> = {
+        success: false,
+        error: 'Stock insuficiente en ubicación de origen',
+        message: pgError.message || 'No se puede registrar la salida por stock insuficiente.'
+      };
+      res.status(400).json(response);
+      return;
+    }
+
     const response: ApiResponse<null> = {
       success: false,
       error: 'Error al crear la transacción',
-      message: msg
+      message: pgError.message || (error instanceof Error ? error.message : 'Error desconocido')
     };
     res.status(500).json(response);
   }
