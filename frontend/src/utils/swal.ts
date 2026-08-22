@@ -102,6 +102,35 @@ export const showConfirm = (
 };
 
 /**
+ * Pregunta si el movimiento de pañol es SALIDA o DEVOLUCION.
+ * @returns 'SALIDA' | 'DEVOLUCION' o null si cancela
+ */
+export const showTipoMovimientoPanol = (): Promise<'SALIDA' | 'DEVOLUCION' | null> => {
+  return Swal.fire({
+    ...defaultConfig,
+    icon: 'question',
+    title: 'Nuevo movimiento de pañol',
+    text: '¿Es una SALIDA (préstamo) o una DEVOLUCIÓN?',
+    showDenyButton: true,
+    showCancelButton: true,
+    confirmButtonText: 'Salida',
+    denyButtonText: 'Devolución',
+    cancelButtonText: 'Cancelar',
+    confirmButtonColor: '#2563eb',
+    denyButtonColor: '#059669',
+    reverseButtons: true,
+    customClass: {
+      ...defaultConfig.customClass,
+      denyButton: 'swal2-deny-button-custom'
+    }
+  }).then((result) => {
+    if (result.isConfirmed) return 'SALIDA';
+    if (result.isDenied) return 'DEVOLUCION';
+    return null;
+  });
+};
+
+/**
  * Muestra un diálogo de confirmación para eliminar
  */
 export const showDeleteConfirm = (

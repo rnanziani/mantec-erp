@@ -4,7 +4,7 @@ import './PanolMovimientoView.css';
 import Pagination from './shared/Pagination';
 import SignaturePad from './shared/SignaturePad';
 import SearchableSelect from './shared/SearchableSelect';
-import { showDeleteConfirm, showError, showSuccess } from '../utils/swal';
+import { showDeleteConfirm, showError, showSuccess, showTipoMovimientoPanol } from '../utils/swal';
 import { filtrarTrabajadoresPorApellido } from '../utils/trabajadorSearch';
 import { apiFetch, apiUrl } from '../lib/apiClient';
 
@@ -117,7 +117,7 @@ const PanolMovimientoView: React.FC = () => {
   const [idResponsable, setIdResponsable] = useState('');
   const [fecha, setFecha] = useState(() => new Date().toISOString().slice(0, 16));
   const [observacion, setObservacion] = useState('');
-  const [estado, setEstado] = useState('COMPLETADA');
+  const [estado, setEstado] = useState('PENDIENTE');
   const [detalles, setDetalles] = useState<DetalleLinea[]>([]);
   const [firmaTrabajador, setFirmaTrabajador] = useState('');
   const [firmaPanolero, setFirmaPanolero] = useState('');
@@ -370,6 +370,9 @@ const PanolMovimientoView: React.FC = () => {
     });
   };
 
+  const estadoPorTipo = (t: 'SALIDA' | 'DEVOLUCION') =>
+    t === 'SALIDA' ? 'PENDIENTE' : 'COMPLETADA';
+
   const resetForm = () => {
     setEditingId(null);
     setShowForm(false);
@@ -379,7 +382,7 @@ const PanolMovimientoView: React.FC = () => {
     setIdResponsable('');
     setFecha(new Date().toISOString().slice(0, 16));
     setObservacion('');
-    setEstado('COMPLETADA');
+    setEstado(estadoPorTipo('SALIDA'));
     setDetalles([]);
     setFirmaTrabajador('');
     setFirmaPanolero('');
@@ -387,6 +390,17 @@ const PanolMovimientoView: React.FC = () => {
     setCantidadSel('1');
     setOrigenSalidaFolio('');
     setError('');
+  };
+
+  /** Abre formulario nuevo tras preguntar SALIDA o DEVOLUCION */
+  const handleNuevoMovimiento = async () => {
+    const elegido = await showTipoMovimientoPanol();
+    if (!elegido) return;
+
+    resetForm();
+    setTipo(elegido);
+    setEstado(estadoPorTipo(elegido));
+    setShowForm(true);
   };
 
   /** ¿La salida aún tiene herramientas prestadas? */
@@ -657,7 +671,7 @@ const PanolMovimientoView: React.FC = () => {
       <div className="view-header">
         <h2>Movimientos de Pañol</h2>
         <div className="header-actions">
-          <button type="button" className="btn-primary" onClick={() => { resetForm(); setShowForm(true); }}>+ Nuevo</button>
+          <button type="button" className="btn-primary" onClick={handleNuevoMovimiento}>+ Nuevo</button>
           <button
             type="button"
             className="btn-success"
@@ -696,7 +710,9 @@ const PanolMovimientoView: React.FC = () => {
                   className="form-input"
                   value={tipo}
                   onChange={(e) => {
-                    setTipo(e.target.value as 'SALIDA' | 'DEVOLUCION');
+                    const nuevoTipo = e.target.value as 'SALIDA' | 'DEVOLUCION';
+                    setTipo(nuevoTipo);
+                    setEstado(estadoPorTipo(nuevoTipo));
                     setOrigenSalidaFolio('');
                   }}
                   disabled={Boolean(origenSalidaFolio)}

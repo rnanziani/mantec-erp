@@ -37,6 +37,7 @@ interface Alternador {
 interface Ubicacion {
   id_ubicacion_27: number;
   descripcion_27: string;
+  activo?: boolean;
 }
 
 interface TipoTransaccion {
@@ -201,6 +202,12 @@ const TransaccionView: React.FC = () => {
       console.error('Error al cargar ubicaciones:', err);
     }
   };
+
+  /** Solo ubicaciones activas para combos Origen / Destino del formulario */
+  const ubicacionesActivas = useMemo(
+    () => ubicaciones.filter((u) => u.activo !== false),
+    [ubicaciones]
+  );
 
   const fetchTiposTransaccion = async () => {
     try {
@@ -749,7 +756,7 @@ const TransaccionView: React.FC = () => {
                   style={{ width: '100%', padding: '8px 12px', borderRadius: '4px', border: '1px solid #ced4da', fontSize: '14px' }}
                 >
                   <option value="">Seleccione ubicación origen</option>
-                  {ubicaciones.map(ubic => (
+                  {ubicacionesActivas.map(ubic => (
                     <option key={ubic.id_ubicacion_27} value={ubic.id_ubicacion_27}>
                       {ubic.descripcion_27}
                     </option>
@@ -766,7 +773,7 @@ const TransaccionView: React.FC = () => {
                   style={{ width: '100%', padding: '8px 12px', borderRadius: '4px', border: '1px solid #ced4da', fontSize: '14px' }}
                 >
                   <option value="">Seleccione ubicación destino</option>
-                  {ubicaciones.map(ubic => (
+                  {ubicacionesActivas.map(ubic => (
                     <option key={ubic.id_ubicacion_27} value={ubic.id_ubicacion_27}>
                       {ubic.descripcion_27}
                     </option>
