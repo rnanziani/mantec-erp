@@ -430,8 +430,8 @@ const PanolMovimientoView: React.FC = () => {
   const puedeDevolverDesdeSalida = (m: MaestroPanol): boolean => {
     const tipo = String(m.tipomovimiento_49 || '').trim().toUpperCase();
     const estado = String(m.estado_49 || '').trim().toUpperCase();
-    // Toda SALIDA activa puede iniciar devolución (PENDIENTE u otras no anuladas)
-    return tipo === 'SALIDA' && estado !== 'ANULADA';
+    // Solo salidas pendientes de devolución
+    return tipo === 'SALIDA' && estado === 'PENDIENTE';
   };
 
   /**
