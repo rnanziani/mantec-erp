@@ -87,6 +87,29 @@ function badgeEstadoHerramienta(estado: string): string {
   return `badge-estado badge-herr-${key}`;
 }
 
+/** Normaliza el JSON de herramientas del listado (a veces llega como string). */
+function normalizeHerramientasDetalle(raw: unknown): HerramientaDetalleResumen[] {
+  if (Array.isArray(raw)) return raw as HerramientaDetalleResumen[];
+  if (typeof raw === 'string' && raw.trim()) {
+    try {
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? (parsed as HerramientaDetalleResumen[]) : [];
+    } catch {
+      return [];
+    }
+  }
+  return [];
+}
+
+function normalizeMovimientoPanol(row: MaestroPanol): MaestroPanol {
+  return {
+    ...row,
+    tipomovimiento_49: String(row.tipomovimiento_49 || '').trim(),
+    estado_49: String(row.estado_49 || '').trim(),
+    herramientas_detalle: normalizeHerramientasDetalle(row.herramientas_detalle),
+  };
+}
+
 const PanolMovimientoView: React.FC = () => {
   const formRef = useRef<HTMLFormElement>(null);
   const [registros, setRegistros] = useState<MaestroPanol[]>([]);
@@ -134,7 +157,7 @@ const PanolMovimientoView: React.FC = () => {
     for (const row of rows) {
       if (seen.has(row.idmpanol_49)) continue;
       seen.add(row.idmpanol_49);
-      unique.push(row);
+      unique.push(normalizeMovimientoPanol(row));
     }
     return unique;
   };
@@ -403,16 +426,12 @@ const PanolMovimientoView: React.FC = () => {
     setShowForm(true);
   };
 
-  /** ¿La salida aún tiene herramientas prestadas? */
+  /** ¿Se puede generar devolución desde esta salida? */
   const puedeDevolverDesdeSalida = (m: MaestroPanol): boolean => {
-    if (m.tipomovimiento_49 !== 'SALIDA') return false;
-    if (m.estado_49 === 'ANULADA') return false;
-    if (!Array.isArray(m.herramientas_detalle) || m.herramientas_detalle.length === 0) return false;
-    return m.herramientas_detalle.some(
-      (h) =>
-        String(h.estado).toUpperCase() === 'PRESTADA' ||
-        Number(h.stock_disponible) < Number(h.stock)
-    );
+    const tipo = String(m.tipomovimiento_49 || '').trim().toUpperCase();
+    const estado = String(m.estado_49 || '').trim().toUpperCase();
+    // Toda SALIDA activa puede iniciar devolución (PENDIENTE u otras no anuladas)
+    return tipo === 'SALIDA' && estado !== 'ANULADA';
   };
 
   /**
@@ -452,21 +471,13 @@ const PanolMovimientoView: React.FC = () => {
         return;
       }
 
-      // Solo líneas que aún figuran prestadas / sin stock disponible
-      const lineasPendientes = (dets || []).filter((d) => {
-        const h = herramientas.find((x) => x.idherramienta_48 === d.idherramienta_50);
-        const estado = (d.herramienta_estado || h?.estado_48 || '').toUpperCase();
-        const disp = Number(
-          d.herramienta_stock_disponible ?? h?.stock_disponible_48 ?? 0
-        );
-        const stock = Number(h?.stock_48 ?? 1);
-        return estado === 'PRESTADA' || disp < stock;
-      });
+      // Usar todas las líneas del préstamo; el backend valida cantidades netas
+      const lineasPendientes = dets || [];
 
-      if (lineasPendientes.length === 0) {
+      if (!lineasPendientes.length) {
         await showError(
           'Sin pendiente',
-          'Este préstamo ya no tiene herramientas pendientes de devolución'
+          'Este préstamo no tiene herramientas para devolver'
         );
         return;
       }
@@ -1162,7 +1173,8 @@ const PanolMovimientoView: React.FC = () => {
                         title="Generar devolución desde este préstamo"
                         aria-label={`Devolver herramientas de ${m.folio_49 || m.idmpanol_49}`}
                       >
-                        ↩️
+                        <span aria-hidden="true">↩️</span>
+                        <span className="btn-devolver-label">Devolver</span>
                       </button>
                     )}
                     <button

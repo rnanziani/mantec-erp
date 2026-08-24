@@ -265,13 +265,16 @@
   gap: 6px;
   align-items: center;
   white-space: nowrap;
+  min-width: 170px;
 }
 
 .panol-movimiento-view .actions .btn-edit,
-.panol-movimiento-view .actions .btn-delete {
+.panol-movimiento-view .actions .btn-delete,
+.panol-movimiento-view .actions .btn-devolver {
   min-width: 34px;
   padding: 4px 8px;
   font-size: 12px;
+  flex-shrink: 0;
 }
 
 .panol-movimiento-view .badge-estado,
@@ -357,14 +360,23 @@
 }
 
 .panol-movimiento-view .btn-devolver {
-  border: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border: 1px solid #ef6c00;
   background: #fff3e0;
   color: #ef6c00;
   border-radius: 6px;
-  padding: 6px 8px;
+  padding: 5px 8px;
   cursor: pointer;
-  font-size: 1rem;
-  line-height: 1;
+  font-size: 0.78rem;
+  font-weight: 600;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.panol-movimiento-view .btn-devolver-label {
+  letter-spacing: 0.01em;
 }
 
 .panol-movimiento-view .btn-devolver:hover {
