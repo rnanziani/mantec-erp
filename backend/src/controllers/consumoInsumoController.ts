@@ -32,6 +32,24 @@ function formatDateActa(date: Date | string): string {
   return d.toLocaleDateString('es-CL', { day: '2-digit', month: '2-digit', year: 'numeric' });
 }
 
+/** Marca de tiempo YYMMDD_HHMM en zona Chile, al generar el PDF. */
+function stampArchivoActa(date = new Date()): string {
+  const formatted = new Intl.DateTimeFormat('sv-SE', {
+    timeZone: 'America/Santiago',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }).format(date);
+  const normalized = formatted.replace('T', ' ');
+  const [fechaPart, horaPart = '00:00'] = normalized.split(' ');
+  const [anio, mes, dia] = fechaPart.split('-');
+  const [hh, mm] = horaPart.split(':');
+  return `${anio.slice(-2)}${mes}${dia}_${hh}${mm}`;
+}
+
 async function fetchConsumoActaBase(id: string | number) {
   const consumoResult = await pool.query(
     `SELECT
@@ -717,8 +735,12 @@ export const generarActaEntregaPDF = async (req: Request, res: Response): Promis
     };
 
     const pdfDoc = printer.createPdfKitDocument(docDefinition);
+    const filename = `ACTA_ENTREGA_INSUMOS_${stampArchivoActa()}.pdf`;
     res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `attachment; filename=acta-entrega-insumos-${id}.pdf`);
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename="${filename}"; filename*=UTF-8''${encodeURIComponent(filename)}`
+    );
     pdfDoc.pipe(res);
     pdfDoc.end();
   } catch (error) {

@@ -60,7 +60,23 @@ export function apiFetch(input: RequestInfo | URL, init: RequestInit = {}): Prom
   return fetch(url, { ...init, headers });
 }
 
-/** Abre un PDF (u otro blob) en nueva pestaña con autenticación JWT */
+/** Extrae filename del header Content-Disposition (attachment). */
+function filenameFromContentDisposition(header: string | null): string | null {
+  if (!header) return null;
+  const utf8 = /filename\*=(?:UTF-8''|utf-8'')([^;]+)/i.exec(header);
+  if (utf8?.[1]) {
+    try {
+      return decodeURIComponent(utf8[1].trim().replace(/^"|"$/g, ''));
+    } catch {
+      // ignore decode errors
+    }
+  }
+  const plain = /filename="([^"]+)"|filename=([^;]+)/i.exec(header);
+  const raw = (plain?.[1] || plain?.[2] || '').trim();
+  return raw || null;
+}
+
+/** Abre o descarga un PDF (u otro blob) con autenticación JWT */
 export async function openAuthenticatedBlob(url: string, mimeType = 'application/pdf'): Promise<void> {
   const token = localStorage.getItem('token');
   // Acepta URL absoluta (http/https) o ruta relativa (/asignaciones-... o asignaciones-...)
@@ -89,10 +105,24 @@ export async function openAuthenticatedBlob(url: string, mimeType = 'application
         : `Error ${response.status}: no se pudo obtener el archivo`
     );
   }
+  const suggestedName = filenameFromContentDisposition(
+    response.headers.get('Content-Disposition')
+  );
   const blob = await response.blob();
   const typedBlob = mimeType ? new Blob([blob], { type: mimeType }) : blob;
   const blobUrl = URL.createObjectURL(typedBlob);
-  window.open(blobUrl, '_blank', 'noopener,noreferrer');
+
+  if (suggestedName) {
+    const link = document.createElement('a');
+    link.href = blobUrl;
+    link.download = suggestedName;
+    link.rel = 'noopener';
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+  } else {
+    window.open(blobUrl, '_blank', 'noopener,noreferrer');
+  }
   window.setTimeout(() => URL.revokeObjectURL(blobUrl), 60_000);
 }
 

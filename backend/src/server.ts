@@ -110,6 +110,7 @@ app.use(
       callback(null, false);
     },
     credentials: true,
+    exposedHeaders: ['Content-Disposition'],
   })
 );
 app.use(express.json({ limit: '1mb' }));

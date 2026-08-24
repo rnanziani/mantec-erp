@@ -90,11 +90,13 @@ async function cargarDatosActaEntrega(id: string) {
        e.nombre_53 AS elemento,
        te.tipo_elemento_51 AS tipo,
        ce.categoria_52 AS categoria,
+       COALESCE(ta.talla_16, '') AS talla,
        d.cantidad_55 AS cantidad
      FROM ${TABLA_D} d
      INNER JOIN tbl_53_elemento e ON d.idelemento_55 = e.idelemento_53
      INNER JOIN tbl_51_tipo_elemento te ON e.idtipo_elemento_53 = te.idtipo_elemento_51
      INNER JOIN tbl_52_categoria_elemento ce ON e.idcategoria_53 = ce.idcategoria_elemento_52
+     LEFT JOIN tbl_16_tallas ta ON d.idtalla_55 = ta.id_16
      WHERE d.identregaepp_55 = $1
      ORDER BY e.codigo_53 ASC, e.nombre_53 ASC`,
     [id]
@@ -130,6 +132,7 @@ async function cargarDatosActaEntrega(id: string) {
       elemento: r.elemento || '',
       tipo: r.tipo || '',
       categoria: r.categoria || '',
+      talla: r.talla || '',
       cantidad: Number(r.cantidad || 0),
     })),
     firmas: {
@@ -160,7 +163,7 @@ function buildActaCopy(tipo: 'EPP' | 'ROPA') {
         'Asumir responsabilidad por el cuidado del uniforme entregado.',
         'En caso de pérdida la reposición será imputable al trabajador.',
       ],
-      filenamePrefix: 'registro-entrega-ropa-trabajo',
+      filenamePrefix: 'REGISTRO_ENTREGA_ROPA_TRABAJO',
     };
   }
 
@@ -184,8 +187,27 @@ function buildActaCopy(tipo: 'EPP' | 'ROPA') {
       'En caso de pérdida, daño por uso indebido o negligencia comprobada, la empresa podrá aplicar las medidas establecidas en el Reglamento Interno de Orden, Higiene y Seguridad.',
       'En cuanto al uniforme, en caso de pérdida, la reposición será imputable al trabajador.',
     ],
-    filenamePrefix: 'registro-entrega-epp',
+    filenamePrefix: 'REGISTRO_ENTREGA_ELEMENTOS_PROTECCION_PERSONAL',
   };
+}
+
+/** Marca de tiempo YYMMDD_HHMM en zona Chile, al generar el PDF. */
+function stampArchivoActa(date = new Date()): string {
+  const formatted = new Intl.DateTimeFormat('sv-SE', {
+    timeZone: 'America/Santiago',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }).format(date);
+  // sv-SE → "2026-08-24 13:29" o "2026-08-24T13:29"
+  const normalized = formatted.replace('T', ' ');
+  const [fechaPart, horaPart = '00:00'] = normalized.split(' ');
+  const [anio, mes, dia] = fechaPart.split('-');
+  const [hh, mm] = horaPart.split(':');
+  return `${anio.slice(-2)}${mes}${dia}_${hh}${mm}`;
 }
 
 const TABLA_M = 'tbl_54_m_entrega_epp';
@@ -749,6 +771,7 @@ export const generarActaEntregaEppPDF = async (req: Request, res: Response): Pro
         { text: 'Elemento', style: 'gridHeader', alignment: 'center' },
         { text: 'Tipo', style: 'gridHeader', alignment: 'center' },
         { text: 'Categoría', style: 'gridHeader', alignment: 'center' },
+        { text: 'Talla', style: 'gridHeader', alignment: 'center' },
         { text: 'Cant.', style: 'gridHeader', alignment: 'center' },
       ],
     ];
@@ -760,6 +783,7 @@ export const generarActaEntregaEppPDF = async (req: Request, res: Response): Pro
         { text: '-', style: 'gridCell', alignment: 'center' },
         { text: '-', style: 'gridCell', alignment: 'center' },
         { text: '-', style: 'gridCell', alignment: 'center' },
+        { text: '-', style: 'gridCell', alignment: 'center' },
       ]);
     } else {
       data.elementos.forEach((e) => {
@@ -768,6 +792,7 @@ export const generarActaEntregaEppPDF = async (req: Request, res: Response): Pro
           { text: e.elemento, style: 'gridCell' },
           { text: e.tipo, style: 'gridCell' },
           { text: e.categoria, style: 'gridCell' },
+          { text: e.talla || '—', style: 'gridCell', alignment: 'center' },
           { text: String(e.cantidad), style: 'gridCell', alignment: 'center' },
         ]);
       });
@@ -877,7 +902,7 @@ export const generarActaEntregaEppPDF = async (req: Request, res: Response): Pro
         {
           table: {
             headerRows: 1,
-            widths: [70, '*', 90, 90, 40],
+            widths: [60, '*', 75, 75, 40, 35],
             body: tableBody,
           },
           layout: {
@@ -944,10 +969,12 @@ export const generarActaEntregaEppPDF = async (req: Request, res: Response): Pro
     };
 
     const pdfDoc = printer.createPdfKitDocument(docDefinition);
+    const stamp = stampArchivoActa();
+    const filename = `${copy.filenamePrefix}_${stamp}.pdf`;
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader(
       'Content-Disposition',
-      `attachment; filename=${copy.filenamePrefix}-${data.folio || id}.pdf`
+      `attachment; filename="${filename}"; filename*=UTF-8''${encodeURIComponent(filename)}`
     );
     pdfDoc.pipe(res);
     pdfDoc.end();

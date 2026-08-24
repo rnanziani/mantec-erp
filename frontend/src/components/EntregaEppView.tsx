@@ -18,6 +18,7 @@ interface ActaEntregaEppData {
     elemento: string;
     tipo: string;
     categoria: string;
+    talla?: string;
     cantidad: number;
   }>;
   firmas: {
@@ -1436,13 +1437,14 @@ const EntregaEppView: React.FC = () => {
                               <th scope="col">Elemento</th>
                               <th scope="col">Tipo</th>
                               <th scope="col">Categoría</th>
+                              <th scope="col">Talla</th>
                               <th scope="col">Cant.</th>
                             </tr>
                           </thead>
                           <tbody>
                             {previewActa.elementos.length === 0 ? (
                               <tr>
-                                <td colSpan={5}>Sin elementos</td>
+                                <td colSpan={6}>Sin elementos</td>
                               </tr>
                             ) : (
                               previewActa.elementos.map((e, i) => (
@@ -1451,6 +1453,7 @@ const EntregaEppView: React.FC = () => {
                                   <td className="epp-registro-item-name">{e.elemento}</td>
                                   <td>{e.tipo}</td>
                                   <td>{e.categoria}</td>
+                                  <td className="text-center">{e.talla || '—'}</td>
                                   <td className="text-center">{e.cantidad}</td>
                                 </tr>
                               ))
