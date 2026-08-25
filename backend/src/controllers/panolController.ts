@@ -494,6 +494,10 @@ export const createPanol = async (req: Request, res: Response): Promise<void> =>
       res.status(400).json({ success: false, error: 'Trabajador es requerido' });
       return;
     }
+    if (!body.idresponsableentrega_49) {
+      res.status(400).json({ success: false, error: 'Responsable de entrega es requerido' });
+      return;
+    }
     if (!firmaTrab || !firmaPanol) {
       res.status(400).json({
         success: false,
@@ -554,7 +558,7 @@ export const createPanol = async (req: Request, res: Response): Promise<void> =>
         tipo,
         body.idtrabajador_49,
         idUsuario,
-        body.idresponsableentrega_49 || null,
+        body.idresponsableentrega_49,
         body.fecha_49 || null,
         body.fechadevolucion_49 || null,
         estado,
@@ -683,7 +687,12 @@ export const updatePanol = async (req: Request, res: Response): Promise<void> =>
     if (body.tipomovimiento_49 !== undefined) push('tipomovimiento_49', tipo);
     if (body.idtrabajador_49 !== undefined) push('idtrabajador_49', body.idtrabajador_49);
     if (body.idresponsableentrega_49 !== undefined) {
-      push('idresponsableentrega_49', body.idresponsableentrega_49 || null);
+      if (!body.idresponsableentrega_49) {
+        res.status(400).json({ success: false, error: 'Responsable de entrega es requerido' });
+        await client.query('ROLLBACK');
+        return;
+      }
+      push('idresponsableentrega_49', body.idresponsableentrega_49);
     }
     if (body.fecha_49 !== undefined) push('fecha_49', body.fecha_49);
     if (body.fechadevolucion_49 !== undefined) push('fechadevolucion_49', body.fechadevolucion_49 || null);

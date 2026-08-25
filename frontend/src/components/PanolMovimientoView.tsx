@@ -606,6 +606,10 @@ const PanolMovimientoView: React.FC = () => {
       await showError('Validación', 'Seleccione un trabajador');
       return;
     }
+    if (!idResponsable) {
+      await showError('Validación', 'Seleccione un responsable de entrega');
+      return;
+    }
     if (!detalles.length) {
       await showError('Validación', 'Agregue al menos una herramienta');
       return;
@@ -622,7 +626,7 @@ const PanolMovimientoView: React.FC = () => {
     const payload = {
       tipomovimiento_49: tipo,
       idtrabajador_49: Number(idTrabajador),
-      idresponsableentrega_49: idResponsable ? Number(idResponsable) : null,
+      idresponsableentrega_49: Number(idResponsable),
       fecha_49: fecha ? new Date(fecha).toISOString() : null,
       estado_49: estado,
       observacion_49: observacion.trim() || null,
@@ -782,9 +786,16 @@ const PanolMovimientoView: React.FC = () => {
               </div>
 
               <div className="form-group panol-field-responsable">
-                <label htmlFor="responsable">Responsable entrega</label>
-                <select id="responsable" className="form-input" value={idResponsable} onChange={(e) => setIdResponsable(e.target.value)}>
-                  <option value="">Sin responsable</option>
+                <label htmlFor="responsable">Responsable entrega *</label>
+                <select
+                  id="responsable"
+                  className="form-input"
+                  value={idResponsable}
+                  onChange={(e) => setIdResponsable(e.target.value)}
+                  required
+                  aria-required="true"
+                >
+                  <option value="">Seleccione responsable...</option>
                   {responsables.map((r) => (
                     <option key={r.idresponsableentrega_08} value={r.idresponsableentrega_08}>
                       {`${r.nombreresponsableentrega_08 || ''} ${r.apaternoresponsableentrega_08 || ''} ${r.amaternoresponsableentrega_08 || ''}`.trim()}
@@ -794,7 +805,7 @@ const PanolMovimientoView: React.FC = () => {
               </div>
 
               <div className="form-group panol-field-obs">
-                <label htmlFor="obs">Observación</label>
+                <label htmlFor="obs">Observación (opcional)</label>
                 <textarea id="obs" className="form-input" rows={3} value={observacion} onChange={(e) => setObservacion(e.target.value)} />
               </div>
             </div>
