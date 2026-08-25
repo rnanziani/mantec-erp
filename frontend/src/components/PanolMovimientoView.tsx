@@ -146,8 +146,9 @@ const PanolMovimientoView: React.FC = () => {
   const [firmaPanolero, setFirmaPanolero] = useState('');
   const [herramientaSel, setHerramientaSel] = useState('');
   const [cantidadSel, setCantidadSel] = useState('1');
-  /** Folio de la SALIDA de origen al crear una DEVOLUCION rápida */
+  /** Folio e ID de la SALIDA de origen al crear una DEVOLUCION rápida */
   const [origenSalidaFolio, setOrigenSalidaFolio] = useState('');
+  const [origenSalidaId, setOrigenSalidaId] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
   const savingRef = useRef(false);
 
@@ -412,6 +413,7 @@ const PanolMovimientoView: React.FC = () => {
     setHerramientaSel('');
     setCantidadSel('1');
     setOrigenSalidaFolio('');
+    setOrigenSalidaId(null);
     setError('');
   };
 
@@ -466,12 +468,15 @@ const PanolMovimientoView: React.FC = () => {
         await showError('Validación', 'Solo se puede devolver desde un movimiento de SALIDA');
         return;
       }
-      if (maestro.estado_49 === 'ANULADA') {
-        await showError('Validación', 'No se puede devolver desde un movimiento anulado');
+      if (String(maestro.estado_49 || '').toUpperCase() !== 'PENDIENTE') {
+        await showError(
+          'Validación',
+          'Solo se puede devolver desde un préstamo en estado PENDIENTE'
+        );
         return;
       }
 
-      // Usar todas las líneas del préstamo; el backend valida cantidades netas
+      // Usar todas las líneas del préstamo; el backend valida contra esta salida
       const lineasPendientes = dets || [];
 
       if (!lineasPendientes.length) {
@@ -494,6 +499,7 @@ const PanolMovimientoView: React.FC = () => {
       setFecha(new Date().toISOString().slice(0, 16));
       setEstado('COMPLETADA');
       setOrigenSalidaFolio(folio);
+      setOrigenSalidaId(idSalida);
       setObservacion(`Devolución de préstamo ${folio}`);
       setFirmaTrabajador(''); // firmas nuevas
       setFirmaPanolero('');
@@ -622,6 +628,9 @@ const PanolMovimientoView: React.FC = () => {
       observacion_49: observacion.trim() || null,
       firmatrabajador_49: firmaTrabajador,
       firmapanolero_49: firmaPanolero,
+      ...(tipo === 'DEVOLUCION' && origenSalidaId
+        ? { idsalidaorigen_49: origenSalidaId }
+        : {}),
       detalles: detalles.map((d) => ({
         idherramienta_50: d.idherramienta_50,
         cantidad_50: d.cantidad_50,
@@ -725,6 +734,7 @@ const PanolMovimientoView: React.FC = () => {
                     setTipo(nuevoTipo);
                     setEstado(estadoPorTipo(nuevoTipo));
                     setOrigenSalidaFolio('');
+                    setOrigenSalidaId(null);
                   }}
                   disabled={Boolean(origenSalidaFolio)}
                 >

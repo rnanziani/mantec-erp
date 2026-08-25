@@ -1290,6 +1290,8 @@ export interface CreateMaestroPanolDTO {
   observacion_49?: string | null;
   firmatrabajador_49: string;
   firmapanolero_49: string;
+  /** ID de la SALIDA PENDIENTE desde la que se genera esta DEVOLUCION */
+  idsalidaorigen_49?: number | null;
   detalles: Array<{
     idherramienta_50: number;
     estadoentrega_50?: string;

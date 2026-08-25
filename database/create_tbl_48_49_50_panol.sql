@@ -260,16 +260,14 @@ DECLARE
     v_tipo_movimiento varchar(20);
     v_estado_movimiento varchar(20);
 BEGIN
-    SELECT tipomovimiento_49, estado_49
+    SELECT UPPER(TRIM(tipomovimiento_49)), UPPER(TRIM(estado_49))
     INTO v_tipo_movimiento, v_estado_movimiento
     FROM tbl_49_m_panol
     WHERE idmpanol_49 = NEW.idmpanol_50;
 
-    IF v_estado_movimiento <> 'COMPLETADA' THEN
-        RETURN NEW;
-    END IF;
-
-    IF v_tipo_movimiento = 'SALIDA' THEN
+    -- Préstamo firmado: aplica en PENDIENTE o COMPLETADA
+    IF v_tipo_movimiento = 'SALIDA'
+       AND v_estado_movimiento IN ('PENDIENTE', 'COMPLETADA') THEN
         UPDATE tbl_48_d_herramienta
         SET
             stock_disponible_48 = GREATEST(0, stock_disponible_48 - NEW.cantidad_50),
@@ -281,7 +279,10 @@ BEGIN
         WHERE idherramienta_48 = NEW.idherramienta_50;
     END IF;
 
-    IF v_tipo_movimiento = 'DEVOLUCION' AND NEW.estadodevolucion_50 IS NOT NULL THEN
+    -- Devolución: solo cuando el movimiento está COMPLETADA
+    IF v_tipo_movimiento = 'DEVOLUCION'
+       AND v_estado_movimiento = 'COMPLETADA'
+       AND NEW.estadodevolucion_50 IS NOT NULL THEN
         IF NEW.estadodevolucion_50 IN ('BUENA', 'REGULAR') THEN
             UPDATE tbl_48_d_herramienta
             SET
@@ -337,5 +338,5 @@ JOIN tbl_49_m_panol m ON d.idmpanol_50 = m.idmpanol_49
 JOIN tbl_06_trabajador t ON m.idtrabajador_49 = t.idtrabajador_06
 WHERE h.estado_48 = 'PRESTADA'
 AND m.tipomovimiento_49 = 'SALIDA'
-AND m.estado_49 = 'COMPLETADA'
+AND m.estado_49 IN ('PENDIENTE', 'COMPLETADA')
 ORDER BY m.fecha_49 DESC;

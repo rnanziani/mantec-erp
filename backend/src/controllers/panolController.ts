@@ -168,19 +168,19 @@ async function validarStockSalida(
       }
     }
 
-    // Neto comprometido aunque el movimiento esté PENDIENTE (el trigger solo actúa en COMPLETADA)
+    // Neto comprometido aunque el movimiento esté PENDIENTE (el préstamo ya compromete stock)
     const netoRes = await client.query<{ neto: string }>(
       `SELECT COALESCE(SUM(
          CASE
-           WHEN m.tipomovimiento_49 = 'SALIDA' THEN d.cantidad_50
-           WHEN m.tipomovimiento_49 = 'DEVOLUCION' THEN -d.cantidad_50
+           WHEN UPPER(TRIM(m.tipomovimiento_49)) = 'SALIDA' THEN d.cantidad_50
+           WHEN UPPER(TRIM(m.tipomovimiento_49)) = 'DEVOLUCION' THEN -d.cantidad_50
            ELSE 0
          END
        ), 0)::text AS neto
        FROM tbl_50_d_panol d
        INNER JOIN tbl_49_m_panol m ON m.idmpanol_49 = d.idmpanol_50
        WHERE d.idherramienta_50 = $1
-         AND m.estado_49 IN ('PENDIENTE', 'COMPLETADA')
+         AND UPPER(TRIM(m.estado_49)) IN ('PENDIENTE', 'COMPLETADA')
          AND ($2::int IS NULL OR m.idmpanol_49 <> $2)`,
       [d.idherramienta_50, excludeIdMaestro ?? null]
     );
@@ -194,7 +194,100 @@ async function validarStockSalida(
 }
 
 /**
- * Control para DEVOLUCION:
+ * Control para DEVOLUCION ligada a una SALIDA concreta (botón Devolver):
+ * la salida debe estar PENDIENTE y las cantidades no pueden superar ese préstamo.
+ */
+async function validarDevolucionDesdeSalida(
+  client: { query: typeof pool.query },
+  idSalida: number,
+  detalles: CreateMaestroPanolDTO['detalles']
+): Promise<string | null> {
+  const salidaRes = await client.query<{
+    tipomovimiento_49: string;
+    estado_49: string;
+    folio_49: string | null;
+  }>(
+    `SELECT tipomovimiento_49, estado_49, folio_49
+     FROM ${TABLA_M}
+     WHERE idmpanol_49 = $1
+     FOR UPDATE`,
+    [idSalida]
+  );
+
+  if (salidaRes.rowCount === 0) {
+    return 'Préstamo de origen no encontrado';
+  }
+
+  const salida = salidaRes.rows[0];
+  const tipoSalida = String(salida.tipomovimiento_49 || '').toUpperCase();
+  const estadoSalida = String(salida.estado_49 || '').toUpperCase();
+  const folio = salida.folio_49 || `ID-${idSalida}`;
+
+  if (tipoSalida !== 'SALIDA') {
+    return 'El movimiento de origen debe ser una SALIDA';
+  }
+  if (estadoSalida === 'ANULADA') {
+    return `El préstamo ${folio} está anulado`;
+  }
+  if (estadoSalida === 'COMPLETADA') {
+    return `El préstamo ${folio} ya fue cerrado (COMPLETADA). No admite otra devolución`;
+  }
+  if (estadoSalida !== 'PENDIENTE') {
+    return `El préstamo ${folio} debe estar PENDIENTE para devolver`;
+  }
+
+  const detsRes = await client.query<{
+    idherramienta_50: number;
+    cantidad_50: number;
+    codigo_48: string;
+  }>(
+    `SELECT d.idherramienta_50, d.cantidad_50, h.codigo_48
+     FROM ${TABLA_D} d
+     INNER JOIN tbl_48_d_herramienta h ON h.idherramienta_48 = d.idherramienta_50
+     WHERE d.idmpanol_50 = $1`,
+    [idSalida]
+  );
+
+  const porHerramienta = new Map<number, { cantidad: number; codigo: string }>();
+  for (const row of detsRes.rows) {
+    porHerramienta.set(Number(row.idherramienta_50), {
+      cantidad: Number(row.cantidad_50),
+      codigo: row.codigo_48,
+    });
+  }
+
+  for (const d of detalles) {
+    const idH = Number(d.idherramienta_50);
+    const cant = Number(d.cantidad_50);
+    const enPrestamo = porHerramienta.get(idH);
+
+    const toolRes = await client.query<{ codigo_48: string; activo_48: boolean }>(
+      `SELECT codigo_48, activo_48
+       FROM tbl_48_d_herramienta
+       WHERE idherramienta_48 = $1
+       FOR UPDATE`,
+      [idH]
+    );
+    if (toolRes.rowCount === 0) {
+      return `Herramienta ${idH} no encontrada`;
+    }
+    const codigo = toolRes.rows[0].codigo_48;
+    if (!toolRes.rows[0].activo_48) {
+      return `${codigo} está inactiva`;
+    }
+    if (!enPrestamo) {
+      return `${codigo} no pertenece al préstamo ${folio}`;
+    }
+    if (cant > enPrestamo.cantidad) {
+      return `${codigo}: el préstamo ${folio} solo tiene ${enPrestamo.cantidad} unidad(es) (solicitado: ${cant})`;
+    }
+  }
+
+  return null;
+}
+
+/**
+ * Control para DEVOLUCION libre (sin salida origen):
  * solo se puede devolver lo que aún está prestado (neto SALIDA - DEVOLUCION > 0)
  */
 async function validarDevolucion(
@@ -230,15 +323,15 @@ async function validarDevolucion(
     const netoRes = await client.query<{ neto: string }>(
       `SELECT COALESCE(SUM(
          CASE
-           WHEN m.tipomovimiento_49 = 'SALIDA' THEN d.cantidad_50
-           WHEN m.tipomovimiento_49 = 'DEVOLUCION' THEN -d.cantidad_50
+           WHEN UPPER(TRIM(m.tipomovimiento_49)) = 'SALIDA' THEN d.cantidad_50
+           WHEN UPPER(TRIM(m.tipomovimiento_49)) = 'DEVOLUCION' THEN -d.cantidad_50
            ELSE 0
          END
        ), 0)::text AS neto
        FROM tbl_50_d_panol d
        INNER JOIN tbl_49_m_panol m ON m.idmpanol_49 = d.idmpanol_50
        WHERE d.idherramienta_50 = $1
-         AND m.estado_49 IN ('PENDIENTE', 'COMPLETADA')
+         AND UPPER(TRIM(m.estado_49)) IN ('PENDIENTE', 'COMPLETADA')
          AND ($2::int IS NULL OR m.idmpanol_49 <> $2)`,
       [d.idherramienta_50, excludeIdMaestro ?? null]
     );
@@ -376,7 +469,16 @@ export const createPanol = async (req: Request, res: Response): Promise<void> =>
 
     const body: CreateMaestroPanolDTO = req.body;
     const tipo = String(body.tipomovimiento_49 || '').toUpperCase();
-    const estado = String(body.estado_49 || 'COMPLETADA').toUpperCase();
+    // Flujo operativo: SALIDA queda PENDIENTE hasta la devolución; DEVOLUCION cierra en COMPLETADA
+    const estado =
+      tipo === 'SALIDA'
+        ? 'PENDIENTE'
+        : tipo === 'DEVOLUCION'
+          ? 'COMPLETADA'
+          : String(body.estado_49 || 'COMPLETADA').toUpperCase();
+    const idSalidaOrigen = body.idsalidaorigen_49
+      ? Number(body.idsalidaorigen_49)
+      : null;
     const firmaTrab = firmaValida(body.firmatrabajador_49);
     const firmaPanol = firmaValida(body.firmapanolero_49);
 
@@ -399,6 +501,17 @@ export const createPanol = async (req: Request, res: Response): Promise<void> =>
       });
       return;
     }
+    if (idSalidaOrigen != null && (Number.isNaN(idSalidaOrigen) || idSalidaOrigen < 1)) {
+      res.status(400).json({ success: false, error: 'idsalidaorigen_49 inválido' });
+      return;
+    }
+    if (idSalidaOrigen != null && tipo !== 'DEVOLUCION') {
+      res.status(400).json({
+        success: false,
+        error: 'idsalidaorigen_49 solo aplica a movimientos DEVOLUCION',
+      });
+      return;
+    }
 
     const detalleError = validarDetalles(tipo, body.detalles);
     if (detalleError) {
@@ -417,7 +530,9 @@ export const createPanol = async (req: Request, res: Response): Promise<void> =>
       }
     }
     if (tipo === 'DEVOLUCION') {
-      const devError = await validarDevolucion(client, body.detalles);
+      const devError = idSalidaOrigen
+        ? await validarDevolucionDesdeSalida(client, idSalidaOrigen, body.detalles)
+        : await validarDevolucion(client, body.detalles);
       if (devError) {
         await client.query('ROLLBACK');
         res.status(400).json({ success: false, error: devError });
@@ -466,6 +581,29 @@ export const createPanol = async (req: Request, res: Response): Promise<void> =>
           d.foto_50 || null,
         ]
       );
+    }
+
+    // Al registrar la devolución, cerrar el préstamo origen (PENDIENTE → COMPLETADA)
+    if (tipo === 'DEVOLUCION' && idSalidaOrigen) {
+      const cierre = await client.query(
+        `UPDATE ${TABLA_M}
+         SET estado_49 = 'COMPLETADA',
+             fechadevolucion_49 = COALESCE(fechadevolucion_49, NOW()),
+             actualizado_en = CURRENT_TIMESTAMP
+         WHERE idmpanol_49 = $1
+           AND UPPER(TRIM(tipomovimiento_49)) = 'SALIDA'
+           AND UPPER(TRIM(estado_49)) = 'PENDIENTE'
+         RETURNING idmpanol_49`,
+        [idSalidaOrigen]
+      );
+      if (cierre.rowCount === 0) {
+        await client.query('ROLLBACK');
+        res.status(400).json({
+          success: false,
+          error: 'No se pudo cerrar el préstamo de origen (ya no está PENDIENTE)',
+        });
+        return;
+      }
     }
 
     await client.query('COMMIT');
