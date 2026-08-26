@@ -22,6 +22,9 @@ interface AsignacionPrenda {
   trabajador_nombre?: string;
   responsable_nombre?: string;
   empresa_nombre?: string;
+  /** Cargo del trabajador (para filtrar; no se muestra en la grilla) */
+  idcargo_06?: number | null;
+  nombre_cargo?: string | null;
 }
 
 interface Empresa {
@@ -59,6 +62,12 @@ interface Trabajador {
   amaterno_06: string;
   /** Empresa del trabajador (API trabajadores); respaldo si el acta no tiene idempresa_09. */
   idempresa_06?: number | null;
+}
+
+interface Cargo {
+  idcargo_14: number;
+  cargo_14: string;
+  nombrecargo_14?: string;
 }
 
 interface Responsable {
@@ -190,6 +199,7 @@ const AsignacionPrendasView: React.FC = () => {
   const [prendas, setPrendas] = useState<Prenda[]>([]);
   const [tallas, setTallas] = useState<Talla[]>([]);
   const [trabajadores, setTrabajadores] = useState<Trabajador[]>([]);
+  const [cargos, setCargos] = useState<Cargo[]>([]);
   const [responsables, setResponsables] = useState<Responsable[]>([]);
   const [empresas, setEmpresas] = useState<Empresa[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
@@ -257,6 +267,7 @@ const AsignacionPrendasView: React.FC = () => {
   const API_URL = apiUrl('/asignaciones-prendas');
   const TALLAS_API_URL = apiUrl('/tallas');
   const TRABAJADORES_URL = apiUrl('/trabajadores');
+  const CARGOS_URL = apiUrl('/cargos');
   const RESPONSABLES_URL = apiUrl('/responsables-entrega');
   const EMPRESAS_URL = apiUrl('/empresas');
 
@@ -333,6 +344,24 @@ const AsignacionPrendasView: React.FC = () => {
     }
   }, []);
 
+  const fetchCargos = useCallback(async () => {
+    try {
+      const response = await fetch(CARGOS_URL);
+      const data: ApiResponse = await response.json();
+      if (data.success && Array.isArray(data.data)) {
+        setCargos(
+          data.data.map((cargo: { idcargo_14: number; cargo_14?: string; nombrecargo_14?: string }) => ({
+            idcargo_14: cargo.idcargo_14,
+            cargo_14: cargo.cargo_14 || cargo.nombrecargo_14 || '',
+            nombrecargo_14: cargo.nombrecargo_14,
+          }))
+        );
+      }
+    } catch (err) {
+      console.error('Error al cargar cargos:', err);
+    }
+  }, []);
+
   const fetchResponsables = useCallback(async () => {
     try {
       const response = await fetch(RESPONSABLES_URL);
@@ -360,6 +389,7 @@ const AsignacionPrendasView: React.FC = () => {
   // Búsqueda y ordenamiento
   const [filtro, setFiltro] = useState<string>('');
   const [filtroEstado, setFiltroEstado] = useState<string>('');
+  const [filtroCargo, setFiltroCargo] = useState<string>('');
   const [sortConfig, setSortConfig] = useState<SortConfig | null>(null);
   
   // Paginación
@@ -368,16 +398,17 @@ const AsignacionPrendasView: React.FC = () => {
 
   useEffect(() => {
     setPaginaActual(1);
-  }, [filtro, filtroFechaDesde, filtroFechaHasta, filtroEstado]);
+  }, [filtro, filtroFechaDesde, filtroFechaHasta, filtroEstado, filtroCargo]);
 
   useEffect(() => {
     fetchAsignaciones();
     fetchPrendas();
     fetchTallas();
     fetchTrabajadores();
+    fetchCargos();
     fetchResponsables();
     fetchEmpresas();
-  }, [fetchAsignaciones, fetchPrendas, fetchTallas, fetchTrabajadores, fetchResponsables, fetchEmpresas]);
+  }, [fetchAsignaciones, fetchPrendas, fetchTallas, fetchTrabajadores, fetchCargos, fetchResponsables, fetchEmpresas]);
 
   useEffect(() => {
     if (idAsignacionSeleccionada) {
@@ -797,6 +828,10 @@ const AsignacionPrendasView: React.FC = () => {
       data = data.filter((a) => a.entregado !== true);
     }
 
+    if (filtroCargo) {
+      data = data.filter((a) => String(a.idcargo_06 ?? '') === filtroCargo);
+    }
+
     if (sortConfig) {
       data.sort((a, b) => {
         const aValue = a[sortConfig.key];
@@ -822,7 +857,7 @@ const AsignacionPrendasView: React.FC = () => {
     }
 
     return data;
-  }, [asignaciones, filtro, filtroEstado, sortConfig]);
+  }, [asignaciones, filtro, filtroEstado, filtroCargo, sortConfig]);
 
   const asignacionesPaginadas = useMemo(() => {
     const inicio = (paginaActual - 1) * registrosPorPagina;
@@ -2537,7 +2572,7 @@ const AsignacionPrendasView: React.FC = () => {
             <div
               style={{
                 display: 'grid',
-                gridTemplateColumns: 'minmax(220px, 1fr) minmax(180px, 240px) minmax(140px, 180px)',
+                gridTemplateColumns: 'minmax(200px, 1fr) minmax(180px, 240px) minmax(130px, 160px) minmax(160px, 220px)',
                 gap: '10px'
               }}
             >
@@ -2577,6 +2612,24 @@ const AsignacionPrendasView: React.FC = () => {
                 <option value="">Todos los estados</option>
                 <option value="pendiente">Pendiente</option>
                 <option value="entregado">Entregado</option>
+              </select>
+              <select
+                id="filtro-cargo-asignacion"
+                value={filtroCargo}
+                onChange={(e) => setFiltroCargo(e.target.value)}
+                style={{ width: '100%', padding: '10px', fontSize: '14px', borderRadius: '4px', border: '1px solid #ced4da' }}
+                aria-label="Filtrar por cargo del trabajador"
+                title="Filtrar por cargo"
+              >
+                <option value="">Todos los cargos</option>
+                {cargos
+                  .slice()
+                  .sort((a, b) => a.cargo_14.localeCompare(b.cargo_14, 'es'))
+                  .map((cargo) => (
+                    <option key={cargo.idcargo_14} value={String(cargo.idcargo_14)}>
+                      {cargo.cargo_14 || cargo.nombrecargo_14 || `Cargo #${cargo.idcargo_14}`}
+                    </option>
+                  ))}
               </select>
             </div>
           </div>

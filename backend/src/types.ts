@@ -1057,6 +1057,8 @@ export interface AsignacionPrenda {
   trabajador_nombre?: string;
   responsable_nombre?: string;
   empresa_nombre?: string;
+  idcargo_06?: number | null;
+  nombre_cargo?: string | null;
 }
 
 /**

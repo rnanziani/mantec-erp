@@ -60,12 +60,15 @@ export const getAllAsignaciones = async (req: Request, res: Response): Promise<v
         am.observaciones_09,
         COALESCE(am.entregado, false) as entregado,
         t.nombre_06 || ' ' || COALESCE(t.apaterno_06, '') || ' ' || COALESCE(t.amaterno_06, '') as trabajador_nombre,
+        t.idcargo_06,
+        c.cargo_14 as nombre_cargo,
         r.nombreresponsableentrega_08 || ' ' || COALESCE(r.apaternoresponsableentrega_08, '') || ' ' || COALESCE(r.amaternoresponsableentrega_08, '') as responsable_nombre,
         e.nombreempresa_15 as empresa_nombre
       FROM ${TABLA_ASIGNACION} am
       INNER JOIN ${TABLA_TRABAJADOR} t ON am.idtrabajador_09 = t.idtrabajador_06
       INNER JOIN ${TABLA_RESPONSABLE} r ON am.idresponsableentrega_09 = r.idresponsableentrega_08
       LEFT JOIN ${TABLA_EMPRESA} e ON am.idempresa_09 = e.idempresa_15
+      LEFT JOIN tbl_14_cargo c ON t.idcargo_06 = c.idcargo_14
       ${whereClause}
       ORDER BY am.fecha_09 DESC, am.hora_09 DESC
     `;
