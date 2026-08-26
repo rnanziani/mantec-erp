@@ -2905,9 +2905,6 @@ const AsignacionPrendasView: React.FC = () => {
                         <th scope="col" style={{ width: '110px' }}>
                           Fecha de Entrega (DD/MM/AA)
                         </th>
-                        <th scope="col" style={{ width: '80px' }}>
-                          Firma
-                        </th>
                       </tr>
                     </thead>
                     <tbody>
@@ -2918,7 +2915,6 @@ const AsignacionPrendasView: React.FC = () => {
                           <td>&nbsp;</td>
                           <td>&nbsp;</td>
                           <td>&nbsp;</td>
-                          <td aria-label="Espacio para firma">&nbsp;</td>
                         </tr>
                       ) : (
                         previewActaData.prendas.map(
@@ -2929,7 +2925,6 @@ const AsignacionPrendasView: React.FC = () => {
                               <td>{p.cantidad}</td>
                               <td>{p.talla}</td>
                               <td>{previewActaData.fechaEntrega}</td>
-                              <td aria-label="Espacio para firma">&nbsp;</td>
                             </tr>
                           )
                         )

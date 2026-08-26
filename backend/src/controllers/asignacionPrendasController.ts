@@ -792,8 +792,7 @@ export const generarActaEntregaPDF = async (req: Request, res: Response): Promis
       { text: 'Prenda / Uniforme entregado', style: 'gridHeader', alignment: 'center' },
       { text: 'Cantidad', style: 'gridHeader', alignment: 'center' },
       { text: 'Modelo y talla', style: 'gridHeader', alignment: 'center' },
-      { text: 'Fecha de Entrega\n(DD/MM/AA)', style: 'gridHeader', alignment: 'center' },
-      { text: 'Firma', style: 'gridHeader', alignment: 'center' }
+      { text: 'Fecha de Entrega\n(DD/MM/AA)', style: 'gridHeader', alignment: 'center' }
     ];
 
     const itemsBody: any[] = [itemsHeader];
@@ -803,8 +802,7 @@ export const generarActaEntregaPDF = async (req: Request, res: Response): Promis
         { text: fila.prenda, style: 'gridCell' },
         { text: String(fila.cantidad), style: 'gridCell', alignment: 'center' },
         { text: fila.talla || '', style: 'gridCell', alignment: 'center' },
-        { text: fechaEntrega, style: 'gridCell', alignment: 'center' },
-        { text: ' ', style: 'gridCell', margin: [0, 12, 0, 12] }
+        { text: fechaEntrega, style: 'gridCell', alignment: 'center' }
       ]);
     });
 
@@ -814,8 +812,7 @@ export const generarActaEntregaPDF = async (req: Request, res: Response): Promis
         { text: '', style: 'gridCell' },
         { text: '', style: 'gridCell' },
         { text: '', style: 'gridCell' },
-        { text: '', style: 'gridCell' },
-        { text: '', style: 'gridCell', margin: [0, 12, 0, 12] }
+        { text: '', style: 'gridCell' }
       ]);
     }
 
@@ -899,7 +896,7 @@ export const generarActaEntregaPDF = async (req: Request, res: Response): Promis
         {
           table: {
             headerRows: 1,
-            widths: [28, '*', 48, 70, 72, 60],
+            widths: [28, '*', 52, 80, 90],
             body: itemsBody
           },
           layout: {
