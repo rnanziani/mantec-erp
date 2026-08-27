@@ -658,7 +658,10 @@ const PanolMovimientoView: React.FC = () => {
         resetForm();
         await showSuccess(editingId ? 'Actualizado' : 'Creado', data.message || 'OK');
       } else {
-        await showError('Error', data.error || data.message || 'No se pudo guardar');
+        await showError(
+          'Error',
+          data.error || data.message || 'No se pudo guardar'
+        );
       }
     } catch {
       await showError('Error', 'Error de conexión');

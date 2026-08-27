@@ -589,16 +589,20 @@ export const createPanol = async (req: Request, res: Response): Promise<void> =>
 
     // Al registrar la devolución, cerrar el préstamo origen (PENDIENTE → COMPLETADA)
     if (tipo === 'DEVOLUCION' && idSalidaOrigen) {
+      const fechaCierre = body.fecha_49 || null;
       const cierre = await client.query(
         `UPDATE ${TABLA_M}
          SET estado_49 = 'COMPLETADA',
-             fechadevolucion_49 = COALESCE(fechadevolucion_49, NOW()),
+             fechadevolucion_49 = GREATEST(
+               fecha_49,
+               COALESCE($2::timestamp, NOW())
+             ),
              actualizado_en = CURRENT_TIMESTAMP
          WHERE idmpanol_49 = $1
            AND UPPER(TRIM(tipomovimiento_49)) = 'SALIDA'
            AND UPPER(TRIM(estado_49)) = 'PENDIENTE'
          RETURNING idmpanol_49`,
-        [idSalidaOrigen]
+        [idSalidaOrigen, fechaCierre]
       );
       if (cierre.rowCount === 0) {
         await client.query('ROLLBACK');
@@ -623,10 +627,23 @@ export const createPanol = async (req: Request, res: Response): Promise<void> =>
     });
   } catch (error) {
     await client.query('ROLLBACK');
+    const pgMessage = error instanceof Error ? error.message : 'Error desconocido';
+    let errorAmigable = 'Error al crear movimiento de pañol';
+    if (pgMessage.includes('chk_tbl_49_fechas_validas')) {
+      errorAmigable =
+        'La fecha de devolución no puede ser anterior a la fecha del préstamo. Ajuste la fecha e intente de nuevo.';
+    } else if (pgMessage.includes('chk_tbl_48_stock_valido')) {
+      errorAmigable =
+        'El stock de la herramienta quedaría inválido. Revise préstamos pendientes o ejecute el script de corrección de pañol en la BD.';
+    } else if (pgMessage.includes('chk_tbl_49_firmas_no_vacias')) {
+      errorAmigable = 'Las firmas del trabajador y del pañolero son obligatorias';
+    } else if (pgMessage.includes('uq_tbl_50_d_panol_herramienta')) {
+      errorAmigable = 'No se puede repetir la misma herramienta en el detalle';
+    }
     res.status(500).json({
       success: false,
-      error: 'Error al crear movimiento de pañol',
-      message: error instanceof Error ? error.message : 'Error desconocido',
+      error: errorAmigable,
+      message: pgMessage,
     });
   } finally {
     client.release();
