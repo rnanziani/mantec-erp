@@ -29,6 +29,25 @@ function formatFechaEntregaCorta(date: Date | string): string {
   return `${dd}/${mm}/${yy}`;
 }
 
+/** Nombre de archivo: acta_entrega_uniforme_{id}_{DDMMYY}_{HHMM} (zona Chile). */
+function nombreArchivoActaUniforme(id: string | number, date = new Date()): string {
+  const formatted = new Intl.DateTimeFormat('sv-SE', {
+    timeZone: 'America/Santiago',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }).format(date);
+  const normalized = formatted.replace('T', ' ');
+  const [fechaPart, horaPart = '00:00'] = normalized.split(' ');
+  const [anio, mes, dia] = fechaPart.split('-');
+  const [hh, mm] = horaPart.split(':');
+  const stamp = `${dia}${mes}${anio.slice(-2)}_${hh}${mm}`;
+  return `acta_entrega_uniforme_${id}_${stamp}.pdf`;
+}
+
 /**
  * Obtener todas las asignaciones de prendas
  */
@@ -999,7 +1018,10 @@ export const generarActaEntregaPDF = async (req: Request, res: Response): Promis
 
     const pdfDoc = printer.createPdfKitDocument(docDefinition);
     res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `attachment; filename=acta-entrega-uniforme-${id}.pdf`);
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename=${nombreArchivoActaUniforme(id)}`
+    );
     pdfDoc.pipe(res);
     pdfDoc.end();
   } catch (error) {
