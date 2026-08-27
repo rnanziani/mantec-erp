@@ -244,7 +244,11 @@ const UsuarioView: React.FC = () => {
       if (data.success) {
         await fetchUsuarios();
         resetForm();
-        showToast('Usuario creado exitosamente', 'success');
+        showToast(
+          data.message ||
+            'Usuario creado. En el primer login deberá cambiar la contraseña.',
+          'success'
+        );
       } else {
         showToast(data.error || 'Error al crear usuario', 'error');
       }
@@ -400,7 +404,11 @@ const UsuarioView: React.FC = () => {
           setPasswordTemporal(data.data.password_temporal);
         }
         await fetchUsuarios();
-        showToast('Contraseña reseteada exitosamente', 'success');
+        showToast(
+          data.message ||
+            'Contraseña reseteada. El usuario deberá cambiarla al iniciar sesión.',
+          'success'
+        );
         if (!data.data?.password_temporal) {
           handleCloseResetPassword();
         }
@@ -583,6 +591,9 @@ const UsuarioView: React.FC = () => {
                     required
                     placeholder="Mínimo 8 caracteres"
                   />
+                  <small style={{ display: 'block', marginTop: '6px', color: '#6b7280' }}>
+                    Contraseña temporal: el usuario deberá cambiarla en el primer inicio de sesión.
+                  </small>
                 </div>
               )}
             </div>
@@ -1032,7 +1043,8 @@ const UsuarioView: React.FC = () => {
                     ✅ Contraseña temporal generada exitosamente
                   </p>
                   <p style={{ margin: '0 0 0.5rem 0', fontSize: '0.9em', color: '#047857' }}>
-                    Copia esta contraseña y entrégala al usuario de forma segura:
+                    Copia esta contraseña y entrégala al usuario de forma segura.
+                    En el próximo inicio de sesión <strong>deberá cambiarla</strong> antes de entrar al sistema.
                   </p>
                   <div style={{
                     position: 'relative',

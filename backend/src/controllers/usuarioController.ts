@@ -137,11 +137,9 @@ export const createUsuario = async (req: Request, res: Response) => {
     // Hashear contraseña
     const passwordHash = await hashPassword(password);
 
-    // Calcular fecha de expiración desde parámetros del sistema
-    const { obtenerParametroNumero } = await import('../utils/parametrosUtils.js');
-    const diasExpiracion = await obtenerParametroNumero('PASSWORD_EXPIRATION_DAYS', 91);
-    const fechaExpiracion = new Date();
-    fechaExpiracion.setDate(fechaExpiracion.getDate() + diasExpiracion);
+    // Forzar cambio en el primer login: la clave temporal queda vencida de inmediato.
+    // El flujo de login + change-password-expired ya existe y bloquea el JWT.
+    const fechaExpiracion = new Date(0); // epoch → siempre "expirada"
 
     // Validar que el nivel existe si se proporciona
     if (id_nivel_04 !== undefined && id_nivel_04 !== null) {
@@ -178,8 +176,12 @@ export const createUsuario = async (req: Request, res: Response) => {
 
     res.status(201).json({
       success: true,
-      message: 'Usuario creado exitosamente',
-      data: nuevoUsuario
+      message:
+        'Usuario creado. En el primer inicio de sesión deberá cambiar la contraseña antes de entrar al sistema.',
+      data: {
+        ...nuevoUsuario,
+        requiere_cambio_primer_login: true,
+      },
     });
   } catch (error: any) {
     console.error('Error al crear usuario:', error);
@@ -425,11 +427,8 @@ export const resetPassword = async (req: Request, res: Response) => {
       [id, passwordActual]
     );
 
-    // Calcular nueva fecha de expiración
-    const { obtenerParametroNumero } = await import('../utils/parametrosUtils.js');
-    const diasExpiracion = await obtenerParametroNumero('PASSWORD_EXPIRATION_DAYS', 91);
-    const nuevaFechaExpiracion = new Date();
-    nuevaFechaExpiracion.setDate(nuevaFechaExpiracion.getDate() + diasExpiracion);
+    // Forzar cambio en el próximo login (clave definida por admin / temporal)
+    const fechaExpiracionForzada = new Date(0);
 
     // Actualizar contraseña del usuario
     await pool.query(
@@ -438,7 +437,7 @@ export const resetPassword = async (req: Request, res: Response) => {
            last_password_change_at = NOW(),
            password_expires_at = $2
        WHERE id_usuario_00 = $3`,
-      [nuevoHash, nuevaFechaExpiracion, parseInt(id)]
+      [nuevoHash, fechaExpiracionForzada, parseInt(id)]
     );
 
     // Invalidar todas las sesiones activas del usuario
@@ -451,7 +450,8 @@ export const resetPassword = async (req: Request, res: Response) => {
 
     res.json({
       success: true,
-      message: 'Contraseña reseteada exitosamente',
+      message:
+        'Contraseña reseteada. El usuario deberá cambiarla en el próximo inicio de sesión.',
       data: {
         password_temporal: generar_temporal ? nuevaPassword : undefined,
         username: usuario.username,

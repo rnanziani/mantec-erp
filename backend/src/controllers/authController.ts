@@ -60,11 +60,8 @@ export const register = async (req: Request, res: Response) => {
     // Hashear contraseña
     const passwordHash = await hashPassword(password);
 
-    // Calcular fecha de expiración desde parámetros del sistema
-    const { obtenerParametroNumero } = await import('../utils/parametrosUtils.js');
-    const diasExpiracion = await obtenerParametroNumero('PASSWORD_EXPIRATION_DAYS', 91);
-    const fechaExpiracion = new Date();
-    fechaExpiracion.setDate(fechaExpiracion.getDate() + diasExpiracion);
+    // Forzar cambio en el primer login (misma política que createUsuario admin)
+    const fechaExpiracion = new Date(0);
 
     // Crear usuario
     const result = await pool.query(
@@ -87,12 +84,14 @@ export const register = async (req: Request, res: Response) => {
 
     res.status(201).json({
       success: true,
-      message: 'Usuario creado exitosamente',
+      message:
+        'Usuario creado. En el primer inicio de sesión deberá cambiar la contraseña antes de entrar al sistema.',
       data: {
         id: nuevoUsuario.id_usuario_00,
         username: nuevoUsuario.username,
         email: nuevoUsuario.email,
-        nombre_completo: nuevoUsuario.nombre_completo_00
+        nombre_completo: nuevoUsuario.nombre_completo_00,
+        requiere_cambio_primer_login: true,
       }
     });
   } catch (error: any) {
@@ -171,13 +170,14 @@ export const login = async (req: Request, res: Response) => {
       });
     }
 
-    // Verificar expiración de contraseña
+    // Verificar expiración de contraseña (también fuerza cambio tras alta/reset)
     const expiracion = verificarExpiracionPassword(new Date(usuario.password_expires_at));
     if (expiracion.expirada) {
       await registrarIntentoLogin(email.toLowerCase(), true, usuario.id_usuario_00, ipAddress);
       return res.status(403).json({
         success: false,
-        error: 'Su contraseña ha expirado. Debe cambiarla antes de continuar.',
+        error:
+          'Debe cambiar su contraseña antes de continuar (primer acceso, restablecimiento o vencimiento).',
         requiereCambioPassword: true
       });
     }

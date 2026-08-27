@@ -195,7 +195,8 @@ const LoginForm: React.FC = () => {
               borderRadius: '8px',
               fontSize: '1rem'
             }}>
-              Su contraseña ha expirado. Ingrese su contraseña actual y una nueva para continuar.
+              Por seguridad debe establecer una nueva contraseña antes de continuar
+              (primer acceso, restablecimiento o vencimiento).
             </div>
             {error && (
               <div style={{ background: '#FEE2E2', color: '#991B1B', padding: '1rem', borderRadius: '8px' }}>

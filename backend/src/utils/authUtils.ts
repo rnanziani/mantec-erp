@@ -1,5 +1,6 @@
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
+import { randomBytes } from 'crypto';
 import { pool } from '../db.js';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
@@ -54,23 +55,31 @@ export function generarPasswordTemporal(): string {
   const minusculas = 'abcdefghijklmnopqrstuvwxyz';
   const digitos = '0123456789';
   const especiales = '!@#$%&*';
-  
   const todos = mayusculas + minusculas + digitos + especiales;
-  
-  // Asegurar al menos 2 de cada tipo
-  let password = '';
-  password += mayusculas[Math.floor(Math.random() * mayusculas.length)];
-  password += minusculas[Math.floor(Math.random() * minusculas.length)];
-  password += digitos[Math.floor(Math.random() * digitos.length)];
-  password += especiales[Math.floor(Math.random() * especiales.length)];
-  
-  // Completar hasta 12 caracteres
-  for (let i = password.length; i < 12; i++) {
-    password += todos[Math.floor(Math.random() * todos.length)];
+
+  const pick = (charset: string): string => {
+    const buf = randomBytes(1);
+    return charset[buf[0] % charset.length];
+  };
+
+  const chars: string[] = [
+    pick(mayusculas),
+    pick(minusculas),
+    pick(digitos),
+    pick(especiales),
+  ];
+
+  for (let i = chars.length; i < 12; i++) {
+    chars.push(pick(todos));
   }
-  
-  // Mezclar caracteres
-  return password.split('').sort(() => Math.random() - 0.5).join('');
+
+  // Mezclar con Fisher–Yates usando bytes aleatorios (CSPRNG)
+  for (let i = chars.length - 1; i > 0; i--) {
+    const j = randomBytes(1)[0] % (i + 1);
+    [chars[i], chars[j]] = [chars[j], chars[i]];
+  }
+
+  return chars.join('');
 }
 
 /**
