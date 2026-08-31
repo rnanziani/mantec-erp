@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import './BodegaView.css';
 import Pagination from './shared/Pagination';
+import SearchableSelect from './shared/SearchableSelect';
 import { showDeleteConfirm, showError, showSuccess } from '../utils/swal';
 import { apiFetch, apiUrl } from '../lib/apiClient';
 
@@ -40,7 +41,13 @@ const ESTADOS = ['PENDIENTE', 'ENVIADO_PROVEEDOR', 'RECIBIDO', 'ANULADO'] as con
 const RecepcionRepuestoView: React.FC = () => {
   const formRef = React.useRef<HTMLFormElement>(null);
   const [registros, setRegistros] = useState<Maestro[]>([]);
-  const [maquinas, setMaquinas] = useState<Array<{ idmaquina_11: number; numinterno_11?: string; descripcion_11?: string; estado_11?: boolean }>>([]);
+  const [maquinas, setMaquinas] = useState<Array<{
+    idmaquina_11: number;
+    numinterno_11?: string;
+    ppu_11?: string;
+    descripcion_11?: string;
+    estado_11?: boolean;
+  }>>([]);
   const [tecnicos, setTecnicos] = useState<Array<{ id_tecnico_21: number; nombres_21: string; a_paterno_21?: string; a_materno_21?: string; estado_21?: boolean }>>([]);
   const [responsables, setResponsables] = useState<Array<{ idresponsableentrega_08: number; nombreresponsableentrega_08: string; apaternoresponsableentrega_08?: string; amaternoresponsableentrega_08?: string }>>([]);
   const [proveedores, setProveedores] = useState<Array<{ idproveedor_58: number; nombre_58: string; activo_58: boolean }>>([]);
@@ -67,6 +74,69 @@ const RecepcionRepuestoView: React.FC = () => {
   const [estadoSel, setEstadoSel] = useState<string>('PENDIENTE');
 
   const API_URL = apiUrl('/recepciones-repuestos');
+
+  const maquinaOptions = useMemo(
+    () =>
+      maquinas
+        .filter((m) => m.estado_11 !== false)
+        .map((m) => ({
+          value: String(m.idmaquina_11),
+          label: [
+            m.numinterno_11 || m.idmaquina_11,
+            m.ppu_11 ? `(${m.ppu_11})` : null,
+            m.descripcion_11 || '',
+          ]
+            .filter(Boolean)
+            .join(' — '),
+        })),
+    [maquinas]
+  );
+
+  const tecnicoOptions = useMemo(
+    () =>
+      tecnicos
+        .filter((t) => t.estado_21 !== false)
+        .map((t) => ({
+          value: String(t.id_tecnico_21),
+          label: `${t.nombres_21} ${t.a_paterno_21 || ''} ${t.a_materno_21 || ''}`.trim(),
+        })),
+    [tecnicos]
+  );
+
+  const responsableOptions = useMemo(
+    () =>
+      responsables.map((r) => ({
+        value: String(r.idresponsableentrega_08),
+        label: `${r.nombreresponsableentrega_08} ${r.apaternoresponsableentrega_08 || ''} ${r.amaternoresponsableentrega_08 || ''}`.trim(),
+      })),
+    [responsables]
+  );
+
+  const proveedorOptions = useMemo(
+    () =>
+      proveedores
+        .filter((p) => p.activo_58)
+        .map((p) => ({
+          value: String(p.idproveedor_58),
+          label: p.nombre_58,
+        })),
+    [proveedores]
+  );
+
+  const repuestoOptions = useMemo(
+    () =>
+      repuestos
+        .filter(
+          (r) =>
+            r.activo_57 &&
+            !detalles.some((d) => d.idrepuestodanado_60 === r.idrepuestodanado_57)
+        )
+        .map((r) => ({
+          value: String(r.idrepuestodanado_57),
+          label: `${r.codigo_57 ? `${r.codigo_57} - ` : ''}${r.nombre_57}`,
+        })),
+    [repuestos, detalles]
+  );
 
   const fetchAll = async () => {
     try {
@@ -280,48 +350,58 @@ const RecepcionRepuestoView: React.FC = () => {
             <div className="form-row form-row-3">
               <div className="form-group">
                 <label htmlFor="idmaquina">Máquina *</label>
-                <select id="idmaquina" className="form-input" required value={idMaquina} onChange={(e) => setIdMaquina(e.target.value)}>
-                  <option value="">Seleccione...</option>
-                  {maquinas.filter((m) => m.estado_11 !== false).map((m) => (
-                    <option key={m.idmaquina_11} value={m.idmaquina_11}>
-                      {m.numinterno_11 || m.idmaquina_11} — {m.descripcion_11 || ''}
-                    </option>
-                  ))}
-                </select>
+                <SearchableSelect
+                  id="idmaquina"
+                  value={idMaquina}
+                  onChange={setIdMaquina}
+                  options={maquinaOptions}
+                  required
+                  placeholder="Buscar por Nº interno, PPU o descripción..."
+                  aria-label="Buscar o seleccionar máquina"
+                  emptyMessage="No se encontraron máquinas"
+                />
               </div>
               <div className="form-group">
                 <label htmlFor="idtecnico">Técnico *</label>
-                <select id="idtecnico" className="form-input" required value={idTecnico} onChange={(e) => setIdTecnico(e.target.value)}>
-                  <option value="">Seleccione...</option>
-                  {tecnicos.filter((t) => t.estado_21 !== false).map((t) => (
-                    <option key={t.id_tecnico_21} value={t.id_tecnico_21}>
-                      {`${t.nombres_21} ${t.a_paterno_21 || ''} ${t.a_materno_21 || ''}`.trim()}
-                    </option>
-                  ))}
-                </select>
+                <SearchableSelect
+                  id="idtecnico"
+                  value={idTecnico}
+                  onChange={setIdTecnico}
+                  options={tecnicoOptions}
+                  required
+                  placeholder="Buscar técnico..."
+                  aria-label="Buscar o seleccionar técnico"
+                  emptyMessage="No se encontraron técnicos"
+                />
               </div>
               <div className="form-group">
                 <label htmlFor="idresponsable">Responsable bodega *</label>
-                <select id="idresponsable" className="form-input" required value={idResponsable} onChange={(e) => setIdResponsable(e.target.value)}>
-                  <option value="">Seleccione...</option>
-                  {responsables.map((r) => (
-                    <option key={r.idresponsableentrega_08} value={r.idresponsableentrega_08}>
-                      {`${r.nombreresponsableentrega_08} ${r.apaternoresponsableentrega_08 || ''} ${r.amaternoresponsableentrega_08 || ''}`.trim()}
-                    </option>
-                  ))}
-                </select>
+                <SearchableSelect
+                  id="idresponsable"
+                  value={idResponsable}
+                  onChange={setIdResponsable}
+                  options={responsableOptions}
+                  required
+                  placeholder="Buscar responsable..."
+                  aria-label="Buscar o seleccionar responsable"
+                  emptyMessage="No se encontraron responsables"
+                />
               </div>
             </div>
 
             <div className="form-row form-row-3">
               <div className="form-group">
                 <label htmlFor="idproveedor">Proveedor *</label>
-                <select id="idproveedor" className="form-input" required value={idProveedor} onChange={(e) => setIdProveedor(e.target.value)}>
-                  <option value="">Seleccione...</option>
-                  {proveedores.filter((p) => p.activo_58).map((p) => (
-                    <option key={p.idproveedor_58} value={p.idproveedor_58}>{p.nombre_58}</option>
-                  ))}
-                </select>
+                <SearchableSelect
+                  id="idproveedor"
+                  value={idProveedor}
+                  onChange={setIdProveedor}
+                  options={proveedorOptions}
+                  required
+                  placeholder="Buscar proveedor..."
+                  aria-label="Buscar o seleccionar proveedor"
+                  emptyMessage="No se encontraron proveedores"
+                />
               </div>
               <div className="form-group">
                 <label htmlFor="fecha">Fecha *</label>
@@ -342,14 +422,15 @@ const RecepcionRepuestoView: React.FC = () => {
             <div className="form-row form-row-3">
               <div className="form-group">
                 <label htmlFor="repuesto">Repuesto</label>
-                <select id="repuesto" className="form-input" value={repuestoSel} onChange={(e) => setRepuestoSel(e.target.value)}>
-                  <option value="">Seleccione...</option>
-                  {repuestos.filter((r) => r.activo_57 && !detalles.some((d) => d.idrepuestodanado_60 === r.idrepuestodanado_57)).map((r) => (
-                    <option key={r.idrepuestodanado_57} value={r.idrepuestodanado_57}>
-                      {r.codigo_57 ? `${r.codigo_57} - ` : ''}{r.nombre_57}
-                    </option>
-                  ))}
-                </select>
+                <SearchableSelect
+                  id="repuesto"
+                  value={repuestoSel}
+                  onChange={setRepuestoSel}
+                  options={repuestoOptions}
+                  placeholder="Buscar código o nombre..."
+                  aria-label="Buscar o seleccionar repuesto"
+                  emptyMessage="No hay repuestos disponibles"
+                />
               </div>
               <div className="form-group">
                 <label htmlFor="cant">Cantidad</label>
