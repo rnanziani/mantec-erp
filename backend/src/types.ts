@@ -1793,6 +1793,84 @@ export interface UpdateMaestroEntregaRepuestoDTO {
 }
 
 // ============================================
+// RECEPCIÓN REPUESTO REPARADO (cierre) — tbl_65
+// ============================================
+
+export type EstadoDisponible65 = 'DISPONIBLE' | 'INSTALADO';
+
+/** Cierre de proceso — tbl_65_recepcion_reparado */
+export interface RecepcionRepuestoReparado {
+  idrecepcion_65: number;
+  iddetalle_entrega_65: number;
+  idresponsable_65: number;
+  estado_disponible_65: EstadoDisponible65 | string;
+  idtecnico_65?: number | null;
+  idmaquina_65?: number | null;
+  fecha_65?: string | Date | null;
+  hora_65?: string | null;
+  observacion_65?: string | null;
+  creado_en?: string | Date;
+  actualizado_en?: string | Date;
+  responsable_nombre?: string;
+  tecnico_nombre?: string;
+  maquina_numinterno?: string;
+  maquina_descripcion?: string;
+  repuesto_codigo?: string;
+  repuesto_nombre?: string;
+  cantidad_60?: number;
+  folio_entrega?: string;
+  folio_recepcion_danado?: string;
+  proveedor_nombre?: string;
+}
+
+export interface LineaEntregaParaCierre {
+  iddetalle_64: number;
+  folio_entrega?: string;
+  folio_recepcion?: string;
+  repuesto_codigo?: string;
+  repuesto_nombre?: string;
+  cantidad_60?: number;
+  fecha_recepcion_64?: string | Date | null;
+  estado_nombre?: string;
+  proveedor_nombre?: string;
+}
+
+export interface CreateRecepcionRepuestoReparadoDTO {
+  iddetalle_entrega_65: number;
+  idresponsable_65: number;
+  estado_disponible_65: EstadoDisponible65 | string;
+  idtecnico_65?: number | null;
+  idmaquina_65?: number | null;
+  fecha_65?: string | null;
+  hora_65?: string | null;
+  observacion_65?: string | null;
+}
+
+export interface UpdateRecepcionRepuestoReparadoDTO {
+  iddetalle_entrega_65?: number;
+  idresponsable_65?: number;
+  estado_disponible_65?: EstadoDisponible65 | string;
+  idtecnico_65?: number | null;
+  idmaquina_65?: number | null;
+  fecha_65?: string | null;
+  hora_65?: string | null;
+  observacion_65?: string | null;
+}
+
+export interface CreateRecepcionRepuestoReparadoBatchDTO {
+  idresponsable_65: number;
+  fecha_65?: string | null;
+  hora_65?: string | null;
+  observacion_65?: string | null;
+  lineas: Array<{
+    iddetalle_entrega_65: number;
+    estado_disponible_65: EstadoDisponible65 | string;
+    idtecnico_65?: number | null;
+    idmaquina_65?: number | null;
+  }>;
+}
+
+// ============================================
 // AUTENTICACIÓN Y SEGURIDAD
 // ============================================
 

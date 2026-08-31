@@ -53,6 +53,7 @@ import RecepcionRepuestoView from './components/RecepcionRepuestoView';
 import EntregaRepuestoView from './components/EntregaRepuestoView';
 import EstadoReparacionView from './components/EstadoReparacionView';
 import SemaforoEntregaView from './components/SemaforoEntregaView';
+import RecepcionReparadoView from './components/RecepcionReparadoView';
 import MarcaNeumaticoView from './components/MarcaNeumaticoView';
 import NeumaticoView from './components/NeumaticoView';
 import EstadoNeumaticoView from './components/EstadoNeumaticoView';
@@ -187,6 +188,7 @@ function App() {
     'proveedores-reparacion': 'MENU_REPUESTOS_DANADOS_PROVEEDOR',
     'recepcion-repuestos': 'MENU_REPUESTOS_DANADOS_RECEPCION',
     'entrega-repuestos': 'MENU_REPUESTOS_DANADOS_ENTREGA',
+    'recepcion-reparado': 'MENU_REPUESTOS_DANADOS_RECEPCION_REPARADO',
     'estados-reparacion': 'MENU_REPUESTOS_DANADOS_ESTADO_REPARACION',
     'semaforo-entrega': 'MENU_REPUESTOS_DANADOS_SEMAFORO',
   };
@@ -507,6 +509,7 @@ function App() {
           {currentView === 'proveedores-reparacion' && hasRouteAccess('proveedores-reparacion') && <ProveedorView />}
           {currentView === 'recepcion-repuestos' && hasRouteAccess('recepcion-repuestos') && <RecepcionRepuestoView />}
           {currentView === 'entrega-repuestos' && hasRouteAccess('entrega-repuestos') && <EntregaRepuestoView />}
+          {currentView === 'recepcion-reparado' && hasRouteAccess('recepcion-reparado') && <RecepcionReparadoView />}
           {currentView === 'estados-reparacion' && hasRouteAccess('estados-reparacion') && <EstadoReparacionView />}
           {currentView === 'semaforo-entrega' && hasRouteAccess('semaforo-entrega') && <SemaforoEntregaView />}
 

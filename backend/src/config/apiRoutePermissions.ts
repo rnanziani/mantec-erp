@@ -84,6 +84,7 @@ export const API_PREFIX_RULES: Array<{
   { prefix: '/api/estados-reparacion', permission: 'MENU_REPUESTOS_DANADOS_ESTADO_REPARACION', readAuthOnly: true },
   { prefix: '/api/semaforo-entrega', permission: 'MENU_REPUESTOS_DANADOS_SEMAFORO', readAuthOnly: true },
   { prefix: '/api/entregas-repuestos', permission: 'MENU_REPUESTOS_DANADOS_ENTREGA' },
+  { prefix: '/api/recepciones-reparado', permission: 'MENU_REPUESTOS_DANADOS_RECEPCION_REPARADO' },
 
   // Neumáticos (prefijos largos antes que cortos)
   { prefix: '/api/marcas-neumatico', permission: 'MENU_NEUMATICOS_MARCAS' },
