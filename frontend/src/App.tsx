@@ -50,6 +50,9 @@ import EntregaEppView from './components/EntregaEppView';
 import RepuestoDanadoView from './components/RepuestoDanadoView';
 import ProveedorView from './components/ProveedorView';
 import RecepcionRepuestoView from './components/RecepcionRepuestoView';
+import EntregaRepuestoView from './components/EntregaRepuestoView';
+import EstadoReparacionView from './components/EstadoReparacionView';
+import SemaforoEntregaView from './components/SemaforoEntregaView';
 import MarcaNeumaticoView from './components/MarcaNeumaticoView';
 import NeumaticoView from './components/NeumaticoView';
 import EstadoNeumaticoView from './components/EstadoNeumaticoView';
@@ -183,6 +186,9 @@ function App() {
     'repuestos-danados': 'MENU_REPUESTOS_DANADOS_CATALOGO',
     'proveedores-reparacion': 'MENU_REPUESTOS_DANADOS_PROVEEDOR',
     'recepcion-repuestos': 'MENU_REPUESTOS_DANADOS_RECEPCION',
+    'entrega-repuestos': 'MENU_REPUESTOS_DANADOS_ENTREGA',
+    'estados-reparacion': 'MENU_REPUESTOS_DANADOS_ESTADO_REPARACION',
+    'semaforo-entrega': 'MENU_REPUESTOS_DANADOS_SEMAFORO',
   };
 
   // Función para verificar si el usuario tiene acceso a una ruta
@@ -500,6 +506,9 @@ function App() {
           {currentView === 'repuestos-danados' && hasRouteAccess('repuestos-danados') && <RepuestoDanadoView />}
           {currentView === 'proveedores-reparacion' && hasRouteAccess('proveedores-reparacion') && <ProveedorView />}
           {currentView === 'recepcion-repuestos' && hasRouteAccess('recepcion-repuestos') && <RecepcionRepuestoView />}
+          {currentView === 'entrega-repuestos' && hasRouteAccess('entrega-repuestos') && <EntregaRepuestoView />}
+          {currentView === 'estados-reparacion' && hasRouteAccess('estados-reparacion') && <EstadoReparacionView />}
+          {currentView === 'semaforo-entrega' && hasRouteAccess('semaforo-entrega') && <SemaforoEntregaView />}
 
           {currentView === 'neumaticos' && hasRouteAccess('neumaticos') && <NeumaticoView />}
           {currentView === 'marcas-neumatico' && hasRouteAccess('marcas-neumatico') && <MarcaNeumaticoView />}

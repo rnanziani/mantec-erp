@@ -109,6 +109,9 @@ const Sidebar: React.FC<SidebarProps> = ({ onNavigate, currentView }) => {
                 { id: 'repuestos-danados', label: 'Catálogo repuestos', icon: '📦', path: 'repuestos-danados', permissionRequired: 'MENU_REPUESTOS_DANADOS_CATALOGO' },
                 { id: 'proveedores-reparacion', label: 'Proveedores', icon: '🏭', path: 'proveedores-reparacion', permissionRequired: 'MENU_REPUESTOS_DANADOS_PROVEEDOR' },
                 { id: 'recepcion-repuestos', label: 'Recepciones', icon: '📋', path: 'recepcion-repuestos', permissionRequired: 'MENU_REPUESTOS_DANADOS_RECEPCION' },
+                { id: 'entrega-repuestos', label: 'Entrega a proveedor', icon: '🚚', path: 'entrega-repuestos', permissionRequired: 'MENU_REPUESTOS_DANADOS_ENTREGA' },
+                { id: 'estados-reparacion', label: 'Estados reparación', icon: '🔧', path: 'estados-reparacion', permissionRequired: 'MENU_REPUESTOS_DANADOS_ESTADO_REPARACION' },
+                { id: 'semaforo-entrega', label: 'Semáforo días', icon: '🚦', path: 'semaforo-entrega', permissionRequired: 'MENU_REPUESTOS_DANADOS_SEMAFORO' },
             ]
         },
         {

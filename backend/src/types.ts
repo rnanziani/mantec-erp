@@ -1663,6 +1663,136 @@ export interface UpdateMaestroRecepcionRepuestoDTO {
 }
 
 // ============================================
+// ENTREGA REPUESTOS A PROVEEDOR — tbl_61..tbl_64
+// ============================================
+
+/** Catálogo estado reparación — tbl_61_estado_reparacion */
+export interface EstadoReparacion {
+  idestado_61: number;
+  codigo_61: string;
+  nombre_61: string;
+  activo_61: boolean;
+  creado_en?: string | Date;
+  actualizado_en?: string | Date;
+}
+
+export interface CreateEstadoReparacionDTO {
+  codigo_61: string;
+  nombre_61: string;
+  activo_61?: boolean;
+}
+
+export interface UpdateEstadoReparacionDTO {
+  codigo_61?: string;
+  nombre_61?: string;
+  activo_61?: boolean;
+}
+
+/** Catálogo semáforo — tbl_62_semaforo_entrega */
+export interface SemaforoEntrega {
+  idsemaforo_62: number;
+  nombre_62: string;
+  dias_desde_62: number;
+  dias_hasta_62?: number | null;
+  color_62: string;
+  activo_62: boolean;
+  creado_en?: string | Date;
+  actualizado_en?: string | Date;
+}
+
+export interface CreateSemaforoEntregaDTO {
+  nombre_62: string;
+  dias_desde_62: number;
+  dias_hasta_62?: number | null;
+  color_62: string;
+  activo_62?: boolean;
+}
+
+export interface UpdateSemaforoEntregaDTO {
+  nombre_62?: string;
+  dias_desde_62?: number;
+  dias_hasta_62?: number | null;
+  color_62?: string;
+  activo_62?: boolean;
+}
+
+/** Maestro entrega — tbl_63_m_entrega_repuesto */
+export interface MaestroEntregaRepuesto {
+  identrega_63: number;
+  folio_63?: string | null;
+  idresponsable_63: number;
+  idproveedor_63: number;
+  fecha_entrega_63: string | Date;
+  hora_63: string;
+  observacion_63?: string | null;
+  creado_en?: string | Date;
+  actualizado_en?: string | Date;
+  responsable_nombre?: string;
+  proveedor_nombre?: string;
+}
+
+/** Detalle entrega — tbl_64_d_entrega_repuesto (+ joins / calculados) */
+export interface DetalleEntregaRepuesto {
+  iddetalle_64?: number;
+  identrega_64?: number;
+  iddetalle_recepcion_64: number;
+  idestado_reparacion_64: number;
+  fecha_recepcion_64?: string | Date | null;
+  observacion_64?: string | null;
+  creado_en?: string | Date;
+  actualizado_en?: string | Date;
+  estado_codigo?: string;
+  estado_nombre?: string;
+  repuesto_codigo?: string;
+  repuesto_nombre?: string;
+  cantidad_60?: number;
+  folio_recepcion?: string;
+  folio_entrega?: string;
+  fecha_entrega_63?: string | Date;
+  hora_63?: string;
+  responsable_nombre?: string;
+  proveedor_nombre?: string;
+  dias_transcurridos?: number;
+  semaforo_nombre?: string | null;
+  semaforo_color?: string | null;
+}
+
+export interface LineaRecepcionPendiente {
+  iddetalle_60: number;
+  idrecepcion_60: number;
+  folio_59?: string | null;
+  idrepuestodanado_60: number;
+  repuesto_codigo?: string;
+  repuesto_nombre?: string;
+  cantidad_60: number;
+  estado_60: string;
+  fecha_59?: string | Date;
+}
+
+export interface CreateMaestroEntregaRepuestoDTO {
+  idresponsable_63: number;
+  idproveedor_63: number;
+  fecha_entrega_63?: string | null;
+  hora_63?: string | null;
+  observacion_63?: string | null;
+  detalles: Array<{
+    iddetalle_recepcion_64: number;
+    idestado_reparacion_64: number;
+    fecha_recepcion_64?: string | null;
+    observacion_64?: string | null;
+  }>;
+}
+
+export interface UpdateMaestroEntregaRepuestoDTO {
+  idresponsable_63?: number;
+  idproveedor_63?: number;
+  fecha_entrega_63?: string | null;
+  hora_63?: string | null;
+  observacion_63?: string | null;
+  detalles?: CreateMaestroEntregaRepuestoDTO['detalles'];
+}
+
+// ============================================
 // AUTENTICACIÓN Y SEGURIDAD
 // ============================================
 
