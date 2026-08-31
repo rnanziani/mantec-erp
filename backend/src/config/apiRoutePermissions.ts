@@ -77,6 +77,11 @@ export const API_PREFIX_RULES: Array<{
   { prefix: '/api/epp-elementos', permission: 'MENU_EPP_ELEMENTOS', readAuthOnly: true },
   { prefix: '/api/epp-entregas', permission: 'MENU_EPP_ENTREGAS' },
 
+  // Recepción de repuestos dañados
+  { prefix: '/api/repuestos-danados', permission: 'MENU_REPUESTOS_DANADOS_CATALOGO', readAuthOnly: true },
+  { prefix: '/api/proveedores', permission: 'MENU_REPUESTOS_DANADOS_PROVEEDOR', readAuthOnly: true },
+  { prefix: '/api/recepciones-repuestos', permission: 'MENU_REPUESTOS_DANADOS_RECEPCION' },
+
   // Neumáticos (prefijos largos antes que cortos)
   { prefix: '/api/marcas-neumatico', permission: 'MENU_NEUMATICOS_MARCAS' },
   { prefix: '/api/estados-neumatico', permission: 'MENU_NEUMATICOS_ESTADOS' },

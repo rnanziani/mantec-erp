@@ -47,6 +47,9 @@ import ClaseElementoEppView from './components/ClaseElementoEppView';
 import CategoriaElementoEppView from './components/CategoriaElementoEppView';
 import ElementoEppView from './components/ElementoEppView';
 import EntregaEppView from './components/EntregaEppView';
+import RepuestoDanadoView from './components/RepuestoDanadoView';
+import ProveedorView from './components/ProveedorView';
+import RecepcionRepuestoView from './components/RecepcionRepuestoView';
 import MarcaNeumaticoView from './components/MarcaNeumaticoView';
 import NeumaticoView from './components/NeumaticoView';
 import EstadoNeumaticoView from './components/EstadoNeumaticoView';
@@ -177,6 +180,9 @@ function App() {
     'categorias-epp': 'MENU_EPP_CATEGORIAS',
     'elementos-epp': 'MENU_EPP_ELEMENTOS',
     'entregas-epp': 'MENU_EPP_ENTREGAS',
+    'repuestos-danados': 'MENU_REPUESTOS_DANADOS_CATALOGO',
+    'proveedores-reparacion': 'MENU_REPUESTOS_DANADOS_PROVEEDOR',
+    'recepcion-repuestos': 'MENU_REPUESTOS_DANADOS_RECEPCION',
   };
 
   // Función para verificar si el usuario tiene acceso a una ruta
@@ -491,6 +497,9 @@ function App() {
           {currentView === 'categorias-epp' && hasRouteAccess('categorias-epp') && <CategoriaElementoEppView />}
           {currentView === 'elementos-epp' && hasRouteAccess('elementos-epp') && <ElementoEppView />}
           {currentView === 'entregas-epp' && hasRouteAccess('entregas-epp') && <EntregaEppView />}
+          {currentView === 'repuestos-danados' && hasRouteAccess('repuestos-danados') && <RepuestoDanadoView />}
+          {currentView === 'proveedores-reparacion' && hasRouteAccess('proveedores-reparacion') && <ProveedorView />}
+          {currentView === 'recepcion-repuestos' && hasRouteAccess('recepcion-repuestos') && <RecepcionRepuestoView />}
 
           {currentView === 'neumaticos' && hasRouteAccess('neumaticos') && <NeumaticoView />}
           {currentView === 'marcas-neumatico' && hasRouteAccess('marcas-neumatico') && <MarcaNeumaticoView />}

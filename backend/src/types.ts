@@ -1542,6 +1542,127 @@ export interface UpdateMaestroEntregaEppDTO {
 }
 
 // ============================================
+// RECEPCIÓN REPUESTOS DAÑADOS — tbl_57..tbl_60
+// ============================================
+
+/** Catálogo repuesto dañado — tbl_57_repuesto_danado */
+export interface RepuestoDanado {
+  idrepuestodanado_57: number;
+  codigo_57?: string | null;
+  nombre_57: string;
+  descripcion_57?: string | null;
+  activo_57: boolean;
+  creado_en?: string | Date;
+  actualizado_en?: string | Date;
+}
+
+export interface CreateRepuestoDanadoDTO {
+  codigo_57?: string | null;
+  nombre_57: string;
+  descripcion_57?: string | null;
+  activo_57?: boolean;
+}
+
+export interface UpdateRepuestoDanadoDTO {
+  codigo_57?: string | null;
+  nombre_57?: string;
+  descripcion_57?: string | null;
+  activo_57?: boolean;
+}
+
+/** Catálogo proveedor — tbl_58_proveedor */
+export interface Proveedor {
+  idproveedor_58: number;
+  rut_58?: string | null;
+  nombre_58: string;
+  contacto_58?: string | null;
+  telefono_58?: string | null;
+  email_58?: string | null;
+  activo_58: boolean;
+  creado_en?: string | Date;
+  actualizado_en?: string | Date;
+}
+
+export interface CreateProveedorDTO {
+  rut_58?: string | null;
+  nombre_58: string;
+  contacto_58?: string | null;
+  telefono_58?: string | null;
+  email_58?: string | null;
+  activo_58?: boolean;
+}
+
+export interface UpdateProveedorDTO {
+  rut_58?: string | null;
+  nombre_58?: string;
+  contacto_58?: string | null;
+  telefono_58?: string | null;
+  email_58?: string | null;
+  activo_58?: boolean;
+}
+
+/** Maestro recepción — tbl_59_m_recepcion_repuesto */
+export interface MaestroRecepcionRepuesto {
+  idrecepcion_59: number;
+  folio_59?: string | null;
+  idmaquina_59: number;
+  idtecnico_59: number;
+  idresponsable_59: number;
+  idproveedor_59: number;
+  fecha_59: string | Date;
+  hora_59: string;
+  observacion_59?: string | null;
+  creado_en?: string | Date;
+  actualizado_en?: string | Date;
+  maquina_descripcion?: string;
+  maquina_numinterno?: string;
+  tecnico_nombre?: string;
+  responsable_nombre?: string;
+  proveedor_nombre?: string;
+}
+
+/** Detalle recepción — tbl_60_d_recepcion_repuesto */
+export interface DetalleRecepcionRepuesto {
+  iddetalle_60?: number;
+  idrecepcion_60?: number;
+  idrepuestodanado_60: number;
+  cantidad_60: number;
+  estado_60: string;
+  observacion_60?: string | null;
+  creado_en?: string | Date;
+  actualizado_en?: string | Date;
+  repuesto_codigo?: string;
+  repuesto_nombre?: string;
+}
+
+export interface CreateMaestroRecepcionRepuestoDTO {
+  idmaquina_59: number;
+  idtecnico_59: number;
+  idresponsable_59: number;
+  idproveedor_59: number;
+  fecha_59?: string | null;
+  hora_59?: string | null;
+  observacion_59?: string | null;
+  detalles: Array<{
+    idrepuestodanado_60: number;
+    cantidad_60: number;
+    estado_60?: string;
+    observacion_60?: string | null;
+  }>;
+}
+
+export interface UpdateMaestroRecepcionRepuestoDTO {
+  idmaquina_59?: number;
+  idtecnico_59?: number;
+  idresponsable_59?: number;
+  idproveedor_59?: number;
+  fecha_59?: string | null;
+  hora_59?: string | null;
+  observacion_59?: string | null;
+  detalles?: CreateMaestroRecepcionRepuestoDTO['detalles'];
+}
+
+// ============================================
 // AUTENTICACIÓN Y SEGURIDAD
 // ============================================
 
