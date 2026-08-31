@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { pool } from '../db.js';
 import { CreateProveedorDTO, Proveedor, UpdateProveedorDTO } from '../types.js';
+import { formatRut, validateRut } from '../utils/rutValidator.js';
 
 const TABLA = 'tbl_58_proveedor';
 
@@ -8,6 +9,18 @@ function normalizeText(value: unknown): string | null {
   if (value == null) return null;
   const t = String(value).trim();
   return t ? t.toUpperCase() : null;
+}
+
+/** RUT opcional: vacío → null; si viene, debe ser válido y queda formateado */
+function normalizeRut(value: unknown): { ok: true; rut: string | null } | { ok: false; error: string } {
+  if (value == null || String(value).trim() === '') {
+    return { ok: true, rut: null };
+  }
+  const raw = String(value).trim();
+  if (!validateRut(raw)) {
+    return { ok: false, error: 'RUT inválido' };
+  }
+  return { ok: true, rut: formatRut(raw) };
 }
 
 export const getAllProveedores = async (_req: Request, res: Response): Promise<void> => {
@@ -49,11 +62,16 @@ export const createProveedor = async (req: Request, res: Response): Promise<void
   try {
     const body: CreateProveedorDTO = req.body;
     const nombre = normalizeText(body.nombre_58);
-    const rut = normalizeText(body.rut_58);
+    const rutResult = normalizeRut(body.rut_58);
     if (!nombre) {
       res.status(400).json({ success: false, error: 'El nombre es requerido' });
       return;
     }
+    if (!rutResult.ok) {
+      res.status(400).json({ success: false, error: rutResult.error });
+      return;
+    }
+    const rut = rutResult.rut;
     if (rut) {
       const dup = await pool.query(`SELECT idproveedor_58 FROM ${TABLA} WHERE rut_58 = $1`, [rut]);
       if ((dup.rowCount ?? 0) > 0) {
@@ -111,7 +129,12 @@ export const updateProveedor = async (req: Request, res: Response): Promise<void
       values.push(nombre);
     }
     if (body.rut_58 !== undefined) {
-      const rut = normalizeText(body.rut_58);
+      const rutResult = normalizeRut(body.rut_58);
+      if (!rutResult.ok) {
+        res.status(400).json({ success: false, error: rutResult.error });
+        return;
+      }
+      const rut = rutResult.rut;
       if (rut) {
         const dup = await pool.query(
           `SELECT idproveedor_58 FROM ${TABLA} WHERE rut_58 = $1 AND idproveedor_58 <> $2`,
@@ -169,7 +192,10 @@ export const deleteProveedor = async (req: Request, res: Response): Promise<void
   try {
     const { id } = req.params;
     const enUso = await pool.query(
-      `SELECT 1 FROM tbl_59_m_recepcion_repuesto WHERE idproveedor_59 = $1 LIMIT 1`,
+      `SELECT 1 FROM tbl_59_m_recepcion_repuesto WHERE idproveedor_59 = $1
+       UNION ALL
+       SELECT 1 FROM tbl_63_m_entrega_repuesto WHERE idproveedor_63 = $1
+       LIMIT 1`,
       [id]
     );
     if ((enUso.rowCount ?? 0) > 0) {

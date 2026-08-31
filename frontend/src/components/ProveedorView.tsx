@@ -3,6 +3,7 @@ import './BodegaView.css';
 import Pagination from './shared/Pagination';
 import { showDeleteConfirm, showError, showSuccess } from '../utils/swal';
 import { apiFetch, apiUrl } from '../lib/apiClient';
+import { formatRut, validateRut } from '../utils/rutValidator';
 
 interface Proveedor {
   idproveedor_58: number;
@@ -38,6 +39,7 @@ const ProveedorView: React.FC = () => {
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [form, setForm] = useState(emptyForm);
+  const [rutError, setRutError] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
@@ -83,12 +85,33 @@ const ProveedorView: React.FC = () => {
 
   const resetForm = () => {
     setForm(emptyForm);
+    setRutError('');
     setEditingId(null);
     setShowForm(false);
   };
 
+  const handleRutChange = (value: string) => {
+    setForm((p) => ({ ...p, rut_58: value.toUpperCase() }));
+    setRutError('');
+  };
+
+  const handleRutBlur = () => {
+    const rut = form.rut_58.trim();
+    if (!rut) {
+      setRutError('');
+      return;
+    }
+    if (validateRut(rut)) {
+      setForm((p) => ({ ...p, rut_58: formatRut(rut) }));
+      setRutError('');
+    } else {
+      setRutError('RUT inválido');
+    }
+  };
+
   const startEdit = (t: Proveedor) => {
     setEditingId(t.idproveedor_58);
+    setRutError('');
     setForm({
       rut_58: t.rut_58 || '',
       nombre_58: t.nombre_58,
@@ -106,8 +129,18 @@ const ProveedorView: React.FC = () => {
       await showError('Validación', 'El nombre es requerido');
       return;
     }
+
+    const rutRaw = form.rut_58.trim();
+    if (rutRaw) {
+      if (!validateRut(rutRaw)) {
+        setRutError('RUT inválido');
+        await showError('Validación', 'Ingrese un RUT válido (ej. 77.308.837-3)');
+        return;
+      }
+    }
+
     const payload = {
-      rut_58: form.rut_58.trim().toUpperCase() || null,
+      rut_58: rutRaw ? formatRut(rutRaw) : null,
       nombre_58: form.nombre_58.trim().toUpperCase(),
       contacto_58: form.contacto_58.trim().toUpperCase() || null,
       telefono_58: form.telefono_58.trim() || null,
@@ -172,7 +205,23 @@ const ProveedorView: React.FC = () => {
             <div className="form-row form-row-3">
               <div className="form-group">
                 <label htmlFor="rut_58">RUT</label>
-                <input id="rut_58" className="form-input" value={form.rut_58} onChange={(e) => setForm((p) => ({ ...p, rut_58: e.target.value.toUpperCase() }))} />
+                <input
+                  id="rut_58"
+                  className={`form-input ${rutError ? 'input-error' : ''}`}
+                  value={form.rut_58}
+                  onChange={(e) => handleRutChange(e.target.value)}
+                  onBlur={handleRutBlur}
+                  placeholder="12.345.678-9"
+                  aria-invalid={!!rutError}
+                  aria-describedby={rutError ? 'rut-58-error' : 'rut-58-help'}
+                />
+                {rutError ? (
+                  <span id="rut-58-error" className="error-text" role="alert">{rutError}</span>
+                ) : (
+                  <small id="rut-58-help" style={{ display: 'block', marginTop: 4, color: '#6b7280' }}>
+                    Formato: 12.345.678-9 (se valida el dígito verificador)
+                  </small>
+                )}
               </div>
               <div className="form-group">
                 <label htmlFor="nombre_58">Nombre *</label>
