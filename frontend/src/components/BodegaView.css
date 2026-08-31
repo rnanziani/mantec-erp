@@ -263,9 +263,17 @@
     margin-bottom: 15px;
 }
 
+.form-row-3 {
+    grid-template-columns: 1fr 1fr 1fr;
+}
+
 /* Responsive: en pantallas pequeñas, una columna */
 @media (max-width: 768px) {
     .form-row {
+        grid-template-columns: 1fr;
+    }
+
+    .form-row-3 {
         grid-template-columns: 1fr;
     }
 }

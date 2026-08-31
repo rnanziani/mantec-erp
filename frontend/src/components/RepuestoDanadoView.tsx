@@ -8,7 +8,6 @@ interface RepuestoDanado {
   idrepuestodanado_57: number;
   codigo_57?: string | null;
   nombre_57: string;
-  descripcion_57?: string | null;
   activo_57: boolean;
 }
 
@@ -19,7 +18,7 @@ interface ApiResponse<T = unknown> {
   error?: string;
 }
 
-const emptyForm = { codigo_57: '', nombre_57: '', descripcion_57: '', activo_57: true };
+const emptyForm = { codigo_57: '', nombre_57: '', activo_57: true };
 
 const RepuestoDanadoView: React.FC = () => {
   const formRef = React.useRef<HTMLFormElement>(null);
@@ -59,8 +58,7 @@ const RepuestoDanadoView: React.FC = () => {
       if (!q) return true;
       return (
         t.nombre_57.toLowerCase().includes(q) ||
-        (t.codigo_57 || '').toLowerCase().includes(q) ||
-        (t.descripcion_57 || '').toLowerCase().includes(q)
+        (t.codigo_57 || '').toLowerCase().includes(q)
       );
     });
   }, [items, searchTerm]);
@@ -83,7 +81,6 @@ const RepuestoDanadoView: React.FC = () => {
     setForm({
       codigo_57: t.codigo_57 || '',
       nombre_57: t.nombre_57,
-      descripcion_57: t.descripcion_57 || '',
       activo_57: t.activo_57,
     });
     setShowForm(true);
@@ -110,7 +107,7 @@ const RepuestoDanadoView: React.FC = () => {
     const payload = {
       codigo_57: codigo,
       nombre_57: form.nombre_57.trim().toUpperCase(),
-      descripcion_57: form.descripcion_57.trim().toUpperCase() || null,
+      descripcion_57: null,
       activo_57: form.activo_57,
     };
     try {
@@ -188,19 +185,27 @@ const RepuestoDanadoView: React.FC = () => {
               </div>
               <div className="form-group">
                 <label htmlFor="nombre_57">Nombre *</label>
-                <input id="nombre_57" className="form-input" required value={form.nombre_57} onChange={(e) => setForm((p) => ({ ...p, nombre_57: e.target.value.toUpperCase() }))} />
+                <input
+                  id="nombre_57"
+                  className="form-input"
+                  required
+                  value={form.nombre_57}
+                  onChange={(e) => setForm((p) => ({ ...p, nombre_57: e.target.value.toUpperCase() }))}
+                />
               </div>
               <div className="form-group">
-                <label htmlFor="activo_57">Activo</label>
-                <select id="activo_57" className="form-input" value={form.activo_57 ? '1' : '0'} onChange={(e) => setForm((p) => ({ ...p, activo_57: e.target.value === '1' }))}>
-                  <option value="1">Sí</option>
-                  <option value="0">No</option>
+                <label htmlFor="estado_57">Estado *</label>
+                <select
+                  id="estado_57"
+                  className="form-input"
+                  value={form.activo_57 ? '1' : '0'}
+                  onChange={(e) => setForm((p) => ({ ...p, activo_57: e.target.value === '1' }))}
+                  aria-label="Estado del repuesto"
+                >
+                  <option value="1">Activo</option>
+                  <option value="0">Inactivo</option>
                 </select>
               </div>
-            </div>
-            <div className="form-group">
-              <label htmlFor="descripcion_57">Descripción</label>
-              <input id="descripcion_57" className="form-input" value={form.descripcion_57} onChange={(e) => setForm((p) => ({ ...p, descripcion_57: e.target.value.toUpperCase() }))} />
             </div>
             <div className="form-actions">
               <button type="submit" className="btn-success">{editingId ? 'Actualizar' : 'Crear'}</button>
@@ -211,32 +216,35 @@ const RepuestoDanadoView: React.FC = () => {
       )}
 
       <div style={{ marginBottom: 12 }}>
-        <input type="search" className="form-input" placeholder="🔍 BUSCAR..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value.toUpperCase())} aria-label="Buscar repuestos" />
+        <input
+          type="search"
+          className="form-input"
+          placeholder="🔍 BUSCAR POR CÓDIGO O NOMBRE..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value.toUpperCase())}
+          aria-label="Buscar repuestos"
+        />
       </div>
 
       <div className="table-container">
         <table className="data-table">
           <thead>
             <tr>
-              <th>ID</th>
               <th>Código</th>
               <th>Nombre</th>
-              <th>Descripción</th>
-              <th>Activo</th>
+              <th>Estado</th>
               <th>Acciones</th>
             </tr>
           </thead>
           <tbody>
             {pageItems.length === 0 ? (
-              <tr><td colSpan={6}>No hay registros</td></tr>
+              <tr><td colSpan={4}>No hay registros</td></tr>
             ) : (
               pageItems.map((t) => (
                 <tr key={t.idrepuestodanado_57}>
-                  <td>{t.idrepuestodanado_57}</td>
-                  <td>{t.codigo_57 || '-'}</td>
-                  <td><strong>{t.nombre_57}</strong></td>
-                  <td>{t.descripcion_57 || '-'}</td>
-                  <td>{t.activo_57 ? 'Sí' : 'No'}</td>
+                  <td><strong>{t.codigo_57 || '-'}</strong></td>
+                  <td>{t.nombre_57}</td>
+                  <td>{t.activo_57 ? 'Activo' : 'Inactivo'}</td>
                   <td className="actions">
                     <button type="button" className="btn-edit" onClick={() => startEdit(t)} aria-label="Editar">✏️</button>
                     <button type="button" className="btn-delete" onClick={() => handleDelete(t.idrepuestodanado_57)} aria-label="Eliminar">🗑️</button>
@@ -248,7 +256,13 @@ const RepuestoDanadoView: React.FC = () => {
         </table>
       </div>
 
-      <Pagination currentPage={currentPage} totalPages={totalPages} totalItems={filtered.length} itemsPerPage={itemsPerPage} onPageChange={setCurrentPage} />
+      <Pagination
+        currentPage={currentPage}
+        totalPages={totalPages}
+        totalItems={filtered.length}
+        itemsPerPage={itemsPerPage}
+        onPageChange={setCurrentPage}
+      />
     </div>
   );
 };
