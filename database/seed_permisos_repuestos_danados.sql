@@ -5,7 +5,7 @@ FROM (VALUES
   ('MENU_REPUESTOS_DANADOS',           'Acceso al menú Recepción de repuestos dañados', 9100),
   ('MENU_REPUESTOS_DANADOS_CATALOGO',  'CRUD catálogo de repuestos dañados', 9110),
   ('MENU_REPUESTOS_DANADOS_PROVEEDOR', 'CRUD proveedores de reparación', 9120),
-  ('MENU_REPUESTOS_DANADOS_RECEPCION', 'Registro maestro-detalle de recepciones', 9130)
+  ('MENU_REPUESTOS_DANADOS_RECEPCION', 'Recepción taller Bodega (repuestos dañados de máquina)', 9130)
 ) AS v(nombre, descripcion, orden)
 WHERE NOT EXISTS (
   SELECT 1 FROM tbl_05_permiso p WHERE p.nombre_permiso_05 = v.nombre
@@ -17,7 +17,7 @@ FROM (VALUES
   ('MENU_REPUESTOS_DANADOS',           'Acceso al menú Recepción de repuestos dañados', 9100),
   ('MENU_REPUESTOS_DANADOS_CATALOGO',  'CRUD catálogo de repuestos dañados', 9110),
   ('MENU_REPUESTOS_DANADOS_PROVEEDOR', 'CRUD proveedores de reparación', 9120),
-  ('MENU_REPUESTOS_DANADOS_RECEPCION', 'Registro maestro-detalle de recepciones', 9130)
+  ('MENU_REPUESTOS_DANADOS_RECEPCION', 'Recepción taller Bodega (repuestos dañados de máquina)', 9130)
 ) AS v(nombre, descripcion, orden)
 WHERE p.nombre_permiso_05 = v.nombre;
 

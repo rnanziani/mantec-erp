@@ -4,7 +4,7 @@
 INSERT INTO tbl_05_permiso (nombre_permiso_05, descripcion_05, orden_05)
 SELECT
   'MENU_REPUESTOS_DANADOS_RECEPCION_REPARADO',
-  'Recepción taller Bodega',
+  'Recepción / cierre de repuesto reparado',
   9170
 WHERE NOT EXISTS (
   SELECT 1 FROM tbl_05_permiso p
@@ -13,7 +13,7 @@ WHERE NOT EXISTS (
 
 UPDATE tbl_05_permiso
 SET
-  descripcion_05 = 'Recepción taller Bodega',
+  descripcion_05 = 'Recepción / cierre de repuesto reparado',
   orden_05 = 9170
 WHERE nombre_permiso_05 = 'MENU_REPUESTOS_DANADOS_RECEPCION_REPARADO';
 

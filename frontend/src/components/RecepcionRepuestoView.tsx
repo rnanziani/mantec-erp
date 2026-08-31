@@ -331,7 +331,7 @@ const RecepcionRepuestoView: React.FC = () => {
   return (
     <div className="bodega-view">
       <div className="view-header">
-        <h2>Recepción de Repuestos Dañados</h2>
+        <h2>Recepción taller Bodega</h2>
         <div className="header-actions">
           <button type="button" className="btn-primary" onClick={() => { resetForm(); setShowForm(true); }}>+ Nuevo</button>
           <button type="button" className="btn-success" disabled={!showForm || saving} onClick={() => formRef.current?.requestSubmit()}>

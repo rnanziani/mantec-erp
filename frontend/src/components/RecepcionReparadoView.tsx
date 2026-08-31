@@ -378,7 +378,7 @@ const RecepcionReparadoView: React.FC = () => {
   return (
     <div className="bodega-view">
       <div className="view-header">
-        <h2>Recepción taller Bodega</h2>
+        <h2>Recepción reparado</h2>
         <div className="header-actions">
           <button
             type="button"
