@@ -5,6 +5,7 @@ import { exportToExcel } from '../utils/exportUtils';
 import { showDeleteConfirm, showSuccess, showError } from '../utils/swal';
 import { validateRut, formatRut } from '../utils/rutValidator';
 import { apiUrl } from '../lib/apiClient';
+import SearchableSelect from './shared/SearchableSelect';
 
 interface Tecnico {
   id_tecnico_21: number;
@@ -294,6 +295,15 @@ const TecnicoView: React.FC = () => {
 
   const getCargoLabel = (cargo: Cargo) => cargo.nombrecargo_14 || cargo.cargo_14 || '';
 
+  const cargoOptions = useMemo(
+    () =>
+      cargos.map((cargo) => ({
+        value: String(cargo.idcargo_14),
+        label: getCargoLabel(cargo),
+      })),
+    [cargos]
+  );
+
   return (
     <div className="bodega-view">
       <div className="view-header">
@@ -399,21 +409,16 @@ const TecnicoView: React.FC = () => {
             <div className="form-row">
               <div className="form-group">
                 <label htmlFor="cargo">Cargo: *</label>
-                <select
+                <SearchableSelect
                   id="cargo"
-                  className="form-input"
                   value={idCargo}
-                  onChange={(e) => setIdCargo(e.target.value)}
+                  onChange={setIdCargo}
+                  options={cargoOptions}
                   required
-                  aria-label="Seleccionar cargo"
-                >
-                  <option value="">Seleccione un cargo</option>
-                  {cargos.map(cargo => (
-                    <option key={cargo.idcargo_14} value={cargo.idcargo_14}>
-                      {getCargoLabel(cargo)}
-                    </option>
-                  ))}
-                </select>
+                  placeholder="Buscar cargo..."
+                  aria-label="Buscar o seleccionar cargo"
+                  emptyMessage="No se encontraron cargos"
+                />
               </div>
               <div className="form-group">
                 <label htmlFor="estado">Estado:</label>
