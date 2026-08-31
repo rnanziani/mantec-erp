@@ -91,12 +91,24 @@ const RepuestoDanadoView: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    const codigo = form.codigo_57.trim().toUpperCase();
+    if (!codigo) {
+      await showError('Validación', 'El código es requerido (ej. ALT-001, BOM-002)');
+      return;
+    }
+    if (!/^[A-Z]{2,10}-\d{3,6}$/.test(codigo)) {
+      await showError(
+        'Validación',
+        'El código debe seguir el patrón TIPO-### (ej. ALT-001, BOM-002): 2 a 10 letras, guion y 3 a 6 dígitos'
+      );
+      return;
+    }
     if (!form.nombre_57.trim()) {
       await showError('Validación', 'El nombre es requerido');
       return;
     }
     const payload = {
-      codigo_57: form.codigo_57.trim().toUpperCase() || null,
+      codigo_57: codigo,
       nombre_57: form.nombre_57.trim().toUpperCase(),
       descripcion_57: form.descripcion_57.trim().toUpperCase() || null,
       activo_57: form.activo_57,
@@ -158,8 +170,21 @@ const RepuestoDanadoView: React.FC = () => {
           <form ref={formRef} onSubmit={handleSubmit}>
             <div className="form-row form-row-3">
               <div className="form-group">
-                <label htmlFor="codigo_57">Código</label>
-                <input id="codigo_57" className="form-input" value={form.codigo_57} onChange={(e) => setForm((p) => ({ ...p, codigo_57: e.target.value.toUpperCase() }))} />
+                <label htmlFor="codigo_57">Código *</label>
+                <input
+                  id="codigo_57"
+                  className="form-input"
+                  required
+                  value={form.codigo_57}
+                  onChange={(e) => setForm((p) => ({ ...p, codigo_57: e.target.value.toUpperCase() }))}
+                  placeholder="ALT-001"
+                  pattern="[A-Z]{2,10}-[0-9]{3,6}"
+                  title="Patrón TIPO-### (ej. ALT-001, BOM-002)"
+                  aria-describedby="codigo-57-help"
+                />
+                <small id="codigo-57-help" style={{ display: 'block', marginTop: 4, color: '#6b7280' }}>
+                  Formato: TIPO-### (ej. ALT-001, BOM-002)
+                </small>
               </div>
               <div className="form-group">
                 <label htmlFor="nombre_57">Nombre *</label>

@@ -17,6 +17,9 @@ CREATE TABLE IF NOT EXISTS public.tbl_57_repuesto_danado (
     actualizado_en timestamptz DEFAULT CURRENT_TIMESTAMP NOT NULL,
     CONSTRAINT pk_tbl_57_repuesto_danado PRIMARY KEY (idrepuestodanado_57),
     CONSTRAINT chk_tbl_57_nombre_no_vacio CHECK (TRIM(BOTH FROM nombre_57) <> ''),
+    CONSTRAINT chk_tbl_57_codigo_patron CHECK (
+        codigo_57 IS NULL OR codigo_57 ~ '^[A-Z]{2,10}-[0-9]{3,6}$'
+    ),
     CONSTRAINT uk_tbl_57_codigo UNIQUE (codigo_57)
 );
 

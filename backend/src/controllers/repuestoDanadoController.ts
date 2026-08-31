@@ -8,10 +8,21 @@ import {
 
 const TABLA = 'tbl_57_repuesto_danado';
 
+/** Patrón fijo: TIPO-###  (ej. ALT-001, BOM-002) */
+const CODIGO_PATTERN = /^[A-Z]{2,10}-\d{3,6}$/;
+const CODIGO_HINT =
+  'El código debe seguir el patrón TIPO-### (ej. ALT-001, BOM-002): 2 a 10 letras, guion y 3 a 6 dígitos';
+
 function normalizeText(value: unknown): string | null {
   if (value == null) return null;
   const t = String(value).trim();
   return t ? t.toUpperCase() : null;
+}
+
+function validarCodigo(codigo: string | null): string | null {
+  if (!codigo) return 'El código es requerido (ej. ALT-001, BOM-002)';
+  if (!CODIGO_PATTERN.test(codigo)) return CODIGO_HINT;
+  return null;
 }
 
 export const getAllRepuestosDanados = async (_req: Request, res: Response): Promise<void> => {
@@ -61,12 +72,15 @@ export const createRepuestoDanado = async (req: Request, res: Response): Promise
       res.status(400).json({ success: false, error: 'El nombre es requerido' });
       return;
     }
-    if (codigo) {
-      const dup = await pool.query(`SELECT idrepuestodanado_57 FROM ${TABLA} WHERE codigo_57 = $1`, [codigo]);
-      if ((dup.rowCount ?? 0) > 0) {
-        res.status(400).json({ success: false, error: 'Ya existe un repuesto con ese código' });
-        return;
-      }
+    const codigoError = validarCodigo(codigo);
+    if (codigoError) {
+      res.status(400).json({ success: false, error: codigoError });
+      return;
+    }
+    const dup = await pool.query(`SELECT idrepuestodanado_57 FROM ${TABLA} WHERE codigo_57 = $1`, [codigo]);
+    if ((dup.rowCount ?? 0) > 0) {
+      res.status(400).json({ success: false, error: 'Ya existe un repuesto con ese código' });
+      return;
     }
     const result = await pool.query<RepuestoDanado>(
       `INSERT INTO ${TABLA} (codigo_57, nombre_57, descripcion_57, activo_57)
@@ -117,15 +131,18 @@ export const updateRepuestoDanado = async (req: Request, res: Response): Promise
     }
     if (body.codigo_57 !== undefined) {
       const codigo = normalizeText(body.codigo_57);
-      if (codigo) {
-        const dup = await pool.query(
-          `SELECT idrepuestodanado_57 FROM ${TABLA} WHERE codigo_57 = $1 AND idrepuestodanado_57 <> $2`,
-          [codigo, id]
-        );
-        if ((dup.rowCount ?? 0) > 0) {
-          res.status(400).json({ success: false, error: 'Ya existe un repuesto con ese código' });
-          return;
-        }
+      const codigoError = validarCodigo(codigo);
+      if (codigoError) {
+        res.status(400).json({ success: false, error: codigoError });
+        return;
+      }
+      const dup = await pool.query(
+        `SELECT idrepuestodanado_57 FROM ${TABLA} WHERE codigo_57 = $1 AND idrepuestodanado_57 <> $2`,
+        [codigo, id]
+      );
+      if ((dup.rowCount ?? 0) > 0) {
+        res.status(400).json({ success: false, error: 'Ya existe un repuesto con ese código' });
+        return;
       }
       updates.push(`codigo_57 = $${i++}`);
       values.push(codigo);
