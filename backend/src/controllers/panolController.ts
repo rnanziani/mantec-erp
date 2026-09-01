@@ -166,9 +166,12 @@ async function validarStockSalida(
       if (String(h.estado_48).toUpperCase() === 'PRESTADA' && Number(h.stock_disponible_48) <= 0) {
         return `${codigo} ya está prestada y no tiene unidades disponibles`;
       }
+      // Si el catálogo ya tiene unidades libres, no bloquear por histórico
+      // (evita falso positivo tras devolver/ajustar stock con una SALIDA vieja aún abierta).
+      continue;
     }
 
-    // Neto comprometido aunque el movimiento esté PENDIENTE (el préstamo ya compromete stock)
+    // Update: neto comprometido excluyendo el movimiento en edición
     const netoRes = await client.query<{ neto: string }>(
       `SELECT COALESCE(SUM(
          CASE
