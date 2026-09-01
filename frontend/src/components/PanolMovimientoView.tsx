@@ -432,8 +432,18 @@ const PanolMovimientoView: React.FC = () => {
   const puedeDevolverDesdeSalida = (m: MaestroPanol): boolean => {
     const tipo = String(m.tipomovimiento_49 || '').trim().toUpperCase();
     const estado = String(m.estado_49 || '').trim().toUpperCase();
-    // Solo salidas pendientes de devolución
-    return tipo === 'SALIDA' && estado === 'PENDIENTE';
+    if (tipo !== 'SALIDA' || estado === 'ANULADA') return false;
+    if (estado === 'PENDIENTE') return true;
+    // COMPLETADA “huérfana”: cerrada a mano pero la herramienta sigue prestada
+    if (estado === 'COMPLETADA') {
+      const dets = m.herramientas_detalle || [];
+      return dets.some(
+        (h) =>
+          String(h.estado || '').toUpperCase() === 'PRESTADA' ||
+          Number(h.stock_disponible) < Number(h.stock)
+      );
+    }
+    return false;
   };
 
   /**
@@ -468,12 +478,32 @@ const PanolMovimientoView: React.FC = () => {
         await showError('Validación', 'Solo se puede devolver desde un movimiento de SALIDA');
         return;
       }
-      if (String(maestro.estado_49 || '').toUpperCase() !== 'PENDIENTE') {
+      const estadoSalida = String(maestro.estado_49 || '').toUpperCase();
+      if (estadoSalida === 'ANULADA') {
+        await showError('Validación', 'No se puede devolver un préstamo anulado');
+        return;
+      }
+      if (estadoSalida !== 'PENDIENTE' && estadoSalida !== 'COMPLETADA') {
         await showError(
           'Validación',
-          'Solo se puede devolver desde un préstamo en estado PENDIENTE'
+          `El préstamo está en estado ${estadoSalida} y no admite devolución`
         );
         return;
+      }
+      if (estadoSalida === 'COMPLETADA') {
+        const detsResumen = maestro.herramientas_detalle || [];
+        const siguePrestada = detsResumen.some(
+          (h) =>
+            String(h.estado || '').toUpperCase() === 'PRESTADA' ||
+            Number(h.stock_disponible) < Number(h.stock)
+        );
+        if (!siguePrestada) {
+          await showError(
+            'Validación',
+            'Este préstamo ya está cerrado y no tiene herramientas pendientes de devolver'
+          );
+          return;
+        }
       }
 
       // Usar todas las líneas del préstamo; el backend valida contra esta salida
@@ -628,7 +658,7 @@ const PanolMovimientoView: React.FC = () => {
       idtrabajador_49: Number(idTrabajador),
       idresponsableentrega_49: Number(idResponsable),
       fecha_49: fecha ? new Date(fecha).toISOString() : null,
-      estado_49: estado,
+      estado_49: tipo === 'SALIDA' ? 'PENDIENTE' : estado,
       observacion_49: observacion.trim() || null,
       firmatrabajador_49: firmaTrabajador,
       firmapanolero_49: firmaPanolero,
@@ -757,7 +787,18 @@ const PanolMovimientoView: React.FC = () => {
 
               <div className="form-group panol-field-estado">
                 <label htmlFor="estado">Estado</label>
-                <select id="estado" className="form-input" value={estado} onChange={(e) => setEstado(e.target.value)}>
+                <select
+                  id="estado"
+                  className="form-input"
+                  value={tipo === 'SALIDA' ? 'PENDIENTE' : estado}
+                  onChange={(e) => setEstado(e.target.value)}
+                  disabled={tipo === 'SALIDA' || Boolean(origenSalidaFolio)}
+                  title={
+                    tipo === 'SALIDA'
+                      ? 'La SALIDA queda PENDIENTE hasta devolver con el botón Devolver'
+                      : undefined
+                  }
+                >
                   <option value="COMPLETADA">COMPLETADA</option>
                   <option value="PENDIENTE">PENDIENTE</option>
                   <option value="ANULADA">ANULADA</option>

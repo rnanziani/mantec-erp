@@ -195,7 +195,8 @@ async function validarStockSalida(
 
 /**
  * Control para DEVOLUCION ligada a una SALIDA concreta (botón Devolver):
- * la salida debe estar PENDIENTE y las cantidades no pueden superar ese préstamo.
+ * admite PENDIENTE o COMPLETADA “huérfana” (cerrada sin haber devuelto stock).
+ * Las cantidades no pueden superar ese préstamo.
  */
 async function validarDevolucionDesdeSalida(
   client: { query: typeof pool.query },
@@ -229,11 +230,8 @@ async function validarDevolucionDesdeSalida(
   if (estadoSalida === 'ANULADA') {
     return `El préstamo ${folio} está anulado`;
   }
-  if (estadoSalida === 'COMPLETADA') {
-    return `El préstamo ${folio} ya fue cerrado (COMPLETADA). No admite otra devolución`;
-  }
-  if (estadoSalida !== 'PENDIENTE') {
-    return `El préstamo ${folio} debe estar PENDIENTE para devolver`;
+  if (estadoSalida !== 'PENDIENTE' && estadoSalida !== 'COMPLETADA') {
+    return `El préstamo ${folio} no admite devolución (estado: ${estadoSalida})`;
   }
 
   const detsRes = await client.query<{
@@ -280,6 +278,28 @@ async function validarDevolucionDesdeSalida(
     }
     if (cant > enPrestamo.cantidad) {
       return `${codigo}: el préstamo ${folio} solo tiene ${enPrestamo.cantidad} unidad(es) (solicitado: ${cant})`;
+    }
+
+    // Si la salida quedó COMPLETADA sin devolver, exigir que aún haya unidades prestadas
+    if (estadoSalida === 'COMPLETADA') {
+      const netoRes = await client.query<{ neto: string }>(
+        `SELECT COALESCE(SUM(
+           CASE
+             WHEN UPPER(TRIM(m.tipomovimiento_49)) = 'SALIDA' THEN d.cantidad_50
+             WHEN UPPER(TRIM(m.tipomovimiento_49)) = 'DEVOLUCION' THEN -d.cantidad_50
+             ELSE 0
+           END
+         ), 0)::text AS neto
+         FROM ${TABLA_D} d
+         INNER JOIN ${TABLA_M} m ON m.idmpanol_49 = d.idmpanol_50
+         WHERE d.idherramienta_50 = $1
+           AND UPPER(TRIM(m.estado_49)) IN ('PENDIENTE', 'COMPLETADA')`,
+        [idH]
+      );
+      const neto = Number(netoRes.rows[0]?.neto || 0);
+      if (neto <= 0) {
+        return `${codigo}: el préstamo ${folio} ya no tiene unidades pendientes de devolver`;
+      }
     }
   }
 
@@ -587,7 +607,7 @@ export const createPanol = async (req: Request, res: Response): Promise<void> =>
       );
     }
 
-    // Al registrar la devolución, cerrar el préstamo origen (PENDIENTE → COMPLETADA)
+    // Al registrar la devolución, cerrar el préstamo origen (PENDIENTE o COMPLETADA huérfana)
     if (tipo === 'DEVOLUCION' && idSalidaOrigen) {
       const fechaCierre = body.fecha_49 || null;
       const cierre = await client.query(
@@ -600,7 +620,7 @@ export const createPanol = async (req: Request, res: Response): Promise<void> =>
              actualizado_en = CURRENT_TIMESTAMP
          WHERE idmpanol_49 = $1
            AND UPPER(TRIM(tipomovimiento_49)) = 'SALIDA'
-           AND UPPER(TRIM(estado_49)) = 'PENDIENTE'
+           AND UPPER(TRIM(estado_49)) IN ('PENDIENTE', 'COMPLETADA')
          RETURNING idmpanol_49`,
         [idSalidaOrigen, fechaCierre]
       );
@@ -608,7 +628,7 @@ export const createPanol = async (req: Request, res: Response): Promise<void> =>
         await client.query('ROLLBACK');
         res.status(400).json({
           success: false,
-          error: 'No se pudo cerrar el préstamo de origen (ya no está PENDIENTE)',
+          error: 'No se pudo cerrar el préstamo de origen (anulado o inexistente)',
         });
         return;
       }
@@ -713,7 +733,19 @@ export const updatePanol = async (req: Request, res: Response): Promise<void> =>
     }
     if (body.fecha_49 !== undefined) push('fecha_49', body.fecha_49);
     if (body.fechadevolucion_49 !== undefined) push('fechadevolucion_49', body.fechadevolucion_49 || null);
-    if (body.estado_49 !== undefined) push('estado_49', String(body.estado_49).toUpperCase());
+    if (body.estado_49 !== undefined) {
+      const nuevoEstado = String(body.estado_49).toUpperCase();
+      // Una SALIDA no se cierra a mano: solo por devolución (o anulación)
+      if (String(tipo).toUpperCase() === 'SALIDA' && nuevoEstado === 'COMPLETADA') {
+        res.status(400).json({
+          success: false,
+          error: 'Una SALIDA no se puede marcar COMPLETADA manualmente. Use el botón Devolver',
+        });
+        await client.query('ROLLBACK');
+        return;
+      }
+      push('estado_49', nuevoEstado);
+    }
     if (body.observacion_49 !== undefined) push('observacion_49', body.observacion_49?.trim() || null);
     if (body.firmatrabajador_49 !== undefined) {
       const f = firmaValida(body.firmatrabajador_49);
