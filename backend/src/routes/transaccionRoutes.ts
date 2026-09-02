@@ -7,7 +7,8 @@ import {
   deleteTransaccion,
   getTransaccionesFiltradas,
   generarReportePDF,
-  generarReporteCantidadComponentesPDF
+  generarReporteCantidadComponentesPDF,
+  getStockPorAlternador,
 } from '../controllers/transaccionController.js';
 
 const router = Router();
@@ -35,6 +36,12 @@ router.get('/reporte-cantidad-componentes/pdf', generarReporteCantidadComponente
  * @query   fecha_desde (requerido), fecha_hasta (requerido), id_tipo_transaccion (opcional), id_marca (opcional), id_destino (opcional), id_maquina (opcional)
  */
 router.get('/filtradas', getTransaccionesFiltradas);
+
+/**
+ * @route   GET /api/transacciones/stock-alternador/:idAlternador
+ * @desc    Stock por ubicación de un alternador (validación preventiva de origen)
+ */
+router.get('/stock-alternador/:idAlternador', getStockPorAlternador);
 
 /**
  * @route   GET /api/transacciones

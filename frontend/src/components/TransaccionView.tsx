@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { showSuccess, showError, showDeleteConfirm, showWarning } from '../utils/swal';
 import './BodegaView.css'; // Reutilizamos los mismos estilos que TipoTransaccionView
-import { apiUrl, openAuthenticatedBlob } from '../lib/apiClient';
+import { apiFetch, apiUrl, openAuthenticatedBlob } from '../lib/apiClient';
 
 interface Transaccion {
   id_transaccion_28: number;
@@ -68,6 +68,12 @@ interface Marca {
   marca_18: string;
 }
 
+interface StockUbicacion {
+  id_ubicacion_26: number;
+  ubicacion_descripcion: string;
+  cantidad_26: number;
+}
+
 interface ApiResponse {
   success: boolean;
   data?: any;
@@ -110,6 +116,8 @@ const TransaccionView: React.FC = () => {
   const [buscarMaquina, setBuscarMaquina] = useState<string>('');
   const [alternadorSeleccionado, setAlternadorSeleccionado] = useState<Alternador | null>(null);
   const [maquinaSeleccionada, setMaquinaSeleccionada] = useState<Maquina | null>(null);
+  const [stockPorUbicacion, setStockPorUbicacion] = useState<StockUbicacion[]>([]);
+  const [loadingStock, setLoadingStock] = useState(false);
 
   // Estados para el modal de reporte
   const [showReportModal, setShowReportModal] = useState<boolean>(false);
@@ -326,6 +334,80 @@ const TransaccionView: React.FC = () => {
     return sortConfig.direction === 'asc' ? '↑' : '↓';
   };
 
+  const loadStockAlternador = async (idAlt: number, autoOrigen = true) => {
+    try {
+      setLoadingStock(true);
+      const res = await apiFetch(`${API_URL}/stock-alternador/${idAlt}`);
+      const data: ApiResponse = await res.json();
+      const rows: StockUbicacion[] = data.success && Array.isArray(data.data) ? data.data : [];
+      setStockPorUbicacion(rows);
+      if (autoOrigen) {
+        const conStock = rows.filter((r) => Number(r.cantidad_26) >= 1);
+        if (conStock.length === 1) {
+          setIdUbicacionOrigen(String(conStock[0].id_ubicacion_26));
+        } else if (conStock.length > 1) {
+          // Si el origen actual no tiene stock, sugerir el de mayor cantidad
+          setIdUbicacionOrigen((prev) => {
+            const actualOk = conStock.some((r) => String(r.id_ubicacion_26) === prev);
+            if (actualOk) return prev;
+            return String(conStock[0].id_ubicacion_26);
+          });
+        }
+      }
+    } catch (err) {
+      console.error('Error al cargar stock:', err);
+      setStockPorUbicacion([]);
+    } finally {
+      setLoadingStock(false);
+    }
+  };
+
+  const stockEnOrigen = useMemo(() => {
+    if (!idUbicacionOrigen) return null;
+    const row = stockPorUbicacion.find((s) => String(s.id_ubicacion_26) === idUbicacionOrigen);
+    return row ? Number(row.cantidad_26) : 0;
+  }, [stockPorUbicacion, idUbicacionOrigen]);
+
+  const tipoRequiereStockOrigen = useMemo(() => {
+    const tipo = tiposTransaccion.find((t) => String(t.id_tipo_transaccion_25) === idTipoTransaccion);
+    if (!tipo) return true; // por seguridad, exigir hasta saber el tipo
+    return Number(tipo.valor_accion_25) !== 1; // entrada (+1) no descuenta origen
+  }, [tiposTransaccion, idTipoTransaccion]);
+
+  const validarStockOrigenAntesDeGuardar = async (): Promise<boolean> => {
+    if (!tipoRequiereStockOrigen) return true;
+    if (!idAlternador) {
+      await showError('Validación', 'Seleccione un alternador');
+      return false;
+    }
+    // Refrescar stock justo antes de guardar
+    try {
+      const res = await apiFetch(`${API_URL}/stock-alternador/${idAlternador}`);
+      const data: ApiResponse = await res.json();
+      const rows: StockUbicacion[] = data.success && Array.isArray(data.data) ? data.data : [];
+      setStockPorUbicacion(rows);
+      const origen = rows.find((r) => String(r.id_ubicacion_26) === idUbicacionOrigen);
+      const cant = origen ? Number(origen.cantidad_26) : 0;
+      if (cant < 1) {
+        const disponibles = rows
+          .filter((r) => Number(r.cantidad_26) >= 1)
+          .map((r) => `${r.ubicacion_descripcion} (${r.cantidad_26})`)
+          .join(', ');
+        await showError(
+          'Stock insuficiente en origen',
+          disponibles
+            ? `En la ubicación de origen no hay stock (disponible: ${cant}). Use como origen: ${disponibles}.`
+            : `En la ubicación de origen no hay stock (disponible: ${cant}). El alternador no tiene existencias ≥ 1 en ninguna ubicación.`
+        );
+        return false;
+      }
+    } catch {
+      await showError('Error', 'No se pudo verificar el stock antes de guardar. Intente de nuevo.');
+      return false;
+    }
+    return true;
+  };
+
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!idAlternador || !idUbicacionOrigen || !idUbicacionDestino || !idTipoTransaccion) {
@@ -342,6 +424,8 @@ const TransaccionView: React.FC = () => {
       await showError('Validación', 'La ubicación de origen y destino deben ser diferentes');
       return;
     }
+
+    if (!(await validarStockOrigenAntesDeGuardar())) return;
 
     setLoading(true);
 
@@ -398,6 +482,8 @@ const TransaccionView: React.FC = () => {
       await showError('Validación', 'La ubicación de origen y destino deben ser diferentes');
       return;
     }
+
+    if (!(await validarStockOrigenAntesDeGuardar())) return;
 
     setLoading(true);
 
@@ -472,6 +558,7 @@ const TransaccionView: React.FC = () => {
 
     setShowForm(true);
     setError('');
+    loadStockAlternador(transaccion.id_alternador_28, false);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -512,6 +599,7 @@ const TransaccionView: React.FC = () => {
     setBuscarMaquina('');
     setAlternadorSeleccionado(null);
     setMaquinaSeleccionada(null);
+    setStockPorUbicacion([]);
     setEditingId(null);
     setShowForm(false);
     setError('');
@@ -716,6 +804,7 @@ const TransaccionView: React.FC = () => {
                         onClick={() => {
                           setAlternadorSeleccionado(alt);
                           setIdAlternador(alt.id_alternador_19.toString());
+                          loadStockAlternador(alt.id_alternador_19, true);
                         }}
                         style={{
                           padding: '8px',
@@ -745,6 +834,35 @@ const TransaccionView: React.FC = () => {
               </div>
             </div>
 
+            {alternadorSeleccionado && (
+              <div
+                role="status"
+                aria-live="polite"
+                style={{
+                  marginBottom: 16,
+                  padding: '10px 12px',
+                  borderRadius: 6,
+                  border: '1px solid #bfdbfe',
+                  background: '#eff6ff',
+                  fontSize: 14,
+                }}
+              >
+                <strong>Stock del alternador {alternadorSeleccionado.cod_alternador_19}:</strong>{' '}
+                {loadingStock
+                  ? 'Consultando…'
+                  : stockPorUbicacion.length === 0
+                    ? 'Sin registros de existencia.'
+                    : stockPorUbicacion
+                        .map((s) => `${s.ubicacion_descripcion} (${s.cantidad_26})`)
+                        .join(' · ')}
+                {tipoRequiereStockOrigen && stockEnOrigen !== null && stockEnOrigen < 1 && (
+                  <div style={{ marginTop: 6, color: '#b91c1c', fontWeight: 600 }}>
+                    Origen sin stock. Elija una ubicación con cantidad ≥ 1 (el sistema ya sugiere una si existe).
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* Segunda fila: Ubicación Origen, Ubicación Destino y Tipo de Transacción */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '15px', marginBottom: '20px' }}>
               <div className="form-group">
@@ -753,14 +871,37 @@ const TransaccionView: React.FC = () => {
                   value={idUbicacionOrigen}
                   onChange={(e) => setIdUbicacionOrigen(e.target.value)}
                   required
-                  style={{ width: '100%', padding: '8px 12px', borderRadius: '4px', border: '1px solid #ced4da', fontSize: '14px' }}
+                  style={{
+                    width: '100%',
+                    padding: '8px 12px',
+                    borderRadius: '4px',
+                    border:
+                      tipoRequiereStockOrigen && stockEnOrigen !== null && stockEnOrigen < 1
+                        ? '2px solid #dc2626'
+                        : '1px solid #ced4da',
+                    fontSize: '14px',
+                  }}
+                  aria-invalid={tipoRequiereStockOrigen && stockEnOrigen !== null && stockEnOrigen < 1}
                 >
                   <option value="">Seleccione ubicación origen</option>
-                  {ubicacionesActivas.map(ubic => (
-                    <option key={ubic.id_ubicacion_27} value={ubic.id_ubicacion_27}>
-                      {ubic.descripcion_27}
-                    </option>
-                  ))}
+                  {ubicacionesActivas.map((ubic) => {
+                    const stock = stockPorUbicacion.find(
+                      (s) => s.id_ubicacion_26 === ubic.id_ubicacion_27
+                    );
+                    const cant = stock ? Number(stock.cantidad_26) : null;
+                    const sufijo =
+                      alternadorSeleccionado && cant !== null
+                        ? ` — stock: ${cant}`
+                        : alternadorSeleccionado
+                          ? ' — stock: 0'
+                          : '';
+                    return (
+                      <option key={ubic.id_ubicacion_27} value={ubic.id_ubicacion_27}>
+                        {ubic.descripcion_27}
+                        {sufijo}
+                      </option>
+                    );
+                  })}
                 </select>
               </div>
 
