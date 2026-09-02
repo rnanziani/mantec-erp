@@ -32,7 +32,23 @@ const MAESTRO_SELECT = `
       COALESCE(r.apaternoresponsableentrega_08, ''), ' ',
       COALESCE(r.amaternoresponsableentrega_08, '')
     ) AS responsable_nombre,
-    p.nombre_58 AS proveedor_nombre
+    p.nombre_58 AS proveedor_nombre,
+    (
+      SELECT string_agg(
+        TRIM(
+          CONCAT(
+            COALESCE(rd.codigo_57, ''),
+            CASE WHEN rd.codigo_57 IS NOT NULL AND rd.codigo_57 <> '' THEN ' ' ELSE '' END,
+            COALESCE(rd.nombre_57, ''),
+            ' (x', d.cantidad_60::text, ')'
+          )
+        ),
+        ' | ' ORDER BY d.iddetalle_60
+      )
+      FROM ${TABLA_D} d
+      INNER JOIN tbl_57_repuesto_danado rd ON d.idrepuestodanado_60 = rd.idrepuestodanado_57
+      WHERE d.idrecepcion_60 = m.idrecepcion_59
+    ) AS repuestos_resumen
   FROM ${TABLA_M} m
   INNER JOIN tbl_11_maquina ma ON m.idmaquina_59 = ma.idmaquina_11
   INNER JOIN tbl_21_tecnico t ON m.idtecnico_59 = t.id_tecnico_21

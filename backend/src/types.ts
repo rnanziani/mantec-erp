@@ -1619,6 +1619,8 @@ export interface MaestroRecepcionRepuesto {
   tecnico_nombre?: string;
   responsable_nombre?: string;
   proveedor_nombre?: string;
+  /** Resumen de líneas de detalle (código + nombre + cantidad) */
+  repuestos_resumen?: string | null;
 }
 
 /** Detalle recepción — tbl_60_d_recepcion_repuesto */

@@ -20,6 +20,7 @@ interface Maestro {
   tecnico_nombre?: string;
   responsable_nombre?: string;
   proveedor_nombre?: string;
+  repuestos_resumen?: string | null;
 }
 
 interface DetalleLinea {
@@ -179,6 +180,7 @@ const RecepcionRepuestoView: React.FC = () => {
       (r.maquina_descripcion || '').toLowerCase().includes(q) ||
       (r.tecnico_nombre || '').toLowerCase().includes(q) ||
       (r.proveedor_nombre || '').toLowerCase().includes(q) ||
+      (r.repuestos_resumen || '').toLowerCase().includes(q) ||
       String(r.idrecepcion_59).includes(q)
     );
   }, [registros, searchTerm]);
@@ -517,7 +519,7 @@ const RecepcionRepuestoView: React.FC = () => {
       )}
 
       <div style={{ marginBottom: 12 }}>
-        <input type="search" className="form-input" placeholder="🔍 BUSCAR FOLIO, MÁQUINA, TÉCNICO..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value.toUpperCase())} aria-label="Buscar recepciones" />
+        <input type="search" className="form-input" placeholder="🔍 BUSCAR FOLIO, MÁQUINA, TÉCNICO, REPUESTO..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value.toUpperCase())} aria-label="Buscar recepciones" />
       </div>
 
       <div className="table-container">
@@ -528,6 +530,7 @@ const RecepcionRepuestoView: React.FC = () => {
               <th>Folio</th>
               <th>Fecha</th>
               <th>Máquina</th>
+              <th>Repuesto dañado</th>
               <th>Técnico</th>
               <th>Proveedor</th>
               <th>Responsable</th>
@@ -536,7 +539,7 @@ const RecepcionRepuestoView: React.FC = () => {
           </thead>
           <tbody>
             {pageItems.length === 0 ? (
-              <tr><td colSpan={8}>No hay recepciones</td></tr>
+              <tr><td colSpan={9}>No hay recepciones</td></tr>
             ) : (
               pageItems.map((r) => (
                 <tr key={r.idrecepcion_59}>
@@ -544,6 +547,7 @@ const RecepcionRepuestoView: React.FC = () => {
                   <td><strong>{r.folio_59 || '-'}</strong></td>
                   <td>{String(r.fecha_59).slice(0, 10)} {String(r.hora_59).slice(0, 5)}</td>
                   <td>{r.maquina_numinterno || r.idmaquina_59} — {r.maquina_descripcion || ''}</td>
+                  <td>{r.repuestos_resumen || '—'}</td>
                   <td>{r.tecnico_nombre || '-'}</td>
                   <td>{r.proveedor_nombre || '-'}</td>
                   <td>{r.responsable_nombre || '-'}</td>
