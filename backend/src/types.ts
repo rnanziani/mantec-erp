@@ -1871,6 +1871,134 @@ export interface CreateRecepcionRepuestoReparadoBatchDTO {
 }
 
 // ============================================
+// HERRAMIENTAS A CARGO — tbl_66..tbl_69
+// ============================================
+
+export interface HerramientaCargo {
+  idherramienta_66: number;
+  codigo_66: string;
+  nombre_66: string;
+  idmarca_insumo_66?: number | null;
+  modelo_66?: string | null;
+  serie_66?: string | null;
+  ubicacion_66?: string | null;
+  valor_66: number;
+  stock_66: number;
+  stock_disponible_66: number;
+  foto_66?: string | null;
+  estado_66: string;
+  activo_66: boolean;
+  creado_en?: string | Date;
+  actualizado_en?: string | Date;
+  marca_insumo_nombre?: string;
+}
+
+export interface CreateHerramientaCargoDTO {
+  codigo_66: string;
+  nombre_66: string;
+  idmarca_insumo_66?: number | null;
+  modelo_66?: string | null;
+  serie_66?: string | null;
+  ubicacion_66?: string | null;
+  valor_66?: number;
+  stock_66?: number;
+  stock_disponible_66?: number;
+  foto_66?: string | null;
+  estado_66?: string;
+  activo_66?: boolean;
+}
+
+export interface UpdateHerramientaCargoDTO {
+  codigo_66?: string;
+  nombre_66?: string;
+  idmarca_insumo_66?: number | null;
+  modelo_66?: string | null;
+  serie_66?: string | null;
+  ubicacion_66?: string | null;
+  valor_66?: number;
+  stock_66?: number;
+  stock_disponible_66?: number;
+  foto_66?: string | null;
+  estado_66?: string;
+  activo_66?: boolean;
+}
+
+export interface MaestroEntregaCargo {
+  identrega_67: number;
+  folio_67?: string | null;
+  idtrabajador_67: number;
+  idresponsable_67: number;
+  idccosto_67: number;
+  fecha_67: string | Date;
+  hora_67: string;
+  estado_67: string;
+  observacion_67?: string | null;
+  creado_en?: string | Date;
+  actualizado_en?: string | Date;
+  trabajador_nombre?: string;
+  trabajador_rut?: string;
+  trabajador_cargo?: string;
+  responsable_nombre?: string;
+  ccosto_nombre?: string;
+}
+
+export interface DetalleEntregaCargo {
+  iddetalle_68?: number;
+  identrega_68?: number;
+  idherramienta_68: number;
+  cantidad_68: number;
+  cantidad_devuelta_68?: number;
+  estado_entrega_68?: string;
+  observacion_68?: string | null;
+  pendiente?: number;
+  herramienta_codigo?: string;
+  herramienta_nombre?: string;
+  herramienta_serie?: string | null;
+}
+
+export interface CreateEntregaCargoDTO {
+  idtrabajador_67: number;
+  idresponsable_67: number;
+  idccosto_67: number;
+  fecha_67?: string | null;
+  hora_67?: string | null;
+  observacion_67?: string | null;
+  detalles: Array<{
+    idherramienta_68: number;
+    cantidad_68: number;
+    estado_entrega_68?: string;
+    observacion_68?: string | null;
+  }>;
+}
+
+export interface CreateDevolucionCargoDTO {
+  iddetalle_69: number;
+  cantidad_69: number;
+  fecha_69?: string | null;
+  hora_69?: string | null;
+  estado_herramienta_69: string;
+  idresponsable_69?: number | null;
+  observacion_69?: string | null;
+}
+
+export interface InventarioCargoVigente {
+  idtrabajador_06: number;
+  trabajador_nombre: string;
+  trabajador_rut?: string;
+  identrega_67: number;
+  folio_67?: string | null;
+  iddetalle_68: number;
+  idherramienta_66: number;
+  codigo_66: string;
+  nombre_66: string;
+  cantidad_asignada: number;
+  cantidad_devuelta: number;
+  cantidad_pendiente: number;
+  fecha_entrega: string | Date;
+  ccosto_nombre?: string;
+}
+
+// ============================================
 // AUTENTICACIÓN Y SEGURIDAD
 // ============================================
 

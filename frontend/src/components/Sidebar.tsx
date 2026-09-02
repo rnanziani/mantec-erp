@@ -101,6 +101,17 @@ const Sidebar: React.FC<SidebarProps> = ({ onNavigate, currentView }) => {
             ]
         },
         {
+            id: 'herramientas-cargo-menu',
+            label: 'Herramientas a cargo',
+            icon: '🛠️',
+            permissionRequired: 'MENU_HERRAMIENTAS_CARGO',
+            children: [
+                { id: 'herramientas-cargo', label: 'Catálogo', icon: '🔧', path: 'herramientas-cargo', permissionRequired: 'MENU_HERRAMIENTAS_CARGO_CATALOGO' },
+                { id: 'entregas-cargo', label: 'Entregas / Devoluciones', icon: '📋', path: 'entregas-cargo', permissionRequired: 'MENU_HERRAMIENTAS_CARGO_ENTREGAS' },
+                { id: 'inventario-cargo', label: 'Inventario vigente', icon: '📊', path: 'inventario-cargo', permissionRequired: 'MENU_HERRAMIENTAS_CARGO_INVENTARIO' },
+            ]
+        },
+        {
             id: 'repuestos-danados-menu',
             label: 'Repuestos Dañados',
             icon: '🔩',

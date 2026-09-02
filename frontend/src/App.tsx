@@ -47,6 +47,9 @@ import ClaseElementoEppView from './components/ClaseElementoEppView';
 import CategoriaElementoEppView from './components/CategoriaElementoEppView';
 import ElementoEppView from './components/ElementoEppView';
 import EntregaEppView from './components/EntregaEppView';
+import HerramientaCargoView from './components/HerramientaCargoView';
+import EntregaCargoView from './components/EntregaCargoView';
+import InventarioCargoView from './components/InventarioCargoView';
 import RepuestoDanadoView from './components/RepuestoDanadoView';
 import ProveedorView from './components/ProveedorView';
 import RecepcionRepuestoView from './components/RecepcionRepuestoView';
@@ -184,6 +187,9 @@ function App() {
     'categorias-epp': 'MENU_EPP_CATEGORIAS',
     'elementos-epp': 'MENU_EPP_ELEMENTOS',
     'entregas-epp': 'MENU_EPP_ENTREGAS',
+    'herramientas-cargo': 'MENU_HERRAMIENTAS_CARGO_CATALOGO',
+    'entregas-cargo': 'MENU_HERRAMIENTAS_CARGO_ENTREGAS',
+    'inventario-cargo': 'MENU_HERRAMIENTAS_CARGO_INVENTARIO',
     'repuestos-danados': 'MENU_REPUESTOS_DANADOS_CATALOGO',
     'proveedores-reparacion': 'MENU_REPUESTOS_DANADOS_PROVEEDOR',
     'recepcion-repuestos': 'MENU_REPUESTOS_DANADOS_RECEPCION',
@@ -505,6 +511,9 @@ function App() {
           {currentView === 'categorias-epp' && hasRouteAccess('categorias-epp') && <CategoriaElementoEppView />}
           {currentView === 'elementos-epp' && hasRouteAccess('elementos-epp') && <ElementoEppView />}
           {currentView === 'entregas-epp' && hasRouteAccess('entregas-epp') && <EntregaEppView />}
+          {currentView === 'herramientas-cargo' && hasRouteAccess('herramientas-cargo') && <HerramientaCargoView />}
+          {currentView === 'entregas-cargo' && hasRouteAccess('entregas-cargo') && <EntregaCargoView />}
+          {currentView === 'inventario-cargo' && hasRouteAccess('inventario-cargo') && <InventarioCargoView />}
           {currentView === 'repuestos-danados' && hasRouteAccess('repuestos-danados') && <RepuestoDanadoView />}
           {currentView === 'proveedores-reparacion' && hasRouteAccess('proveedores-reparacion') && <ProveedorView />}
           {currentView === 'recepcion-repuestos' && hasRouteAccess('recepcion-repuestos') && <RecepcionRepuestoView />}

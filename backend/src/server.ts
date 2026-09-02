@@ -42,6 +42,8 @@ import consumoInsumoRoutes from './routes/consumoInsumoRoutes.js';
 import cargoMaquinaRoutes from './routes/cargoMaquinaRoutes.js';
 import herramientaRoutes from './routes/herramientaRoutes.js';
 import panolRoutes from './routes/panolRoutes.js';
+import herramientaCargoRoutes from './routes/herramientaCargoRoutes.js';
+import entregaCargoRoutes from './routes/entregaCargoRoutes.js';
 import eppTipoRoutes from './routes/eppTipoRoutes.js';
 import eppClaseRoutes from './routes/eppClaseRoutes.js';
 import eppCategoriaRoutes from './routes/eppCategoriaRoutes.js';
@@ -70,6 +72,12 @@ validateProductionSecrets();
 
 const app = express();
 const PORT = process.env.PORT || 3001;
+
+// Render / reverse proxy: confiar en 1 hop para IP real (rate-limit, req.ip).
+// Sin esto → ERR_ERL_UNEXPECTED_X_FORWARDED_FOR en producción.
+if (process.env.NODE_ENV === 'production') {
+  app.set('trust proxy', 1);
+}
 
 function normalizeOrigin(url: string): string {
   return url.trim().replace(/\/$/, '');
@@ -206,6 +214,8 @@ app.use('/api/consumo-insumos', consumoInsumoRoutes);
 app.use('/api/cargo-maquinas', cargoMaquinaRoutes);
 app.use('/api/herramientas', herramientaRoutes);
 app.use('/api/panol', panolRoutes);
+app.use('/api/herramientas-cargo', herramientaCargoRoutes);
+app.use('/api/entregas-cargo', entregaCargoRoutes);
 app.use('/api/epp-clases', eppClaseRoutes);
 app.use('/api/epp-tipos', eppTipoRoutes);
 app.use('/api/epp-categorias', eppCategoriaRoutes);

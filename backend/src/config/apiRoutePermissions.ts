@@ -70,6 +70,10 @@ export const API_PREFIX_RULES: Array<{
   { prefix: '/api/herramientas', permission: 'MENU_PANOL_HERRAMIENTAS', readAuthOnly: true },
   { prefix: '/api/panol', permission: 'MENU_PANOL_MOVIMIENTOS' },
 
+  // Herramientas a cargo
+  { prefix: '/api/herramientas-cargo', permission: 'MENU_HERRAMIENTAS_CARGO_CATALOGO', readAuthOnly: true },
+  { prefix: '/api/entregas-cargo', permission: 'MENU_HERRAMIENTAS_CARGO_ENTREGAS', readAuthOnly: true },
+
   // Entrega de EPP / Ropa de Trabajo (catálogos con lectura autenticada para lookups)
   { prefix: '/api/epp-clases', permission: 'MENU_EPP_CLASES', readAuthOnly: true },
   { prefix: '/api/epp-tipos', permission: 'MENU_EPP_TIPOS', readAuthOnly: true },
