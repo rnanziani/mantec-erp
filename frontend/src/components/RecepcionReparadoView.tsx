@@ -417,7 +417,7 @@ const RecepcionReparadoView: React.FC = () => {
       )}
 
       {showForm && (
-        <div className="form-container">
+        <div className="form-container" style={{ overflow: 'visible' }}>
           <h3>{editingId ? `Editar cierre #${editingId}` : 'Nuevo cierre de reparación'}</h3>
           <p style={{ marginTop: 0, color: '#6b7280', fontSize: 14 }}>
             Solo aparecen líneas de <strong>entrega (etapa 2)</strong> con fecha de recepción del proveedor.
@@ -527,7 +527,7 @@ const RecepcionReparadoView: React.FC = () => {
                   </div>
                 </div>
 
-                <div className="table-container" style={{ marginBottom: 12 }}>
+                <div className="table-container table-container--combos" style={{ marginBottom: 12 }}>
                   <table className="data-table">
                     <thead>
                       <tr>

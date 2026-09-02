@@ -153,6 +153,24 @@
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
+/* Combos SearchableSelect dentro de grillas de formulario (no recortar dropdown) */
+.table-container.table-container--combos {
+    overflow: visible;
+}
+
+.table-container.table-container--combos .data-table tbody td {
+    overflow: visible;
+    vertical-align: top;
+}
+
+.table-container.table-container--combos .searchable-select.is-open {
+    z-index: 400;
+}
+
+.table-container.table-container--combos .searchable-select-list {
+    z-index: 410;
+}
+
 .data-table {
     width: 100%;
     border-collapse: separate;
