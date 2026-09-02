@@ -135,51 +135,6 @@ export const getTransaccionById = async (req: Request, res: Response): Promise<v
 };
 
 /**
- * Stock actual del alternador por ubicación (para validar origen antes de guardar)
- */
-export const getStockPorAlternador = async (req: Request, res: Response): Promise<void> => {
-  try {
-    const idAlternador = Number(req.params.idAlternador);
-    if (!idAlternador || Number.isNaN(idAlternador)) {
-      res.status(400).json({ success: false, error: 'ID de alternador inválido' });
-      return;
-    }
-
-    const result = await pool.query<{
-      id_ubicacion_26: number;
-      ubicacion_descripcion: string;
-      cantidad_26: string | number;
-    }>(
-      `SELECT
-         e.id_ubicacion_26,
-         u.descripcion_27 AS ubicacion_descripcion,
-         e.cantidad_26
-       FROM tbl_26_existencia e
-       INNER JOIN tbl_27_ubicacion u ON u.id_ubicacion_27 = e.id_ubicacion_26
-       WHERE e.id_alternador_26 = $1
-       ORDER BY e.cantidad_26 DESC, u.descripcion_27`,
-      [idAlternador]
-    );
-
-    res.json({
-      success: true,
-      data: result.rows.map((r) => ({
-        id_ubicacion_26: r.id_ubicacion_26,
-        ubicacion_descripcion: r.ubicacion_descripcion,
-        cantidad_26: Number(r.cantidad_26) || 0,
-      })),
-    });
-  } catch (error) {
-    console.error('Error al obtener stock por alternador:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Error al obtener stock del alternador',
-      message: error instanceof Error ? error.message : 'Error desconocido',
-    });
-  }
-};
-
-/**
  * Crear una nueva transacción
  * NOTA: Esto debería actualizar automáticamente la existencia mediante un trigger en la BD
  */
