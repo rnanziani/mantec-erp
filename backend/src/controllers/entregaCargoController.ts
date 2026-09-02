@@ -137,6 +137,7 @@ export const getInventarioCargoVigente = async (req: Request, res: Response): Pr
          h.idherramienta_66,
          h.codigo_66,
          h.nombre_66,
+         h.valor_66,
          d.cantidad_68 AS cantidad_asignada,
          d.cantidad_devuelta_68 AS cantidad_devuelta,
          (d.cantidad_68 - d.cantidad_devuelta_68) AS cantidad_pendiente,

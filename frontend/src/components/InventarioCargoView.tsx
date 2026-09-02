@@ -17,6 +17,7 @@ interface InventarioRow {
   idherramienta_66: number;
   codigo_66: string;
   nombre_66: string;
+  valor_66?: number;
   cantidad_asignada: number;
   cantidad_devuelta: number;
   cantidad_pendiente: number;
@@ -115,6 +116,7 @@ const InventarioCargoView: React.FC = () => {
         CCosto: r.ccosto_nombre,
         Código: r.codigo_66,
         Herramienta: r.nombre_66,
+        Valor: Number(r.valor_66) || 0,
         Asignada: r.cantidad_asignada,
         Devuelta: r.cantidad_devuelta,
         Pendiente: r.cantidad_pendiente,
@@ -122,6 +124,13 @@ const InventarioCargoView: React.FC = () => {
       'inventario-herramienta-cargo'
     );
   };
+
+  const formatValor = (valor: number | undefined) =>
+    new Intl.NumberFormat('es-CL', {
+      style: 'currency',
+      currency: 'CLP',
+      maximumFractionDigits: 0,
+    }).format(Number(valor) || 0);
 
   if (loading) return <div className="loading">Cargando inventario vigente...</div>;
 
@@ -182,12 +191,13 @@ const InventarioCargoView: React.FC = () => {
               <th>CCosto</th>
               <th>Código</th>
               <th>Herramienta</th>
+              <th>Valor</th>
               <th>Pendiente</th>
             </tr>
           </thead>
           <tbody>
             {pageItems.length === 0 ? (
-              <tr><td colSpan={8}>Sin cargo vigente</td></tr>
+              <tr><td colSpan={9}>Sin cargo vigente</td></tr>
             ) : (
               pageItems.map((r) => (
                 <tr key={`${r.iddetalle_68}-${r.idherramienta_66}`}>
@@ -198,6 +208,7 @@ const InventarioCargoView: React.FC = () => {
                   <td>{r.ccosto_nombre}</td>
                   <td>{r.codigo_66}</td>
                   <td>{r.nombre_66}</td>
+                  <td>{formatValor(r.valor_66)}</td>
                   <td>{r.cantidad_pendiente}</td>
                 </tr>
               ))

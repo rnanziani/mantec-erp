@@ -1993,6 +1993,7 @@ export interface InventarioCargoVigente {
   idherramienta_66: number;
   codigo_66: string;
   nombre_66: string;
+  valor_66?: number;
   cantidad_asignada: number;
   cantidad_devuelta: number;
   cantidad_pendiente: number;
