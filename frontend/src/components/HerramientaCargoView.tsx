@@ -231,6 +231,13 @@ const HerramientaCargoView: React.FC = () => {
     setForm((prev) => ({ ...prev, [key]: e.target.value.toUpperCase() }));
   };
 
+  const formatValor = (valor: number) =>
+    new Intl.NumberFormat('es-CL', {
+      style: 'currency',
+      currency: 'CLP',
+      maximumFractionDigits: 0,
+    }).format(Number(valor) || 0);
+
   if (loading) return <div className="loading">Cargando catálogo...</div>;
 
   return (
@@ -356,6 +363,7 @@ const HerramientaCargoView: React.FC = () => {
               <th>Código</th>
               <th>Nombre</th>
               <th>Serie</th>
+              <th>Valor</th>
               <th>Stock</th>
               <th>Disp.</th>
               <th>Estado</th>
@@ -365,13 +373,14 @@ const HerramientaCargoView: React.FC = () => {
           </thead>
           <tbody>
             {pageItems.length === 0 ? (
-              <tr><td colSpan={8}>Sin registros</td></tr>
+              <tr><td colSpan={9}>Sin registros</td></tr>
             ) : (
               pageItems.map((h) => (
                 <tr key={h.idherramienta_66}>
                   <td>{h.codigo_66}</td>
                   <td>{h.nombre_66}</td>
                   <td>{h.serie_66 || '—'}</td>
+                  <td>{formatValor(h.valor_66)}</td>
                   <td>{h.stock_66}</td>
                   <td>{h.stock_disponible_66}</td>
                   <td>{h.estado_66}</td>
