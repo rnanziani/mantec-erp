@@ -621,14 +621,14 @@ const RecepcionRepuestoView: React.FC = () => {
       <div
         className="filters-row"
         style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))',
+          display: 'flex',
+          flexWrap: 'wrap',
           gap: 12,
           marginBottom: 12,
           alignItems: 'end',
         }}
       >
-        <div className="form-group" style={{ margin: 0 }}>
+        <div className="form-group" style={{ margin: 0, flex: '0 1 150px', minWidth: 140 }}>
           <label htmlFor="filtro_fecha_desde">Fecha desde</label>
           <input
             id="filtro_fecha_desde"
@@ -638,7 +638,7 @@ const RecepcionRepuestoView: React.FC = () => {
             onChange={(e) => setFiltroFechaDesde(e.target.value)}
           />
         </div>
-        <div className="form-group" style={{ margin: 0 }}>
+        <div className="form-group" style={{ margin: 0, flex: '0 1 150px', minWidth: 140 }}>
           <label htmlFor="filtro_fecha_hasta">Fecha hasta</label>
           <input
             id="filtro_fecha_hasta"
@@ -648,7 +648,7 @@ const RecepcionRepuestoView: React.FC = () => {
             onChange={(e) => setFiltroFechaHasta(e.target.value)}
           />
         </div>
-        <div className="form-group" style={{ margin: 0 }}>
+        <div className="form-group" style={{ margin: 0, flex: '1 1 272px', minWidth: 272 }}>
           <label htmlFor="filtro_maquina">Máquina</label>
           <SearchableSelect
             id="filtro_maquina"
@@ -659,7 +659,7 @@ const RecepcionRepuestoView: React.FC = () => {
             aria-label="Filtrar por máquina"
           />
         </div>
-        <div className="form-group" style={{ margin: 0 }}>
+        <div className="form-group" style={{ margin: 0, flex: '1 1 272px', minWidth: 272 }}>
           <label htmlFor="filtro_repuesto">Repuesto dañado</label>
           <SearchableSelect
             id="filtro_repuesto"
@@ -670,7 +670,7 @@ const RecepcionRepuestoView: React.FC = () => {
             aria-label="Filtrar por repuesto dañado"
           />
         </div>
-        <div className="form-group" style={{ margin: 0 }}>
+        <div className="form-group" style={{ margin: 0, flex: '1 1 272px', minWidth: 272 }}>
           <label htmlFor="filtro_tecnico">Técnico</label>
           <SearchableSelect
             id="filtro_tecnico"
@@ -681,7 +681,7 @@ const RecepcionRepuestoView: React.FC = () => {
             aria-label="Filtrar por técnico"
           />
         </div>
-        <div className="form-group" style={{ margin: 0 }}>
+        <div className="form-group" style={{ margin: 0, flex: '1 1 272px', minWidth: 272 }}>
           <label htmlFor="filtro_proveedor">Proveedor</label>
           <SearchableSelect
             id="filtro_proveedor"
@@ -692,7 +692,7 @@ const RecepcionRepuestoView: React.FC = () => {
             aria-label="Filtrar por proveedor"
           />
         </div>
-        <div className="form-group" style={{ margin: 0, gridColumn: '1 / -1' }}>
+        <div className="form-group" style={{ margin: 0, flex: '1 1 100%', width: '100%' }}>
           <label htmlFor="filtro_buscar">Búsqueda libre</label>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
             <input
