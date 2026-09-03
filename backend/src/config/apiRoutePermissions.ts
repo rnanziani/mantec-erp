@@ -74,6 +74,10 @@ export const API_PREFIX_RULES: Array<{
   { prefix: '/api/herramientas-cargo', permission: 'MENU_HERRAMIENTAS_CARGO_CATALOGO', readAuthOnly: true },
   { prefix: '/api/entregas-cargo', permission: 'MENU_HERRAMIENTAS_CARGO_ENTREGAS', readAuthOnly: true },
 
+  // Control de lubricantes
+  { prefix: '/api/lubricantes', permission: 'MENU_LUBRICANTES_CATALOGO', readAuthOnly: true },
+  { prefix: '/api/consumos-lubricante', permission: 'MENU_LUBRICANTES_CONSUMO' },
+
   // Entrega de EPP / Ropa de Trabajo (catálogos con lectura autenticada para lookups)
   { prefix: '/api/epp-clases', permission: 'MENU_EPP_CLASES', readAuthOnly: true },
   { prefix: '/api/epp-tipos', permission: 'MENU_EPP_TIPOS', readAuthOnly: true },

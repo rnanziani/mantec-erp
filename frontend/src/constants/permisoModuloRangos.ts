@@ -10,6 +10,7 @@ export const RANGOS_MODULO_PERMISOS = [
     { label: 'Pañol', min: 8000, max: 8999 },
     { label: 'EPP', min: 9000, max: 9999 },
     { label: 'Herramientas a cargo', min: 10000, max: 10999 },
+    { label: 'Lubricantes', min: 11000, max: 11999 },
 ] as const;
 
 export const moduloRangoValue = (min: number, max: number) => `${min}-${max}`;

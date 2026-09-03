@@ -112,6 +112,16 @@ const Sidebar: React.FC<SidebarProps> = ({ onNavigate, currentView }) => {
             ]
         },
         {
+            id: 'lubricantes-menu',
+            label: 'Lubricantes',
+            icon: '🛢️',
+            permissionRequired: 'MENU_LUBRICANTES',
+            children: [
+                { id: 'lubricantes', label: 'Catálogo', icon: '📦', path: 'lubricantes', permissionRequired: 'MENU_LUBRICANTES_CATALOGO' },
+                { id: 'consumos-lubricante', label: 'Consumos', icon: '📋', path: 'consumos-lubricante', permissionRequired: 'MENU_LUBRICANTES_CONSUMO' },
+            ]
+        },
+        {
             id: 'repuestos-danados-menu',
             label: 'Repuestos Dañados',
             icon: '🔩',

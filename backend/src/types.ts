@@ -2075,3 +2075,94 @@ export interface HistorialContrasena {
   hashed_password_01: string;
   fecha_cambio_01: Date;
 }
+
+// ============================================
+// CONTROL DE LUBRICANTES — tbl_70..tbl_72
+// ============================================
+
+export interface Lubricante {
+  idlubricante_70: number;
+  cob_lubricante_70: string;
+  descripcion_70: string;
+  orden_aparicion_70: number;
+  activo_70: boolean;
+  creado_en?: string | Date;
+  actualizado_en?: string | Date;
+}
+
+export interface CreateLubricanteDTO {
+  cob_lubricante_70: string;
+  descripcion_70: string;
+  orden_aparicion_70?: number;
+  activo_70?: boolean;
+}
+
+export interface UpdateLubricanteDTO {
+  cob_lubricante_70?: string;
+  descripcion_70?: string;
+  orden_aparicion_70?: number;
+  activo_70?: boolean;
+}
+
+export interface MaestroConsumoLubricante {
+  idconsumo_71: number;
+  folio_71?: string | null;
+  idmaquina_71: number;
+  idtrabajador_71: number;
+  idtecnico_71: number;
+  km_maquina_71: number;
+  fecha_71: string | Date;
+  hora_71: string;
+  observacion_71?: string | null;
+  creado_en?: string | Date;
+  actualizado_en?: string | Date;
+  maquina_nombre?: string;
+  maquina_ppu?: string;
+  trabajador_nombre?: string;
+  trabajador_rut?: string;
+  tecnico_nombre?: string;
+  total_lts?: number;
+  lubricantes_resumen?: string | null;
+}
+
+export interface DetalleConsumoLubricante {
+  iddetalle_72?: number;
+  idconsumo_72?: number;
+  idlubricante_72: number;
+  consumo_lts_72: number;
+  observacion_72?: string | null;
+  lubricante_codigo?: string;
+  lubricante_nombre?: string;
+  orden_aparicion_70?: number;
+  lubricante_activo?: boolean;
+}
+
+export interface CreateConsumoLubricanteDTO {
+  idmaquina_71: number;
+  idtrabajador_71: number;
+  idtecnico_71: number;
+  km_maquina_71?: number;
+  fecha_71?: string;
+  hora_71?: string;
+  observacion_71?: string | null;
+  detalles: Array<{
+    idlubricante_72: number;
+    consumo_lts_72: number;
+    observacion_72?: string | null;
+  }>;
+}
+
+export interface UpdateConsumoLubricanteDTO {
+  idmaquina_71?: number;
+  idtrabajador_71?: number;
+  idtecnico_71?: number;
+  km_maquina_71?: number;
+  fecha_71?: string;
+  hora_71?: string;
+  observacion_71?: string | null;
+  detalles?: Array<{
+    idlubricante_72: number;
+    consumo_lts_72: number;
+    observacion_72?: string | null;
+  }>;
+}

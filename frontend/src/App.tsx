@@ -50,6 +50,8 @@ import EntregaEppView from './components/EntregaEppView';
 import HerramientaCargoView from './components/HerramientaCargoView';
 import EntregaCargoView from './components/EntregaCargoView';
 import InventarioCargoView from './components/InventarioCargoView';
+import LubricanteView from './components/LubricanteView';
+import ConsumoLubricanteView from './components/ConsumoLubricanteView';
 import RepuestoDanadoView from './components/RepuestoDanadoView';
 import ProveedorView from './components/ProveedorView';
 import RecepcionRepuestoView from './components/RecepcionRepuestoView';
@@ -190,6 +192,8 @@ function App() {
     'herramientas-cargo': 'MENU_HERRAMIENTAS_CARGO_CATALOGO',
     'entregas-cargo': 'MENU_HERRAMIENTAS_CARGO_ENTREGAS',
     'inventario-cargo': 'MENU_HERRAMIENTAS_CARGO_INVENTARIO',
+    'lubricantes': 'MENU_LUBRICANTES_CATALOGO',
+    'consumos-lubricante': 'MENU_LUBRICANTES_CONSUMO',
     'repuestos-danados': 'MENU_REPUESTOS_DANADOS_CATALOGO',
     'proveedores-reparacion': 'MENU_REPUESTOS_DANADOS_PROVEEDOR',
     'recepcion-repuestos': 'MENU_REPUESTOS_DANADOS_RECEPCION',
@@ -514,6 +518,8 @@ function App() {
           {currentView === 'herramientas-cargo' && hasRouteAccess('herramientas-cargo') && <HerramientaCargoView />}
           {currentView === 'entregas-cargo' && hasRouteAccess('entregas-cargo') && <EntregaCargoView />}
           {currentView === 'inventario-cargo' && hasRouteAccess('inventario-cargo') && <InventarioCargoView />}
+          {currentView === 'lubricantes' && hasRouteAccess('lubricantes') && <LubricanteView />}
+          {currentView === 'consumos-lubricante' && hasRouteAccess('consumos-lubricante') && <ConsumoLubricanteView />}
           {currentView === 'repuestos-danados' && hasRouteAccess('repuestos-danados') && <RepuestoDanadoView />}
           {currentView === 'proveedores-reparacion' && hasRouteAccess('proveedores-reparacion') && <ProveedorView />}
           {currentView === 'recepcion-repuestos' && hasRouteAccess('recepcion-repuestos') && <RecepcionRepuestoView />}
