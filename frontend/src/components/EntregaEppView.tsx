@@ -255,6 +255,17 @@ const EntregaEppView: React.FC = () => {
     [trabajadores, buscarTrabajador]
   );
 
+  const cargoOptions = useMemo(
+    () =>
+      [...cargos]
+        .sort((a, b) => a.cargo_14.localeCompare(b.cargo_14, 'es', { sensitivity: 'base' }))
+        .map((c) => ({
+          value: String(c.idcargo_14),
+          label: c.cargo_14,
+        })),
+    [cargos]
+  );
+
   const ccostoOptions = useMemo(
     () =>
       [...ccostos]
@@ -849,20 +860,15 @@ const EntregaEppView: React.FC = () => {
 
               <div className="form-group">
                 <label htmlFor="cargo">Cargo *</label>
-                <select
+                <SearchableSelect
                   id="cargo"
-                  className="form-input"
                   value={idCargo}
-                  onChange={(e) => setIdCargo(e.target.value)}
-                  required
-                >
-                  <option value="">Seleccione...</option>
-                  {cargos.map((c) => (
-                    <option key={c.idcargo_14} value={c.idcargo_14}>
-                      {c.cargo_14}
-                    </option>
-                  ))}
-                </select>
+                  onChange={setIdCargo}
+                  options={cargoOptions}
+                  placeholder="Buscar cargo..."
+                  aria-label="Buscar o seleccionar cargo"
+                  emptyMessage="No se encontraron cargos"
+                />
               </div>
 
               <div className="form-group">
