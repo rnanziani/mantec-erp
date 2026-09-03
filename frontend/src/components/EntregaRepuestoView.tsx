@@ -10,6 +10,7 @@ interface LineaGrid {
   iddetalle_recepcion_64: number;
   idestado_reparacion_64: number;
   fecha_recepcion_64?: string | null;
+  valor_reparacion_64?: number;
   folio_entrega?: string;
   folio_recepcion?: string;
   repuesto_codigo?: string;
@@ -44,6 +45,7 @@ interface DetalleForm {
   iddetalle_recepcion_64: number;
   idestado_reparacion_64: number;
   fecha_recepcion_64: string;
+  valor_reparacion_64: string;
   label: string;
   cantidad: number;
 }
@@ -185,6 +187,7 @@ const EntregaRepuestoView: React.FC = () => {
         iddetalle_recepcion_64: id,
         idestado_reparacion_64: estadoDefaultId,
         fecha_recepcion_64: '',
+        valor_reparacion_64: '0',
         label: `${p.folio_59 || ''} · ${p.repuesto_codigo || ''} ${p.repuesto_nombre || ''} (x${p.cantidad_60})`,
         cantidad: p.cantidad_60,
       },
@@ -208,6 +211,7 @@ const EntregaRepuestoView: React.FC = () => {
           iddetalle_recepcion_64: number;
           idestado_reparacion_64: number;
           fecha_recepcion_64?: string | null;
+          valor_reparacion_64?: number | null;
           folio_recepcion?: string;
           repuesto_codigo?: string;
           repuesto_nombre?: string;
@@ -232,6 +236,7 @@ const EntregaRepuestoView: React.FC = () => {
           fecha_recepcion_64: d.fecha_recepcion_64
             ? String(d.fecha_recepcion_64).slice(0, 10)
             : '',
+          valor_reparacion_64: String(d.valor_reparacion_64 ?? 0),
           label: `${d.folio_recepcion || ''} · ${d.repuesto_codigo || ''} ${d.repuesto_nombre || ''} (x${d.cantidad_60 || 1})`,
           cantidad: d.cantidad_60 || 1,
         }))
@@ -266,6 +271,7 @@ const EntregaRepuestoView: React.FC = () => {
         iddetalle_recepcion_64: d.iddetalle_recepcion_64,
         idestado_reparacion_64: d.idestado_reparacion_64,
         fecha_recepcion_64: d.fecha_recepcion_64 || null,
+        valor_reparacion_64: Number(d.valor_reparacion_64) || 0,
         observacion_64: null,
       })),
     };
@@ -467,13 +473,14 @@ const EntregaRepuestoView: React.FC = () => {
                     <th>Repuesto (recepción)</th>
                     <th>Estado reparación</th>
                     <th>Fecha recepción</th>
+                    <th>Valor reparación</th>
                     <th></th>
                   </tr>
                 </thead>
                 <tbody>
                   {detalles.length === 0 ? (
                     <tr>
-                      <td colSpan={4}>Sin líneas. Agregue al menos un repuesto pendiente.</td>
+                      <td colSpan={5}>Sin líneas. Agregue al menos un repuesto pendiente.</td>
                     </tr>
                   ) : (
                     detalles.map((d) => (
@@ -520,6 +527,27 @@ const EntregaRepuestoView: React.FC = () => {
                               );
                             }}
                             aria-label="Fecha de recepción del proveedor"
+                          />
+                        </td>
+                        <td>
+                          <input
+                            type="number"
+                            min={0}
+                            step="0.01"
+                            className="form-input"
+                            value={d.valor_reparacion_64}
+                            onChange={(e) => {
+                              const v = e.target.value;
+                              setDetalles((prev) =>
+                                prev.map((x) =>
+                                  x.iddetalle_recepcion_64 === d.iddetalle_recepcion_64
+                                    ? { ...x, valor_reparacion_64: v }
+                                    : x
+                                )
+                              );
+                            }}
+                            aria-label="Valor de reparación"
+                            placeholder="0"
                           />
                         </td>
                         <td>
@@ -580,6 +608,7 @@ const EntregaRepuestoView: React.FC = () => {
               <th>Estado</th>
               <th>Entrega</th>
               <th>Recepción</th>
+              <th>Valor</th>
               <th>Días</th>
               <th>Acciones</th>
             </tr>
@@ -587,7 +616,7 @@ const EntregaRepuestoView: React.FC = () => {
           <tbody>
             {pageItems.length === 0 ? (
               <tr>
-                <td colSpan={10}>No hay registros</td></tr>
+                <td colSpan={11}>No hay registros</td></tr>
             ) : (
               pageItems.map((t) => (
                 <tr
@@ -616,6 +645,13 @@ const EntregaRepuestoView: React.FC = () => {
                     {t.fecha_recepcion_64
                       ? String(t.fecha_recepcion_64).slice(0, 10)
                       : '—'}
+                  </td>
+                  <td>
+                    {new Intl.NumberFormat('es-CL', {
+                      style: 'currency',
+                      currency: 'CLP',
+                      maximumFractionDigits: 0,
+                    }).format(Number(t.valor_reparacion_64) || 0)}
                   </td>
                   <td>
                     <strong>{t.dias_transcurridos ?? 0}</strong>

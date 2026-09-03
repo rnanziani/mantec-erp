@@ -41,6 +41,7 @@ const DETALLE_SELECT = `
     d.iddetalle_recepcion_64,
     d.idestado_reparacion_64,
     d.fecha_recepcion_64,
+    d.valor_reparacion_64,
     d.observacion_64,
     d.creado_en,
     d.actualizado_en,
@@ -108,6 +109,15 @@ async function getEstadoIdByCodigo(
     [codigo]
   );
   return r.rows[0]?.idestado_61 ?? null;
+}
+
+function normalizeValorReparacion(value: unknown): number {
+  if (value == null || value === '') return 0;
+  const n = Number(value);
+  if (Number.isNaN(n) || n < 0) {
+    throw new Error('El valor de reparación debe ser un número ≥ 0');
+  }
+  return Math.round(n * 100) / 100;
 }
 
 function validarDetalles(
@@ -303,17 +313,19 @@ export const createEntrega = async (req: Request, res: Response): Promise<void> 
       if (fechaRec && estadoReparado) {
         idEstado = estadoReparado;
       }
+      const valorRep = normalizeValorReparacion(d.valor_reparacion_64);
 
       await client.query(
         `INSERT INTO ${TABLA_D} (
           identrega_64, iddetalle_recepcion_64, idestado_reparacion_64,
-          fecha_recepcion_64, observacion_64
-        ) VALUES ($1, $2, $3, $4, $5)`,
+          fecha_recepcion_64, valor_reparacion_64, observacion_64
+        ) VALUES ($1, $2, $3, $4, $5, $6)`,
         [
           idMaestro,
           d.iddetalle_recepcion_64,
           idEstado,
           fechaRec,
+          valorRep,
           d.observacion_64?.trim() || null,
         ]
       );
@@ -436,6 +448,7 @@ export const updateEntrega = async (req: Request, res: Response): Promise<void> 
         let idEstado = d.idestado_reparacion_64 || defaultEstado;
         if (!idEstado) throw new Error('No hay estado de reparación configurado');
         if (fechaRec && estadoReparado) idEstado = estadoReparado;
+        const valorRep = normalizeValorReparacion(d.valor_reparacion_64);
 
         const existente = mapActual.get(d.iddetalle_recepcion_64);
         if (existente) {
@@ -443,12 +456,14 @@ export const updateEntrega = async (req: Request, res: Response): Promise<void> 
             `UPDATE ${TABLA_D} SET
                idestado_reparacion_64 = $1,
                fecha_recepcion_64 = $2,
-               observacion_64 = $3,
+               valor_reparacion_64 = $3,
+               observacion_64 = $4,
                actualizado_en = CURRENT_TIMESTAMP
-             WHERE iddetalle_64 = $4`,
+             WHERE iddetalle_64 = $5`,
             [
               idEstado,
               fechaRec,
+              valorRep,
               d.observacion_64?.trim() || null,
               existente.iddetalle_64,
             ]
@@ -470,13 +485,14 @@ export const updateEntrega = async (req: Request, res: Response): Promise<void> 
           await client.query(
             `INSERT INTO ${TABLA_D} (
               identrega_64, iddetalle_recepcion_64, idestado_reparacion_64,
-              fecha_recepcion_64, observacion_64
-            ) VALUES ($1, $2, $3, $4, $5)`,
+              fecha_recepcion_64, valor_reparacion_64, observacion_64
+            ) VALUES ($1, $2, $3, $4, $5, $6)`,
             [
               id,
               d.iddetalle_recepcion_64,
               idEstado,
               fechaRec,
+              valorRep,
               d.observacion_64?.trim() || null,
             ]
           );

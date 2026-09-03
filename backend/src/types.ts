@@ -1740,6 +1740,7 @@ export interface DetalleEntregaRepuesto {
   iddetalle_recepcion_64: number;
   idestado_reparacion_64: number;
   fecha_recepcion_64?: string | Date | null;
+  valor_reparacion_64?: number;
   observacion_64?: string | null;
   creado_en?: string | Date;
   actualizado_en?: string | Date;
@@ -1781,6 +1782,7 @@ export interface CreateMaestroEntregaRepuestoDTO {
     iddetalle_recepcion_64: number;
     idestado_reparacion_64: number;
     fecha_recepcion_64?: string | null;
+    valor_reparacion_64?: number | null;
     observacion_64?: string | null;
   }>;
 }
