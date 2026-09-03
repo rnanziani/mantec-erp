@@ -1,8 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import './BodegaView.css';
 import Pagination from './shared/Pagination';
-import SearchableSelect from './shared/SearchableSelect';
 import { exportToExcel } from '../utils/exportUtils';
+import { filtrarTrabajadoresPorApellido } from '../utils/trabajadorSearch';
 import { showDeleteConfirm, showError, showSuccess } from '../utils/swal';
 import { apiFetch, apiUrl } from '../lib/apiClient';
 
@@ -100,14 +100,14 @@ const ConsumoLubricanteView: React.FC = () => {
   const [idMaquina, setIdMaquina] = useState('');
   const [idTrabajador, setIdTrabajador] = useState('');
   const [idTecnico, setIdTecnico] = useState('');
+  const [buscarPatente, setBuscarPatente] = useState('');
+  const [buscarApellido, setBuscarApellido] = useState('');
+  const [buscarTecnico, setBuscarTecnico] = useState('');
   const [km, setKm] = useState('0');
   const [fecha, setFecha] = useState(new Date().toISOString().slice(0, 10));
   const [hora, setHora] = useState(new Date().toTimeString().slice(0, 5));
   const [observacion, setObservacion] = useState('');
   const [detalles, setDetalles] = useState<LineaForm[]>([]);
-  const [lubSel, setLubSel] = useState('');
-  const [ltsSel, setLtsSel] = useState('');
-  const [obsSel, setObsSel] = useState('');
 
   const [detalleModal, setDetalleModal] = useState<{ maestro: Maestro; detalles: Detalle[] } | null>(
     null
@@ -148,64 +148,47 @@ const ConsumoLubricanteView: React.FC = () => {
     fetchAll();
   }, []);
 
-  const maquinaOptions = useMemo(
-    () =>
-      maquinas
-        .filter((m) => m.estado_11 !== false)
-        .map((m) => ({
-          value: String(m.idmaquina_11),
-          label: [m.numinterno_11 || m.idmaquina_11, m.ppu_11 ? `(${m.ppu_11})` : null, m.descripcion_11 || '']
-            .filter(Boolean)
-            .join(' — '),
-        })),
-    [maquinas]
+  /** Máquinas filtradas por patente, número interno o descripción. */
+  const maquinasFiltradas = useMemo(() => {
+    const activas = maquinas.filter((m) => m.estado_11 !== false);
+    const q = buscarPatente.trim().toLowerCase();
+    if (!q) return activas;
+    return activas.filter(
+      (m) =>
+        (m.ppu_11 || '').toLowerCase().includes(q) ||
+        (m.numinterno_11 || '').toLowerCase().includes(q) ||
+        (m.descripcion_11 || '').toLowerCase().includes(q)
+    );
+  }, [maquinas, buscarPatente]);
+
+  /** Trabajadores filtrados por apellido (paterno → materno). */
+  const trabajadoresFiltrados = useMemo(
+    () => filtrarTrabajadoresPorApellido(trabajadores, buscarApellido),
+    [trabajadores, buscarApellido]
   );
 
-  const tecnicoOptions = useMemo(
-    () =>
-      tecnicos
-        .filter((t) => t.estado_21 !== false)
-        .map((t) => ({
-          value: String(t.id_tecnico_21),
-          label: `${t.nombres_21} ${t.a_paterno_21 || ''} ${t.a_materno_21 || ''}`.trim(),
-        })),
-    [tecnicos]
-  );
+  /** Técnicos filtrados por nombre o apellido. */
+  const tecnicosFiltrados = useMemo(() => {
+    const activos = tecnicos.filter((t) => t.estado_21 !== false);
+    const q = buscarTecnico.trim().toLowerCase();
+    if (!q) return activos;
+    return activos.filter((t) =>
+      `${t.nombres_21} ${t.a_paterno_21 || ''} ${t.a_materno_21 || ''}`.toLowerCase().includes(q)
+    );
+  }, [tecnicos, buscarTecnico]);
 
-  const trabajadorOptions = useMemo(
+  /** Catálogo dinámico: solo activos, en el orden definido en pantalla. */
+  const lubricantesDisponibles = useMemo(
     () =>
-      [...trabajadores]
-        .sort((a, b) =>
-          `${a.apaterno_06 || ''} ${a.nombre_06}`.localeCompare(
-            `${b.apaterno_06 || ''} ${b.nombre_06}`,
-            'es',
-            { sensitivity: 'base' }
-          )
-        )
-        .map((t) => ({
-          value: String(t.idtrabajador_06),
-          label:
-            `${t.apaterno_06 || ''} ${t.amaterno_06 || ''} ${t.nombre_06}`.trim() +
-            (t.ruttrabajador_06 ? ` — ${t.ruttrabajador_06}` : ''),
-        })),
-    [trabajadores]
+      lubricantes
+        .filter((l) => l.activo_70)
+        .sort(
+          (a, b) =>
+            a.orden_aparicion_70 - b.orden_aparicion_70 ||
+            a.descripcion_70.localeCompare(b.descripcion_70, 'es', { sensitivity: 'base' })
+        ),
+    [lubricantes]
   );
-
-  /** Solo activos y aún no agregados (catálogo dinámico). */
-  const lubricanteOptions = useMemo(() => {
-    const usados = new Set(detalles.map((d) => d.idlubricante_72));
-    return lubricantes
-      .filter((l) => l.activo_70 && !usados.has(l.idlubricante_70))
-      .sort(
-        (a, b) =>
-          a.orden_aparicion_70 - b.orden_aparicion_70 ||
-          a.descripcion_70.localeCompare(b.descripcion_70, 'es', { sensitivity: 'base' })
-      )
-      .map((l) => ({
-        value: String(l.idlubricante_70),
-        label: `${l.cob_lubricante_70} — ${l.descripcion_70}`,
-      }));
-  }, [lubricantes, detalles]);
 
   const filtered = useMemo(() => {
     const q = searchTerm.trim().toLowerCase();
@@ -232,53 +215,49 @@ const ConsumoLubricanteView: React.FC = () => {
     setIdMaquina('');
     setIdTrabajador('');
     setIdTecnico('');
+    setBuscarPatente('');
+    setBuscarApellido('');
+    setBuscarTecnico('');
     setKm('0');
     setFecha(new Date().toISOString().slice(0, 10));
     setHora(new Date().toTimeString().slice(0, 5));
     setObservacion('');
     setDetalles([]);
-    setLubSel('');
-    setLtsSel('');
-    setObsSel('');
     setShowForm(false);
   };
 
-  const addLinea = () => {
-    if (!lubSel) {
-      void showError('Validación', 'Seleccione un lubricante');
-      return;
-    }
-    const lts = Number(ltsSel);
-    if (!lts || lts <= 0) {
-      void showError('Validación', 'Ingrese litros mayores a 0');
+  /** Un clic en el botón del lubricante agrega la línea con 1 L (editable). */
+  const toggleLubricante = (lub: Lubricante) => {
+    const yaEsta = detalles.some((d) => d.idlubricante_72 === lub.idlubricante_70);
+    if (yaEsta) {
+      setDetalles((prev) => prev.filter((d) => d.idlubricante_72 !== lub.idlubricante_70));
       return;
     }
     if (detalles.length >= MAX_LINEAS) {
       void showError('Validación', `Máximo ${MAX_LINEAS} lubricantes por consumo`);
       return;
     }
-    if (detalles.some((d) => d.idlubricante_72 === Number(lubSel))) {
-      void showError('Validación', 'Ese lubricante ya está en el detalle');
-      return;
-    }
-    const lub = lubricantes.find((l) => l.idlubricante_70 === Number(lubSel));
-    if (!lub) return;
-    if (!lub.activo_70 && !editingId) {
-      void showError('Validación', 'No puede agregar un lubricante inactivo');
-      return;
-    }
     setDetalles((prev) => [
       ...prev,
       {
         idlubricante_72: lub.idlubricante_70,
-        consumo_lts_72: lts,
-        observacion_72: obsSel.trim().toUpperCase(),
+        consumo_lts_72: 1,
+        observacion_72: '',
         label: `${lub.cob_lubricante_70} — ${lub.descripcion_70}`,
       },
     ]);
-    setLubSel('');
-    setLtsSel('');
-    setObsSel('');
+  };
+
+  const setLitros = (idLub: number, lts: number) => {
+    setDetalles((prev) =>
+      prev.map((d) => (d.idlubricante_72 === idLub ? { ...d, consumo_lts_72: lts } : d))
+    );
+  };
+
+  const setObsLinea = (idLub: number, obs: string) => {
+    setDetalles((prev) =>
+      prev.map((d) => (d.idlubricante_72 === idLub ? { ...d, observacion_72: obs } : d))
+    );
   };
 
   const removeLinea = (idLub: number) => {
@@ -348,6 +327,11 @@ const ConsumoLubricanteView: React.FC = () => {
     }
     if (detalles.length > MAX_LINEAS) {
       await showError('Validación', `Máximo ${MAX_LINEAS} lubricantes`);
+      return;
+    }
+    const sinLitros = detalles.find((d) => !d.consumo_lts_72 || d.consumo_lts_72 <= 0);
+    if (sinLitros) {
+      await showError('Validación', `Ingrese litros mayores a 0 en ${sinLitros.label}`);
       return;
     }
 
@@ -427,7 +411,7 @@ const ConsumoLubricanteView: React.FC = () => {
   return (
     <div className="bodega-view">
       <div className="view-header">
-        <h2>Consumo de lubricantes</h2>
+        <h2>🛢️ Consumo de Lubricantes</h2>
         <div className="header-actions">
           <button
             type="button"
@@ -476,42 +460,236 @@ const ConsumoLubricanteView: React.FC = () => {
             activos del catálogo.
           </p>
           <form ref={formRef} onSubmit={handleSubmit}>
-            <div className="form-row form-row-3">
+            {/* Fila 1: buscadores + listas de selección rápida */}
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
+                gap: '20px',
+                marginBottom: '20px',
+              }}
+            >
               <div className="form-group">
-                <label htmlFor="idmaquina">Máquina / Taller *</label>
-                <SearchableSelect
-                  id="idmaquina"
-                  value={idMaquina}
-                  onChange={setIdMaquina}
-                  options={maquinaOptions}
-                  placeholder="Buscar máquina..."
-                  aria-label="Buscar o seleccionar máquina"
+                <label htmlFor="buscar_patente">Buscar Por Patente</label>
+                <input
+                  id="buscar_patente"
+                  type="search"
+                  className="form-input"
+                  value={buscarPatente}
+                  onChange={(e) => setBuscarPatente(e.target.value.toUpperCase())}
+                  placeholder="INGRESE PATENTE O NÚMERO INTERNO"
+                  style={{ textTransform: 'uppercase' }}
                 />
               </div>
+
               <div className="form-group">
-                <label htmlFor="idtrabajador">Trabajador *</label>
-                <SearchableSelect
-                  id="idtrabajador"
-                  value={idTrabajador}
-                  onChange={setIdTrabajador}
-                  options={trabajadorOptions}
-                  placeholder="Buscar trabajador..."
-                  aria-label="Buscar o seleccionar trabajador"
+                <label id="label-maquina">Seleccionar Máquina / Taller *</label>
+                <div
+                  role="listbox"
+                  aria-labelledby="label-maquina"
+                  style={{
+                    maxHeight: '150px',
+                    overflowY: 'auto',
+                    border: '1px solid #ced4da',
+                    borderRadius: '4px',
+                    padding: '10px',
+                  }}
+                >
+                  {maquinasFiltradas.length > 0 ? (
+                    maquinasFiltradas.map((maq) => {
+                      const activo = idMaquina === String(maq.idmaquina_11);
+                      return (
+                        <div
+                          key={maq.idmaquina_11}
+                          role="option"
+                          aria-selected={activo}
+                          tabIndex={0}
+                          onClick={() => setIdMaquina(String(maq.idmaquina_11))}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' || e.key === ' ') {
+                              e.preventDefault();
+                              setIdMaquina(String(maq.idmaquina_11));
+                            }
+                          }}
+                          style={{
+                            padding: '8px',
+                            cursor: 'pointer',
+                            backgroundColor: activo ? '#007bff' : 'transparent',
+                            color: activo ? 'white' : 'black',
+                            marginBottom: '5px',
+                            borderRadius: '4px',
+                            border: activo ? '2px solid #0056b3' : '1px solid #ced4da',
+                          }}
+                        >
+                          <strong>{maq.ppu_11 || 'N/A'}</strong> - {maq.numinterno_11 || 'N/A'}{' '}
+                          {maq.descripcion_11 ? `(${maq.descripcion_11})` : ''}
+                        </div>
+                      );
+                    })
+                  ) : (
+                    <div style={{ textAlign: 'center', color: '#6c757d', padding: '10px' }}>
+                      {maquinas.length === 0
+                        ? 'Cargando máquinas...'
+                        : 'No se encontraron máquinas con ese criterio'}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="buscar_apellido">Buscar Trabajador Por Apellido</label>
+                <input
+                  id="buscar_apellido"
+                  type="search"
+                  className="form-input"
+                  value={buscarApellido}
+                  onChange={(e) => setBuscarApellido(e.target.value.toUpperCase())}
+                  placeholder="EJ: GONZALEZ O GONZALEZ PEREZ"
+                  style={{ textTransform: 'uppercase' }}
+                />
+                <small style={{ color: '#6c757d', fontSize: '0.85em' }}>
+                  💡 Tip: Una palabra busca por apellido paterno primero, luego materno.
+                </small>
+              </div>
+
+              <div className="form-group">
+                <label id="label-trabajador">Seleccionar Trabajador *</label>
+                <div
+                  role="listbox"
+                  aria-labelledby="label-trabajador"
+                  style={{
+                    maxHeight: '150px',
+                    overflowY: 'auto',
+                    border: '1px solid #ced4da',
+                    borderRadius: '4px',
+                    padding: '10px',
+                  }}
+                >
+                  {trabajadoresFiltrados.length > 0 ? (
+                    trabajadoresFiltrados.map((trab) => {
+                      const activo = idTrabajador === String(trab.idtrabajador_06);
+                      return (
+                        <div
+                          key={trab.idtrabajador_06}
+                          role="option"
+                          aria-selected={activo}
+                          tabIndex={0}
+                          onClick={() => setIdTrabajador(String(trab.idtrabajador_06))}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' || e.key === ' ') {
+                              e.preventDefault();
+                              setIdTrabajador(String(trab.idtrabajador_06));
+                            }
+                          }}
+                          style={{
+                            padding: '8px',
+                            cursor: 'pointer',
+                            backgroundColor: activo ? '#007bff' : 'transparent',
+                            color: activo ? 'white' : 'black',
+                            marginBottom: '5px',
+                            borderRadius: '4px',
+                            border: activo ? '2px solid #0056b3' : '1px solid #ced4da',
+                          }}
+                        >
+                          <strong>
+                            {trab.apaterno_06 || ''} {trab.amaterno_06 || ''}
+                          </strong>{' '}
+                          {trab.nombre_06 || ''} -{' '}
+                          <span style={{ fontSize: '0.9em', opacity: 0.8 }}>
+                            {trab.ruttrabajador_06 || ''}
+                          </span>
+                        </div>
+                      );
+                    })
+                  ) : (
+                    <div style={{ textAlign: 'center', color: '#6c757d', padding: '10px' }}>
+                      {trabajadores.length === 0
+                        ? 'Cargando trabajadores...'
+                        : 'No se encontraron trabajadores con ese criterio'}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="buscar_tecnico">Buscar Técnico</label>
+                <input
+                  id="buscar_tecnico"
+                  type="search"
+                  className="form-input"
+                  value={buscarTecnico}
+                  onChange={(e) => setBuscarTecnico(e.target.value.toUpperCase())}
+                  placeholder="NOMBRE O APELLIDO DEL TÉCNICO"
+                  style={{ textTransform: 'uppercase' }}
                 />
               </div>
+
               <div className="form-group">
-                <label htmlFor="idtecnico">Técnico *</label>
-                <SearchableSelect
-                  id="idtecnico"
-                  value={idTecnico}
-                  onChange={setIdTecnico}
-                  options={tecnicoOptions}
-                  placeholder="Buscar técnico..."
-                  aria-label="Buscar o seleccionar técnico"
-                />
+                <label id="label-tecnico">Seleccionar Técnico *</label>
+                <div
+                  role="listbox"
+                  aria-labelledby="label-tecnico"
+                  style={{
+                    maxHeight: '150px',
+                    overflowY: 'auto',
+                    border: '1px solid #ced4da',
+                    borderRadius: '4px',
+                    padding: '10px',
+                  }}
+                >
+                  {tecnicosFiltrados.length > 0 ? (
+                    tecnicosFiltrados.map((tec) => {
+                      const activo = idTecnico === String(tec.id_tecnico_21);
+                      return (
+                        <div
+                          key={tec.id_tecnico_21}
+                          role="option"
+                          aria-selected={activo}
+                          tabIndex={0}
+                          onClick={() => setIdTecnico(String(tec.id_tecnico_21))}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' || e.key === ' ') {
+                              e.preventDefault();
+                              setIdTecnico(String(tec.id_tecnico_21));
+                            }
+                          }}
+                          style={{
+                            padding: '8px',
+                            cursor: 'pointer',
+                            backgroundColor: activo ? '#007bff' : 'transparent',
+                            color: activo ? 'white' : 'black',
+                            marginBottom: '5px',
+                            borderRadius: '4px',
+                            border: activo ? '2px solid #0056b3' : '1px solid #ced4da',
+                          }}
+                        >
+                          <strong>
+                            {tec.a_paterno_21 || ''} {tec.a_materno_21 || ''}
+                          </strong>{' '}
+                          {tec.nombres_21}
+                        </div>
+                      );
+                    })
+                  ) : (
+                    <div style={{ textAlign: 'center', color: '#6c757d', padding: '10px' }}>
+                      {tecnicos.length === 0
+                        ? 'Cargando técnicos...'
+                        : 'No se encontraron técnicos con ese criterio'}
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
-            <div className="form-row form-row-3">
+
+            {/* Fila 2: KM, fecha, hora */}
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+                gap: '15px',
+                marginBottom: '20px',
+              }}
+            >
               <div className="form-group">
                 <label htmlFor="km_maquina">KM máquina *</label>
                 <input
@@ -548,7 +726,8 @@ const ConsumoLubricanteView: React.FC = () => {
                 />
               </div>
             </div>
-            <div className="form-group">
+
+            <div className="form-group" style={{ marginBottom: '20px' }}>
               <label htmlFor="observacion_71">Observación general</label>
               <input
                 id="observacion_71"
@@ -559,87 +738,133 @@ const ConsumoLubricanteView: React.FC = () => {
               />
             </div>
 
-            <h4>Detalle lubricantes ({detalles.length}/{MAX_LINEAS})</h4>
-            <div className="form-row form-row-3" style={{ alignItems: 'end' }}>
-              <div className="form-group">
-                <label htmlFor="lub_sel">Lubricante</label>
-                <SearchableSelect
-                  id="lub_sel"
-                  value={lubSel}
-                  onChange={setLubSel}
-                  options={lubricanteOptions}
-                  placeholder="Buscar lubricante..."
-                  aria-label="Buscar lubricante activo"
-                  emptyMessage="No hay lubricantes activos disponibles"
-                />
-              </div>
-              <div className="form-group">
-                <label htmlFor="lts_sel">Litros</label>
-                <input
-                  id="lts_sel"
-                  type="number"
-                  min={0.01}
-                  step="0.01"
-                  className="form-input"
-                  value={ltsSel}
-                  onChange={(e) => setLtsSel(e.target.value)}
-                />
-              </div>
-              <div className="form-group">
-                <label htmlFor="obs_sel">Obs. línea</label>
-                <div style={{ display: 'flex', gap: 8 }}>
-                  <input
-                    id="obs_sel"
-                    className="form-input"
-                    value={obsSel}
-                    onChange={(e) => setObsSel(e.target.value.toUpperCase())}
-                    style={{ flex: 1 }}
-                  />
-                  <button
-                    type="button"
-                    className="btn-primary"
-                    onClick={addLinea}
-                    disabled={detalles.length >= MAX_LINEAS}
-                  >
-                    Agregar
-                  </button>
+            {/* Botones dinámicos de lubricantes */}
+            <div style={{ marginBottom: '20px' }}>
+              <label style={{ display: 'block', marginBottom: '10px', fontWeight: 'bold' }}>
+                Lubricantes Disponibles ({detalles.length}/{MAX_LINEAS})
+              </label>
+              {lubricantesDisponibles.length === 0 ? (
+                <div
+                  style={{
+                    textAlign: 'center',
+                    color: '#6c757d',
+                    padding: '20px',
+                    border: '1px solid #ced4da',
+                    borderRadius: '4px',
+                    backgroundColor: '#f8f9fa',
+                  }}
+                >
+                  No hay lubricantes activos en el catálogo.
                 </div>
-              </div>
+              ) : (
+                <div
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))',
+                    gap: '10px',
+                  }}
+                >
+                  {lubricantesDisponibles.map((lub) => {
+                    const seleccionado = detalles.some(
+                      (d) => d.idlubricante_72 === lub.idlubricante_70
+                    );
+                    const bloqueado = !seleccionado && detalles.length >= MAX_LINEAS;
+                    return (
+                      <button
+                        key={lub.idlubricante_70}
+                        type="button"
+                        onClick={() => toggleLubricante(lub)}
+                        disabled={bloqueado}
+                        aria-pressed={seleccionado}
+                        title={lub.descripcion_70}
+                        className="btn-primary"
+                        style={{
+                          padding: '10px',
+                          fontSize: '12px',
+                          whiteSpace: 'normal',
+                          wordWrap: 'break-word',
+                          height: 'auto',
+                          minHeight: '50px',
+                          backgroundColor: seleccionado ? '#28a745' : undefined,
+                          opacity: bloqueado ? 0.5 : 1,
+                          cursor: bloqueado ? 'not-allowed' : 'pointer',
+                        }}
+                      >
+                        {lub.cob_lubricante_70}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
             </div>
 
-            {detalles.length > 0 && (
-              <div className="table-container" style={{ marginBottom: 16 }}>
+            {/* Detalle con litros editables */}
+            <div style={{ marginTop: '20px' }}>
+              <label style={{ display: 'block', marginBottom: '10px', fontWeight: 'bold' }}>
+                Lubricantes Agregados
+              </label>
+              <div className="table-container">
                 <table className="data-table">
                   <thead>
                     <tr>
                       <th>Lubricante</th>
                       <th>Litros</th>
                       <th>Observación</th>
-                      <th />
+                      <th>Acciones</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {detalles.map((d) => (
-                      <tr key={d.idlubricante_72}>
-                        <td>{d.label}</td>
-                        <td>{d.consumo_lts_72}</td>
-                        <td>{d.observacion_72 || '-'}</td>
-                        <td>
-                          <button
-                            type="button"
-                            className="btn-delete"
-                            onClick={() => removeLinea(d.idlubricante_72)}
-                            title="Quitar"
-                          >
-                            ✕
-                          </button>
+                    {detalles.length === 0 ? (
+                      <tr>
+                        <td colSpan={4} style={{ textAlign: 'center', color: '#999' }}>
+                          Haga clic en un lubricante para agregarlo
                         </td>
                       </tr>
-                    ))}
+                    ) : (
+                      detalles.map((d) => (
+                        <tr key={d.idlubricante_72}>
+                          <td>{d.label}</td>
+                          <td>
+                            <input
+                              type="number"
+                              min="0.01"
+                              step="0.01"
+                              value={d.consumo_lts_72}
+                              onChange={(e) =>
+                                setLitros(d.idlubricante_72, Number(e.target.value) || 0)
+                              }
+                              style={{ width: '90px', padding: '4px', textAlign: 'center' }}
+                              aria-label={`Litros de ${d.label}`}
+                            />
+                          </td>
+                          <td>
+                            <input
+                              type="text"
+                              value={d.observacion_72}
+                              onChange={(e) =>
+                                setObsLinea(d.idlubricante_72, e.target.value.toUpperCase())
+                              }
+                              style={{ width: '100%', padding: '4px' }}
+                              aria-label={`Observación de ${d.label}`}
+                            />
+                          </td>
+                          <td className="actions">
+                            <button
+                              type="button"
+                              className="btn-delete"
+                              onClick={() => removeLinea(d.idlubricante_72)}
+                              title="Eliminar"
+                            >
+                              🗑️
+                            </button>
+                          </td>
+                        </tr>
+                      ))
+                    )}
                   </tbody>
                 </table>
               </div>
-            )}
+            </div>
           </form>
         </div>
       )}
