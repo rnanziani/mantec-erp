@@ -59,6 +59,12 @@ const RecepcionRepuestoView: React.FC = () => {
   const [editingId, setEditingId] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [filtroFechaDesde, setFiltroFechaDesde] = useState('');
+  const [filtroFechaHasta, setFiltroFechaHasta] = useState('');
+  const [filtroMaquina, setFiltroMaquina] = useState('');
+  const [filtroRepuesto, setFiltroRepuesto] = useState('');
+  const [filtroTecnico, setFiltroTecnico] = useState('');
+  const [filtroProveedor, setFiltroProveedor] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
 
@@ -139,6 +145,48 @@ const RecepcionRepuestoView: React.FC = () => {
     [repuestos, detalles]
   );
 
+  const filtroMaquinaOptions = useMemo(
+    () =>
+      maquinas.map((m) => ({
+        value: String(m.idmaquina_11),
+        label: [
+          m.numinterno_11 || m.idmaquina_11,
+          m.ppu_11 ? `(${m.ppu_11})` : null,
+          m.descripcion_11 || '',
+        ]
+          .filter(Boolean)
+          .join(' — '),
+      })),
+    [maquinas]
+  );
+
+  const filtroTecnicoOptions = useMemo(
+    () =>
+      tecnicos.map((t) => ({
+        value: String(t.id_tecnico_21),
+        label: `${t.nombres_21} ${t.a_paterno_21 || ''} ${t.a_materno_21 || ''}`.trim(),
+      })),
+    [tecnicos]
+  );
+
+  const filtroProveedorOptions = useMemo(
+    () =>
+      proveedores.map((p) => ({
+        value: String(p.idproveedor_58),
+        label: p.nombre_58,
+      })),
+    [proveedores]
+  );
+
+  const filtroRepuestoOptions = useMemo(
+    () =>
+      repuestos.map((r) => ({
+        value: String(r.idrepuestodanado_57),
+        label: `${r.codigo_57 ? `${r.codigo_57} - ` : ''}${r.nombre_57}`,
+      })),
+    [repuestos]
+  );
+
   const fetchAll = async () => {
     try {
       setLoading(true);
@@ -174,23 +222,75 @@ const RecepcionRepuestoView: React.FC = () => {
 
   const filtered = useMemo(() => {
     const q = searchTerm.trim().toLowerCase();
-    if (!q) return registros;
-    return registros.filter((r) =>
-      String(r.folio_59 || '').toLowerCase().includes(q) ||
-      (r.maquina_descripcion || '').toLowerCase().includes(q) ||
-      (r.tecnico_nombre || '').toLowerCase().includes(q) ||
-      (r.proveedor_nombre || '').toLowerCase().includes(q) ||
-      (r.repuestos_resumen || '').toLowerCase().includes(q) ||
-      String(r.idrecepcion_59).includes(q)
-    );
-  }, [registros, searchTerm]);
+    const desde = filtroFechaDesde || null;
+    const hasta = filtroFechaHasta || null;
+    const repuestoSelOpt = filtroRepuesto
+      ? repuestos.find((r) => String(r.idrepuestodanado_57) === filtroRepuesto)
+      : null;
+
+    return registros.filter((r) => {
+      const fecha = String(r.fecha_59).slice(0, 10);
+      if (desde && fecha < desde) return false;
+      if (hasta && fecha > hasta) return false;
+      if (filtroMaquina && String(r.idmaquina_59) !== filtroMaquina) return false;
+      if (filtroTecnico && String(r.idtecnico_59) !== filtroTecnico) return false;
+      if (filtroProveedor && String(r.idproveedor_59) !== filtroProveedor) return false;
+      if (repuestoSelOpt) {
+        const resumen = (r.repuestos_resumen || '').toLowerCase();
+        const codigo = (repuestoSelOpt.codigo_57 || '').toLowerCase();
+        const nombre = (repuestoSelOpt.nombre_57 || '').toLowerCase();
+        const matchCodigo = codigo ? resumen.includes(codigo) : false;
+        const matchNombre = nombre ? resumen.includes(nombre) : false;
+        if (!matchCodigo && !matchNombre) return false;
+      }
+      if (!q) return true;
+      return (
+        String(r.folio_59 || '').toLowerCase().includes(q) ||
+        (r.maquina_descripcion || '').toLowerCase().includes(q) ||
+        (r.maquina_numinterno || '').toLowerCase().includes(q) ||
+        (r.tecnico_nombre || '').toLowerCase().includes(q) ||
+        (r.proveedor_nombre || '').toLowerCase().includes(q) ||
+        (r.repuestos_resumen || '').toLowerCase().includes(q) ||
+        (r.responsable_nombre || '').toLowerCase().includes(q) ||
+        String(r.idrecepcion_59).includes(q)
+      );
+    });
+  }, [
+    registros,
+    searchTerm,
+    filtroFechaDesde,
+    filtroFechaHasta,
+    filtroMaquina,
+    filtroTecnico,
+    filtroProveedor,
+    filtroRepuesto,
+    repuestos,
+  ]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / itemsPerPage));
   const pageItems = filtered.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm]);
+  }, [
+    searchTerm,
+    filtroFechaDesde,
+    filtroFechaHasta,
+    filtroMaquina,
+    filtroRepuesto,
+    filtroTecnico,
+    filtroProveedor,
+  ]);
+
+  const limpiarFiltros = () => {
+    setSearchTerm('');
+    setFiltroFechaDesde('');
+    setFiltroFechaHasta('');
+    setFiltroMaquina('');
+    setFiltroRepuesto('');
+    setFiltroTecnico('');
+    setFiltroProveedor('');
+  };
 
   const resetForm = () => {
     setEditingId(null);
@@ -518,8 +618,98 @@ const RecepcionRepuestoView: React.FC = () => {
         </div>
       )}
 
-      <div style={{ marginBottom: 12 }}>
-        <input type="search" className="form-input" placeholder="🔍 BUSCAR FOLIO, MÁQUINA, TÉCNICO, REPUESTO..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value.toUpperCase())} aria-label="Buscar recepciones" />
+      <div
+        className="filters-row"
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))',
+          gap: 12,
+          marginBottom: 12,
+          alignItems: 'end',
+        }}
+      >
+        <div className="form-group" style={{ margin: 0 }}>
+          <label htmlFor="filtro_fecha_desde">Fecha desde</label>
+          <input
+            id="filtro_fecha_desde"
+            type="date"
+            className="form-input"
+            value={filtroFechaDesde}
+            onChange={(e) => setFiltroFechaDesde(e.target.value)}
+          />
+        </div>
+        <div className="form-group" style={{ margin: 0 }}>
+          <label htmlFor="filtro_fecha_hasta">Fecha hasta</label>
+          <input
+            id="filtro_fecha_hasta"
+            type="date"
+            className="form-input"
+            value={filtroFechaHasta}
+            onChange={(e) => setFiltroFechaHasta(e.target.value)}
+          />
+        </div>
+        <div className="form-group" style={{ margin: 0 }}>
+          <label htmlFor="filtro_maquina">Máquina</label>
+          <SearchableSelect
+            id="filtro_maquina"
+            value={filtroMaquina}
+            onChange={setFiltroMaquina}
+            options={[{ value: '', label: 'Todas' }, ...filtroMaquinaOptions]}
+            placeholder="Todas las máquinas..."
+            aria-label="Filtrar por máquina"
+          />
+        </div>
+        <div className="form-group" style={{ margin: 0 }}>
+          <label htmlFor="filtro_repuesto">Repuesto dañado</label>
+          <SearchableSelect
+            id="filtro_repuesto"
+            value={filtroRepuesto}
+            onChange={setFiltroRepuesto}
+            options={[{ value: '', label: 'Todos' }, ...filtroRepuestoOptions]}
+            placeholder="Todos los repuestos..."
+            aria-label="Filtrar por repuesto dañado"
+          />
+        </div>
+        <div className="form-group" style={{ margin: 0 }}>
+          <label htmlFor="filtro_tecnico">Técnico</label>
+          <SearchableSelect
+            id="filtro_tecnico"
+            value={filtroTecnico}
+            onChange={setFiltroTecnico}
+            options={[{ value: '', label: 'Todos' }, ...filtroTecnicoOptions]}
+            placeholder="Todos los técnicos..."
+            aria-label="Filtrar por técnico"
+          />
+        </div>
+        <div className="form-group" style={{ margin: 0 }}>
+          <label htmlFor="filtro_proveedor">Proveedor</label>
+          <SearchableSelect
+            id="filtro_proveedor"
+            value={filtroProveedor}
+            onChange={setFiltroProveedor}
+            options={[{ value: '', label: 'Todos' }, ...filtroProveedorOptions]}
+            placeholder="Todos los proveedores..."
+            aria-label="Filtrar por proveedor"
+          />
+        </div>
+        <div className="form-group" style={{ margin: 0, gridColumn: '1 / -1' }}>
+          <label htmlFor="filtro_buscar">Búsqueda libre</label>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            <input
+              id="filtro_buscar"
+              type="search"
+              className="form-input"
+              style={{ flex: 1, minWidth: 200 }}
+              placeholder="🔍 BUSCAR FOLIO, MÁQUINA, TÉCNICO, REPUESTO..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value.toUpperCase())}
+              aria-label="Buscar recepciones"
+            />
+            <button type="button" className="btn-secondary" onClick={limpiarFiltros}>
+              Limpiar filtros
+            </button>
+          </div>
+        </div>
       </div>
 
       <div className="table-container">
