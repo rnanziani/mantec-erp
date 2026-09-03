@@ -2084,15 +2084,18 @@ export interface Lubricante {
   idlubricante_70: number;
   cob_lubricante_70: string;
   descripcion_70: string;
+  idmarca_insumo_70?: number | null;
   orden_aparicion_70: number;
   activo_70: boolean;
   creado_en?: string | Date;
   actualizado_en?: string | Date;
+  marca_insumo_nombre?: string | null;
 }
 
 export interface CreateLubricanteDTO {
   cob_lubricante_70: string;
   descripcion_70: string;
+  idmarca_insumo_70: number;
   orden_aparicion_70?: number;
   activo_70?: boolean;
 }
@@ -2100,6 +2103,7 @@ export interface CreateLubricanteDTO {
 export interface UpdateLubricanteDTO {
   cob_lubricante_70?: string;
   descripcion_70?: string;
+  idmarca_insumo_70?: number | null;
   orden_aparicion_70?: number;
   activo_70?: boolean;
 }
@@ -2133,6 +2137,7 @@ export interface DetalleConsumoLubricante {
   observacion_72?: string | null;
   lubricante_codigo?: string;
   lubricante_nombre?: string;
+  lubricante_marca?: string | null;
   orden_aparicion_70?: number;
   lubricante_activo?: boolean;
 }

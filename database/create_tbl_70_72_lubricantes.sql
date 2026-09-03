@@ -10,6 +10,7 @@ CREATE TABLE IF NOT EXISTS public.tbl_70_lubricante (
     idlubricante_70 serial4 NOT NULL,
     cob_lubricante_70 varchar(40) NOT NULL,
     descripcion_70 varchar(120) NOT NULL,
+    idmarca_insumo_70 int4 NULL,
     orden_aparicion_70 int4 DEFAULT 100 NOT NULL,
     activo_70 bool DEFAULT true NOT NULL,
     creado_en timestamptz DEFAULT CURRENT_TIMESTAMP NOT NULL,
@@ -22,6 +23,7 @@ CREATE TABLE IF NOT EXISTS public.tbl_70_lubricante (
 
 CREATE INDEX IF NOT EXISTS idx_tbl_70_activo ON public.tbl_70_lubricante (activo_70);
 CREATE INDEX IF NOT EXISTS idx_tbl_70_orden ON public.tbl_70_lubricante (orden_aparicion_70, descripcion_70);
+CREATE INDEX IF NOT EXISTS idx_tbl_70_marca ON public.tbl_70_lubricante (idmarca_insumo_70);
 
 -- 2) Maestro consumo
 CREATE TABLE IF NOT EXISTS public.tbl_71_m_consumo_lubricante (
@@ -66,6 +68,13 @@ CREATE INDEX IF NOT EXISTS idx_tbl_72_lubricante ON public.tbl_72_d_consumo_lubr
 -- FKs
 DO $$
 BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'fk_tbl_70_marca') THEN
+    ALTER TABLE public.tbl_70_lubricante
+      ADD CONSTRAINT fk_tbl_70_marca
+      FOREIGN KEY (idmarca_insumo_70) REFERENCES public.tbl_37_marca_insumo(id_marca_insumo_37)
+      ON DELETE RESTRICT ON UPDATE CASCADE;
+  END IF;
+
   IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'fk_tbl_71_maquina') THEN
     ALTER TABLE public.tbl_71_m_consumo_lubricante
       ADD CONSTRAINT fk_tbl_71_maquina

@@ -14,14 +14,29 @@ function normalizeText(value: unknown): string | null {
   return t ? t.toUpperCase() : null;
 }
 
+const SELECT_LUB = `
+  SELECT l.*, m.marca_insumo_37 AS marca_insumo_nombre
+  FROM ${TABLA} l
+  LEFT JOIN tbl_37_marca_insumo m ON l.idmarca_insumo_70 = m.id_marca_insumo_37
+`;
+
+async function requireMarca(idMarca: unknown): Promise<number | null> {
+  const id = Number(idMarca);
+  if (!id) return null;
+  const r = await pool.query(
+    'SELECT id_marca_insumo_37 FROM tbl_37_marca_insumo WHERE id_marca_insumo_37 = $1',
+    [id]
+  );
+  return (r.rowCount ?? 0) > 0 ? id : null;
+}
+
 export const getAllLubricantes = async (req: Request, res: Response): Promise<void> => {
   try {
     const soloActivos = String(req.query.activos || '') === '1';
     const result = await pool.query<Lubricante>(
-      `SELECT *
-       FROM ${TABLA}
-       ${soloActivos ? 'WHERE activo_70 = true' : ''}
-       ORDER BY orden_aparicion_70 ASC, descripcion_70 ASC`
+      `${SELECT_LUB}
+       ${soloActivos ? 'WHERE l.activo_70 = true' : ''}
+       ORDER BY l.orden_aparicion_70 ASC, l.descripcion_70 ASC`
     );
     res.json({ success: true, data: result.rows, count: result.rowCount ?? undefined });
   } catch (error) {
@@ -37,7 +52,7 @@ export const getLubricanteById = async (req: Request, res: Response): Promise<vo
   try {
     const { id } = req.params;
     const result = await pool.query<Lubricante>(
-      `SELECT * FROM ${TABLA} WHERE idlubricante_70 = $1`,
+      `${SELECT_LUB} WHERE l.idlubricante_70 = $1`,
       [id]
     );
     if (result.rowCount === 0) {
@@ -63,6 +78,11 @@ export const createLubricante = async (req: Request, res: Response): Promise<voi
       res.status(400).json({ success: false, error: 'Código y descripción son requeridos' });
       return;
     }
+    const idMarca = await requireMarca(body.idmarca_insumo_70);
+    if (!idMarca) {
+      res.status(400).json({ success: false, error: 'Seleccione una marca válida' });
+      return;
+    }
     const orden = body.orden_aparicion_70 != null ? Number(body.orden_aparicion_70) : 100;
     const dup = await pool.query(`SELECT 1 FROM ${TABLA} WHERE cob_lubricante_70 = $1`, [cob]);
     if ((dup.rowCount ?? 0) > 0) {
@@ -71,9 +91,9 @@ export const createLubricante = async (req: Request, res: Response): Promise<voi
     }
     const result = await pool.query<Lubricante>(
       `INSERT INTO ${TABLA} (
-        cob_lubricante_70, descripcion_70, orden_aparicion_70, activo_70
-      ) VALUES ($1, $2, $3, $4) RETURNING *`,
-      [cob, descripcion, orden, body.activo_70 !== undefined ? body.activo_70 : true]
+        cob_lubricante_70, descripcion_70, idmarca_insumo_70, orden_aparicion_70, activo_70
+      ) VALUES ($1, $2, $3, $4, $5) RETURNING *`,
+      [cob, descripcion, idMarca, orden, body.activo_70 !== undefined ? body.activo_70 : true]
     );
     res.status(201).json({ success: true, data: result.rows[0], message: 'Lubricante creado' });
   } catch (error) {
@@ -110,6 +130,14 @@ export const updateLubricante = async (req: Request, res: Response): Promise<voi
       res.status(400).json({ success: false, error: 'Descripción no puede estar vacía' });
       return;
     }
+    let idMarca: number | null | undefined;
+    if (body.idmarca_insumo_70 !== undefined) {
+      idMarca = await requireMarca(body.idmarca_insumo_70);
+      if (!idMarca) {
+        res.status(400).json({ success: false, error: 'Seleccione una marca válida' });
+        return;
+      }
+    }
     if (cob) {
       const dup = await pool.query(
         `SELECT 1 FROM ${TABLA} WHERE cob_lubricante_70 = $1 AND idlubricante_70 <> $2`,
@@ -125,14 +153,16 @@ export const updateLubricante = async (req: Request, res: Response): Promise<voi
       `UPDATE ${TABLA} SET
         cob_lubricante_70 = COALESCE($1, cob_lubricante_70),
         descripcion_70 = COALESCE($2, descripcion_70),
-        orden_aparicion_70 = COALESCE($3, orden_aparicion_70),
-        activo_70 = COALESCE($4, activo_70),
+        idmarca_insumo_70 = COALESCE($3, idmarca_insumo_70),
+        orden_aparicion_70 = COALESCE($4, orden_aparicion_70),
+        activo_70 = COALESCE($5, activo_70),
         actualizado_en = CURRENT_TIMESTAMP
-       WHERE idlubricante_70 = $5
+       WHERE idlubricante_70 = $6
        RETURNING *`,
       [
         cob ?? null,
         descripcion ?? null,
+        idMarca ?? null,
         body.orden_aparicion_70 != null ? Number(body.orden_aparicion_70) : null,
         body.activo_70 !== undefined ? body.activo_70 : null,
         id,

@@ -33,11 +33,12 @@ const MAESTRO_SELECT = `
     ) AS total_lts,
     (
       SELECT string_agg(
-        l.cob_lubricante_70 || ' ' || ROUND(d.consumo_lts_72::numeric, 2)::text || ' L',
+        l.cob_lubricante_70 || COALESCE(' ' || mi.marca_insumo_37, '') || ' ' || ROUND(d.consumo_lts_72::numeric, 2)::text || ' L',
         ', ' ORDER BY l.orden_aparicion_70, l.descripcion_70
       )
       FROM ${TABLA_D} d
       INNER JOIN ${TABLA_L} l ON d.idlubricante_72 = l.idlubricante_70
+      LEFT JOIN tbl_37_marca_insumo mi ON l.idmarca_insumo_70 = mi.id_marca_insumo_37
       WHERE d.idconsumo_72 = m.idconsumo_71
     ) AS lubricantes_resumen
   FROM ${TABLA_M} m
@@ -51,10 +52,12 @@ const DETALLE_SELECT = `
     d.iddetalle_72, d.idconsumo_72, d.idlubricante_72, d.consumo_lts_72, d.observacion_72,
     l.cob_lubricante_70 AS lubricante_codigo,
     l.descripcion_70 AS lubricante_nombre,
+    mi.marca_insumo_37 AS lubricante_marca,
     l.orden_aparicion_70,
     l.activo_70 AS lubricante_activo
   FROM ${TABLA_D} d
   INNER JOIN ${TABLA_L} l ON d.idlubricante_72 = l.idlubricante_70
+  LEFT JOIN tbl_37_marca_insumo mi ON l.idmarca_insumo_70 = mi.id_marca_insumo_37
 `;
 
 function validateDetalles(

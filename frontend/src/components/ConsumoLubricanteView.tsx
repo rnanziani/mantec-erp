@@ -30,6 +30,7 @@ interface Detalle {
   observacion_72?: string | null;
   lubricante_codigo?: string;
   lubricante_nombre?: string;
+  lubricante_marca?: string | null;
   lubricante_activo?: boolean;
 }
 
@@ -39,6 +40,7 @@ interface Lubricante {
   descripcion_70: string;
   orden_aparicion_70: number;
   activo_70: boolean;
+  marca_insumo_nombre?: string | null;
 }
 
 interface Maquina {
@@ -243,7 +245,7 @@ const ConsumoLubricanteView: React.FC = () => {
         idlubricante_72: lub.idlubricante_70,
         consumo_lts_72: 1,
         observacion_72: '',
-        label: `${lub.cob_lubricante_70} — ${lub.descripcion_70}`,
+        label: `${lub.cob_lubricante_70} — ${lub.descripcion_70}${lub.marca_insumo_nombre ? ` (${lub.marca_insumo_nombre})` : ''}`,
       },
     ]);
   };
@@ -286,7 +288,7 @@ const ConsumoLubricanteView: React.FC = () => {
           idlubricante_72: d.idlubricante_72,
           consumo_lts_72: Number(d.consumo_lts_72),
           observacion_72: d.observacion_72 || '',
-          label: `${d.lubricante_codigo || ''} — ${d.lubricante_nombre || ''}`,
+          label: `${d.lubricante_codigo || ''} — ${d.lubricante_nombre || ''}${d.lubricante_marca ? ` (${d.lubricante_marca})` : ''}`,
         }))
       );
       setShowForm(true);
@@ -760,7 +762,7 @@ const ConsumoLubricanteView: React.FC = () => {
                 <div
                   style={{
                     display: 'grid',
-                    gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))',
+                    gridTemplateColumns: 'repeat(auto-fill, minmax(170px, 1fr))',
                     gap: '10px',
                   }}
                 >
@@ -776,7 +778,7 @@ const ConsumoLubricanteView: React.FC = () => {
                         onClick={() => toggleLubricante(lub)}
                         disabled={bloqueado}
                         aria-pressed={seleccionado}
-                        title={lub.descripcion_70}
+                        title={`${lub.descripcion_70}${lub.marca_insumo_nombre ? ` · ${lub.marca_insumo_nombre}` : ''}`}
                         className="btn-primary"
                         style={{
                           padding: '10px',
@@ -791,6 +793,12 @@ const ConsumoLubricanteView: React.FC = () => {
                         }}
                       >
                         {lub.cob_lubricante_70}
+                        {lub.marca_insumo_nombre ? (
+                          <>
+                            <br />
+                            <span style={{ fontSize: '10px', fontWeight: 400 }}>{lub.marca_insumo_nombre}</span>
+                          </>
+                        ) : null}
                       </button>
                     );
                   })}
@@ -996,6 +1004,7 @@ const ConsumoLubricanteView: React.FC = () => {
                   <tr>
                     <th>Código</th>
                     <th>Lubricante</th>
+                    <th>Marca</th>
                     <th>Litros</th>
                     <th>Obs.</th>
                   </tr>
@@ -1005,6 +1014,7 @@ const ConsumoLubricanteView: React.FC = () => {
                     <tr key={d.iddetalle_72 || d.idlubricante_72}>
                       <td>{d.lubricante_codigo}</td>
                       <td>{d.lubricante_nombre}</td>
+                      <td>{d.lubricante_marca || '-'}</td>
                       <td>{d.consumo_lts_72}</td>
                       <td>{d.observacion_72 || '-'}</td>
                     </tr>
