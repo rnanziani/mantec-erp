@@ -24,6 +24,7 @@ interface Maestro {
 }
 
 interface DetalleLinea {
+  iddetalle_60?: number;
   idrepuestodanado_60: number;
   cantidad_60: number;
   estado_60: string;
@@ -316,7 +317,16 @@ const RecepcionRepuestoView: React.FC = () => {
       return;
     }
     if (detalles.some((d) => d.idrepuestodanado_60 === idR)) {
-      showError('Validación', 'Ese repuesto ya está en el detalle');
+      setDetalles((prev) =>
+        prev.map((d) =>
+          d.idrepuestodanado_60 === idR
+            ? { ...d, cantidad_60: Number(d.cantidad_60 || 0) + cant }
+            : d
+        )
+      );
+      setRepuestoSel('');
+      setCantidadSel('1');
+      setEstadoSel('PENDIENTE');
       return;
     }
     setDetalles((prev) => [
@@ -331,7 +341,7 @@ const RecepcionRepuestoView: React.FC = () => {
   const startEdit = async (id: number) => {
     try {
       const res = await apiFetch(`${API_URL}/${id}`);
-      const data: ApiResponse<{ maestro: Maestro; detalles: Array<DetalleLinea & { observacion_60?: string }> }> = await res.json();
+      const data: ApiResponse<{ maestro: Maestro; detalles: Array<DetalleLinea & { iddetalle_60?: number }> }> = await res.json();
       if (!data.success || !data.data) {
         await showError('Error', data.error || 'No se pudo cargar');
         return;
@@ -347,6 +357,7 @@ const RecepcionRepuestoView: React.FC = () => {
       setObservacion(maestro.observacion_59 || '');
       setDetalles(
         (dets || []).map((d) => ({
+          iddetalle_60: d.iddetalle_60,
           idrepuestodanado_60: d.idrepuestodanado_60,
           cantidad_60: d.cantidad_60,
           estado_60: d.estado_60 || 'PENDIENTE',
@@ -369,6 +380,10 @@ const RecepcionRepuestoView: React.FC = () => {
       await showError('Validación', 'Agregue al menos un repuesto en el detalle');
       return;
     }
+    if (detalles.some((d) => !d.cantidad_60 || d.cantidad_60 < 1)) {
+      await showError('Validación', 'Cada línea debe tener cantidad mayor a 0');
+      return;
+    }
     const payload = {
       idmaquina_59: Number(idMaquina),
       idtecnico_59: Number(idTecnico),
@@ -378,6 +393,7 @@ const RecepcionRepuestoView: React.FC = () => {
       hora_59: hora || null,
       observacion_59: observacion.trim() || null,
       detalles: detalles.map((d) => ({
+        iddetalle_60: d.iddetalle_60,
         idrepuestodanado_60: d.idrepuestodanado_60,
         cantidad_60: d.cantidad_60,
         estado_60: d.estado_60,
@@ -397,7 +413,7 @@ const RecepcionRepuestoView: React.FC = () => {
         resetForm();
         await showSuccess(editingId ? 'Actualizado' : 'Creado', data.message || 'OK');
       } else {
-        await showError('Error', data.error || data.message || 'No se pudo guardar');
+        await showError('Error', data.message || data.error || 'No se pudo guardar');
       }
     } catch {
       await showError('Error', 'Error de conexión');

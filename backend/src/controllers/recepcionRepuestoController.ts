@@ -280,20 +280,64 @@ export const updateRecepcion = async (req: Request, res: Response): Promise<void
     }
 
     if (body.detalles !== undefined) {
-      await client.query(`DELETE FROM ${TABLA_D} WHERE idrecepcion_60 = $1`, [id]);
+      const actuales = await client.query<{ iddetalle_60: number; idrepuestodanado_60: number }>(
+        `SELECT iddetalle_60, idrepuestodanado_60 FROM ${TABLA_D} WHERE idrecepcion_60 = $1`,
+        [id]
+      );
+      const keepIds = new Set<number>();
+
       for (const d of body.detalles) {
-        await client.query(
-          `INSERT INTO ${TABLA_D} (
-            idrecepcion_60, idrepuestodanado_60, cantidad_60, estado_60, observacion_60
-          ) VALUES ($1, $2, $3, $4, $5)`,
-          [
-            id,
-            d.idrepuestodanado_60,
-            d.cantidad_60,
-            String(d.estado_60 || 'PENDIENTE').toUpperCase(),
-            d.observacion_60?.trim() || null,
-          ]
+        const estado = String(d.estado_60 || 'PENDIENTE').toUpperCase();
+        const obs = d.observacion_60?.trim() || null;
+        const existente =
+          (d.iddetalle_60
+            ? actuales.rows.find((r) => r.iddetalle_60 === Number(d.iddetalle_60))
+            : undefined) ||
+          actuales.rows.find(
+            (r) => r.idrepuestodanado_60 === d.idrepuestodanado_60 && !keepIds.has(r.iddetalle_60)
+          );
+
+        if (existente) {
+          await client.query(
+            `UPDATE ${TABLA_D} SET
+              idrepuestodanado_60 = $1,
+              cantidad_60 = $2,
+              estado_60 = $3,
+              observacion_60 = $4,
+              actualizado_en = CURRENT_TIMESTAMP
+             WHERE iddetalle_60 = $5 AND idrecepcion_60 = $6`,
+            [d.idrepuestodanado_60, d.cantidad_60, estado, obs, existente.iddetalle_60, id]
+          );
+          keepIds.add(existente.iddetalle_60);
+        } else {
+          const inserted = await client.query<{ iddetalle_60: number }>(
+            `INSERT INTO ${TABLA_D} (
+              idrecepcion_60, idrepuestodanado_60, cantidad_60, estado_60, observacion_60
+            ) VALUES ($1, $2, $3, $4, $5)
+            RETURNING iddetalle_60`,
+            [id, d.idrepuestodanado_60, d.cantidad_60, estado, obs]
+          );
+          keepIds.add(inserted.rows[0].iddetalle_60);
+        }
+      }
+
+      const aBorrar = actuales.rows.filter((r) => !keepIds.has(r.iddetalle_60));
+      for (const row of aBorrar) {
+        const usada = await client.query(
+          `SELECT 1 FROM tbl_64_d_entrega_repuesto WHERE iddetalle_recepcion_64 = $1 LIMIT 1`,
+          [row.iddetalle_60]
         );
+        if ((usada.rowCount ?? 0) > 0) {
+          await client.query('ROLLBACK');
+          res.status(400).json({
+            success: false,
+            error: 'No se puede quitar una línea ya entregada al proveedor',
+            message:
+              'Esa línea ya tiene entrega (paso 2). Cambie la cantidad o el estado, pero no la elimine.',
+          });
+          return;
+        }
+        await client.query(`DELETE FROM ${TABLA_D} WHERE iddetalle_60 = $1`, [row.iddetalle_60]);
       }
     }
 

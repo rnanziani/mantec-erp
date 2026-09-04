@@ -1646,6 +1646,7 @@ export interface CreateMaestroRecepcionRepuestoDTO {
   hora_59?: string | null;
   observacion_59?: string | null;
   detalles: Array<{
+    iddetalle_60?: number;
     idrepuestodanado_60: number;
     cantidad_60: number;
     estado_60?: string;
