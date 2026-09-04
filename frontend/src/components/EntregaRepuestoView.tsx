@@ -45,10 +45,28 @@ interface DetalleForm {
   iddetalle_recepcion_64: number;
   idestado_reparacion_64: number;
   fecha_recepcion_64: string;
-  valor_reparacion_64: string;
+  valor_unitario: string;
   label: string;
   cantidad: number;
 }
+
+const formatCLP = (n: number) =>
+  new Intl.NumberFormat('es-CL', {
+    style: 'currency',
+    currency: 'CLP',
+    maximumFractionDigits: 0,
+  }).format(Number(n) || 0);
+
+const parseMoney = (raw: string) => {
+  const n = Number(String(raw).replace(',', '.'));
+  return Number.isFinite(n) && n >= 0 ? n : 0;
+};
+
+const unitarioDesdeTotal = (total: number, cantidad: number) => {
+  const cant = Math.max(1, Number(cantidad) || 1);
+  const t = Number(total) || 0;
+  return String(Math.round((t / cant) * 100) / 100);
+};
 
 interface ApiResponse<T = unknown> {
   success: boolean;
@@ -187,7 +205,7 @@ const EntregaRepuestoView: React.FC = () => {
         iddetalle_recepcion_64: id,
         idestado_reparacion_64: estadoDefaultId,
         fecha_recepcion_64: '',
-        valor_reparacion_64: '0',
+        valor_unitario: '0',
         label: `${p.folio_59 || ''} · ${p.repuesto_codigo || ''} ${p.repuesto_nombre || ''} (x${p.cantidad_60})`,
         cantidad: p.cantidad_60,
       },
@@ -236,7 +254,7 @@ const EntregaRepuestoView: React.FC = () => {
           fecha_recepcion_64: d.fecha_recepcion_64
             ? String(d.fecha_recepcion_64).slice(0, 10)
             : '',
-          valor_reparacion_64: String(d.valor_reparacion_64 ?? 0),
+          valor_unitario: unitarioDesdeTotal(Number(d.valor_reparacion_64 ?? 0), d.cantidad_60 || 1),
           label: `${d.folio_recepcion || ''} · ${d.repuesto_codigo || ''} ${d.repuesto_nombre || ''} (x${d.cantidad_60 || 1})`,
           cantidad: d.cantidad_60 || 1,
         }))
@@ -271,7 +289,7 @@ const EntregaRepuestoView: React.FC = () => {
         iddetalle_recepcion_64: d.iddetalle_recepcion_64,
         idestado_reparacion_64: d.idestado_reparacion_64,
         fecha_recepcion_64: d.fecha_recepcion_64 || null,
-        valor_reparacion_64: Number(d.valor_reparacion_64) || 0,
+        valor_reparacion_64: parseMoney(d.valor_unitario),
         observacion_64: null,
       })),
     };
@@ -473,14 +491,15 @@ const EntregaRepuestoView: React.FC = () => {
                     <th>Repuesto (recepción)</th>
                     <th>Estado reparación</th>
                     <th>Fecha recepción</th>
-                    <th>Valor reparación</th>
+                    <th>Valor unitario</th>
+                    <th>Total</th>
                     <th></th>
                   </tr>
                 </thead>
                 <tbody>
                   {detalles.length === 0 ? (
                     <tr>
-                      <td colSpan={5}>Sin líneas. Agregue al menos un repuesto pendiente.</td>
+                      <td colSpan={6}>Sin líneas. Agregue al menos un repuesto pendiente.</td>
                     </tr>
                   ) : (
                     detalles.map((d) => (
@@ -533,22 +552,30 @@ const EntregaRepuestoView: React.FC = () => {
                           <input
                             type="number"
                             min={0}
-                            step="0.01"
+                            step="1"
                             className="form-input"
-                            value={d.valor_reparacion_64}
+                            value={d.valor_unitario}
                             onChange={(e) => {
                               const v = e.target.value;
                               setDetalles((prev) =>
                                 prev.map((x) =>
                                   x.iddetalle_recepcion_64 === d.iddetalle_recepcion_64
-                                    ? { ...x, valor_reparacion_64: v }
+                                    ? { ...x, valor_unitario: v }
                                     : x
                                 )
                               );
                             }}
-                            aria-label="Valor de reparación"
+                            aria-label={`Valor unitario de ${d.label}`}
                             placeholder="0"
                           />
+                        </td>
+                        <td>
+                          <strong>
+                            {formatCLP(parseMoney(d.valor_unitario) * Math.max(1, d.cantidad || 1))}
+                          </strong>
+                          <div style={{ fontSize: 11, color: '#6b7280' }}>
+                            {formatCLP(parseMoney(d.valor_unitario))} × {d.cantidad || 1}
+                          </div>
                         </td>
                         <td>
                           <button
@@ -647,11 +674,7 @@ const EntregaRepuestoView: React.FC = () => {
                       : '—'}
                   </td>
                   <td>
-                    {new Intl.NumberFormat('es-CL', {
-                      style: 'currency',
-                      currency: 'CLP',
-                      maximumFractionDigits: 0,
-                    }).format(Number(t.valor_reparacion_64) || 0)}
+                    {formatCLP(Number(t.valor_reparacion_64) || 0)}
                   </td>
                   <td>
                     <strong>{t.dias_transcurridos ?? 0}</strong>

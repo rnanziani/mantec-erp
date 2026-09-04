@@ -120,6 +120,21 @@ function normalizeValorReparacion(value: unknown): number {
   return Math.round(n * 100) / 100;
 }
 
+/** El cliente envía precio unitario; se persiste el total (unitario × cantidad recepción). */
+async function totalValorReparacion(
+  client: { query: typeof pool.query },
+  iddetalleRecepcion: number,
+  valorUnitario: unknown
+): Promise<number> {
+  const unitario = normalizeValorReparacion(valorUnitario);
+  const r = await client.query<{ cantidad_60: number }>(
+    `SELECT cantidad_60 FROM ${TABLA_REC_D} WHERE iddetalle_60 = $1`,
+    [iddetalleRecepcion]
+  );
+  const cantidad = Math.max(1, Number(r.rows[0]?.cantidad_60 || 1));
+  return Math.round(unitario * cantidad * 100) / 100;
+}
+
 function validarDetalles(
   detalles: CreateMaestroEntregaRepuestoDTO['detalles']
 ): string | null {
@@ -313,7 +328,7 @@ export const createEntrega = async (req: Request, res: Response): Promise<void> 
       if (fechaRec && estadoReparado) {
         idEstado = estadoReparado;
       }
-      const valorRep = normalizeValorReparacion(d.valor_reparacion_64);
+      const valorRep = await totalValorReparacion(client, d.iddetalle_recepcion_64, d.valor_reparacion_64);
 
       await client.query(
         `INSERT INTO ${TABLA_D} (
@@ -448,7 +463,7 @@ export const updateEntrega = async (req: Request, res: Response): Promise<void> 
         let idEstado = d.idestado_reparacion_64 || defaultEstado;
         if (!idEstado) throw new Error('No hay estado de reparación configurado');
         if (fechaRec && estadoReparado) idEstado = estadoReparado;
-        const valorRep = normalizeValorReparacion(d.valor_reparacion_64);
+        const valorRep = await totalValorReparacion(client, d.iddetalle_recepcion_64, d.valor_reparacion_64);
 
         const existente = mapActual.get(d.iddetalle_recepcion_64);
         if (existente) {
