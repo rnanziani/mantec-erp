@@ -193,8 +193,23 @@ export const createTransaccion = async (req: Request, res: Response): Promise<vo
     }
 
     const valorAccion = Number(tipoRes.rows[0].valor_accion_25);
-    // Entradas (+1) no descuentan origen; salidas/traslados sí requieren stock
-    const requiereStockOrigen = valorAccion !== 1;
+    // Entradas (+1) no descuentan origen; salidas/traslados sí requieren stock,
+    // salvo alta inicial: el alternador no tiene existencias en ninguna ubicación
+    // (recién creado, baja defectuoso de máquina).
+    let requiereStockOrigen = valorAccion !== 1;
+
+    if (requiereStockOrigen) {
+      const totalRes = await pool.query<{ total: string | number }>(
+        `SELECT COALESCE(SUM(cantidad_26), 0) AS total
+         FROM tbl_26_existencia
+         WHERE id_alternador_26 = $1`,
+        [id_alternador_28]
+      );
+      const stockTotal = Number(totalRes.rows[0]?.total || 0);
+      if (stockTotal < 1) {
+        requiereStockOrigen = false;
+      }
+    }
 
     if (requiereStockOrigen) {
       const stockOrigenRes = await pool.query<{

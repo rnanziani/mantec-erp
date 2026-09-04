@@ -1,9 +1,9 @@
--- Stock por tipo de transacción (valor_accion_25):
---   1  = entrada: solo +1 en destino (no exige ni descuenta origen)
---   0  = traslado: -1 origen +1 destino (exige stock en origen)
---  -1  = salida:  -1 origen +1 destino (exige stock en origen)
--- Excepción: si el alternador no tiene stock en NINGUNA ubicación (alta inicial,
--- p. ej. recién creado que baja defectuoso de una máquina), solo +1 en destino.
+-- Alta inicial de alternador:
+-- si el componente no tiene stock en NINGUNA ubicación (recién creado,
+-- sale de una máquina en mal estado), el primer movimiento no descuenta origen:
+-- solo suma +1 en destino (igual que una entrada).
+--
+-- Ejecutar en local y Render.
 
 CREATE OR REPLACE FUNCTION public.actualizar_stock_despues_de_transaccion()
 RETURNS trigger
@@ -47,7 +47,9 @@ BEGIN
   FROM public.tbl_26_existencia
   WHERE id_alternador_26 = NEW.id_alternador_28;
 
-  -- Alta inicial: el alternador aún no existe en inventario (stock total 0)
+  -- Alta inicial: el alternador aún no existe en inventario (stock total 0).
+  -- Típico: código recién creado que baja de máquina defectuoso (EMT).
+  -- No se descuenta origen; solo se da de alta en destino.
   IF v_stock_total < 1 THEN
     UPDATE public.tbl_26_existencia
     SET cantidad_26 = cantidad_26 + 1.00,
