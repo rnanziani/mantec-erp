@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import { pool } from '../db.js';
-import { Neumatico, CreateNeumaticoDTO, UpdateNeumaticoDTO } from '../types.js';
+import { Neumatico, CreateNeumaticoDTO, CreateNeumaticoLoteDTO, UpdateNeumaticoDTO } from '../types.js';
 
 export const getAllNeumaticos = async (req: Request, res: Response): Promise<void> => {
   try {
@@ -116,6 +116,69 @@ export const createNeumatico = async (req: Request, res: Response): Promise<void
       error: 'Error al crear el neumático',
       message: errMsg
     });
+  }
+};
+
+export const createNeumaticosLote = async (req: Request, res: Response): Promise<void> => {
+  const client = await pool.connect();
+  try {
+    const { id_marca_31, fecha_ingreso_31, observaciones_31, cantidad }: CreateNeumaticoLoteDTO = req.body;
+    const n = Number(cantidad);
+    if (!id_marca_31) {
+      res.status(400).json({ success: false, error: 'El ID de la marca es requerido' });
+      return;
+    }
+    if (!Number.isInteger(n) || n < 2 || n > 12) {
+      res.status(400).json({ success: false, error: 'La cantidad masiva debe ser un entero entre 2 y 12' });
+      return;
+    }
+
+    const marcaExists = await client.query(
+      'SELECT id_marca_32 FROM tbl_32_marca_neumatico WHERE id_marca_32 = $1 AND estado_32 = true',
+      [id_marca_31]
+    );
+    if (marcaExists.rowCount === 0) {
+      res.status(400).json({ success: false, error: 'La marca seleccionada no existe o está inactiva' });
+      return;
+    }
+
+    await client.query('BEGIN');
+    const creados: Neumatico[] = [];
+    for (let i = 0; i < n; i++) {
+      const result = await client.query<Neumatico>(
+        `INSERT INTO tbl_31_neumatico (id_marca_31, fecha_ingreso_31, observaciones_31)
+         VALUES ($1, COALESCE($2::date, CURRENT_DATE), $3)
+         RETURNING id_neumatico_31, cod_neumatico_31, id_marca_31, id_estado_31,
+                   fecha_ingreso_31, observaciones_31`,
+        [id_marca_31, fecha_ingreso_31 || null, observaciones_31?.trim() || null]
+      );
+      creados.push(result.rows[0]);
+    }
+    await client.query('COMMIT');
+
+    const extra = await pool.query<{ marca_32: string }>(
+      'SELECT marca_32 FROM tbl_32_marca_neumatico WHERE id_marca_32 = $1',
+      [id_marca_31]
+    );
+    const marca = extra.rows[0]?.marca_32;
+    const data = creados.map((row) => ({ ...row, marca_32: marca }));
+    const codigos = data.map((r) => r.cod_neumatico_31).join(', ');
+
+    res.status(201).json({
+      success: true,
+      data,
+      count: data.length,
+      message: `${data.length} neumáticos creados: ${codigos}`,
+    });
+  } catch (error) {
+    await client.query('ROLLBACK');
+    res.status(500).json({
+      success: false,
+      error: 'Error al crear el lote de neumáticos',
+      message: error instanceof Error ? error.message : 'Error desconocido',
+    });
+  } finally {
+    client.release();
   }
 };
 

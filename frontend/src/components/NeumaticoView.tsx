@@ -48,6 +48,9 @@ const NeumaticoView: React.FC = () => {
   const [observaciones, setObservaciones] = useState<string>('');
   const [editingId, setEditingId] = useState<number | null>(null);
   const [showForm, setShowForm] = useState<boolean>(false);
+  const [modoAlta, setModoAlta] = useState<'uno' | 'masiva'>('uno');
+  const [cantidadLote, setCantidadLote] = useState<string>('12');
+  const [saving, setSaving] = useState(false);
 
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [filterMarca, setFilterMarca] = useState<number>(0);
@@ -137,16 +140,42 @@ const NeumaticoView: React.FC = () => {
       await showError('Validación', 'Debe seleccionar una marca');
       return;
     }
+    const body = {
+      id_marca_31: selectedMarca,
+      fecha_ingreso_31: fechaIngreso || undefined,
+      observaciones_31: observaciones.trim() || undefined,
+    };
     try {
       setError('');
+      setSaving(true);
+      if (modoAlta === 'masiva') {
+        const cantidad = Number(cantidadLote);
+        if (!Number.isInteger(cantidad) || cantidad < 2 || cantidad > 12) {
+          await showError('Validación', 'La carga masiva admite entre 2 y 12 códigos');
+          return;
+        }
+        const response = await fetch(`${API_URL}/lote`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ...body, cantidad }),
+        });
+        const data: ApiResponse = await response.json();
+        if (data.success) {
+          await fetchNeumaticos();
+          resetForm();
+          const lista = Array.isArray(data.data)
+            ? data.data.map((n) => n.cod_neumatico_31).join(', ')
+            : '';
+          await showSuccess('Lote creado', data.message || `Códigos: ${lista}`);
+        } else {
+          await showError('Error', data.error || data.message || 'Error al crear el lote');
+        }
+        return;
+      }
       const response = await fetch(API_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          id_marca_31: selectedMarca,
-          fecha_ingreso_31: fechaIngreso || undefined,
-          observaciones_31: observaciones.trim() || undefined
-        })
+        body: JSON.stringify(body),
       });
       const data: ApiResponse = await response.json();
       if (data.success) {
@@ -163,6 +192,8 @@ const NeumaticoView: React.FC = () => {
     } catch (err) {
       await showError('Error', 'Error al crear el neumático');
       console.error('Error:', err);
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -218,6 +249,7 @@ const NeumaticoView: React.FC = () => {
     setSelectedMarca(n.id_marca_31);
     setFechaIngreso(n.fecha_ingreso_31 ? n.fecha_ingreso_31.split('T')[0] : new Date().toISOString().split('T')[0]);
     setObservaciones(n.observaciones_31 || '');
+    setModoAlta('uno');
     setShowForm(true);
     setError('');
   };
@@ -228,11 +260,14 @@ const NeumaticoView: React.FC = () => {
     setObservaciones('');
     setEditingId(null);
     setShowForm(false);
+    setModoAlta('uno');
+    setCantidadLote('12');
     setError('');
   };
 
-  const showCreateForm = () => {
+  const showCreateForm = (modo: 'uno' | 'masiva') => {
     resetForm();
+    setModoAlta(modo);
     setShowForm(true);
   };
 
@@ -270,10 +305,18 @@ const NeumaticoView: React.FC = () => {
               <button
                 type="button"
                 className="btn-primary neumatico-btn-new"
-                onClick={showCreateForm}
-                aria-label="Crear nuevo neumático"
+                onClick={() => showCreateForm('uno')}
+                aria-label="Crear un neumático"
               >
-                ➕ Nuevo Neumático
+                ➕ Uno a uno
+              </button>
+              <button
+                type="button"
+                className="btn-primary neumatico-btn-masiva"
+                onClick={() => showCreateForm('masiva')}
+                aria-label="Crear hasta 12 códigos de neumático"
+              >
+                ➕ Carga masiva
               </button>
             </>
           )}
@@ -325,9 +368,37 @@ const NeumaticoView: React.FC = () => {
 
       {showForm && (
         <div className="form-container neumatico-form-card">
-          <h3>{editingId ? '✏️ Editar Neumático' : '➕ Nuevo Neumático'}</h3>
+          <h3>
+            {editingId
+              ? '✏️ Editar Neumático'
+              : modoAlta === 'masiva'
+                ? '➕ Carga masiva (2 a 12 códigos)'
+                : '➕ Nuevo Neumático (uno a uno)'}
+          </h3>
+          {!editingId && modoAlta === 'masiva' && (
+            <p className="form-help-text">
+              Use esta opción cuando envíe un lote a marcar (por ejemplo 12). Se genera un código
+              TS-NNNNYY por cada unidad, con la misma marca y fecha.
+            </p>
+          )}
           <form onSubmit={editingId ? handleUpdate : handleCreate}>
             <div className="neumatico-form-row-3">
+              {!editingId && modoAlta === 'masiva' && (
+                <div className="form-group">
+                  <label htmlFor="cantidadLote">Cantidad de códigos *</label>
+                  <input
+                    id="cantidadLote"
+                    type="number"
+                    min={2}
+                    max={12}
+                    className="form-input"
+                    value={cantidadLote}
+                    onChange={(e) => setCantidadLote(e.target.value)}
+                    required
+                  />
+                  <small className="form-hint">Mínimo 2, máximo 12 (lote a marcar).</small>
+                </div>
+              )}
               <div className="form-group">
                 <label htmlFor="marca">Marca del Neumático: *</label>
                 <select
@@ -375,9 +446,10 @@ const NeumaticoView: React.FC = () => {
               <button
                 type="submit"
                 className="btn-success"
-                aria-label={editingId ? 'Guardar cambios del neumático' : 'Crear nuevo neumático'}
+                disabled={saving}
+                aria-label={editingId ? 'Guardar cambios del neumático' : modoAlta === 'masiva' ? 'Crear lote de códigos' : 'Crear un neumático'}
               >
-                {editingId ? '💾 Actualizar' : '➕ Crear'}
+                {saving ? 'Guardando...' : editingId ? '💾 Actualizar' : modoAlta === 'masiva' ? '➕ Crear lote' : '➕ Crear'}
               </button>
               <button
                 type="button"

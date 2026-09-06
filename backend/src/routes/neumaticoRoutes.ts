@@ -3,6 +3,7 @@ import {
   getAllNeumaticos,
   getNeumaticoById,
   createNeumatico,
+  createNeumaticosLote,
   updateNeumatico,
   deleteNeumatico
 } from '../controllers/neumaticoController.js';
@@ -10,6 +11,7 @@ import {
 const router = Router();
 
 router.get('/', getAllNeumaticos);
+router.post('/lote', createNeumaticosLote);
 router.get('/:id', getNeumaticoById);
 router.post('/', createNeumatico);
 router.put('/:id', updateNeumatico);

@@ -349,6 +349,10 @@ export interface CreateNeumaticoDTO {
   observaciones_31?: string;
 }
 
+export interface CreateNeumaticoLoteDTO extends CreateNeumaticoDTO {
+  cantidad: number;
+}
+
 export interface UpdateNeumaticoDTO {
   id_marca_31?: number;
   fecha_ingreso_31?: string;

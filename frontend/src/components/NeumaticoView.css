@@ -18,6 +18,14 @@
   background: #1E4A76 !important;
 }
 
+.neumatico-btn-masiva {
+  background: #0f766e !important;
+}
+
+.neumatico-btn-masiva:hover {
+  background: #115e59 !important;
+}
+
 .neumatico-search-section {
   margin-bottom: 1.5rem;
 }
