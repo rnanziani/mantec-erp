@@ -4,6 +4,7 @@ import './TrazabilidadNeumaticoView.css';
 import Pagination from './shared/Pagination';
 import SearchableSelect from './shared/SearchableSelect';
 import { exportToExcel } from '../utils/exportUtils';
+import { formatEnteroKm, parseEnteroKm } from '../utils/formatKm';
 import { showDeleteConfirm, showError, showSuccess } from '../utils/swal';
 import { apiFetch, apiUrl } from '../lib/apiClient';
 
@@ -235,7 +236,7 @@ const TrazabilidadNeumaticoView: React.FC = () => {
     setIdMaquina(String(maestro.idmaquina_76));
     setIdConductor(String(maestro.idconductor_76));
     setIdTecnico(String(maestro.idtecnico_76));
-    setKm(String(maestro.km_maquina_76 ?? 0));
+    setKm(formatEnteroKm(maestro.km_maquina_76));
     setFecha(String(maestro.fecha_76).slice(0, 10));
     setHora(String(maestro.hora_76 || '').slice(0, 5));
     setObs(maestro.observacion_76 || '');
@@ -276,7 +277,7 @@ const TrazabilidadNeumaticoView: React.FC = () => {
     idmaquina_76: Number(idMaquina),
     idconductor_76: Number(idConductor),
     idtecnico_76: Number(idTecnico),
-    km_maquina_76: Number(km),
+    km_maquina_76: parseEnteroKm(km) ?? 0,
     fecha_76: fecha,
     hora_76: hora.length === 5 ? `${hora}:00` : hora,
     observacion_76: obs.trim() || null,
@@ -296,6 +297,10 @@ const TrazabilidadNeumaticoView: React.FC = () => {
     e.preventDefault();
     if (!idMaquina || !idConductor || !idTecnico) {
       await showError('Validación', 'Máquina, conductor y técnico son requeridos');
+      return;
+    }
+    if (parseEnteroKm(km) == null) {
+      await showError('Validación', 'El odómetro es requerido');
       return;
     }
     if (montajes.length + rotaciones.length + detLlantas.length + bajas.length < 1) {
@@ -424,7 +429,7 @@ const TrazabilidadNeumaticoView: React.FC = () => {
                   Folio: r.folio_76,
                   PPU: r.maquina_ppu,
                   Interno: r.maquina_numinterno,
-                  KM: r.km_maquina_76,
+                  KM: formatEnteroKm(r.km_maquina_76),
                   Fecha: r.fecha_76,
                   Conductor: r.conductor_nombre,
                   Técnico: r.tecnico_nombre,
@@ -467,7 +472,19 @@ const TrazabilidadNeumaticoView: React.FC = () => {
           <div className="tz-maestro-meta">
             <div className="form-group">
               <label htmlFor="tz-km">Odómetro *</label>
-              <input id="tz-km" type="number" min={0} step="0.1" className="form-input" value={km} onChange={(e) => setKm(e.target.value)} required />
+              <input
+                id="tz-km"
+                type="text"
+                inputMode="numeric"
+                autoComplete="off"
+                className="form-input"
+                value={km}
+                onChange={(e) => setKm(formatEnteroKm(e.target.value))}
+                placeholder="1.563.639"
+                required
+                aria-describedby="tz-km-help"
+              />
+              <small id="tz-km-help" className="form-help-text">Se muestra con puntos; se guarda el entero.</small>
             </div>
             <div className="form-group">
               <label htmlFor="tz-fecha">Fecha *</label>
@@ -668,7 +685,7 @@ const TrazabilidadNeumaticoView: React.FC = () => {
                 <tr key={r.idtrazabilidad_76}>
                   <td><strong>{r.folio_76}</strong></td>
                   <td>{r.maquina_numinterno} {r.maquina_ppu}</td>
-                  <td>{r.km_maquina_76}</td>
+                  <td>{formatEnteroKm(r.km_maquina_76)}</td>
                   <td>{r.conductor_nombre}</td>
                   <td>{String(r.fecha_76).slice(0, 10)}</td>
                   <td>{String(r.hora_76 || '').slice(0, 8)}</td>

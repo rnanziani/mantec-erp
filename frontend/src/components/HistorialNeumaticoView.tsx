@@ -4,6 +4,7 @@ import './HistorialNeumaticoView.css';
 import Pagination from './shared/Pagination';
 import SearchableSelect from './shared/SearchableSelect';
 import { exportToExcel } from '../utils/exportUtils';
+import { formatEnteroKm, parseEnteroKm } from '../utils/formatKm';
 import { showDeleteConfirm, showSuccess, showError } from '../utils/swal';
 import { apiUrl } from '../lib/apiClient';
 
@@ -273,9 +274,9 @@ const HistorialNeumaticoView: React.FC = () => {
       await showError('Campo requerido', 'El código del neumático es requerido');
       return;
     }
-    const km = kilometraje.trim() ? parseFloat(kilometraje) : null;
-    if (kilometraje.trim() && (isNaN(km!) || km! < 0)) {
-      await showError('Campo inválido', 'El kilometraje debe ser un número mayor o igual a 0');
+    const km = kilometraje.trim() ? parseEnteroKm(kilometraje) : null;
+    if (kilometraje.trim() && (km == null || km < 0)) {
+      await showError('Campo inválido', 'El kilometraje debe ser un número entero mayor o igual a 0');
       return;
     }
     try {
@@ -313,9 +314,9 @@ const HistorialNeumaticoView: React.FC = () => {
       await showError('Campo requerido', 'El código del neumático es requerido');
       return;
     }
-    const km = kilometraje.trim() ? parseFloat(kilometraje) : null;
-    if (kilometraje.trim() && (isNaN(km!) || km! < 0)) {
-      await showError('Campo inválido', 'El kilometraje debe ser un número mayor o igual a 0');
+    const km = kilometraje.trim() ? parseEnteroKm(kilometraje) : null;
+    if (kilometraje.trim() && (km == null || km < 0)) {
+      await showError('Campo inválido', 'El kilometraje debe ser un número entero mayor o igual a 0');
       return;
     }
     try {
@@ -370,7 +371,7 @@ const HistorialNeumaticoView: React.FC = () => {
     setCodNeumatico(h.cod_neumatico_34);
     setIdConductor(h.id_conductor_34 ? String(h.id_conductor_34) : '');
     setIdMaquina(h.id_maquina_34 ? String(h.id_maquina_34) : '');
-    setKilometraje(h.kilometraje_34 != null ? String(h.kilometraje_34) : '');
+    setKilometraje(h.kilometraje_34 != null ? formatEnteroKm(h.kilometraje_34) : '');
     setIdTecnico(h.id_tecnico_34 ? String(h.id_tecnico_34) : '');
     setBalanceo(h.balanceo_34 === true);
     setFechaMovimiento(h.fecha_movimiento_34 ? new Date(h.fecha_movimiento_34).toISOString().slice(0, 16) : new Date().toISOString().slice(0, 16));
@@ -394,7 +395,7 @@ const HistorialNeumaticoView: React.FC = () => {
       'Cód. Neumático': h.cod_neumatico_34,
       Conductor: h.conductor_nombre || '-',
       Máquina: h.maquina_numinterno ? `${h.maquina_numinterno} (${h.maquina_ppu || ''})` : '-',
-      Kilometraje: h.kilometraje_34 ?? '-',
+      Kilometraje: formatEnteroKm(h.kilometraje_34) || '-',
       Técnico: h.tecnico_nombre || '-',
       Balanceo: h.balanceo_34 ? 'Sí' : 'No',
       'Fecha Movimiento': formatFecha(h.fecha_movimiento_34),
@@ -485,14 +486,15 @@ const HistorialNeumaticoView: React.FC = () => {
               <div className="form-group">
                 <label htmlFor="kilometraje">Kilometraje:</label>
                 <input
-                  type="number"
+                  type="text"
+                  inputMode="numeric"
+                  autoComplete="off"
                   id="kilometraje"
                   className="form-input"
                   value={kilometraje}
-                  onChange={(e) => setKilometraje(e.target.value)}
-                  placeholder="0.00"
-                  min="0"
-                  step="0.01"
+                  onChange={(e) => setKilometraje(formatEnteroKm(e.target.value))}
+                  placeholder="1.563.639"
+                  aria-label="Kilometraje con separador de miles"
                 />
               </div>
               <div className="form-group">
