@@ -25,9 +25,9 @@ interface MarcaNeumatico {
   estado_32: boolean;
 }
 
-interface ApiResponse {
+interface ApiResponse<T = unknown> {
   success: boolean;
-  data?: Neumatico[] | Neumatico | MarcaNeumatico[];
+  data?: T;
   count?: number;
   message?: string;
   error?: string;
@@ -71,9 +71,9 @@ const NeumaticoView: React.FC = () => {
       setLoading(true);
       setError('');
       const response = await fetch(API_URL);
-      const data: ApiResponse = await response.json();
+      const data: ApiResponse<Neumatico[]> = await response.json();
       if (data.success && Array.isArray(data.data)) {
-        setNeumaticos(data.data as Neumatico[]);
+        setNeumaticos(data.data);
       } else {
         setError('Error al cargar los neumáticos');
       }
@@ -88,9 +88,9 @@ const NeumaticoView: React.FC = () => {
   const fetchMarcas = async () => {
     try {
       const response = await fetch(MARCAS_URL);
-      const data: ApiResponse = await response.json();
+      const data: ApiResponse<MarcaNeumatico[]> = await response.json();
       if (data.success && Array.isArray(data.data)) {
-        setMarcas(data.data as MarcaNeumatico[]);
+        setMarcas(data.data);
       }
     } catch (err) {
       console.error('Error al cargar marcas:', err);
@@ -159,7 +159,7 @@ const NeumaticoView: React.FC = () => {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ ...body, cantidad }),
         });
-        const data: ApiResponse = await response.json();
+        const data: ApiResponse<Neumatico[]> = await response.json();
         if (data.success) {
           await fetchNeumaticos();
           resetForm();
@@ -177,11 +177,11 @@ const NeumaticoView: React.FC = () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
       });
-      const data: ApiResponse = await response.json();
+      const data: ApiResponse<Neumatico> = await response.json();
       if (data.success) {
         await fetchNeumaticos();
         resetForm();
-        const creado = data.data && !Array.isArray(data.data) ? data.data.cod_neumatico_31 : '';
+        const creado = data.data?.cod_neumatico_31 || '';
         await showSuccess(
           '¡Éxito!',
           creado ? `Neumático ${creado} creado` : 'Neumático creado exitosamente'
@@ -211,7 +211,7 @@ const NeumaticoView: React.FC = () => {
           observaciones_31: observaciones.trim() || undefined
         })
       });
-      const data: ApiResponse = await response.json();
+      const data: ApiResponse<Neumatico> = await response.json();
       if (data.success) {
         await fetchNeumaticos();
         resetForm();
