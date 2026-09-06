@@ -104,9 +104,10 @@ const NeumaticoView: React.FC = () => {
       return matchesSearch && matchesMarca;
     });
     filtered.sort((a, b) => {
-      const aVal = a[sortConfig.key];
-      const bVal = b[sortConfig.key];
-      if (aVal === undefined || bVal === undefined) return 0;
+      const aRaw = a[sortConfig.key];
+      const bRaw = b[sortConfig.key];
+      const aVal = aRaw == null ? '' : String(aRaw);
+      const bVal = bRaw == null ? '' : String(bRaw);
       if (aVal < bVal) return sortConfig.direction === 'asc' ? -1 : 1;
       if (aVal > bVal) return sortConfig.direction === 'asc' ? 1 : -1;
       return 0;
