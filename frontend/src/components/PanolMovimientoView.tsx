@@ -13,9 +13,12 @@ interface HerramientaDetalleResumen {
   codigo: string;
   nombre: string;
   estado: string;
+  /** Estado de esta fila (PRESTADA / DEVUELTA), no el catálogo global. */
+  estado_en_movimiento?: string;
   stock: number;
   stock_disponible: number;
   cantidad: number;
+  cantidad_pendiente?: number;
 }
 
 interface MaestroPanol {
@@ -30,7 +33,7 @@ interface MaestroPanol {
   firmapanolero_49?: string | null;
   trabajador_nombre?: string;
   responsable_nombre?: string;
-  /** Estado actual de cada herramienta del movimiento (catálogo) */
+  /** Líneas del movimiento (estado de fila + catálogo) */
   herramientas_detalle?: HerramientaDetalleResumen[] | null;
 }
 
@@ -433,17 +436,11 @@ const PanolMovimientoView: React.FC = () => {
     const tipo = String(m.tipomovimiento_49 || '').trim().toUpperCase();
     const estado = String(m.estado_49 || '').trim().toUpperCase();
     if (tipo !== 'SALIDA' || estado === 'ANULADA') return false;
-    if (estado === 'PENDIENTE') return true;
-    // COMPLETADA “huérfana”: cerrada a mano pero la herramienta sigue prestada
-    if (estado === 'COMPLETADA') {
-      const dets = m.herramientas_detalle || [];
-      return dets.some(
-        (h) =>
-          String(h.estado || '').toUpperCase() === 'PRESTADA' ||
-          Number(h.stock_disponible) < Number(h.stock)
-      );
+    const dets = m.herramientas_detalle || [];
+    if (dets.some((h) => h.cantidad_pendiente != null)) {
+      return dets.some((h) => Number(h.cantidad_pendiente) > 0);
     }
-    return false;
+    return estado === 'PENDIENTE';
   };
 
   /**
@@ -464,6 +461,7 @@ const PanolMovimientoView: React.FC = () => {
             herramienta_estado?: string;
             herramienta_stock_disponible?: number;
             observacion_50?: string;
+            cantidad_pendiente?: number;
           }
         >;
       }> = await res.json();
@@ -492,12 +490,8 @@ const PanolMovimientoView: React.FC = () => {
       }
       if (estadoSalida === 'COMPLETADA') {
         const detsResumen = maestro.herramientas_detalle || [];
-        const siguePrestada = detsResumen.some(
-          (h) =>
-            String(h.estado || '').toUpperCase() === 'PRESTADA' ||
-            Number(h.stock_disponible) < Number(h.stock)
-        );
-        if (!siguePrestada) {
+        const siguePendiente = detsResumen.some((h) => Number(h.cantidad_pendiente) > 0);
+        if (!siguePendiente) {
           await showError(
             'Validación',
             'Este préstamo ya está cerrado y no tiene herramientas pendientes de devolver'
@@ -506,14 +500,18 @@ const PanolMovimientoView: React.FC = () => {
         }
       }
 
-      // Usar todas las líneas del préstamo; el backend valida contra esta salida
-      const lineasPendientes = dets || [];
+      const lineasPendientes = (dets || []).filter((d) => {
+        const pend = d.cantidad_pendiente;
+        if (pend == null) return true;
+        return Number(pend) > 0;
+      });
 
       if (!lineasPendientes.length) {
         await showError(
           'Sin pendiente',
-          'Este préstamo no tiene herramientas para devolver'
+          `El préstamo ${maestro.folio_49 || ''} ya no tiene unidades por devolver. Si alguna herramienta seguía PRESTADA sin saldo, el catálogo se corrigió: recargue el listado.`
         );
+        await fetchAll();
         return;
       }
 
@@ -536,7 +534,8 @@ const PanolMovimientoView: React.FC = () => {
       setDetalles(
         lineasPendientes.map((d) => ({
           idherramienta_50: d.idherramienta_50,
-          cantidad_50: d.cantidad_50,
+          cantidad_50:
+            d.cantidad_pendiente != null ? Number(d.cantidad_pendiente) : d.cantidad_50,
           estadoentrega_50: d.estadoentrega_50 || 'BUENA',
           estadodevolucion_50: 'BUENA', // el pañolero verifica / cambia
           observacion_50: d.observacion_50 || '',
@@ -1137,7 +1136,9 @@ const PanolMovimientoView: React.FC = () => {
               <th className={sortClass('responsable_nombre')} onClick={() => handleSort('responsable_nombre')}>Responsable</th>
               <th className={sortClass('fecha_49')} onClick={() => handleSort('fecha_49')}>Fecha</th>
               <th className={sortClass('estado_49')} onClick={() => handleSort('estado_49')}>Estado mov.</th>
-              <th>Herramientas / Estado</th>
+              <th title="Estado de la herramienta en ese movimiento, no el catálogo actual">
+                Herramientas / Estado
+              </th>
               <th className={sortClass('observacion_49')} onClick={() => handleSort('observacion_49')}>Observación</th>
               <th>Firma trabajador</th>
               <th>Firma pañolero</th>
@@ -1172,7 +1173,14 @@ const PanolMovimientoView: React.FC = () => {
                   <td className="panol-herramientas-cell">
                     {Array.isArray(m.herramientas_detalle) && m.herramientas_detalle.length > 0 ? (
                       <ul className="panol-herramientas-list" aria-label={`Herramientas de ${m.folio_49 || m.idmpanol_49}`}>
-                        {m.herramientas_detalle.map((h) => (
+                        {m.herramientas_detalle.map((h) => {
+                          const estadoFila = h.estado_en_movimiento || h.estado;
+                          const pend = h.cantidad_pendiente;
+                          const titlePend =
+                            pend != null && String(m.tipomovimiento_49).toUpperCase() === 'SALIDA'
+                              ? ` — pendiente de devolver: ${pend}`
+                              : '';
+                          return (
                           <li key={`${m.idmpanol_49}-${h.idherramienta}`}>
                             <span className="panol-herr-line">
                               <strong>{h.codigo}</strong>
@@ -1184,13 +1192,14 @@ const PanolMovimientoView: React.FC = () => {
                               ) : null}
                             </span>
                             <span
-                              className={badgeEstadoHerramienta(h.estado)}
-                              title={`${h.nombre || h.codigo} — disponible: ${h.stock_disponible}`}
+                              className={badgeEstadoHerramienta(estadoFila)}
+                              title={`${h.nombre || h.codigo} — en este movimiento: ${estadoFila}${titlePend}`}
                             >
-                              {h.estado}
+                              {estadoFila}
                             </span>
                           </li>
-                        ))}
+                          );
+                        })}
                       </ul>
                     ) : (
                       <span className="panol-firma-empty">Sin detalle</span>

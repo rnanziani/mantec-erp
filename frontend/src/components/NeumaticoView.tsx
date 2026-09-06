@@ -11,9 +11,11 @@ interface Neumatico {
   id_neumatico_31: number;
   cod_neumatico_31: string;
   id_marca_31: number;
+  id_estado_31?: number | null;
   fecha_ingreso_31?: string;
   observaciones_31?: string;
   marca_32?: string;
+  estado_33?: string;
 }
 
 interface MarcaNeumatico {
@@ -149,7 +151,11 @@ const NeumaticoView: React.FC = () => {
       if (data.success) {
         await fetchNeumaticos();
         resetForm();
-        await showSuccess('¡Éxito!', 'Neumático creado exitosamente');
+        const creado = data.data && !Array.isArray(data.data) ? data.data.cod_neumatico_31 : '';
+        await showSuccess(
+          '¡Éxito!',
+          creado ? `Neumático ${creado} creado` : 'Neumático creado exitosamente'
+        );
       } else {
         await showError('Error', data.error || data.message || 'Error al crear el neumático');
       }
@@ -235,6 +241,7 @@ const NeumaticoView: React.FC = () => {
     const dataToExport = filteredAndSorted.map((n) => ({
       ID: n.id_neumatico_31,
       Código: n.cod_neumatico_31,
+      Estado: n.estado_33 || '',
       Marca: n.marca_32 || '',
       'Fecha Ingreso': n.fecha_ingreso_31 ? n.fecha_ingreso_31.split('T')[0] : '-',
       Observaciones: n.observaciones_31 || ''
@@ -337,7 +344,8 @@ const NeumaticoView: React.FC = () => {
                   ))}
                 </select>
                 <small className="form-hint">
-                  💡 El código del neumático se generará automáticamente
+                  Código automático Transantin: TS-000026 (secuencia del año + año).
+                  En 2027 el primer alta será TS-000027.
                 </small>
               </div>
               <div className="form-group">
@@ -397,6 +405,9 @@ const NeumaticoView: React.FC = () => {
                   <th onClick={() => handleSort('cod_neumatico_31')} className="sortable" scope="col">
                     CÓDIGO
                   </th>
+                  <th onClick={() => handleSort('estado_33')} className="sortable" scope="col">
+                    ESTADO
+                  </th>
                   <th onClick={() => handleSort('marca_32')} className="sortable" scope="col">
                     MARCA
                   </th>
@@ -410,7 +421,7 @@ const NeumaticoView: React.FC = () => {
               <tbody>
                 {currentItems.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="no-data">
+                    <td colSpan={7} className="no-data">
                       {searchTerm || filterMarca
                         ? '📋 No se encontraron neumáticos con los filtros aplicados'
                         : '📋 No hay neumáticos registrados'}
@@ -421,6 +432,7 @@ const NeumaticoView: React.FC = () => {
                     <tr key={n.id_neumatico_31}>
                       <td>{n.id_neumatico_31}</td>
                       <td className="codigo-neumatico">{n.cod_neumatico_31}</td>
+                      <td>{n.estado_33 || '-'}</td>
                       <td className="marca-name">{n.marca_32}</td>
                       <td>{n.fecha_ingreso_31 ? n.fecha_ingreso_31.split('T')[0] : '-'}</td>
                       <td className="observaciones-cell">{n.observaciones_31 || '-'}</td>

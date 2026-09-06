@@ -336,9 +336,11 @@ export interface Neumatico {
   id_neumatico_31: number;
   cod_neumatico_31: string;
   id_marca_31: number;
+  id_estado_31?: number | null;
   fecha_ingreso_31?: string;
   observaciones_31?: string;
-  marca_32?: string; // JOIN desde tbl_32_marca_neumatico
+  marca_32?: string;
+  estado_33?: string;
 }
 
 export interface CreateNeumaticoDTO {
@@ -1165,6 +1167,8 @@ export interface UpdateTallaDTO {
 export interface Llanta {
   id_llanta_36: number;
   descripcion_llanta_36: string;
+  codigo_36?: string | null;
+  activo_36?: boolean;
 }
 
 export interface CreateLlantaDTO {
@@ -1280,6 +1284,8 @@ export interface DetallePanol {
   herramienta_nombre?: string;
   herramienta_estado?: string;
   herramienta_stock_disponible?: number;
+  /** Unidades aún no devueltas de esta SALIDA (solo en getById). */
+  cantidad_pendiente?: number;
 }
 
 export interface CreateMaestroPanolDTO {

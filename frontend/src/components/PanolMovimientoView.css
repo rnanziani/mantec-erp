@@ -303,8 +303,9 @@
   color: #c62828;
 }
 
-/* Estados del catálogo de herramientas (no del movimiento) */
-.panol-movimiento-view .badge-herr-disponible {
+/* Estado de la herramienta en esa fila (no el catálogo global) */
+.panol-movimiento-view .badge-herr-disponible,
+.panol-movimiento-view .badge-herr-devuelta {
   background: #e8f5e9;
   color: #2e7d32;
 }

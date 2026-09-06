@@ -9,11 +9,14 @@ export const getAllNeumaticos = async (req: Request, res: Response): Promise<voi
         n.id_neumatico_31, 
         n.cod_neumatico_31, 
         n.id_marca_31,
+        n.id_estado_31,
         n.fecha_ingreso_31,
         n.observaciones_31,
-        m.marca_32
+        m.marca_32,
+        e.estado_33
        FROM tbl_31_neumatico n
        INNER JOIN tbl_32_marca_neumatico m ON n.id_marca_31 = m.id_marca_32
+       LEFT JOIN tbl_33_estado_neumatico e ON n.id_estado_31 = e.id_estado_33
        ORDER BY n.id_neumatico_31 ASC`
     );
     res.json({ success: true, data: result.rows, count: result.rowCount });
@@ -34,11 +37,14 @@ export const getNeumaticoById = async (req: Request, res: Response): Promise<voi
         n.id_neumatico_31, 
         n.cod_neumatico_31, 
         n.id_marca_31,
+        n.id_estado_31,
         n.fecha_ingreso_31,
         n.observaciones_31,
-        m.marca_32
+        m.marca_32,
+        e.estado_33
        FROM tbl_31_neumatico n
        INNER JOIN tbl_32_marca_neumatico m ON n.id_marca_31 = m.id_marca_32
+       LEFT JOIN tbl_33_estado_neumatico e ON n.id_estado_31 = e.id_estado_33
        WHERE n.id_neumatico_31 = $1`,
       [id]
     );
@@ -74,30 +80,34 @@ export const createNeumatico = async (req: Request, res: Response): Promise<void
       return;
     }
 
-    // Generar código automáticamente: 5 dígitos (secuencial) + 2 dígitos (año) = ej: 0000126
-    const fechaIngreso = fecha_ingreso_31 ? new Date(fecha_ingreso_31) : new Date();
-    const yearShort = String(fechaIngreso.getFullYear() % 100).padStart(2, '0'); // 26 para 2026
-    const maxResult = await pool.query<{ max_seq: string }>(
-      `SELECT COALESCE(MAX(SUBSTRING(cod_neumatico_31 FROM 1 FOR 5)), '00000') AS max_seq 
-       FROM tbl_31_neumatico 
-       WHERE cod_neumatico_31 LIKE $1`,
-      ['%' + yearShort]
-    );
-    const nextSeq = parseInt(maxResult.rows[0]?.max_seq ?? '0', 10) + 1;
-    const codNeumatico = String(nextSeq).padStart(5, '0') + yearShort;
-
+    // El trigger generar_codigo_neumatico_31 asigna TS-NNNNYY (ej. TS-000026)
     const result = await pool.query<Neumatico>(
-      `INSERT INTO tbl_31_neumatico (cod_neumatico_31, id_marca_31, fecha_ingreso_31, observaciones_31) 
-       VALUES ($1, $2, COALESCE($3::date, CURRENT_DATE), $4) 
-       RETURNING id_neumatico_31, cod_neumatico_31, id_marca_31, fecha_ingreso_31, observaciones_31`,
-      [codNeumatico, id_marca_31, fecha_ingreso_31 || null, observaciones_31?.trim() || null]
+      `INSERT INTO tbl_31_neumatico (id_marca_31, fecha_ingreso_31, observaciones_31)
+       VALUES ($1, COALESCE($2::date, CURRENT_DATE), $3)
+       RETURNING id_neumatico_31, cod_neumatico_31, id_marca_31, id_estado_31,
+                 fecha_ingreso_31, observaciones_31`,
+      [id_marca_31, fecha_ingreso_31 || null, observaciones_31?.trim() || null]
     );
 
     const row = result.rows[0];
-    const marcaRes = await pool.query('SELECT marca_32 FROM tbl_32_marca_neumatico WHERE id_marca_32 = $1', [id_marca_31]);
-    const data = { ...row, marca_32: marcaRes.rows[0]?.marca_32 };
+    const extra = await pool.query<{ marca_32: string; estado_33: string | null }>(
+      `SELECT m.marca_32, e.estado_33
+       FROM tbl_32_marca_neumatico m
+       LEFT JOIN tbl_33_estado_neumatico e ON e.id_estado_33 = $2
+       WHERE m.id_marca_32 = $1`,
+      [id_marca_31, row.id_estado_31]
+    );
+    const data = {
+      ...row,
+      marca_32: extra.rows[0]?.marca_32,
+      estado_33: extra.rows[0]?.estado_33,
+    };
 
-    res.status(201).json({ success: true, data, message: 'Neumático creado exitosamente' });
+    res.status(201).json({
+      success: true,
+      data,
+      message: `Neumático ${row.cod_neumatico_31} creado exitosamente`,
+    });
   } catch (error) {
     const errMsg = error instanceof Error ? error.message : 'Error desconocido';
     console.error('Error al crear neumático:', error);
@@ -132,7 +142,7 @@ export const updateNeumatico = async (req: Request, res: Response): Promise<void
         fecha_ingreso_31 = COALESCE($2::date, fecha_ingreso_31),
         observaciones_31 = COALESCE($3, observaciones_31)
        WHERE id_neumatico_31 = $4 
-       RETURNING id_neumatico_31, cod_neumatico_31, id_marca_31, fecha_ingreso_31, observaciones_31`,
+       RETURNING id_neumatico_31, cod_neumatico_31, id_marca_31, id_estado_31, fecha_ingreso_31, observaciones_31`,
       [id_marca_31 ?? null, fecha_ingreso_31 || null, obsVal, id]
     );
 

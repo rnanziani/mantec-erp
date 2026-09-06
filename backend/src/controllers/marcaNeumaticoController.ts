@@ -52,11 +52,15 @@ export const createMarcaNeumatico = async (req: Request, res: Response): Promise
       return;
     }
     const existing = await pool.query(
-      'SELECT id_marca_32 FROM tbl_32_marca_neumatico WHERE LOWER(marca_32) = LOWER($1)',
-      [marca_32.trim()]
+      `SELECT id_marca_32 FROM tbl_32_marca_neumatico
+       WHERE LOWER(marca_32) = LOWER($1) AND diametro_32 = $2`,
+      [marca_32.trim(), diametro_32]
     );
     if (existing.rowCount && existing.rowCount > 0) {
-      res.status(400).json({ success: false, error: 'Ya existe una marca de neumático con ese nombre' });
+      res.status(400).json({
+        success: false,
+        error: 'Ya existe esa marca con el mismo diámetro',
+      });
       return;
     }
     const estado = estado_32 !== false;
@@ -84,6 +88,18 @@ export const updateMarcaNeumatico = async (req: Request, res: Response): Promise
     }
     if (diametro_32 == null || diametro_32 < 0) {
       res.status(400).json({ success: false, error: 'El diámetro es requerido y debe ser un número positivo' });
+      return;
+    }
+    const dup = await pool.query(
+      `SELECT id_marca_32 FROM tbl_32_marca_neumatico
+       WHERE LOWER(marca_32) = LOWER($1) AND diametro_32 = $2 AND id_marca_32 <> $3`,
+      [marca_32.trim(), diametro_32, id]
+    );
+    if (dup.rowCount && dup.rowCount > 0) {
+      res.status(400).json({
+        success: false,
+        error: 'Ya existe esa marca con el mismo diámetro',
+      });
       return;
     }
     const estado = estado_32 !== false;

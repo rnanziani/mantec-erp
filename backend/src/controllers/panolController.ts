@@ -15,6 +15,59 @@ const ESTADOS_MOV = new Set(['PENDIENTE', 'COMPLETADA', 'ANULADA']);
 const ESTADOS_ENTREGA = new Set(['BUENA', 'REGULAR', 'DANADA']);
 const ESTADOS_DEV = new Set(['BUENA', 'REGULAR', 'DANADA', 'PERDIDA']);
 
+/** JSON de líneas: estado de catálogo + estado de ESTA fila + saldo del préstamo. */
+const HERRAMIENTAS_DETALLE_JSON = `
+(
+  SELECT COALESCE(
+    json_agg(
+      json_build_object(
+        'idherramienta', h.idherramienta_48,
+        'codigo', h.codigo_48,
+        'nombre', h.nombre_48,
+        'estado', h.estado_48,
+        'estado_en_movimiento',
+          CASE
+            WHEN UPPER(TRIM(m.estado_49)) = 'ANULADA' THEN 'ANULADA'
+            WHEN UPPER(TRIM(m.tipomovimiento_49)) = 'DEVOLUCION' THEN 'DEVUELTA'
+            WHEN UPPER(TRIM(m.tipomovimiento_49)) = 'SALIDA' AND p.cantidad_pendiente > 0 THEN 'PRESTADA'
+            WHEN UPPER(TRIM(m.tipomovimiento_49)) = 'SALIDA' THEN 'DEVUELTA'
+            ELSE h.estado_48
+          END,
+        'stock', h.stock_48,
+        'stock_disponible', h.stock_disponible_48,
+        'cantidad', d.cantidad_50,
+        'cantidad_pendiente', p.cantidad_pendiente
+      )
+      ORDER BY h.codigo_48
+    ),
+    '[]'::json
+  )
+  FROM ${TABLA_D} d
+  INNER JOIN tbl_48_d_herramienta h ON h.idherramienta_48 = d.idherramienta_50
+  CROSS JOIN LATERAL (
+    SELECT CASE
+      WHEN UPPER(TRIM(m.tipomovimiento_49)) <> 'SALIDA' THEN 0
+      ELSE GREATEST(
+        0,
+        d.cantidad_50 - COALESCE((
+          SELECT SUM(dd.cantidad_50)
+          FROM ${TABLA_D} dd
+          INNER JOIN ${TABLA_M} mm ON mm.idmpanol_49 = dd.idmpanol_50
+          WHERE dd.idherramienta_50 = d.idherramienta_50
+            AND UPPER(TRIM(mm.tipomovimiento_49)) = 'DEVOLUCION'
+            AND UPPER(TRIM(mm.estado_49)) IN ('PENDIENTE', 'COMPLETADA')
+            AND (
+              mm.observacion_49 ILIKE '%' || COALESCE(NULLIF(TRIM(m.folio_49), ''), 'ID-' || m.idmpanol_49::text) || '%'
+              OR mm.observacion_49 ILIKE '%ID-' || m.idmpanol_49::text || '%'
+            )
+        ), 0)
+      )
+    END AS cantidad_pendiente
+  ) p
+  WHERE d.idmpanol_50 = m.idmpanol_49
+)
+`;
+
 const MAESTRO_SELECT = `
   SELECT
     m.idmpanol_49,
@@ -39,26 +92,7 @@ const MAESTRO_SELECT = `
       COALESCE(r.apaternoresponsableentrega_08, ''), ' ',
       COALESCE(r.amaternoresponsableentrega_08, '')
     ) AS responsable_nombre,
-    (
-      SELECT COALESCE(
-        json_agg(
-          json_build_object(
-            'idherramienta', h.idherramienta_48,
-            'codigo', h.codigo_48,
-            'nombre', h.nombre_48,
-            'estado', h.estado_48,
-            'stock', h.stock_48,
-            'stock_disponible', h.stock_disponible_48,
-            'cantidad', d.cantidad_50
-          )
-          ORDER BY h.codigo_48
-        ),
-        '[]'::json
-      )
-      FROM ${TABLA_D} d
-      INNER JOIN tbl_48_d_herramienta h ON h.idherramienta_48 = d.idherramienta_50
-      WHERE d.idmpanol_50 = m.idmpanol_49
-    ) AS herramientas_detalle
+    ${HERRAMIENTAS_DETALLE_JSON} AS herramientas_detalle
   FROM ${TABLA_M} m
   INNER JOIN tbl_06_trabajador t ON m.idtrabajador_49 = t.idtrabajador_06
   LEFT JOIN tbl_00_usuario u ON m.idusuario_49 = u.id_usuario_00
@@ -196,10 +230,77 @@ async function validarStockSalida(
   return null;
 }
 
+async function netoPrestadoHerramienta(
+  client: { query: typeof pool.query },
+  idHerramienta: number
+): Promise<number> {
+  const netoRes = await client.query<{ neto: string }>(
+    `SELECT COALESCE(SUM(
+       CASE
+         WHEN UPPER(TRIM(m.tipomovimiento_49)) = 'SALIDA' THEN d.cantidad_50
+         WHEN UPPER(TRIM(m.tipomovimiento_49)) = 'DEVOLUCION' THEN -d.cantidad_50
+         ELSE 0
+       END
+     ), 0)::text AS neto
+     FROM ${TABLA_D} d
+     INNER JOIN ${TABLA_M} m ON m.idmpanol_49 = d.idmpanol_50
+     WHERE d.idherramienta_50 = $1
+       AND UPPER(TRIM(m.estado_49)) IN ('PENDIENTE', 'COMPLETADA')`,
+    [idHerramienta]
+  );
+  return Number(netoRes.rows[0]?.neto || 0);
+}
+
+/** Unidades aún no devueltas de ESTA salida (por folio en observación o idsalidaorigen). */
+async function pendienteEnSalida(
+  client: { query: typeof pool.query },
+  idSalida: number,
+  folio: string,
+  idHerramienta: number,
+  cantidadPrestada: number
+): Promise<number> {
+  const devRes = await client.query<{ devuelto: string }>(
+    `SELECT COALESCE(SUM(dd.cantidad_50), 0)::text AS devuelto
+     FROM ${TABLA_D} dd
+     INNER JOIN ${TABLA_M} mm ON mm.idmpanol_49 = dd.idmpanol_50
+     WHERE dd.idherramienta_50 = $1
+       AND UPPER(TRIM(mm.tipomovimiento_49)) = 'DEVOLUCION'
+       AND UPPER(TRIM(mm.estado_49)) IN ('PENDIENTE', 'COMPLETADA')
+       AND (
+         mm.observacion_49 ILIKE '%' || $2 || '%'
+         OR mm.observacion_49 ILIKE '%ID-' || $3 || '%'
+       )`,
+    [idHerramienta, folio, idSalida]
+  );
+  const devuelto = Number(devRes.rows[0]?.devuelto || 0);
+  const netoGlobal = await netoPrestadoHerramienta(client, idHerramienta);
+  return Math.max(0, Math.min(cantidadPrestada - devuelto, netoGlobal));
+}
+
+async function reconciliarCatalogoSinSaldo(
+  client: { query: typeof pool.query },
+  idHerramienta: number
+): Promise<void> {
+  const neto = await netoPrestadoHerramienta(client, idHerramienta);
+  if (neto > 0) return;
+  await client.query(
+    `UPDATE tbl_48_d_herramienta
+     SET stock_disponible_48 = stock_48,
+         estado_48 = CASE
+           WHEN UPPER(TRIM(estado_48)) = 'PRESTADA' THEN 'DISPONIBLE'
+           ELSE estado_48
+         END,
+         actualizado_en = CURRENT_TIMESTAMP
+     WHERE idherramienta_48 = $1
+       AND UPPER(TRIM(estado_48)) = 'PRESTADA'`,
+    [idHerramienta]
+  );
+}
+
 /**
  * Control para DEVOLUCION ligada a una SALIDA concreta (botón Devolver):
  * admite PENDIENTE o COMPLETADA “huérfana” (cerrada sin haber devuelto stock).
- * Las cantidades no pueden superar ese préstamo.
+ * Las cantidades no pueden superar el saldo de ese préstamo.
  */
 async function validarDevolucionDesdeSalida(
   client: { query: typeof pool.query },
@@ -283,26 +384,19 @@ async function validarDevolucionDesdeSalida(
       return `${codigo}: el préstamo ${folio} solo tiene ${enPrestamo.cantidad} unidad(es) (solicitado: ${cant})`;
     }
 
-    // Si la salida quedó COMPLETADA sin devolver, exigir que aún haya unidades prestadas
-    if (estadoSalida === 'COMPLETADA') {
-      const netoRes = await client.query<{ neto: string }>(
-        `SELECT COALESCE(SUM(
-           CASE
-             WHEN UPPER(TRIM(m.tipomovimiento_49)) = 'SALIDA' THEN d.cantidad_50
-             WHEN UPPER(TRIM(m.tipomovimiento_49)) = 'DEVOLUCION' THEN -d.cantidad_50
-             ELSE 0
-           END
-         ), 0)::text AS neto
-         FROM ${TABLA_D} d
-         INNER JOIN ${TABLA_M} m ON m.idmpanol_49 = d.idmpanol_50
-         WHERE d.idherramienta_50 = $1
-           AND UPPER(TRIM(m.estado_49)) IN ('PENDIENTE', 'COMPLETADA')`,
-        [idH]
-      );
-      const neto = Number(netoRes.rows[0]?.neto || 0);
-      if (neto <= 0) {
-        return `${codigo}: el préstamo ${folio} ya no tiene unidades pendientes de devolver`;
-      }
+    const pendiente = await pendienteEnSalida(
+      client,
+      idSalida,
+      folio,
+      idH,
+      enPrestamo.cantidad
+    );
+    if (pendiente <= 0) {
+      await reconciliarCatalogoSinSaldo(client, idH);
+      return `${codigo}: el préstamo ${folio} ya no tiene unidades pendientes. Si seguía PRESTADA, el catálogo se corrigió. Quítela del detalle e intente de nuevo.`;
+    }
+    if (cant > pendiente) {
+      return `${codigo}: solo quedan ${pendiente} unidad(es) pendientes en ${folio} (solicitado: ${cant})`;
     }
   }
 
@@ -398,26 +492,7 @@ export const getAllPanol = async (_req: Request, res: Response): Promise<void> =
              COALESCE(r.apaternoresponsableentrega_08, ''), ' ',
              COALESCE(r.amaternoresponsableentrega_08, '')
            ) AS responsable_nombre,
-           (
-             SELECT COALESCE(
-               json_agg(
-                 json_build_object(
-                   'idherramienta', h.idherramienta_48,
-                   'codigo', h.codigo_48,
-                   'nombre', h.nombre_48,
-                   'estado', h.estado_48,
-                   'stock', h.stock_48,
-                   'stock_disponible', h.stock_disponible_48,
-                   'cantidad', d.cantidad_50
-                 )
-                 ORDER BY h.codigo_48
-               ),
-               '[]'::json
-             )
-             FROM ${TABLA_D} d
-             INNER JOIN tbl_48_d_herramienta h ON h.idherramienta_48 = d.idherramienta_50
-             WHERE d.idmpanol_50 = m.idmpanol_49
-           ) AS herramientas_detalle
+           ${HERRAMIENTAS_DETALLE_JSON} AS herramientas_detalle
          FROM ${TABLA_M} m
          INNER JOIN tbl_06_trabajador t ON m.idtrabajador_49 = t.idtrabajador_06
          LEFT JOIN tbl_00_usuario u ON m.idusuario_49 = u.id_usuario_00
@@ -451,9 +526,24 @@ export const getPanolById = async (req: Request, res: Response): Promise<void> =
       `${DETALLE_SELECT} WHERE d.idmpanol_50 = $1 ORDER BY h.nombre_48 ASC`,
       [id]
     );
+    const maestro = maestroResult.rows[0];
+    const folio = maestro.folio_49 || `ID-${id}`;
+    const detalles = [];
+    for (const d of detallesResult.rows) {
+      const idH = Number(d.idherramienta_50);
+      const cant = Number(d.cantidad_50);
+      let cantidad_pendiente = cant;
+      if (String(maestro.tipomovimiento_49 || '').toUpperCase() === 'SALIDA') {
+        cantidad_pendiente = await pendienteEnSalida(pool, Number(id), folio, idH, cant);
+        if (cantidad_pendiente <= 0) {
+          await reconciliarCatalogoSinSaldo(pool, idH);
+        }
+      }
+      detalles.push({ ...d, cantidad_pendiente });
+    }
     res.json({
       success: true,
-      data: { maestro: maestroResult.rows[0], detalles: detallesResult.rows },
+      data: { maestro, detalles },
     });
   } catch (error) {
     res.status(500).json({
@@ -610,30 +700,46 @@ export const createPanol = async (req: Request, res: Response): Promise<void> =>
       );
     }
 
-    // Al registrar la devolución, cerrar el préstamo origen (PENDIENTE o COMPLETADA huérfana)
+    // Cerrar el préstamo origen solo si ya no queda saldo en ninguna línea
     if (tipo === 'DEVOLUCION' && idSalidaOrigen) {
-      const fechaCierre = body.fecha_49 || null;
-      const cierre = await client.query(
-        `UPDATE ${TABLA_M}
-         SET estado_49 = 'COMPLETADA',
-             fechadevolucion_49 = GREATEST(
-               fecha_49,
-               COALESCE($2::timestamp, NOW())
-             ),
-             actualizado_en = CURRENT_TIMESTAMP
-         WHERE idmpanol_49 = $1
-           AND UPPER(TRIM(tipomovimiento_49)) = 'SALIDA'
-           AND UPPER(TRIM(estado_49)) IN ('PENDIENTE', 'COMPLETADA')
-         RETURNING idmpanol_49`,
-        [idSalidaOrigen, fechaCierre]
+      const salidaInfo = await client.query<{ folio_49: string | null }>(
+        `SELECT folio_49 FROM ${TABLA_M} WHERE idmpanol_49 = $1`,
+        [idSalidaOrigen]
       );
-      if (cierre.rowCount === 0) {
-        await client.query('ROLLBACK');
-        res.status(400).json({
-          success: false,
-          error: 'No se pudo cerrar el préstamo de origen (anulado o inexistente)',
-        });
-        return;
+      const folioOrigen = salidaInfo.rows[0]?.folio_49 || `ID-${idSalidaOrigen}`;
+      const lineasSalida = await client.query<{ idherramienta_50: number; cantidad_50: number }>(
+        `SELECT idherramienta_50, cantidad_50 FROM ${TABLA_D} WHERE idmpanol_50 = $1`,
+        [idSalidaOrigen]
+      );
+      let quedaPendiente = false;
+      for (const linea of lineasSalida.rows) {
+        const pend = await pendienteEnSalida(
+          client,
+          idSalidaOrigen,
+          folioOrigen,
+          Number(linea.idherramienta_50),
+          Number(linea.cantidad_50)
+        );
+        if (pend > 0) {
+          quedaPendiente = true;
+          break;
+        }
+      }
+      if (!quedaPendiente) {
+        const fechaCierre = body.fecha_49 || null;
+        await client.query(
+          `UPDATE ${TABLA_M}
+           SET estado_49 = 'COMPLETADA',
+               fechadevolucion_49 = GREATEST(
+                 fecha_49,
+                 COALESCE($2::timestamp, NOW())
+               ),
+               actualizado_en = CURRENT_TIMESTAMP
+           WHERE idmpanol_49 = $1
+             AND UPPER(TRIM(tipomovimiento_49)) = 'SALIDA'
+             AND UPPER(TRIM(estado_49)) IN ('PENDIENTE', 'COMPLETADA')`,
+          [idSalidaOrigen, fechaCierre]
+        );
       }
     }
 

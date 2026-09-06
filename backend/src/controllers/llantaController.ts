@@ -7,7 +7,7 @@ const TABLA = 'tbl_36_llanta';
 export const getAllLlantas = async (req: Request, res: Response): Promise<void> => {
   try {
     const result = await pool.query<Llanta>(
-      `SELECT id_llanta_36, descripcion_llanta_36 FROM ${TABLA} ORDER BY descripcion_llanta_36 ASC`
+      `SELECT id_llanta_36, descripcion_llanta_36, codigo_36, activo_36 FROM ${TABLA} ORDER BY descripcion_llanta_36 ASC`
     );
     const response: ApiResponse<Llanta[]> = {
       success: true,
@@ -30,7 +30,7 @@ export const getLlantaById = async (req: Request, res: Response): Promise<void> 
   try {
     const { id } = req.params;
     const result = await pool.query<Llanta>(
-      `SELECT id_llanta_36, descripcion_llanta_36 FROM ${TABLA} WHERE id_llanta_36 = $1`,
+      `SELECT id_llanta_36, descripcion_llanta_36, codigo_36, activo_36 FROM ${TABLA} WHERE id_llanta_36 = $1`,
       [id]
     );
     if (result.rowCount === 0) {
@@ -66,7 +66,9 @@ export const createLlanta = async (req: Request, res: Response): Promise<void> =
     }
 
     const result = await pool.query<Llanta>(
-      `INSERT INTO ${TABLA} (descripcion_llanta_36) VALUES ($1) RETURNING id_llanta_36, descripcion_llanta_36`,
+      `INSERT INTO ${TABLA} (descripcion_llanta_36)
+       VALUES ($1)
+       RETURNING id_llanta_36, descripcion_llanta_36, codigo_36, activo_36`,
       [desc]
     );
     res.status(201).json({
@@ -104,7 +106,8 @@ export const updateLlanta = async (req: Request, res: Response): Promise<void> =
     }
 
     const result = await pool.query<Llanta>(
-      `UPDATE ${TABLA} SET descripcion_llanta_36 = $1 WHERE id_llanta_36 = $2 RETURNING id_llanta_36, descripcion_llanta_36`,
+      `UPDATE ${TABLA} SET descripcion_llanta_36 = $1 WHERE id_llanta_36 = $2
+       RETURNING id_llanta_36, descripcion_llanta_36, codigo_36, activo_36`,
       [desc, id]
     );
     if (result.rowCount === 0) {
