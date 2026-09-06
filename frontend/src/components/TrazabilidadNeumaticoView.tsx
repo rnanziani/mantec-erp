@@ -18,6 +18,7 @@ interface Maestro {
   fecha_76: string;
   hora_76: string;
   observacion_76?: string | null;
+  balanceo_76?: boolean;
   maquina_numinterno?: string;
   maquina_ppu?: string;
   conductor_nombre?: string;
@@ -59,6 +60,7 @@ const TrazabilidadNeumaticoView: React.FC = () => {
   const [fecha, setFecha] = useState(new Date().toISOString().slice(0, 10));
   const [hora, setHora] = useState(new Date().toTimeString().slice(0, 5));
   const [obs, setObs] = useState('');
+  const [balanceo, setBalanceo] = useState(false);
   const [montajes, setMontajes] = useState<Array<{ idneumatico_77: number; idposicion_77: number; observacion_77: string }>>([]);
   const [rotaciones, setRotaciones] = useState<Array<{ idneumatico_78: number; idposicion_origen_78: number; idposicion_destino_78: number; idpatron_78: string; observacion_78: string }>>([]);
   const [detLlantas, setDetLlantas] = useState<Array<{ idllanta_79: number; iddano_llanta_79: string; observacion_79: string }>>([]);
@@ -205,6 +207,7 @@ const TrazabilidadNeumaticoView: React.FC = () => {
     setFecha(new Date().toISOString().slice(0, 10));
     setHora(new Date().toTimeString().slice(0, 5));
     setObs('');
+    setBalanceo(false);
     setMontajes([]);
     setRotaciones([]);
     setDetLlantas([]);
@@ -244,6 +247,7 @@ const TrazabilidadNeumaticoView: React.FC = () => {
     setFecha(String(maestro.fecha_76).slice(0, 10));
     setHora(String(maestro.hora_76 || '').slice(0, 5));
     setObs(maestro.observacion_76 || '');
+    setBalanceo(maestro.balanceo_76 === true);
     setMontajes(
       (data.data.montajes || []).map((x) => ({
         idneumatico_77: x.idneumatico_77,
@@ -285,6 +289,7 @@ const TrazabilidadNeumaticoView: React.FC = () => {
     fecha_76: fecha,
     hora_76: hora.length === 5 ? `${hora}:00` : hora,
     observacion_76: obs.trim() || null,
+    balanceo_76: balanceo,
     montajes,
     rotaciones: rotaciones.map((r) => ({
       ...r,
@@ -435,6 +440,7 @@ const TrazabilidadNeumaticoView: React.FC = () => {
                   PPU: r.maquina_ppu,
                   Interno: r.maquina_numinterno,
                   KM: formatEnteroKm(r.km_maquina_76),
+                  Balanceo: r.balanceo_76 ? 'SÍ' : 'NO',
                   Fecha: r.fecha_76,
                   Conductor: r.conductor_nombre,
                   Técnico: r.tecnico_nombre,
@@ -487,9 +493,8 @@ const TrazabilidadNeumaticoView: React.FC = () => {
                 onChange={(e) => setKm(formatEnteroKm(e.target.value))}
                 placeholder="1.563.639"
                 required
-                aria-describedby="tz-km-help"
+                title="Se muestra con puntos; se guarda el entero"
               />
-              <small id="tz-km-help" className="form-help-text">Se muestra con puntos; se guarda el entero.</small>
             </div>
             <div className="form-group">
               <label htmlFor="tz-fecha">Fecha *</label>
@@ -503,6 +508,15 @@ const TrazabilidadNeumaticoView: React.FC = () => {
               <label htmlFor="tz-obs">Observación</label>
               <input id="tz-obs" className="form-input" value={obs} onChange={(e) => setObs(e.target.value)} maxLength={500} />
             </div>
+            <label className="tz-balanceo" htmlFor="tz-balanceo">
+              <input
+                id="tz-balanceo"
+                type="checkbox"
+                checked={balanceo}
+                onChange={(e) => setBalanceo(e.target.checked)}
+              />
+              Balanceo
+            </label>
           </div>
 
           <div className="tz-detalles-grid">
@@ -683,12 +697,12 @@ const TrazabilidadNeumaticoView: React.FC = () => {
           <table className="data-table">
             <thead>
               <tr>
-                <th>Folio</th><th>PPU / MAQ</th><th>KM</th><th>Conductor</th><th>Fecha</th><th>Hora</th><th>Técnico</th><th>Acciones</th>
+                <th>Folio</th><th>PPU / MAQ</th><th>KM</th><th>Conductor</th><th>Fecha</th><th>Hora</th><th>Técnico</th><th>Balanceo</th><th>Acciones</th>
               </tr>
             </thead>
             <tbody>
               {pageItems.length === 0 ? (
-                <tr><td colSpan={8} className="no-data">Sin intervenciones</td></tr>
+                <tr><td colSpan={9} className="no-data">Sin intervenciones</td></tr>
               ) : pageItems.map((r) => (
                 <tr key={r.idtrazabilidad_76}>
                   <td><strong>{r.folio_76}</strong></td>
@@ -698,6 +712,7 @@ const TrazabilidadNeumaticoView: React.FC = () => {
                   <td>{String(r.fecha_76).slice(0, 10)}</td>
                   <td>{String(r.hora_76 || '').slice(0, 8)}</td>
                   <td>{r.tecnico_nombre}</td>
+                  <td>{r.balanceo_76 ? 'SÍ' : 'NO'}</td>
                   <td className="actions">
                     <button type="button" className="btn-edit" onClick={() => startEdit(r.idtrazabilidad_76)} aria-label={`Editar ${r.folio_76}`}>✏️</button>
                     <button type="button" className="btn-delete" onClick={() => handleDelete(r.idtrazabilidad_76)} aria-label={`Eliminar ${r.folio_76}`}>🚫</button>

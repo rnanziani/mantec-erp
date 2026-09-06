@@ -68,12 +68,16 @@ CREATE TABLE IF NOT EXISTS public.tbl_76_m_trazabilidad_neumatico (
   fecha_76 date DEFAULT CURRENT_DATE NOT NULL,
   hora_76 time DEFAULT CURRENT_TIME NOT NULL,
   observacion_76 text NULL,
+  balanceo_76 boolean DEFAULT false NOT NULL,
   creado_en timestamptz DEFAULT CURRENT_TIMESTAMP NOT NULL,
   actualizado_en timestamptz DEFAULT CURRENT_TIMESTAMP NOT NULL,
   CONSTRAINT pk_tbl_76_trazabilidad PRIMARY KEY (idtrazabilidad_76),
   CONSTRAINT uk_tbl_76_folio UNIQUE (folio_76),
   CONSTRAINT chk_tbl_76_km CHECK (km_maquina_76 >= 0)
 );
+
+ALTER TABLE public.tbl_76_m_trazabilidad_neumatico
+  ADD COLUMN IF NOT EXISTS balanceo_76 boolean NOT NULL DEFAULT false;
 
 CREATE INDEX IF NOT EXISTS idx_tbl_76_maquina ON public.tbl_76_m_trazabilidad_neumatico (idmaquina_76);
 CREATE INDEX IF NOT EXISTS idx_tbl_76_conductor ON public.tbl_76_m_trazabilidad_neumatico (idconductor_76);

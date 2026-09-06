@@ -14,6 +14,7 @@ const MAESTRO_SELECT = `
     m.fecha_76,
     m.hora_76,
     m.observacion_76,
+    m.balanceo_76,
     m.creado_en,
     m.actualizado_en,
     mq.numinterno_11 AS maquina_numinterno,
@@ -130,6 +131,7 @@ async function aplicarEfectos(
     km_maquina_76: number;
     fecha_76?: string | null;
     hora_76?: string | null;
+    balanceo_76?: boolean;
   },
   d: DetallesBody
 ): Promise<void> {
@@ -148,9 +150,9 @@ async function aplicarEfectos(
     if (!codigo) return;
     await client.query(
       `INSERT INTO tbl_34_historial_neumatico
-        (cod_neumatico_34, id_conductor_34, id_maquina_34, kilometraje_34, id_tecnico_34, fecha_movimiento_34, observaciones_34)
-       VALUES ($1, $2, $3, $4, $5, COALESCE($6::timestamptz, NOW()), $7)`,
-      [codigo, cab.idconductor_76, cab.idmaquina_76, cab.km_maquina_76, cab.idtecnico_76, fechaMov, obs]
+        (cod_neumatico_34, id_conductor_34, id_maquina_34, kilometraje_34, id_tecnico_34, balanceo_34, fecha_movimiento_34, observaciones_34)
+       VALUES ($1, $2, $3, $4, $5, $6, COALESCE($7::timestamptz, NOW()), $8)`,
+      [codigo, cab.idconductor_76, cab.idmaquina_76, cab.km_maquina_76, cab.idtecnico_76, cab.balanceo_76 === true, fechaMov, obs]
     );
   };
 
@@ -271,6 +273,7 @@ export const createTrazabilidadNeumatico = async (req: Request, res: Response): 
       fecha_76?: string;
       hora_76?: string;
       observacion_76?: string;
+      balanceo_76?: boolean;
     };
     const cabErr = validarCabecera(body);
     if (cabErr) {
@@ -286,8 +289,8 @@ export const createTrazabilidadNeumatico = async (req: Request, res: Response): 
     await client.query('BEGIN');
     const ins = await client.query<{ idtrazabilidad_76: number }>(
       `INSERT INTO ${MAESTRO} (
-         idmaquina_76, idconductor_76, idtecnico_76, km_maquina_76, fecha_76, hora_76, observacion_76
-       ) VALUES ($1, $2, $3, $4, COALESCE($5::date, CURRENT_DATE), COALESCE($6::time, CURRENT_TIME), $7)
+         idmaquina_76, idconductor_76, idtecnico_76, km_maquina_76, fecha_76, hora_76, observacion_76, balanceo_76
+       ) VALUES ($1, $2, $3, $4, COALESCE($5::date, CURRENT_DATE), COALESCE($6::time, CURRENT_TIME), $7, $8)
        RETURNING idtrazabilidad_76`,
       [
         body.idmaquina_76,
@@ -297,6 +300,7 @@ export const createTrazabilidadNeumatico = async (req: Request, res: Response): 
         body.fecha_76 || null,
         body.hora_76 || null,
         body.observacion_76?.trim() || null,
+        body.balanceo_76 === true,
       ]
     );
     const id = ins.rows[0].idtrazabilidad_76;
@@ -333,6 +337,7 @@ export const updateTrazabilidadNeumatico = async (req: Request, res: Response): 
       fecha_76?: string;
       hora_76?: string;
       observacion_76?: string;
+      balanceo_76?: boolean;
     };
     const cabErr = validarCabecera(body);
     if (cabErr) {
@@ -352,8 +357,9 @@ export const updateTrazabilidadNeumatico = async (req: Request, res: Response): 
            fecha_76 = COALESCE($5::date, fecha_76),
            hora_76 = COALESCE($6::time, hora_76),
            observacion_76 = $7,
+           balanceo_76 = $8,
            actualizado_en = CURRENT_TIMESTAMP
-       WHERE idtrazabilidad_76 = $8
+       WHERE idtrazabilidad_76 = $9
        RETURNING idtrazabilidad_76`,
       [
         body.idmaquina_76,
@@ -363,6 +369,7 @@ export const updateTrazabilidadNeumatico = async (req: Request, res: Response): 
         body.fecha_76 || null,
         body.hora_76 || null,
         body.observacion_76?.trim() || null,
+        body.balanceo_76 === true,
         req.params.id,
       ]
     );
