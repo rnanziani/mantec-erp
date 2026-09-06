@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import './BodegaView.css';
+import './PosicionNeumaticoView.css';
 import Pagination from './shared/Pagination';
 import { exportToExcel } from '../utils/exportUtils';
 import { showDeleteConfirm, showError, showSuccess } from '../utils/swal';
@@ -79,8 +80,8 @@ const PosicionNeumaticoView: React.FC = () => {
   };
 
   const payload = () => ({
-    codigo_73: form.codigo_73.trim(),
-    descripcion_73: form.descripcion_73.trim(),
+    codigo_73: form.codigo_73.trim().toUpperCase(),
+    descripcion_73: form.descripcion_73.trim().toUpperCase(),
     numero_73: form.numero_73 === '' ? null : Number(form.numero_73),
     orden_73: form.orden_73 === '' ? undefined : Number(form.orden_73),
     activo_73: form.activo_73,
@@ -163,26 +164,63 @@ const PosicionNeumaticoView: React.FC = () => {
         <div className="form-container">
           <h3>{editingId ? 'Editar posición' : 'Nueva posición'}</h3>
           <form ref={formRef} onSubmit={handleSave}>
-            <div className="form-group">
-              <label htmlFor="pos-codigo">Código *</label>
-              <input id="pos-codigo" className="form-input" value={form.codigo_73} onChange={(e) => setForm({ ...form, codigo_73: e.target.value })} required />
+            <div className="posicion-form-row">
+              <div className="form-group">
+                <label htmlFor="pos-codigo">Código *</label>
+                <input
+                  id="pos-codigo"
+                  className="form-input"
+                  value={form.codigo_73}
+                  onChange={(e) => setForm({ ...form, codigo_73: e.target.value.toUpperCase() })}
+                  required
+                  autoComplete="off"
+                  aria-required="true"
+                />
+              </div>
+              <div className="form-group">
+                <label htmlFor="pos-desc">Descripción *</label>
+                <input
+                  id="pos-desc"
+                  className="form-input"
+                  value={form.descripcion_73}
+                  onChange={(e) => setForm({ ...form, descripcion_73: e.target.value.toUpperCase() })}
+                  required
+                  autoComplete="off"
+                  aria-required="true"
+                />
+              </div>
+              <div className="form-group">
+                <label htmlFor="pos-num">Número del plano (1-8)</label>
+                <input
+                  id="pos-num"
+                  type="number"
+                  min={1}
+                  max={8}
+                  className="form-input"
+                  value={form.numero_73}
+                  onChange={(e) => setForm({ ...form, numero_73: e.target.value })}
+                />
+              </div>
+              <div className="form-group">
+                <label htmlFor="pos-orden">Orden</label>
+                <input
+                  id="pos-orden"
+                  type="number"
+                  className="form-input"
+                  value={form.orden_73}
+                  onChange={(e) => setForm({ ...form, orden_73: e.target.value })}
+                />
+              </div>
+              <label className="posicion-activo" htmlFor="pos-activo">
+                <input
+                  id="pos-activo"
+                  type="checkbox"
+                  checked={form.activo_73}
+                  onChange={(e) => setForm({ ...form, activo_73: e.target.checked })}
+                />
+                Activo
+              </label>
             </div>
-            <div className="form-group">
-              <label htmlFor="pos-desc">Descripción *</label>
-              <input id="pos-desc" className="form-input" value={form.descripcion_73} onChange={(e) => setForm({ ...form, descripcion_73: e.target.value })} required />
-            </div>
-            <div className="form-group">
-              <label htmlFor="pos-num">Número del plano (1-8)</label>
-              <input id="pos-num" type="number" min={1} className="form-input" value={form.numero_73} onChange={(e) => setForm({ ...form, numero_73: e.target.value })} />
-            </div>
-            <div className="form-group">
-              <label htmlFor="pos-orden">Orden</label>
-              <input id="pos-orden" type="number" className="form-input" value={form.orden_73} onChange={(e) => setForm({ ...form, orden_73: e.target.value })} />
-            </div>
-            <label>
-              <input type="checkbox" checked={form.activo_73} onChange={(e) => setForm({ ...form, activo_73: e.target.checked })} />
-              {' '}Activo
-            </label>
           </form>
         </div>
       )}
