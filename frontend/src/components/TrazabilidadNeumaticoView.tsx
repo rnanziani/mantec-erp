@@ -564,7 +564,7 @@ const TrazabilidadNeumaticoView: React.FC = () => {
                 <h4 id="tz-rotacion-title">2. Rotación (usado)</h4>
                 <span className="tz-detalle-count">{rotaciones.length} {rotaciones.length === 1 ? 'línea' : 'líneas'}</span>
               </div>
-              <div className="tz-detalle-add tz-detalle-add--4">
+              <div className="tz-detalle-add tz-detalle-add--5">
                 <div className="form-group">
                   <label htmlFor="tz-nr">Neumático</label>
                   <SearchableSelect id="tz-nr" value={selNeuR} onChange={setSelNeuR} options={neuOptions} placeholder="Código..." emptyMessage="Sin neumáticos" />
@@ -577,11 +577,11 @@ const TrazabilidadNeumaticoView: React.FC = () => {
                   <label htmlFor="tz-des">Destino</label>
                   <SearchableSelect id="tz-des" value={selDes} onChange={setSelDes} options={posOptions} placeholder="Destino..." emptyMessage="Sin posiciones" />
                 </div>
+                <div className="form-group">
+                  <label htmlFor="tz-pat">Patrón</label>
+                  <SearchableSelect id="tz-pat" value={selPat} onChange={setSelPat} options={patronOptions} placeholder="Opcional..." emptyMessage="Sin patrones" />
+                </div>
                 <button type="button" className="btn-primary" onClick={addRotacion}>+ Agregar</button>
-              </div>
-              <div className="form-group">
-                <label htmlFor="tz-pat">Patrón (opcional)</label>
-                <SearchableSelect id="tz-pat" value={selPat} onChange={setSelPat} options={patronOptions} placeholder="Sin patrón..." emptyMessage="Sin patrones" />
               </div>
               <div className="table-container">
                 <table className="data-table">

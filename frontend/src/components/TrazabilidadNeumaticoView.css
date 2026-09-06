@@ -84,8 +84,8 @@
   margin-bottom: 10px;
 }
 
-.tz-detalle-add--4 {
-  grid-template-columns: 1fr 1fr 1fr auto;
+.tz-detalle-add--5 {
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr) minmax(0, 0.9fr) minmax(0, 0.9fr) auto;
 }
 
 .tz-detalle-add .form-group {
@@ -119,7 +119,7 @@
   .tz-maestro-meta,
   .tz-detalles-grid,
   .tz-detalle-add,
-  .tz-detalle-add--4 {
+  .tz-detalle-add--5 {
     grid-template-columns: 1fr;
   }
 }
