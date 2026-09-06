@@ -27,6 +27,7 @@ const NEUMATICOS = [
   { nombre: 'MENU_NEUMATICOS_POSICIONES', descripcion: 'Catálogo de posiciones (L1, R2i, ...)', orden: 4080 },
   { nombre: 'MENU_NEUMATICOS_DANO_NEUMATICO', descripcion: 'Tipos de daño de neumático (baja)', orden: 4090 },
   { nombre: 'MENU_NEUMATICOS_DANO_LLANTA', descripcion: 'Tipos de daño de llanta', orden: 4100 },
+  { nombre: 'MENU_NEUMATICOS_REPORTES', descripcion: 'Reportes de neumáticos (duración y daños)', orden: 4110 },
 ];
 
 async function ensurePermiso({ nombre, descripcion, orden }) {

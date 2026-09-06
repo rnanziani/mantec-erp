@@ -1,5 +1,7 @@
 import { Request, Response } from 'express';
+import PdfPrinter from 'pdfmake';
 import { pool } from '../db.js';
+import type { PdfDocumentDefinition } from '../utils/pdfTypes.js';
 
 const MAESTRO = 'tbl_76_m_trazabilidad_neumatico';
 
@@ -187,19 +189,22 @@ async function aplicarEfectos(
 
 async function cargarDetalles(id: number) {
   const montajes = await pool.query(
-    `SELECT d.*, n.cod_neumatico_31 AS neumatico_codigo, p.codigo_73 AS posicion_codigo
+    `SELECT d.*, n.cod_neumatico_31 AS neumatico_codigo, mk.marca_32 AS neumatico_marca,
+            p.codigo_73 AS posicion_codigo
      FROM tbl_77_d_montaje_neumatico d
      JOIN tbl_31_neumatico n ON n.id_neumatico_31 = d.idneumatico_77
+     LEFT JOIN tbl_32_marca_neumatico mk ON mk.id_marca_32 = n.id_marca_31
      JOIN tbl_73_posicion_neumatico p ON p.idposicion_73 = d.idposicion_77
      WHERE d.idtrazabilidad_77 = $1 ORDER BY d.iddetalle_77`,
     [id]
   );
   const rotaciones = await pool.query(
-    `SELECT d.*, n.cod_neumatico_31 AS neumatico_codigo,
+    `SELECT d.*, n.cod_neumatico_31 AS neumatico_codigo, mk.marca_32 AS neumatico_marca,
             po.codigo_73 AS posicion_origen_codigo, pd.codigo_73 AS posicion_destino_codigo,
             pat.codigo_patron_35 AS patron_codigo
      FROM tbl_78_d_rotacion_neumatico d
      JOIN tbl_31_neumatico n ON n.id_neumatico_31 = d.idneumatico_78
+     LEFT JOIN tbl_32_marca_neumatico mk ON mk.id_marca_32 = n.id_marca_31
      JOIN tbl_73_posicion_neumatico po ON po.idposicion_73 = d.idposicion_origen_78
      JOIN tbl_73_posicion_neumatico pd ON pd.idposicion_73 = d.idposicion_destino_78
      LEFT JOIN tbl_35_patron_rotacion pat ON pat.id_patron_35 = d.idpatron_78
@@ -208,7 +213,7 @@ async function cargarDetalles(id: number) {
   );
   const llantas = await pool.query(
     `SELECT d.*, l.descripcion_llanta_36 AS llanta_descripcion, l.codigo_36 AS llanta_codigo,
-            dn.codigo_75 AS dano_codigo
+            dn.codigo_75 AS dano_codigo, dn.descripcion_75 AS dano_descripcion
      FROM tbl_79_d_llanta_trazabilidad d
      JOIN tbl_36_llanta l ON l.id_llanta_36 = d.idllanta_79
      LEFT JOIN tbl_75_tipo_dano_llanta dn ON dn.iddano_llanta_75 = d.iddano_llanta_79
@@ -216,9 +221,11 @@ async function cargarDetalles(id: number) {
     [id]
   );
   const bajas = await pool.query(
-    `SELECT d.*, n.cod_neumatico_31 AS neumatico_codigo, dn.codigo_74 AS dano_codigo
+    `SELECT d.*, n.cod_neumatico_31 AS neumatico_codigo, mk.marca_32 AS neumatico_marca,
+            dn.codigo_74 AS dano_codigo, dn.descripcion_74 AS dano_descripcion
      FROM tbl_80_d_baja_neumatico d
      JOIN tbl_31_neumatico n ON n.id_neumatico_31 = d.idneumatico_80
+     LEFT JOIN tbl_32_marca_neumatico mk ON mk.id_marca_32 = n.id_marca_31
      JOIN tbl_74_tipo_dano_neumatico dn ON dn.iddano_neumatico_74 = d.iddano_neumatico_80
      WHERE d.idtrazabilidad_80 = $1 ORDER BY d.iddetalle_80`,
     [id]
@@ -416,6 +423,205 @@ export const deleteTrazabilidadNeumatico = async (req: Request, res: Response): 
     res.status(500).json({
       success: false,
       error: 'Error al eliminar la intervención',
+      message: error instanceof Error ? error.message : 'Error desconocido',
+    });
+  }
+};
+
+function txt(v: unknown): string {
+  if (v == null || v === '') return '—';
+  return String(v);
+}
+
+function formatKmPdf(v: unknown): string {
+  const n = Number(v);
+  if (!Number.isFinite(n)) return '—';
+  return Math.round(n).toLocaleString('es-CL');
+}
+
+function formatFechaPdf(v: unknown): string {
+  if (!v) return '—';
+  const s = String(v);
+  return s.slice(0, 10);
+}
+
+function formatHoraPdf(v: unknown): string {
+  if (!v) return '—';
+  return String(v).slice(0, 5);
+}
+
+function stampArchivoActa(date = new Date()): string {
+  const formatted = new Intl.DateTimeFormat('sv-SE', {
+    timeZone: 'America/Santiago',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }).format(date);
+  const normalized = formatted.replace('T', ' ');
+  const [fechaPart, horaPart = '00:00'] = normalized.split(' ');
+  const [anio, mes, dia] = fechaPart.split('-');
+  const [hh, mm] = horaPart.split(':');
+  return `${anio.slice(-2)}${mes}${dia}_${hh}${mm}`;
+}
+
+function headerRow(cols: string[]) {
+  return cols.map((c) => ({
+    text: c,
+    bold: true,
+    color: 'white',
+    fillColor: '#1e3a5f',
+    fontSize: 8,
+  }));
+}
+
+function emptyRow(colSpan: number) {
+  return [{ text: 'Sin líneas', colSpan, alignment: 'center', italics: true, color: '#666' }, ...Array.from({ length: colSpan - 1 }, () => ({}))];
+}
+
+function sectionTable(title: string, headers: string[], rows: unknown[][]) {
+  const body = [headerRow(headers), ...(rows.length ? rows : [emptyRow(headers.length)])];
+  return [
+    { text: title, style: 'sectionTitle', margin: [0, 10, 0, 4] },
+    {
+      table: {
+        headerRows: 1,
+        widths: headers.map(() => '*'),
+        body,
+      },
+      layout: 'lightHorizontalLines',
+    },
+  ];
+}
+
+export const generarActaTrazabilidadPDF = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const id = Number(req.params.id);
+    if (!Number.isFinite(id)) {
+      res.status(400).json({ success: false, error: 'Identificador inválido' });
+      return;
+    }
+    const maestroRes = await pool.query(`${MAESTRO_SELECT} WHERE m.idtrazabilidad_76 = $1`, [id]);
+    if (maestroRes.rowCount === 0) {
+      res.status(404).json({ success: false, error: 'Intervención no encontrada' });
+      return;
+    }
+    const m = maestroRes.rows[0] as Record<string, unknown>;
+    const d = await cargarDetalles(id);
+
+    const cabecera = {
+      table: {
+        widths: [120, '*', 90, '*'],
+        body: [
+          [
+            { text: 'Folio', bold: true, fillColor: '#e8eef5' },
+            txt(m.folio_76),
+            { text: 'Fecha', bold: true, fillColor: '#e8eef5' },
+            `${formatFechaPdf(m.fecha_76)} ${formatHoraPdf(m.hora_76)}`,
+          ],
+          [
+            { text: 'Máquina', bold: true, fillColor: '#e8eef5' },
+            `${txt(m.maquina_numinterno)}  ${txt(m.maquina_ppu)}`,
+            { text: 'Odómetro', bold: true, fillColor: '#e8eef5' },
+            formatKmPdf(m.km_maquina_76),
+          ],
+          [
+            { text: 'Conductor', bold: true, fillColor: '#e8eef5' },
+            txt(m.conductor_nombre),
+            { text: 'Técnico', bold: true, fillColor: '#e8eef5' },
+            txt(m.tecnico_nombre),
+          ],
+          [
+            { text: 'Balanceo', bold: true, fillColor: '#e8eef5' },
+            m.balanceo_76 === true ? 'SÍ' : 'NO',
+            { text: 'Observación', bold: true, fillColor: '#e8eef5' },
+            txt(m.observacion_76),
+          ],
+        ],
+      },
+      layout: 'lightHorizontalLines',
+    };
+
+    const montajes = (d.montajes as Array<Record<string, unknown>>).map((x) => [
+      txt(x.neumatico_codigo),
+      txt(x.neumatico_marca),
+      txt(x.posicion_codigo),
+    ]);
+    const rotaciones = (d.rotaciones as Array<Record<string, unknown>>).map((x) => [
+      txt(x.neumatico_codigo),
+      txt(x.neumatico_marca),
+      txt(x.posicion_origen_codigo),
+      txt(x.posicion_destino_codigo),
+      txt(x.patron_codigo),
+    ]);
+    const llantas = (d.llantas as Array<Record<string, unknown>>).map((x) => [
+      txt(x.llanta_codigo || x.llanta_descripcion),
+      txt(x.dano_codigo),
+    ]);
+    const bajas = (d.bajas as Array<Record<string, unknown>>).map((x) => [
+      txt(x.neumatico_codigo),
+      txt(x.neumatico_marca),
+      txt(x.dano_codigo),
+    ]);
+
+    const fonts = {
+      Roboto: {
+        normal: 'Helvetica',
+        bold: 'Helvetica-Bold',
+        italics: 'Helvetica-Oblique',
+        bolditalics: 'Helvetica-BoldOblique',
+      },
+    };
+    const printer = new PdfPrinter(fonts);
+    const folio = txt(m.folio_76).replace(/[^\w-]/g, '_');
+    const docDefinition: PdfDocumentDefinition = {
+      pageSize: 'LETTER',
+      pageMargins: [36, 36, 36, 40],
+      content: [
+        { text: 'ACTA DE INTERVENCIÓN — TRAZABILIDAD DE NEUMÁTICOS', style: 'title' },
+        { text: 'Cabecera', style: 'sectionTitle', margin: [0, 8, 0, 4] },
+        cabecera,
+        ...sectionTable('1. Montaje (neumático nuevo)', ['Neumático', 'Marca', 'Posición'], montajes),
+        ...sectionTable('2. Rotación (usado)', ['Neumático', 'Marca', 'Origen', 'Destino', 'Patrón'], rotaciones),
+        ...sectionTable('3. Llanta', ['Llanta', 'Daño'], llantas),
+        ...sectionTable('4. Baja', ['Neumático', 'Marca', 'Daño'], bajas),
+        {
+          text: 'El conductor corresponde a quien conducía en esta intervención, no necesariamente al responsable del daño.',
+          style: 'nota',
+          margin: [0, 14, 0, 0],
+        },
+      ],
+      styles: {
+        title: { fontSize: 13, bold: true, color: '#1e3a5f', alignment: 'center' },
+        sectionTitle: { fontSize: 10, bold: true, color: '#1e3a5f' },
+        nota: { fontSize: 8, italics: true, color: '#555' },
+      },
+      defaultStyle: { font: 'Roboto', fontSize: 9 },
+      footer: (currentPage: number, pageCount: number) => ({
+        text: `Página ${currentPage} de ${pageCount}`,
+        alignment: 'center',
+        fontSize: 8,
+        color: '#666',
+        margin: [0, 8, 0, 0],
+      }),
+    };
+
+    const pdfDoc = printer.createPdfKitDocument(docDefinition);
+    const filename = `ACTA_${folio}_${stampArchivoActa()}.pdf`;
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename="${filename}"; filename*=UTF-8''${encodeURIComponent(filename)}`
+    );
+    pdfDoc.pipe(res);
+    pdfDoc.end();
+  } catch (error) {
+    console.error('Error al generar acta de trazabilidad:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Error al generar el acta',
       message: error instanceof Error ? error.message : 'Error desconocido',
     });
   }

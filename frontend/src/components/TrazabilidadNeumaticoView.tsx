@@ -3,10 +3,11 @@ import './BodegaView.css';
 import './TrazabilidadNeumaticoView.css';
 import Pagination from './shared/Pagination';
 import SearchableSelect from './shared/SearchableSelect';
+import * as XLSX from 'xlsx';
 import { exportToExcel } from '../utils/exportUtils';
 import { formatEnteroKm, parseEnteroKm } from '../utils/formatKm';
 import { showDeleteConfirm, showError, showSuccess } from '../utils/swal';
-import { apiFetch, apiUrl } from '../lib/apiClient';
+import { apiFetch, apiUrl, openAuthenticatedBlob } from '../lib/apiClient';
 
 interface Maestro {
   idtrazabilidad_76: number;
@@ -420,6 +421,113 @@ const TrazabilidadNeumaticoView: React.FC = () => {
     setSelDanoN('');
   };
 
+  const abrirActaPdf = async (id: number) => {
+    try {
+      await openAuthenticatedBlob(`/trazabilidad-neumatico/${id}/acta-pdf`);
+    } catch (err) {
+      await showError('Acta PDF', err instanceof Error ? err.message : 'No se pudo generar el acta');
+    }
+  };
+
+  const exportarActaExcel = async (id: number, folio?: string | null) => {
+    try {
+      const res = await apiFetch(`${API}/${id}`);
+      const data: ApiResponse<{
+        maestro: Maestro;
+        montajes: Array<{ neumatico_codigo?: string; neumatico_marca?: string; posicion_codigo?: string }>;
+        rotaciones: Array<{
+          neumatico_codigo?: string;
+          neumatico_marca?: string;
+          posicion_origen_codigo?: string;
+          posicion_destino_codigo?: string;
+          patron_codigo?: string;
+        }>;
+        llantas: Array<{ llanta_codigo?: string; llanta_descripcion?: string; dano_codigo?: string }>;
+        bajas: Array<{ neumatico_codigo?: string; neumatico_marca?: string; dano_codigo?: string }>;
+      }> = await res.json();
+      if (!data.success || !data.data) {
+        await showError('Acta Excel', data.error || 'No se pudo cargar la intervención');
+        return;
+      }
+      const { maestro, montajes, rotaciones, llantas, bajas } = data.data;
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(
+        wb,
+        XLSX.utils.json_to_sheet([
+          {
+            Folio: maestro.folio_76,
+            Fecha: String(maestro.fecha_76).slice(0, 10),
+            Hora: String(maestro.hora_76 || '').slice(0, 5),
+            Máquina: `${maestro.maquina_numinterno || ''} ${maestro.maquina_ppu || ''}`.trim(),
+            Odómetro: formatEnteroKm(maestro.km_maquina_76),
+            Conductor: maestro.conductor_nombre,
+            Técnico: maestro.tecnico_nombre,
+            Balanceo: maestro.balanceo_76 ? 'SÍ' : 'NO',
+            Observación: maestro.observacion_76 || '',
+          },
+        ]),
+        'Cabecera'
+      );
+      XLSX.utils.book_append_sheet(
+        wb,
+        XLSX.utils.json_to_sheet(
+          montajes.length
+            ? montajes.map((x) => ({
+                Neumático: x.neumatico_codigo,
+                Marca: x.neumatico_marca,
+                Posición: x.posicion_codigo,
+              }))
+            : [{ Neumático: 'Sin líneas' }]
+        ),
+        'Montaje'
+      );
+      XLSX.utils.book_append_sheet(
+        wb,
+        XLSX.utils.json_to_sheet(
+          rotaciones.length
+            ? rotaciones.map((x) => ({
+                Neumático: x.neumatico_codigo,
+                Marca: x.neumatico_marca,
+                Origen: x.posicion_origen_codigo,
+                Destino: x.posicion_destino_codigo,
+                Patrón: x.patron_codigo || '',
+              }))
+            : [{ Neumático: 'Sin líneas' }]
+        ),
+        'Rotación'
+      );
+      XLSX.utils.book_append_sheet(
+        wb,
+        XLSX.utils.json_to_sheet(
+          llantas.length
+            ? llantas.map((x) => ({
+                Llanta: x.llanta_codigo || x.llanta_descripcion,
+                Daño: x.dano_codigo || '',
+              }))
+            : [{ Llanta: 'Sin líneas' }]
+        ),
+        'Llanta'
+      );
+      XLSX.utils.book_append_sheet(
+        wb,
+        XLSX.utils.json_to_sheet(
+          bajas.length
+            ? bajas.map((x) => ({
+                Neumático: x.neumatico_codigo,
+                Marca: x.neumatico_marca,
+                Daño: x.dano_codigo,
+              }))
+            : [{ Neumático: 'Sin líneas' }]
+        ),
+        'Baja'
+      );
+      XLSX.writeFile(wb, `acta_${(folio || maestro.folio_76 || id).toString().replace(/[^\w-]/g, '_')}.xlsx`);
+      await showSuccess('Acta Excel', 'Se descargó el archivo con cabecera y las 4 grillas.');
+    } catch (err) {
+      await showError('Acta Excel', err instanceof Error ? err.message : 'No se pudo exportar el acta');
+    }
+  };
+
   return (
     <div className="bodega-view">
       <div className="view-header">
@@ -714,6 +822,8 @@ const TrazabilidadNeumaticoView: React.FC = () => {
                   <td>{r.tecnico_nombre}</td>
                   <td>{r.balanceo_76 ? 'SÍ' : 'NO'}</td>
                   <td className="actions">
+                    <button type="button" className="btn-edit" onClick={() => void abrirActaPdf(r.idtrazabilidad_76)} aria-label={`Acta PDF ${r.folio_76}`}>📄</button>
+                    <button type="button" className="btn-edit" onClick={() => void exportarActaExcel(r.idtrazabilidad_76, r.folio_76)} aria-label={`Acta Excel ${r.folio_76}`}>📊</button>
                     <button type="button" className="btn-edit" onClick={() => startEdit(r.idtrazabilidad_76)} aria-label={`Editar ${r.folio_76}`}>✏️</button>
                     <button type="button" className="btn-delete" onClick={() => handleDelete(r.idtrazabilidad_76)} aria-label={`Eliminar ${r.folio_76}`}>🚫</button>
                   </td>

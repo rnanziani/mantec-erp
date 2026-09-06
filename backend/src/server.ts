@@ -70,6 +70,7 @@ import posicionNeumaticoRoutes from './routes/posicionNeumaticoRoutes.js';
 import tipoDanoNeumaticoRoutes from './routes/tipoDanoNeumaticoRoutes.js';
 import tipoDanoLlantaRoutes from './routes/tipoDanoLlantaRoutes.js';
 import trazabilidadNeumaticoRoutes from './routes/trazabilidadNeumaticoRoutes.js';
+import reportesNeumaticoRoutes from './routes/reportesNeumaticoRoutes.js';
 
 console.log('🔄 Servidor iniciando - Cargando rutas...');
 
@@ -248,6 +249,7 @@ app.use('/api/posiciones-neumatico', posicionNeumaticoRoutes);
 app.use('/api/tipos-dano-neumatico', tipoDanoNeumaticoRoutes);
 app.use('/api/tipos-dano-llanta', tipoDanoLlantaRoutes);
 app.use('/api/trazabilidad-neumatico', trazabilidadNeumaticoRoutes);
+app.use('/api/reportes-neumatico', reportesNeumaticoRoutes);
 
 console.log('✅ Todas las rutas cargadas');
 

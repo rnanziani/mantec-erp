@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import { pool } from '../db.js';
-import { HistorialNeumatico, CreateHistorialNeumaticoDTO, UpdateHistorialNeumaticoDTO } from '../types.js';
+import { HistorialNeumatico } from '../types.js';
 
 /**
  * Obtener todos los registros del historial de neumáticos
@@ -88,160 +88,21 @@ export const getHistorialById = async (req: Request, res: Response): Promise<voi
   }
 };
 
-/**
- * Crear un nuevo registro
- */
+function escrituraConsultaOnly(_req: Request, res: Response): void {
+  res.status(405).json({
+    success: false,
+    error: 'El historial es de solo consulta. Registre movimientos en Trazabilidad.',
+  });
+}
+
 export const createHistorial = async (req: Request, res: Response): Promise<void> => {
-  try {
-    const { cod_neumatico_34, id_conductor_34, id_maquina_34, kilometraje_34, id_tecnico_34, balanceo_34, fecha_movimiento_34, observaciones_34 }: CreateHistorialNeumaticoDTO = req.body;
-
-    if (!cod_neumatico_34 || cod_neumatico_34.trim() === '') {
-      res.status(400).json({
-        success: false,
-        error: 'El código del neumático es requerido'
-      });
-      return;
-    }
-
-    const neumaticoExists = await pool.query(
-      'SELECT cod_neumatico_31 FROM tbl_31_neumatico WHERE cod_neumatico_31 = $1',
-      [cod_neumatico_34.trim().toUpperCase()]
-    );
-
-    if (neumaticoExists.rowCount === 0) {
-      res.status(400).json({
-        success: false,
-        error: 'El neumático indicado no existe'
-      });
-      return;
-    }
-
-    const fechaMov = fecha_movimiento_34 ? new Date(fecha_movimiento_34).toISOString() : new Date().toISOString();
-    const kilometraje = kilometraje_34 != null && !isNaN(Number(kilometraje_34)) ? Number(kilometraje_34) : null;
-    const balanceo = balanceo_34 === true;
-    const idConductor = id_conductor_34 && !isNaN(Number(id_conductor_34)) ? Number(id_conductor_34) : null;
-    const idMaquina = id_maquina_34 && !isNaN(Number(id_maquina_34)) ? Number(id_maquina_34) : null;
-    const idTecnico = id_tecnico_34 && !isNaN(Number(id_tecnico_34)) ? Number(id_tecnico_34) : null;
-
-    const result = await pool.query<HistorialNeumatico>(
-      `INSERT INTO tbl_34_historial_neumatico 
-       (cod_neumatico_34, id_conductor_34, id_maquina_34, kilometraje_34, id_tecnico_34, balanceo_34, fecha_movimiento_34, observaciones_34)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
-      [cod_neumatico_34.trim().toUpperCase(), idConductor, idMaquina, kilometraje, idTecnico, balanceo, fechaMov, observaciones_34?.trim() || null]
-    );
-
-    res.status(201).json({
-      success: true,
-      data: result.rows[0],
-      message: 'Registro creado exitosamente'
-    });
-  } catch (error) {
-    console.error('Error al crear historial:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Error al crear el registro',
-      message: error instanceof Error ? error.message : 'Error desconocido'
-    });
-  }
+  escrituraConsultaOnly(req, res);
 };
 
-/**
- * Actualizar un registro existente
- */
 export const updateHistorial = async (req: Request, res: Response): Promise<void> => {
-  try {
-    const { id } = req.params;
-    const { cod_neumatico_34, id_conductor_34, id_maquina_34, kilometraje_34, id_tecnico_34, balanceo_34, fecha_movimiento_34, observaciones_34 }: UpdateHistorialNeumaticoDTO = req.body;
-
-    if (!cod_neumatico_34 || cod_neumatico_34.trim() === '') {
-      res.status(400).json({
-        success: false,
-        error: 'El código del neumático es requerido'
-      });
-      return;
-    }
-
-    const neumaticoExists = await pool.query(
-      'SELECT cod_neumatico_31 FROM tbl_31_neumatico WHERE cod_neumatico_31 = $1',
-      [cod_neumatico_34.trim().toUpperCase()]
-    );
-
-    if (neumaticoExists.rowCount === 0) {
-      res.status(400).json({
-        success: false,
-        error: 'El neumático indicado no existe'
-      });
-      return;
-    }
-
-    const fechaMov = fecha_movimiento_34 ? new Date(fecha_movimiento_34).toISOString() : new Date().toISOString();
-    const kilometraje = kilometraje_34 != null && !isNaN(Number(kilometraje_34)) ? Number(kilometraje_34) : null;
-    const balanceo = balanceo_34 === true;
-    const idConductor = id_conductor_34 && !isNaN(Number(id_conductor_34)) ? Number(id_conductor_34) : null;
-    const idMaquina = id_maquina_34 && !isNaN(Number(id_maquina_34)) ? Number(id_maquina_34) : null;
-    const idTecnico = id_tecnico_34 && !isNaN(Number(id_tecnico_34)) ? Number(id_tecnico_34) : null;
-
-    const result = await pool.query<HistorialNeumatico>(
-      `UPDATE tbl_34_historial_neumatico
-       SET cod_neumatico_34 = $1, id_conductor_34 = $2, id_maquina_34 = $3, kilometraje_34 = $4, id_tecnico_34 = $5, 
-           balanceo_34 = $6, fecha_movimiento_34 = $7, observaciones_34 = $8
-       WHERE id_historial_34 = $9 RETURNING *`,
-      [cod_neumatico_34.trim().toUpperCase(), idConductor, idMaquina, kilometraje, idTecnico, balanceo, fechaMov, observaciones_34?.trim() || null, id]
-    );
-
-    if (result.rowCount === 0) {
-      res.status(404).json({
-        success: false,
-        error: 'Registro no encontrado'
-      });
-      return;
-    }
-
-    res.json({
-      success: true,
-      data: result.rows[0],
-      message: 'Registro actualizado exitosamente'
-    });
-  } catch (error) {
-    console.error('Error al actualizar historial:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Error al actualizar el registro',
-      message: error instanceof Error ? error.message : 'Error desconocido'
-    });
-  }
+  escrituraConsultaOnly(req, res);
 };
 
-/**
- * Eliminar un registro
- */
 export const deleteHistorial = async (req: Request, res: Response): Promise<void> => {
-  try {
-    const { id } = req.params;
-
-    const result = await pool.query(
-      'DELETE FROM tbl_34_historial_neumatico WHERE id_historial_34 = $1 RETURNING id_historial_34',
-      [id]
-    );
-
-    if (result.rowCount === 0) {
-      res.status(404).json({
-        success: false,
-        error: 'Registro no encontrado'
-      });
-      return;
-    }
-
-    res.json({
-      success: true,
-      message: 'Registro eliminado exitosamente'
-    });
-  } catch (error) {
-    console.error('Error al eliminar historial:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Error al eliminar el registro',
-      message: error instanceof Error ? error.message : 'Error desconocido'
-    });
-  }
+  escrituraConsultaOnly(req, res);
 };

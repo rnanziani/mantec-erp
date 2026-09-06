@@ -69,6 +69,8 @@ import PosicionNeumaticoView from './components/PosicionNeumaticoView';
 import TipoDanoNeumaticoView from './components/TipoDanoNeumaticoView';
 import TipoDanoLlantaView from './components/TipoDanoLlantaView';
 import TrazabilidadNeumaticoView from './components/TrazabilidadNeumaticoView';
+import DuracionNeumaticoView from './components/DuracionNeumaticoView';
+import DanosConductorNeumaticoView from './components/DanosConductorNeumaticoView';
 import { useUserPermissions } from './hooks/useUserPermissions';
 import SessionInactivityModal from './components/SessionInactivityModal';
 import SessionExpiredModal from './components/SessionExpiredModal';
@@ -190,6 +192,8 @@ function App() {
     'posiciones-neumatico': 'MENU_NEUMATICOS_POSICIONES',
     'dano-neumatico': 'MENU_NEUMATICOS_DANO_NEUMATICO',
     'dano-llanta': 'MENU_NEUMATICOS_DANO_LLANTA',
+    'duracion-neumatico': 'MENU_NEUMATICOS_REPORTES',
+    'danos-conductor-neumatico': 'MENU_NEUMATICOS_REPORTES',
     'herramientas': 'MENU_PANOL_HERRAMIENTAS',
     'movimientos-panol': 'MENU_PANOL_MOVIMIENTOS',
     'clases-epp': 'MENU_EPP_CLASES',
@@ -550,6 +554,10 @@ function App() {
           )}
           {currentView === 'dano-neumatico' && hasRouteAccess('dano-neumatico') && <TipoDanoNeumaticoView />}
           {currentView === 'dano-llanta' && hasRouteAccess('dano-llanta') && <TipoDanoLlantaView />}
+          {currentView === 'duracion-neumatico' && hasRouteAccess('duracion-neumatico') && <DuracionNeumaticoView />}
+          {currentView === 'danos-conductor-neumatico' && hasRouteAccess('danos-conductor-neumatico') && (
+            <DanosConductorNeumaticoView />
+          )}
 
           {currentView === 'login' && <LoginForm />}
 

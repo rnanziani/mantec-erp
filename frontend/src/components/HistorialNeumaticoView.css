@@ -1,12 +1,18 @@
 /* Estilos específicos para Historial de Neumáticos */
 
+.historial-consulta-note {
+  margin: 0 0 12px;
+  color: #555;
+  font-size: 0.9rem;
+}
+
 .bodega-view .form-container {
   overflow: visible;
 }
 
 .historial-buscadores-row {
   display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
   gap: 16px;
   margin-bottom: 16px;
   align-items: end;

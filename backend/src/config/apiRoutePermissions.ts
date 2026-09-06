@@ -95,7 +95,8 @@ export const API_PREFIX_RULES: Array<{
   { prefix: '/api/recepciones-reparado', permission: 'MENU_REPUESTOS_DANADOS_RECEPCION_REPARADO' },
 
   // Neumáticos (prefijos largos antes que cortos)
-  { prefix: '/api/marcas-neumatico', permission: 'MENU_NEUMATICOS_MARCAS' },
+  { prefix: '/api/marcas-neumatico', permission: 'MENU_NEUMATICOS_MARCAS', readAuthOnly: true },
+  { prefix: '/api/reportes-neumatico', permission: 'MENU_NEUMATICOS_REPORTES' },
   { prefix: '/api/estados-neumatico', permission: 'MENU_NEUMATICOS_ESTADOS' },
   { prefix: '/api/historial-neumatico', permission: 'MENU_NEUMATICOS_HISTORIAL' },
   { prefix: '/api/patrones-rotacion', permission: 'MENU_NEUMATICOS_PATRONES_ROTACION', readAuthOnly: true },

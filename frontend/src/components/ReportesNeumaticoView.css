@@ -1,0 +1,64 @@
+.reportes-neumatico-filters {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  align-items: end;
+  margin-bottom: 16px;
+}
+
+.reportes-neumatico-filters .form-group {
+  margin-bottom: 0;
+  min-width: 0;
+}
+
+.reportes-neumatico-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.reportes-neumatico-note {
+  margin: 0 0 12px;
+  color: #555;
+  font-size: 0.9rem;
+}
+
+.reportes-neumatico-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+.reportes-neumatico-tab {
+  border: 1px solid #1e3a5f;
+  background: #fff;
+  color: #1e3a5f;
+  border-radius: 6px;
+  padding: 8px 14px;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.reportes-neumatico-tab.is-active {
+  background: #1e3a5f;
+  color: #fff;
+}
+
+.reportes-neumatico-section-title {
+  margin: 20px 0 8px;
+  font-size: 1rem;
+  color: #1e3a5f;
+}
+
+@media (max-width: 1100px) {
+  .reportes-neumatico-filters {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 700px) {
+  .reportes-neumatico-filters {
+    grid-template-columns: 1fr;
+  }
+}
