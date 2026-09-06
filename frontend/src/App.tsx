@@ -71,6 +71,7 @@ import TipoDanoLlantaView from './components/TipoDanoLlantaView';
 import TrazabilidadNeumaticoView from './components/TrazabilidadNeumaticoView';
 import DuracionNeumaticoView from './components/DuracionNeumaticoView';
 import DanosConductorNeumaticoView from './components/DanosConductorNeumaticoView';
+import ReportesRepuestoDanadoView from './components/ReportesRepuestoDanadoView';
 import { useUserPermissions } from './hooks/useUserPermissions';
 import SessionInactivityModal from './components/SessionInactivityModal';
 import SessionExpiredModal from './components/SessionExpiredModal';
@@ -213,6 +214,7 @@ function App() {
     'recepcion-reparado': 'MENU_REPUESTOS_DANADOS_RECEPCION_REPARADO',
     'estados-reparacion': 'MENU_REPUESTOS_DANADOS_ESTADO_REPARACION',
     'semaforo-entrega': 'MENU_REPUESTOS_DANADOS_SEMAFORO',
+    'reportes-repuestos-danados': 'MENU_REPUESTOS_DANADOS_REPORTES',
   };
 
   // Función para verificar si el usuario tiene acceso a una ruta
@@ -539,6 +541,9 @@ function App() {
           {currentView === 'recepcion-reparado' && hasRouteAccess('recepcion-reparado') && <RecepcionReparadoView />}
           {currentView === 'estados-reparacion' && hasRouteAccess('estados-reparacion') && <EstadoReparacionView />}
           {currentView === 'semaforo-entrega' && hasRouteAccess('semaforo-entrega') && <SemaforoEntregaView />}
+          {currentView === 'reportes-repuestos-danados' && hasRouteAccess('reportes-repuestos-danados') && (
+            <ReportesRepuestoDanadoView />
+          )}
 
           {currentView === 'neumaticos' && hasRouteAccess('neumaticos') && <NeumaticoView />}
           {currentView === 'marcas-neumatico' && hasRouteAccess('marcas-neumatico') && <MarcaNeumaticoView />}
