@@ -66,6 +66,10 @@ import patronRotacionRoutes from './routes/patronRotacionRoutes.js';
 import tallaRoutes from './routes/tallaRoutes.js';
 import prendaRoutes from './routes/prendaRoutes.js';
 import llantaRoutes from './routes/llantaRoutes.js';
+import posicionNeumaticoRoutes from './routes/posicionNeumaticoRoutes.js';
+import tipoDanoNeumaticoRoutes from './routes/tipoDanoNeumaticoRoutes.js';
+import tipoDanoLlantaRoutes from './routes/tipoDanoLlantaRoutes.js';
+import trazabilidadNeumaticoRoutes from './routes/trazabilidadNeumaticoRoutes.js';
 
 console.log('🔄 Servidor iniciando - Cargando rutas...');
 
@@ -240,6 +244,10 @@ app.use('/api/patrones-rotacion', patronRotacionRoutes);
 app.use('/api/tallas', tallaRoutes);
 app.use('/api/prendas', prendaRoutes);
 app.use('/api/llantas', llantaRoutes);
+app.use('/api/posiciones-neumatico', posicionNeumaticoRoutes);
+app.use('/api/tipos-dano-neumatico', tipoDanoNeumaticoRoutes);
+app.use('/api/tipos-dano-llanta', tipoDanoLlantaRoutes);
+app.use('/api/trazabilidad-neumatico', trazabilidadNeumaticoRoutes);
 
 console.log('✅ Todas las rutas cargadas');
 

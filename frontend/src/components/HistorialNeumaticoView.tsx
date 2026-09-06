@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import './BodegaView.css';
 import './HistorialNeumaticoView.css';
 import Pagination from './shared/Pagination';
+import SearchableSelect from './shared/SearchableSelect';
 import { exportToExcel } from '../utils/exportUtils';
 import { showDeleteConfirm, showSuccess, showError } from '../utils/swal';
 import { apiUrl } from '../lib/apiClient';
@@ -82,9 +83,6 @@ const HistorialNeumaticoView: React.FC = () => {
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string>('');
 
-  const [buscarNeumatico, setBuscarNeumatico] = useState<string>('');
-  const [buscarConductor, setBuscarConductor] = useState<string>('');
-  const [buscarMaquina, setBuscarMaquina] = useState<string>('');
   const [codNeumatico, setCodNeumatico] = useState<string>('');
   const [idConductor, setIdConductor] = useState<string>('');
   const [idMaquina, setIdMaquina] = useState<string>('');
@@ -216,65 +214,46 @@ const HistorialNeumaticoView: React.FC = () => {
     return sortConfig.direction === 'asc' ? '↑' : '↓';
   };
 
-  const neumaticosFiltrados = useMemo(() => {
-    if (!buscarNeumatico || buscarNeumatico.trim() === '') return neumaticos;
-    const busquedaLower = buscarNeumatico.trim().toLowerCase();
-    return neumaticos.filter(
-      (n) =>
-        (n.cod_neumatico_31 && n.cod_neumatico_31.toLowerCase().includes(busquedaLower)) ||
-        (n.marca_32 && n.marca_32.toLowerCase().includes(busquedaLower))
-    );
-  }, [neumaticos, buscarNeumatico]);
+  const neumaticoOptions = useMemo(
+    () =>
+      neumaticos.map((n) => ({
+        value: n.cod_neumatico_31,
+        label: `${n.cod_neumatico_31}${n.marca_32 ? ` - ${n.marca_32}` : ''}`,
+      })),
+    [neumaticos]
+  );
 
-  const conductoresFiltrados = useMemo(() => {
-    if (!buscarConductor || buscarConductor.trim() === '') return trabajadores;
-    const busqueda = buscarConductor.trim();
-    const palabras = busqueda.split(/\s+/).map((a) => a.toLowerCase());
-    if (palabras.length === 1) {
-      const word = palabras[0];
-      const paternoMatch = trabajadores.filter(
-        (t) => t.apaterno_06 != null && t.apaterno_06.toLowerCase().startsWith(word)
-      );
-      const maternoMatch = trabajadores.filter(
-        (t) =>
-          t.amaterno_06 != null &&
-          t.amaterno_06.toLowerCase().startsWith(word) &&
-          !paternoMatch.some((p) => p.idtrabajador_06 === t.idtrabajador_06)
-      );
-      const nombreMatch = trabajadores.filter(
-        (t) =>
-          t.nombre_06 != null &&
-          t.nombre_06.toLowerCase().includes(word) &&
-          !paternoMatch.some((p) => p.idtrabajador_06 === t.idtrabajador_06) &&
-          !maternoMatch.some((m) => m.idtrabajador_06 === t.idtrabajador_06)
-      );
-      return [...paternoMatch, ...maternoMatch, ...nombreMatch];
-    }
-    const [primer, segundo] = palabras;
-    return trabajadores.filter(
-      (t) =>
-        t.apaterno_06 != null &&
-        t.apaterno_06.toLowerCase().startsWith(primer) &&
-        t.amaterno_06 != null &&
-        t.amaterno_06.toLowerCase().startsWith(segundo)
-    );
-  }, [trabajadores, buscarConductor]);
+  const conductorOptions = useMemo(
+    () =>
+      trabajadores.map((t) => {
+        const nombre = `${t.apaterno_06 || ''} ${t.amaterno_06 || ''} ${t.nombre_06 || ''}`.replace(/\s+/g, ' ').trim();
+        return {
+          value: String(t.idtrabajador_06),
+          label: t.ruttrabajador_06 ? `${nombre} - ${t.ruttrabajador_06}` : nombre,
+        };
+      }),
+    [trabajadores]
+  );
 
-  const maquinasFiltradas = useMemo(() => {
-    if (!buscarMaquina || buscarMaquina.trim() === '') return maquinas;
-    const busquedaLower = buscarMaquina.trim().toLowerCase();
-    return maquinas.filter(
-      (m) =>
-        (m.ppu_11 && m.ppu_11.toLowerCase().includes(busquedaLower)) ||
-        (m.numinterno_11 && m.numinterno_11.toLowerCase().includes(busquedaLower)) ||
-        (m.descripcion_11 && m.descripcion_11.toLowerCase().includes(busquedaLower))
-    );
-  }, [maquinas, buscarMaquina]);
+  const maquinaOptions = useMemo(
+    () =>
+      maquinas.map((m) => ({
+        value: String(m.idmaquina_11),
+        label: `${m.ppu_11 || 'N/A'} - ${m.numinterno_11 || 'N/A'}${m.descripcion_11 ? ` (${m.descripcion_11})` : ''}`,
+      })),
+    [maquinas]
+  );
+
+  const tecnicoOptions = useMemo(
+    () =>
+      tecnicos.map((t) => ({
+        value: String(t.id_tecnico_21),
+        label: `${t.nombres_21} ${t.a_paterno_21 || ''} ${t.a_materno_21 || ''}`.replace(/\s+/g, ' ').trim(),
+      })),
+    [tecnicos]
+  );
 
   const resetForm = () => {
-    setBuscarNeumatico('');
-    setBuscarConductor('');
-    setBuscarMaquina('');
     setCodNeumatico('');
     setIdConductor('');
     setIdMaquina('');
@@ -461,144 +440,44 @@ const HistorialNeumaticoView: React.FC = () => {
         <div className="form-container">
           <h3>{editingId ? '✏️ Editar Registro' : '➕ Nuevo Registro'}</h3>
           <form ref={formRef} onSubmit={editingId ? handleUpdate : handleCreate}>
-            {/* Fila única: Neumático, Conductor y Máquina en 3 columnas */}
             <div className="historial-buscadores-row">
-            <div className="historial-buscador-col">
               <div className="form-group">
-                <label htmlFor="buscarNeumatico">Buscar Neumático</label>
-                <input
-                  type="text"
-                  id="buscarNeumatico"
-                  className="form-input"
-                  value={buscarNeumatico}
-                  onChange={(e) => setBuscarNeumatico(e.target.value.toUpperCase())}
-                  placeholder="INGRESE CÓDIGO O MARCA"
-                  style={{ textTransform: 'uppercase' }}
+                <label htmlFor="codNeumatico">Neumático *</label>
+                <SearchableSelect
+                  id="codNeumatico"
+                  value={codNeumatico}
+                  onChange={setCodNeumatico}
+                  options={neumaticoOptions}
+                  placeholder="Buscar código o marca..."
+                  required
+                  aria-label="Buscar y seleccionar neumático"
+                  emptyMessage="No se encontraron neumáticos"
                 />
-                <small className="historial-form-tip">💡 Tip: Busque por código o marca del neumático</small>
               </div>
               <div className="form-group">
-                <label>Seleccionar Neumático *</label>
-                <div className="historial-list-box">
-                  {neumaticosFiltrados.length > 0 ? (
-                    neumaticosFiltrados.map((n) => (
-                      <div
-                        key={n.id_neumatico_31}
-                        role="button"
-                        tabIndex={0}
-                        onClick={() => setCodNeumatico(n.cod_neumatico_31)}
-                        onKeyDown={(e) => e.key === 'Enter' && setCodNeumatico(n.cod_neumatico_31)}
-                        className={codNeumatico === n.cod_neumatico_31 ? 'historial-list-item selected' : 'historial-list-item'}
-                      >
-                        <strong>{n.cod_neumatico_31}</strong> - {n.marca_32 || ''}
-                      </div>
-                    ))
-                  ) : (
-                    <div className="historial-list-empty">
-                      {neumaticos.length === 0 ? 'Cargando neumáticos...' : 'No se encontraron neumáticos con ese criterio'}
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            <div className="historial-buscador-col">
-              <div className="form-group">
-                <label htmlFor="buscarConductor">Buscar Conductor por Apellido</label>
-                <input
-                  type="text"
-                  id="buscarConductor"
-                  className="form-input"
-                  value={buscarConductor}
-                  onChange={(e) => setBuscarConductor(e.target.value.toUpperCase())}
-                  placeholder="EJ: GONZALEZ O GONZALEZ PEREZ"
-                  style={{ textTransform: 'uppercase' }}
+                <label htmlFor="idConductor">Conductor</label>
+                <SearchableSelect
+                  id="idConductor"
+                  value={idConductor}
+                  onChange={setIdConductor}
+                  options={conductorOptions}
+                  placeholder="Buscar por apellido o RUT..."
+                  aria-label="Buscar y seleccionar conductor"
+                  emptyMessage="No se encontraron conductores"
                 />
-                <small className="historial-form-tip">💡 Tip: Una palabra busca por apellido. Dos palabras: paterno y materno.</small>
               </div>
               <div className="form-group">
-                <label>Seleccionar Conductor</label>
-                <div className="historial-list-box">
-                  <div
-                    role="button"
-                    tabIndex={0}
-                    onClick={() => setIdConductor('')}
-                    onKeyDown={(e) => e.key === 'Enter' && setIdConductor('')}
-                    className={!idConductor ? 'historial-list-item selected' : 'historial-list-item historial-list-clear'}
-                  >
-                    — Sin conductor —
-                  </div>
-                  {conductoresFiltrados.length > 0 ? (
-                    conductoresFiltrados.map((tr) => (
-                      <div
-                        key={tr.idtrabajador_06}
-                        role="button"
-                        tabIndex={0}
-                        onClick={() => setIdConductor(String(tr.idtrabajador_06))}
-                        onKeyDown={(e) => e.key === 'Enter' && setIdConductor(String(tr.idtrabajador_06))}
-                        className={idConductor === String(tr.idtrabajador_06) ? 'historial-list-item selected' : 'historial-list-item'}
-                      >
-                        <strong>{tr.apaterno_06 || ''} {tr.amaterno_06 || ''}</strong> {tr.nombre_06 || ''}
-                        {tr.ruttrabajador_06 && <span className="historial-list-rut"> - {tr.ruttrabajador_06}</span>}
-                      </div>
-                    ))
-                  ) : (
-                    <div className="historial-list-empty">
-                      {trabajadores.length === 0 ? 'Cargando conductores...' : 'No se encontraron conductores con ese criterio'}
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            <div className="historial-buscador-col">
-              <div className="form-group">
-                <label htmlFor="buscarMaquina">Buscar Máquina</label>
-                <input
-                  type="text"
-                  id="buscarMaquina"
-                  className="form-input"
-                  value={buscarMaquina}
-                  onChange={(e) => setBuscarMaquina(e.target.value.toUpperCase())}
-                  placeholder="INGRESE PATENTE, NÚMERO INTERNO O DESCRIPCIÓN"
-                  style={{ textTransform: 'uppercase' }}
+                <label htmlFor="idMaquina">Máquina</label>
+                <SearchableSelect
+                  id="idMaquina"
+                  value={idMaquina}
+                  onChange={setIdMaquina}
+                  options={maquinaOptions}
+                  placeholder="Buscar patente, interno o descripción..."
+                  aria-label="Buscar y seleccionar máquina"
+                  emptyMessage="No se encontraron máquinas"
                 />
-                <small className="historial-form-tip">💡 Tip: Busque por patente, número interno o descripción</small>
               </div>
-              <div className="form-group">
-                <label>Seleccionar Máquina</label>
-                <div className="historial-list-box">
-                  <div
-                    role="button"
-                    tabIndex={0}
-                    onClick={() => setIdMaquina('')}
-                    onKeyDown={(e) => e.key === 'Enter' && setIdMaquina('')}
-                    className={!idMaquina ? 'historial-list-item selected' : 'historial-list-item historial-list-clear'}
-                  >
-                    — Sin máquina —
-                  </div>
-                  {maquinasFiltradas.length > 0 ? (
-                    maquinasFiltradas.map((m) => (
-                      <div
-                        key={m.idmaquina_11}
-                        role="button"
-                        tabIndex={0}
-                        onClick={() => setIdMaquina(String(m.idmaquina_11))}
-                        onKeyDown={(e) => e.key === 'Enter' && setIdMaquina(String(m.idmaquina_11))}
-                        className={idMaquina === String(m.idmaquina_11) ? 'historial-list-item selected' : 'historial-list-item'}
-                      >
-                        <strong>{m.ppu_11 || 'N/A'}</strong> - {m.numinterno_11 || 'N/A'}
-                        {m.descripcion_11 && ` (${m.descripcion_11})`}
-                      </div>
-                    ))
-                  ) : (
-                    <div className="historial-list-empty">
-                      {maquinas.length === 0 ? 'Cargando máquinas...' : 'No se encontraron máquinas con ese criterio'}
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
             </div>
 
             {/* Fila 2: Kilometraje, Técnico, Fecha, Balanceo */}
@@ -617,20 +496,16 @@ const HistorialNeumaticoView: React.FC = () => {
                 />
               </div>
               <div className="form-group">
-                <label htmlFor="idTecnico">Técnico:</label>
-                <select
+                <label htmlFor="idTecnico">Técnico</label>
+                <SearchableSelect
                   id="idTecnico"
-                  className="form-input"
                   value={idTecnico}
-                  onChange={(e) => setIdTecnico(e.target.value)}
-                >
-                  <option value="">Sin técnico</option>
-                  {tecnicos.map((t) => (
-                    <option key={t.id_tecnico_21} value={t.id_tecnico_21}>
-                      {t.nombres_21} {t.a_paterno_21 || ''} {t.a_materno_21 || ''}
-                    </option>
-                  ))}
-                </select>
+                  onChange={setIdTecnico}
+                  options={tecnicoOptions}
+                  placeholder="Buscar técnico..."
+                  aria-label="Buscar y seleccionar técnico"
+                  emptyMessage="No se encontraron técnicos"
+                />
               </div>
               <div className="form-group">
                 <label htmlFor="fechaMovimiento">Fecha y Hora:</label>

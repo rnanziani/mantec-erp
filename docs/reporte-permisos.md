@@ -73,6 +73,10 @@ Módulo propio en sidebar (no cuelga de Operaciones).
 | `MENU_NEUMATICOS_HISTORIAL` | Historial de neumáticos | 4040 |
 | `MENU_NEUMATICOS_PATRONES_ROTACION` | Patrones de rotación | 4050 |
 | `MENU_NEUMATICOS_TIPO_LLANTA` | Tipo llanta | 4060 |
+| `MENU_NEUMATICOS_TRAZABILIDAD` | Intervención / trazabilidad | 4070 |
+| `MENU_NEUMATICOS_POSICIONES` | Posiciones (L1, R2i, …) | 4080 |
+| `MENU_NEUMATICOS_DANO_NEUMATICO` | Tipos de daño de neumático | 4090 |
+| `MENU_NEUMATICOS_DANO_LLANTA` | Tipos de daño de llanta | 4100 |
 
 Script de seed: `backend/scripts/seed-neumaticos-inventario-permisos.mjs`
 

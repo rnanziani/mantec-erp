@@ -65,6 +65,10 @@ import EstadoNeumaticoView from './components/EstadoNeumaticoView';
 import HistorialNeumaticoView from './components/HistorialNeumaticoView';
 import PatronRotacionView from './components/PatronRotacionView';
 import LlantaView from './components/LlantaView';
+import PosicionNeumaticoView from './components/PosicionNeumaticoView';
+import TipoDanoNeumaticoView from './components/TipoDanoNeumaticoView';
+import TipoDanoLlantaView from './components/TipoDanoLlantaView';
+import TrazabilidadNeumaticoView from './components/TrazabilidadNeumaticoView';
 import { useUserPermissions } from './hooks/useUserPermissions';
 import SessionInactivityModal from './components/SessionInactivityModal';
 import SessionExpiredModal from './components/SessionExpiredModal';
@@ -182,6 +186,10 @@ function App() {
     'historial-neumatico': 'MENU_NEUMATICOS_HISTORIAL',
     'patrones-rotacion': 'MENU_NEUMATICOS_PATRONES_ROTACION',
     'llantas': 'MENU_NEUMATICOS_TIPO_LLANTA',
+    'trazabilidad-neumatico': 'MENU_NEUMATICOS_TRAZABILIDAD',
+    'posiciones-neumatico': 'MENU_NEUMATICOS_POSICIONES',
+    'dano-neumatico': 'MENU_NEUMATICOS_DANO_NEUMATICO',
+    'dano-llanta': 'MENU_NEUMATICOS_DANO_LLANTA',
     'herramientas': 'MENU_PANOL_HERRAMIENTAS',
     'movimientos-panol': 'MENU_PANOL_MOVIMIENTOS',
     'clases-epp': 'MENU_EPP_CLASES',
@@ -534,6 +542,14 @@ function App() {
           {currentView === 'historial-neumatico' && hasRouteAccess('historial-neumatico') && <HistorialNeumaticoView />}
           {currentView === 'patrones-rotacion' && hasRouteAccess('patrones-rotacion') && <PatronRotacionView />}
           {currentView === 'llantas' && hasRouteAccess('llantas') && <LlantaView />}
+          {currentView === 'trazabilidad-neumatico' && hasRouteAccess('trazabilidad-neumatico') && (
+            <TrazabilidadNeumaticoView />
+          )}
+          {currentView === 'posiciones-neumatico' && hasRouteAccess('posiciones-neumatico') && (
+            <PosicionNeumaticoView />
+          )}
+          {currentView === 'dano-neumatico' && hasRouteAccess('dano-neumatico') && <TipoDanoNeumaticoView />}
+          {currentView === 'dano-llanta' && hasRouteAccess('dano-llanta') && <TipoDanoLlantaView />}
 
           {currentView === 'login' && <LoginForm />}
 

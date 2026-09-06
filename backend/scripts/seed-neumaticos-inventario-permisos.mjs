@@ -23,6 +23,10 @@ const NEUMATICOS = [
   { nombre: 'MENU_NEUMATICOS_HISTORIAL', descripcion: 'Historial de neumáticos', orden: 4040 },
   { nombre: 'MENU_NEUMATICOS_PATRONES_ROTACION', descripcion: 'Patrones de rotación', orden: 4050 },
   { nombre: 'MENU_NEUMATICOS_TIPO_LLANTA', descripcion: 'Tipo llanta', orden: 4060 },
+  { nombre: 'MENU_NEUMATICOS_TRAZABILIDAD', descripcion: 'Intervención / trazabilidad de neumáticos', orden: 4070 },
+  { nombre: 'MENU_NEUMATICOS_POSICIONES', descripcion: 'Catálogo de posiciones (L1, R2i, ...)', orden: 4080 },
+  { nombre: 'MENU_NEUMATICOS_DANO_NEUMATICO', descripcion: 'Tipos de daño de neumático (baja)', orden: 4090 },
+  { nombre: 'MENU_NEUMATICOS_DANO_LLANTA', descripcion: 'Tipos de daño de llanta', orden: 4100 },
 ];
 
 async function ensurePermiso({ nombre, descripcion, orden }) {

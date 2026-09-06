@@ -98,9 +98,13 @@ export const API_PREFIX_RULES: Array<{
   { prefix: '/api/marcas-neumatico', permission: 'MENU_NEUMATICOS_MARCAS' },
   { prefix: '/api/estados-neumatico', permission: 'MENU_NEUMATICOS_ESTADOS' },
   { prefix: '/api/historial-neumatico', permission: 'MENU_NEUMATICOS_HISTORIAL' },
-  { prefix: '/api/patrones-rotacion', permission: 'MENU_NEUMATICOS_PATRONES_ROTACION' },
-  { prefix: '/api/neumaticos', permission: 'MENU_NEUMATICOS_COD_TRAZABILIDAD' },
-  { prefix: '/api/llantas', permission: 'MENU_NEUMATICOS_TIPO_LLANTA' },
+  { prefix: '/api/patrones-rotacion', permission: 'MENU_NEUMATICOS_PATRONES_ROTACION', readAuthOnly: true },
+  { prefix: '/api/neumaticos', permission: 'MENU_NEUMATICOS_COD_TRAZABILIDAD', readAuthOnly: true },
+  { prefix: '/api/llantas', permission: 'MENU_NEUMATICOS_TIPO_LLANTA', readAuthOnly: true },
+  { prefix: '/api/trazabilidad-neumatico', permission: 'MENU_NEUMATICOS_TRAZABILIDAD' },
+  { prefix: '/api/posiciones-neumatico', permission: 'MENU_NEUMATICOS_POSICIONES', readAuthOnly: true },
+  { prefix: '/api/tipos-dano-neumatico', permission: 'MENU_NEUMATICOS_DANO_NEUMATICO', readAuthOnly: true },
+  { prefix: '/api/tipos-dano-llanta', permission: 'MENU_NEUMATICOS_DANO_LLANTA', readAuthOnly: true },
 
   // Gestión alternadores
   { prefix: '/api/tipos-comp-alternador', permission: 'MENU_MANTENEDORES_TIPOS_COMP', readAuthOnly: true },
