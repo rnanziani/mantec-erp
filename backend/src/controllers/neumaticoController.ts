@@ -128,8 +128,8 @@ export const createNeumaticosLote = async (req: Request, res: Response): Promise
       res.status(400).json({ success: false, error: 'El ID de la marca es requerido' });
       return;
     }
-    if (!Number.isInteger(n) || n < 2 || n > 12) {
-      res.status(400).json({ success: false, error: 'La cantidad masiva debe ser un entero entre 2 y 12' });
+    if (!Number.isInteger(n) || n < 1 || n > 500) {
+      res.status(400).json({ success: false, error: 'La cantidad debe ser un entero de 1 a 500' });
       return;
     }
 

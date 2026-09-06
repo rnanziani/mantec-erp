@@ -49,7 +49,7 @@ const NeumaticoView: React.FC = () => {
   const [editingId, setEditingId] = useState<number | null>(null);
   const [showForm, setShowForm] = useState<boolean>(false);
   const [modoAlta, setModoAlta] = useState<'uno' | 'masiva'>('uno');
-  const [cantidadLote, setCantidadLote] = useState<string>('12');
+  const [cantidadLote, setCantidadLote] = useState<string>('');
   const [saving, setSaving] = useState(false);
 
   const [searchTerm, setSearchTerm] = useState<string>('');
@@ -150,8 +150,12 @@ const NeumaticoView: React.FC = () => {
       setSaving(true);
       if (modoAlta === 'masiva') {
         const cantidad = Number(cantidadLote);
-        if (!Number.isInteger(cantidad) || cantidad < 2 || cantidad > 12) {
-          await showError('Validación', 'La carga masiva admite entre 2 y 12 códigos');
+        if (!Number.isInteger(cantidad) || cantidad < 1) {
+          await showError('Validación', 'Indique cuántos códigos crear (1 o más)');
+          return;
+        }
+        if (cantidad > 500) {
+          await showError('Validación', 'Por seguridad el lote no puede superar 500 códigos');
           return;
         }
         const response = await fetch(`${API_URL}/lote`, {
@@ -261,7 +265,7 @@ const NeumaticoView: React.FC = () => {
     setEditingId(null);
     setShowForm(false);
     setModoAlta('uno');
-    setCantidadLote('12');
+    setCantidadLote('');
     setError('');
   };
 
@@ -314,7 +318,7 @@ const NeumaticoView: React.FC = () => {
                 type="button"
                 className="btn-primary neumatico-btn-masiva"
                 onClick={() => showCreateForm('masiva')}
-                aria-label="Crear hasta 12 códigos de neumático"
+                aria-label="Crear varios códigos de neumático"
               >
                 ➕ Carga masiva
               </button>
@@ -372,13 +376,13 @@ const NeumaticoView: React.FC = () => {
             {editingId
               ? '✏️ Editar Neumático'
               : modoAlta === 'masiva'
-                ? '➕ Carga masiva (2 a 12 códigos)'
+                ? '➕ Carga masiva (1 a N códigos)'
                 : '➕ Nuevo Neumático (uno a uno)'}
           </h3>
           {!editingId && modoAlta === 'masiva' && (
             <p className="form-help-text">
-              Use esta opción cuando envíe un lote a marcar (por ejemplo 12). Se genera un código
-              TS-NNNNYY por cada unidad, con la misma marca y fecha.
+              Indique cuántos códigos necesita (compra de 1, 12, 30, etc.). Se genera un TS-NNNNYY
+              por cada unidad, con la misma marca y fecha.
             </p>
           )}
           <form onSubmit={editingId ? handleUpdate : handleCreate}>
@@ -389,14 +393,14 @@ const NeumaticoView: React.FC = () => {
                   <input
                     id="cantidadLote"
                     type="number"
-                    min={2}
-                    max={12}
+                    min={1}
                     className="form-input"
                     value={cantidadLote}
                     onChange={(e) => setCantidadLote(e.target.value)}
+                    placeholder="Ej: 30"
                     required
                   />
-                  <small className="form-hint">Mínimo 2, máximo 12 (lote a marcar).</small>
+                  <small className="form-hint">Uno o más. Ejemplo: 30 unidades de un proveedor.</small>
                 </div>
               )}
               <div className="form-group">
