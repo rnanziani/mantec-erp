@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import './BodegaView.css';
+import './TrazabilidadNeumaticoView.css';
 import Pagination from './shared/Pagination';
 import SearchableSelect from './shared/SearchableSelect';
 import { exportToExcel } from '../utils/exportUtils';
@@ -168,6 +169,26 @@ const TrazabilidadNeumaticoView: React.FC = () => {
       })),
     [posiciones]
   );
+  const llantaOptions = useMemo(
+    () =>
+      llantas.map((l) => ({
+        value: String(l.id_llanta_36),
+        label: `${l.codigo_36 || ''} ${l.descripcion_llanta_36 || ''}`.trim(),
+      })),
+    [llantas]
+  );
+  const danoLlantaOptions = useMemo(
+    () => danosLla.map((d) => ({ value: String(d.iddano_llanta_75), label: d.codigo_75 })),
+    [danosLla]
+  );
+  const danoNeuOptions = useMemo(
+    () => danosNeu.map((d) => ({ value: String(d.iddano_neumatico_74), label: d.codigo_74 })),
+    [danosNeu]
+  );
+  const patronOptions = useMemo(
+    () => patrones.map((p) => ({ value: String(p.id_patron_35), label: p.codigo_patron_35 })),
+    [patrones]
+  );
 
   const resetForm = () => {
     setEditingId(null);
@@ -183,6 +204,16 @@ const TrazabilidadNeumaticoView: React.FC = () => {
     setRotaciones([]);
     setDetLlantas([]);
     setBajas([]);
+    setSelNeuM('');
+    setSelPosM('');
+    setSelNeuR('');
+    setSelOri('');
+    setSelDes('');
+    setSelPat('');
+    setSelLla('');
+    setSelDanoL('');
+    setSelNeuB('');
+    setSelDanoN('');
     setError('');
   };
 
@@ -303,8 +334,76 @@ const TrazabilidadNeumaticoView: React.FC = () => {
     } else await showError('Error', data.error || 'No se pudo eliminar');
   };
 
-  const neuLabel = (id: number) => neumaticos.find((n) => n.id_neumatico_31 === id)?.cod_neumatico_31 || id;
-  const posLabel = (id: number) => posiciones.find((p) => p.idposicion_73 === id)?.codigo_73 || id;
+  const neuLabel = (id: number) => neumaticos.find((n) => n.id_neumatico_31 === id)?.cod_neumatico_31 || String(id);
+  const posLabel = (id: number) => posiciones.find((p) => p.idposicion_73 === id)?.codigo_73 || String(id);
+  const llantaLabel = (id: number) => {
+    const l = llantas.find((x) => x.id_llanta_36 === id);
+    return l ? `${l.codigo_36 || ''} ${l.descripcion_llanta_36 || ''}`.trim() : String(id);
+  };
+  const danoLlaLabel = (id: string) =>
+    id ? danosLla.find((d) => String(d.iddano_llanta_75) === id)?.codigo_75 || id : 'Nueva';
+  const danoNeuLabel = (id: number) =>
+    danosNeu.find((d) => d.iddano_neumatico_74 === id)?.codigo_74 || String(id);
+  const patronLabel = (id: string) =>
+    id ? patrones.find((p) => String(p.id_patron_35) === id)?.codigo_patron_35 || id : '—';
+
+  const addMontaje = async () => {
+    if (!selNeuM || !selPosM) {
+      await showError('Detalle montaje', 'Seleccione neumático y posición');
+      return;
+    }
+    setMontajes((p) => [...p, { idneumatico_77: Number(selNeuM), idposicion_77: Number(selPosM), observacion_77: '' }]);
+    setSelNeuM('');
+    setSelPosM('');
+  };
+
+  const addRotacion = async () => {
+    if (!selNeuR || !selOri || !selDes) {
+      await showError('Detalle rotación', 'Seleccione neumático, origen y destino');
+      return;
+    }
+    if (selOri === selDes) {
+      await showError('Detalle rotación', 'Origen y destino deben ser distintos');
+      return;
+    }
+    setRotaciones((p) => [
+      ...p,
+      {
+        idneumatico_78: Number(selNeuR),
+        idposicion_origen_78: Number(selOri),
+        idposicion_destino_78: Number(selDes),
+        idpatron_78: selPat,
+        observacion_78: '',
+      },
+    ]);
+    setSelNeuR('');
+    setSelOri('');
+    setSelDes('');
+    setSelPat('');
+  };
+
+  const addLlanta = async () => {
+    if (!selLla) {
+      await showError('Detalle llanta', 'Seleccione la llanta');
+      return;
+    }
+    setDetLlantas((p) => [...p, { idllanta_79: Number(selLla), iddano_llanta_79: selDanoL, observacion_79: '' }]);
+    setSelLla('');
+    setSelDanoL('');
+  };
+
+  const addBaja = async () => {
+    if (!selNeuB || !selDanoN) {
+      await showError('Detalle baja', 'Seleccione neumático y tipo de daño');
+      return;
+    }
+    setBajas((p) => [
+      ...p,
+      { idneumatico_80: Number(selNeuB), iddano_neumatico_80: Number(selDanoN), observacion_80: '' },
+    ]);
+    setSelNeuB('');
+    setSelDanoN('');
+  };
 
   return (
     <div className="bodega-view">
@@ -346,133 +445,207 @@ const TrazabilidadNeumaticoView: React.FC = () => {
       {showForm && (
         <form ref={formRef} className="form-container" onSubmit={handleSave}>
           <h3>{editingId ? 'Editar intervención' : 'Nueva intervención'}</h3>
-          <div className="form-group">
-            <label htmlFor="tz-maq">Máquina PPU *</label>
-            <SearchableSelect id="tz-maq" value={idMaquina} onChange={setIdMaquina} options={maquinaOptions} placeholder="Buscar máquina..." emptyMessage="Sin máquinas" />
-          </div>
-          <div className="form-group">
-            <label htmlFor="tz-cond">Conductor *</label>
-            <SearchableSelect
-              id="tz-cond"
-              value={idConductor}
-              onChange={setIdConductor}
-              options={conductorOptions}
-              placeholder="Buscar por apellido o RUT..."
-              required
-              aria-label="Buscar y seleccionar conductor"
-              emptyMessage="No se encontraron conductores"
-            />
-          </div>
-          <div className="form-group">
-            <label htmlFor="tz-tec">Técnico *</label>
-            <SearchableSelect id="tz-tec" value={idTecnico} onChange={setIdTecnico} options={tecnicoOptions} placeholder="Buscar técnico..." emptyMessage="Sin técnicos" />
-          </div>
-          <div className="form-group">
-            <label htmlFor="tz-km">Odómetro</label>
-            <input id="tz-km" type="number" min={0} step="0.1" className="form-input" value={km} onChange={(e) => setKm(e.target.value)} />
-          </div>
-          <div className="form-group">
-            <label htmlFor="tz-fecha">Fecha</label>
-            <input id="tz-fecha" type="date" className="form-input" value={fecha} onChange={(e) => setFecha(e.target.value)} />
-          </div>
-          <div className="form-group">
-            <label htmlFor="tz-hora">Hora</label>
-            <input id="tz-hora" type="time" className="form-input" value={hora} onChange={(e) => setHora(e.target.value)} />
-          </div>
-          <div className="form-group">
-            <label htmlFor="tz-obs">Observación</label>
-            <textarea id="tz-obs" className="form-input" rows={2} value={obs} onChange={(e) => setObs(e.target.value)} />
+          <p style={{ marginTop: 0, color: '#555' }}>
+            Complete la cabecera y agregue al menos una línea en alguna de las 4 grillas de detalle.
+          </p>
+
+          <div className="tz-maestro-row">
+            <div className="form-group">
+              <label htmlFor="tz-maq">Máquina *</label>
+              <SearchableSelect id="tz-maq" value={idMaquina} onChange={setIdMaquina} options={maquinaOptions} placeholder="Buscar patente o interno..." required emptyMessage="Sin máquinas" />
+            </div>
+            <div className="form-group">
+              <label htmlFor="tz-cond">Conductor *</label>
+              <SearchableSelect id="tz-cond" value={idConductor} onChange={setIdConductor} options={conductorOptions} placeholder="Buscar apellido o RUT..." required emptyMessage="Sin conductores" />
+            </div>
+            <div className="form-group">
+              <label htmlFor="tz-tec">Técnico *</label>
+              <SearchableSelect id="tz-tec" value={idTecnico} onChange={setIdTecnico} options={tecnicoOptions} placeholder="Buscar técnico..." required emptyMessage="Sin técnicos" />
+            </div>
           </div>
 
-          <h4>Detalle posición (neumático nuevo)</h4>
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 8 }}>
-            <SearchableSelect id="tz-nm" value={selNeuM} onChange={setSelNeuM} options={neuOptions} placeholder="Neumático" emptyMessage="Sin neumáticos" />
-            <SearchableSelect id="tz-pm" value={selPosM} onChange={setSelPosM} options={posOptions} placeholder="Posición" emptyMessage="Sin posiciones" />
-            <button type="button" className="btn-primary" onClick={() => {
-              if (!selNeuM || !selPosM) return;
-              setMontajes((p) => [...p, { idneumatico_77: Number(selNeuM), idposicion_77: Number(selPosM), observacion_77: '' }]);
-              setSelNeuM('');
-              setSelPosM('');
-            }}>Agregar</button>
+          <div className="tz-maestro-meta">
+            <div className="form-group">
+              <label htmlFor="tz-km">Odómetro *</label>
+              <input id="tz-km" type="number" min={0} step="0.1" className="form-input" value={km} onChange={(e) => setKm(e.target.value)} required />
+            </div>
+            <div className="form-group">
+              <label htmlFor="tz-fecha">Fecha *</label>
+              <input id="tz-fecha" type="date" className="form-input" value={fecha} onChange={(e) => setFecha(e.target.value)} required />
+            </div>
+            <div className="form-group">
+              <label htmlFor="tz-hora">Hora *</label>
+              <input id="tz-hora" type="time" className="form-input" value={hora} onChange={(e) => setHora(e.target.value)} required />
+            </div>
+            <div className="form-group">
+              <label htmlFor="tz-obs">Observación</label>
+              <input id="tz-obs" className="form-input" value={obs} onChange={(e) => setObs(e.target.value)} maxLength={500} />
+            </div>
           </div>
-          <ul>{montajes.map((x, i) => (
-            <li key={`m-${i}`}>{neuLabel(x.idneumatico_77)} → {posLabel(x.idposicion_77)}
-              <button type="button" onClick={() => setMontajes((p) => p.filter((_, j) => j !== i))}>Quitar</button>
-            </li>
-          ))}</ul>
 
-          <h4>Detalle rotación (usado)</h4>
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 8 }}>
-            <SearchableSelect id="tz-nr" value={selNeuR} onChange={setSelNeuR} options={neuOptions} placeholder="Neumático" emptyMessage="Sin neumáticos" />
-            <SearchableSelect id="tz-ori" value={selOri} onChange={setSelOri} options={posOptions} placeholder="Origen" emptyMessage="Sin posiciones" />
-            <SearchableSelect id="tz-des" value={selDes} onChange={setSelDes} options={posOptions} placeholder="Destino" emptyMessage="Sin posiciones" />
-            <select className="form-select" value={selPat} onChange={(e) => setSelPat(e.target.value)} aria-label="Patrón opcional">
-              <option value="">Patrón (opcional)</option>
-              {patrones.map((p) => <option key={p.id_patron_35} value={p.id_patron_35}>{p.codigo_patron_35}</option>)}
-            </select>
-            <button type="button" className="btn-primary" onClick={() => {
-              if (!selNeuR || !selOri || !selDes) return;
-              setRotaciones((p) => [...p, {
-                idneumatico_78: Number(selNeuR),
-                idposicion_origen_78: Number(selOri),
-                idposicion_destino_78: Number(selDes),
-                idpatron_78: selPat,
-                observacion_78: '',
-              }]);
-              setSelNeuR('');
-              setSelOri('');
-              setSelDes('');
-              setSelPat('');
-            }}>Agregar</button>
-          </div>
-          <ul>{rotaciones.map((x, i) => (
-            <li key={`r-${i}`}>{neuLabel(x.idneumatico_78)} {posLabel(x.idposicion_origen_78)} → {posLabel(x.idposicion_destino_78)}
-              <button type="button" onClick={() => setRotaciones((p) => p.filter((_, j) => j !== i))}>Quitar</button>
-            </li>
-          ))}</ul>
+          <div className="tz-detalles-grid">
+            <section className="tz-detalle" aria-labelledby="tz-montaje-title">
+              <div className="tz-detalle-head">
+                <h4 id="tz-montaje-title">1. Montaje (neumático nuevo)</h4>
+                <span className="tz-detalle-count">{montajes.length} {montajes.length === 1 ? 'línea' : 'líneas'}</span>
+              </div>
+              <div className="tz-detalle-add">
+                <div className="form-group">
+                  <label htmlFor="tz-nm">Neumático</label>
+                  <SearchableSelect id="tz-nm" value={selNeuM} onChange={setSelNeuM} options={neuOptions} placeholder="Código..." emptyMessage="Sin neumáticos" />
+                </div>
+                <div className="form-group">
+                  <label htmlFor="tz-pm">Posición</label>
+                  <SearchableSelect id="tz-pm" value={selPosM} onChange={setSelPosM} options={posOptions} placeholder="L1, R2i..." emptyMessage="Sin posiciones" />
+                </div>
+                <button type="button" className="btn-primary" onClick={addMontaje}>+ Agregar</button>
+              </div>
+              <div className="table-container">
+                <table className="data-table">
+                  <thead>
+                    <tr><th>Neumático</th><th>Posición</th><th>Acciones</th></tr>
+                  </thead>
+                  <tbody>
+                    {montajes.length === 0 ? (
+                      <tr><td colSpan={3} className="no-data">Sin líneas de montaje</td></tr>
+                    ) : montajes.map((x, i) => (
+                      <tr key={`m-${i}`}>
+                        <td>{neuLabel(x.idneumatico_77)}</td>
+                        <td>{posLabel(x.idposicion_77)}</td>
+                        <td className="actions">
+                          <button type="button" className="btn-delete" onClick={() => setMontajes((p) => p.filter((_, j) => j !== i))} aria-label={`Quitar montaje ${neuLabel(x.idneumatico_77)}`}>🚫</button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </section>
 
-          <h4>Detalle llanta</h4>
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 8 }}>
-            <select className="form-select" value={selLla} onChange={(e) => setSelLla(e.target.value)} aria-label="Llanta">
-              <option value="">Llanta</option>
-              {llantas.map((l) => <option key={l.id_llanta_36} value={l.id_llanta_36}>{l.codigo_36 || l.descripcion_llanta_36}</option>)}
-            </select>
-            <select className="form-select" value={selDanoL} onChange={(e) => setSelDanoL(e.target.value)} aria-label="Daño llanta opcional">
-              <option value="">Daño (vacío = nueva)</option>
-              {danosLla.map((d) => <option key={d.iddano_llanta_75} value={d.iddano_llanta_75}>{d.codigo_75}</option>)}
-            </select>
-            <button type="button" className="btn-primary" onClick={() => {
-              if (!selLla) return;
-              setDetLlantas((p) => [...p, { idllanta_79: Number(selLla), iddano_llanta_79: selDanoL, observacion_79: '' }]);
-              setSelLla('');
-              setSelDanoL('');
-            }}>Agregar</button>
-          </div>
-          <ul>{detLlantas.map((x, i) => (
-            <li key={`l-${i}`}>{llantas.find((l) => l.id_llanta_36 === x.idllanta_79)?.descripcion_llanta_36 || x.idllanta_79}
-              <button type="button" onClick={() => setDetLlantas((p) => p.filter((_, j) => j !== i))}>Quitar</button>
-            </li>
-          ))}</ul>
+            <section className="tz-detalle" aria-labelledby="tz-rotacion-title">
+              <div className="tz-detalle-head">
+                <h4 id="tz-rotacion-title">2. Rotación (usado)</h4>
+                <span className="tz-detalle-count">{rotaciones.length} {rotaciones.length === 1 ? 'línea' : 'líneas'}</span>
+              </div>
+              <div className="tz-detalle-add tz-detalle-add--4">
+                <div className="form-group">
+                  <label htmlFor="tz-nr">Neumático</label>
+                  <SearchableSelect id="tz-nr" value={selNeuR} onChange={setSelNeuR} options={neuOptions} placeholder="Código..." emptyMessage="Sin neumáticos" />
+                </div>
+                <div className="form-group">
+                  <label htmlFor="tz-ori">Origen</label>
+                  <SearchableSelect id="tz-ori" value={selOri} onChange={setSelOri} options={posOptions} placeholder="Origen..." emptyMessage="Sin posiciones" />
+                </div>
+                <div className="form-group">
+                  <label htmlFor="tz-des">Destino</label>
+                  <SearchableSelect id="tz-des" value={selDes} onChange={setSelDes} options={posOptions} placeholder="Destino..." emptyMessage="Sin posiciones" />
+                </div>
+                <button type="button" className="btn-primary" onClick={addRotacion}>+ Agregar</button>
+              </div>
+              <div className="form-group">
+                <label htmlFor="tz-pat">Patrón (opcional)</label>
+                <SearchableSelect id="tz-pat" value={selPat} onChange={setSelPat} options={patronOptions} placeholder="Sin patrón..." emptyMessage="Sin patrones" />
+              </div>
+              <div className="table-container">
+                <table className="data-table">
+                  <thead>
+                    <tr><th>Neumático</th><th>Origen</th><th>Destino</th><th>Patrón</th><th>Acciones</th></tr>
+                  </thead>
+                  <tbody>
+                    {rotaciones.length === 0 ? (
+                      <tr><td colSpan={5} className="no-data">Sin líneas de rotación</td></tr>
+                    ) : rotaciones.map((x, i) => (
+                      <tr key={`r-${i}`}>
+                        <td>{neuLabel(x.idneumatico_78)}</td>
+                        <td>{posLabel(x.idposicion_origen_78)}</td>
+                        <td>{posLabel(x.idposicion_destino_78)}</td>
+                        <td>{patronLabel(x.idpatron_78)}</td>
+                        <td className="actions">
+                          <button type="button" className="btn-delete" onClick={() => setRotaciones((p) => p.filter((_, j) => j !== i))} aria-label={`Quitar rotación ${neuLabel(x.idneumatico_78)}`}>🚫</button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </section>
 
-          <h4>Detalle baja</h4>
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 8 }}>
-            <SearchableSelect id="tz-nb" value={selNeuB} onChange={setSelNeuB} options={neuOptions} placeholder="Neumático" emptyMessage="Sin neumáticos" />
-            <select className="form-select" value={selDanoN} onChange={(e) => setSelDanoN(e.target.value)} aria-label="Tipo daño neumático">
-              <option value="">Tipo de daño</option>
-              {danosNeu.map((d) => <option key={d.iddano_neumatico_74} value={d.iddano_neumatico_74}>{d.codigo_74}</option>)}
-            </select>
-            <button type="button" className="btn-primary" onClick={() => {
-              if (!selNeuB || !selDanoN) return;
-              setBajas((p) => [...p, { idneumatico_80: Number(selNeuB), iddano_neumatico_80: Number(selDanoN), observacion_80: '' }]);
-              setSelNeuB('');
-              setSelDanoN('');
-            }}>Agregar</button>
+            <section className="tz-detalle" aria-labelledby="tz-llanta-title">
+              <div className="tz-detalle-head">
+                <h4 id="tz-llanta-title">3. Llanta</h4>
+                <span className="tz-detalle-count">{detLlantas.length} {detLlantas.length === 1 ? 'línea' : 'líneas'}</span>
+              </div>
+              <div className="tz-detalle-add">
+                <div className="form-group">
+                  <label htmlFor="tz-lla">Llanta</label>
+                  <SearchableSelect id="tz-lla" value={selLla} onChange={setSelLla} options={llantaOptions} placeholder="Tipo llanta..." emptyMessage="Sin llantas" />
+                </div>
+                <div className="form-group">
+                  <label htmlFor="tz-dano-l">Daño (vacío = nueva)</label>
+                  <SearchableSelect id="tz-dano-l" value={selDanoL} onChange={setSelDanoL} options={danoLlantaOptions} placeholder="Sin daño..." emptyMessage="Sin tipos de daño" />
+                </div>
+                <button type="button" className="btn-primary" onClick={addLlanta}>+ Agregar</button>
+              </div>
+              <div className="table-container">
+                <table className="data-table">
+                  <thead>
+                    <tr><th>Llanta</th><th>Daño</th><th>Acciones</th></tr>
+                  </thead>
+                  <tbody>
+                    {detLlantas.length === 0 ? (
+                      <tr><td colSpan={3} className="no-data">Sin líneas de llanta</td></tr>
+                    ) : detLlantas.map((x, i) => (
+                      <tr key={`l-${i}`}>
+                        <td>{llantaLabel(x.idllanta_79)}</td>
+                        <td>{danoLlaLabel(x.iddano_llanta_79)}</td>
+                        <td className="actions">
+                          <button type="button" className="btn-delete" onClick={() => setDetLlantas((p) => p.filter((_, j) => j !== i))} aria-label={`Quitar llanta ${llantaLabel(x.idllanta_79)}`}>🚫</button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </section>
+
+            <section className="tz-detalle" aria-labelledby="tz-baja-title">
+              <div className="tz-detalle-head">
+                <h4 id="tz-baja-title">4. Baja</h4>
+                <span className="tz-detalle-count">{bajas.length} {bajas.length === 1 ? 'línea' : 'líneas'}</span>
+              </div>
+              <div className="tz-detalle-add">
+                <div className="form-group">
+                  <label htmlFor="tz-nb">Neumático</label>
+                  <SearchableSelect id="tz-nb" value={selNeuB} onChange={setSelNeuB} options={neuOptions} placeholder="Código..." emptyMessage="Sin neumáticos" />
+                </div>
+                <div className="form-group">
+                  <label htmlFor="tz-dano-n">Tipo de daño *</label>
+                  <SearchableSelect id="tz-dano-n" value={selDanoN} onChange={setSelDanoN} options={danoNeuOptions} placeholder="Daño..." emptyMessage="Sin tipos de daño" />
+                </div>
+                <button type="button" className="btn-primary" onClick={addBaja}>+ Agregar</button>
+              </div>
+              <div className="table-container">
+                <table className="data-table">
+                  <thead>
+                    <tr><th>Neumático</th><th>Daño</th><th>Acciones</th></tr>
+                  </thead>
+                  <tbody>
+                    {bajas.length === 0 ? (
+                      <tr><td colSpan={3} className="no-data">Sin líneas de baja</td></tr>
+                    ) : bajas.map((x, i) => (
+                      <tr key={`b-${i}`}>
+                        <td>{neuLabel(x.idneumatico_80)}</td>
+                        <td>{danoNeuLabel(x.iddano_neumatico_80)}</td>
+                        <td className="actions">
+                          <button type="button" className="btn-delete" onClick={() => setBajas((p) => p.filter((_, j) => j !== i))} aria-label={`Quitar baja ${neuLabel(x.idneumatico_80)}`}>🚫</button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </section>
           </div>
-          <ul>{bajas.map((x, i) => (
-            <li key={`b-${i}`}>{neuLabel(x.idneumatico_80)} / {danosNeu.find((d) => d.iddano_neumatico_74 === x.iddano_neumatico_80)?.codigo_74}
-              <button type="button" onClick={() => setBajas((p) => p.filter((_, j) => j !== i))}>Quitar</button>
-            </li>
-          ))}</ul>
         </form>
       )}
 
