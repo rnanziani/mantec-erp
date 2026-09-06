@@ -37,7 +37,7 @@ const TrazabilidadNeumaticoView: React.FC = () => {
   const [maquinas, setMaquinas] = useState<Array<{ idmaquina_11: number; numinterno_11?: string; ppu_11?: string }>>([]);
   const [trabajadores, setTrabajadores] = useState<Array<{ idtrabajador_06: number; nombre_06: string; apaterno_06?: string; amaterno_06?: string; ruttrabajador_06?: string }>>([]);
   const [tecnicos, setTecnicos] = useState<Array<{ id_tecnico_21: number; nombres_21: string; a_paterno_21?: string; a_materno_21?: string }>>([]);
-  const [neumaticos, setNeumaticos] = useState<Array<{ id_neumatico_31: number; cod_neumatico_31: string }>>([]);
+  const [neumaticos, setNeumaticos] = useState<Array<{ id_neumatico_31: number; cod_neumatico_31: string; marca_32?: string }>>([]);
   const [posiciones, setPosiciones] = useState<Array<{ idposicion_73: number; codigo_73: string; numero_73?: number | null }>>([]);
   const [patrones, setPatrones] = useState<Array<{ id_patron_35: number; codigo_patron_35: string }>>([]);
   const [llantas, setLlantas] = useState<Array<{ id_llanta_36: number; descripcion_llanta_36: string; codigo_36?: string }>>([]);
@@ -159,7 +159,11 @@ const TrazabilidadNeumaticoView: React.FC = () => {
     [trabajadores]
   );
   const neuOptions = useMemo(
-    () => neumaticos.map((n) => ({ value: String(n.id_neumatico_31), label: n.cod_neumatico_31 })),
+    () =>
+      neumaticos.map((n) => ({
+        value: String(n.id_neumatico_31),
+        label: n.marca_32 ? `${n.cod_neumatico_31} - ${n.marca_32}` : n.cod_neumatico_31,
+      })),
     [neumaticos]
   );
   const posOptions = useMemo(
@@ -340,6 +344,7 @@ const TrazabilidadNeumaticoView: React.FC = () => {
   };
 
   const neuLabel = (id: number) => neumaticos.find((n) => n.id_neumatico_31 === id)?.cod_neumatico_31 || String(id);
+  const neuMarca = (id: number) => neumaticos.find((n) => n.id_neumatico_31 === id)?.marca_32 || '—';
   const posLabel = (id: number) => posiciones.find((p) => p.idposicion_73 === id)?.codigo_73 || String(id);
   const llantaLabel = (id: number) => {
     const l = llantas.find((x) => x.id_llanta_36 === id);
@@ -520,14 +525,15 @@ const TrazabilidadNeumaticoView: React.FC = () => {
               <div className="table-container">
                 <table className="data-table">
                   <thead>
-                    <tr><th>Neumático</th><th>Posición</th><th>Acciones</th></tr>
+                    <tr><th>Neumático</th><th>Marca</th><th>Posición</th><th>Acciones</th></tr>
                   </thead>
                   <tbody>
                     {montajes.length === 0 ? (
-                      <tr><td colSpan={3} className="no-data">Sin líneas de montaje</td></tr>
+                      <tr><td colSpan={4} className="no-data">Sin líneas de montaje</td></tr>
                     ) : montajes.map((x, i) => (
                       <tr key={`m-${i}`}>
                         <td>{neuLabel(x.idneumatico_77)}</td>
+                        <td>{neuMarca(x.idneumatico_77)}</td>
                         <td>{posLabel(x.idposicion_77)}</td>
                         <td className="actions">
                           <button type="button" className="btn-delete" onClick={() => setMontajes((p) => p.filter((_, j) => j !== i))} aria-label={`Quitar montaje ${neuLabel(x.idneumatico_77)}`}>🚫</button>
@@ -566,14 +572,15 @@ const TrazabilidadNeumaticoView: React.FC = () => {
               <div className="table-container">
                 <table className="data-table">
                   <thead>
-                    <tr><th>Neumático</th><th>Origen</th><th>Destino</th><th>Patrón</th><th>Acciones</th></tr>
+                    <tr><th>Neumático</th><th>Marca</th><th>Origen</th><th>Destino</th><th>Patrón</th><th>Acciones</th></tr>
                   </thead>
                   <tbody>
                     {rotaciones.length === 0 ? (
-                      <tr><td colSpan={5} className="no-data">Sin líneas de rotación</td></tr>
+                      <tr><td colSpan={6} className="no-data">Sin líneas de rotación</td></tr>
                     ) : rotaciones.map((x, i) => (
                       <tr key={`r-${i}`}>
                         <td>{neuLabel(x.idneumatico_78)}</td>
+                        <td>{neuMarca(x.idneumatico_78)}</td>
                         <td>{posLabel(x.idposicion_origen_78)}</td>
                         <td>{posLabel(x.idposicion_destino_78)}</td>
                         <td>{patronLabel(x.idpatron_78)}</td>
@@ -644,14 +651,15 @@ const TrazabilidadNeumaticoView: React.FC = () => {
               <div className="table-container">
                 <table className="data-table">
                   <thead>
-                    <tr><th>Neumático</th><th>Daño</th><th>Acciones</th></tr>
+                    <tr><th>Neumático</th><th>Marca</th><th>Daño</th><th>Acciones</th></tr>
                   </thead>
                   <tbody>
                     {bajas.length === 0 ? (
-                      <tr><td colSpan={3} className="no-data">Sin líneas de baja</td></tr>
+                      <tr><td colSpan={4} className="no-data">Sin líneas de baja</td></tr>
                     ) : bajas.map((x, i) => (
                       <tr key={`b-${i}`}>
                         <td>{neuLabel(x.idneumatico_80)}</td>
+                        <td>{neuMarca(x.idneumatico_80)}</td>
                         <td>{danoNeuLabel(x.iddano_neumatico_80)}</td>
                         <td className="actions">
                           <button type="button" className="btn-delete" onClick={() => setBajas((p) => p.filter((_, j) => j !== i))} aria-label={`Quitar baja ${neuLabel(x.idneumatico_80)}`}>🚫</button>

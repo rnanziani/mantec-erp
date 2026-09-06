@@ -115,7 +115,7 @@ const TipoDanoCatalogoView: React.FC<{ kind: Kind }> = ({ kind }) => {
     const res = await apiFetch(editingId ? `${API_URL}/${editingId}` : API_URL, {
       method: editingId ? 'PUT' : 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(cfg.body(codigo.trim(), descripcion.trim(), activo)),
+      body: JSON.stringify(cfg.body(codigo.trim().toUpperCase(), descripcion.trim().toUpperCase(), activo)),
     });
     const data: ApiResponse = await res.json();
     if (data.success) {
@@ -152,7 +152,11 @@ const TipoDanoCatalogoView: React.FC<{ kind: Kind }> = ({ kind }) => {
             style={{ backgroundColor: '#17a2b8' }}
             onClick={() =>
               exportToExcel(
-                filtered.map((p) => ({ Código: p.codigo, Descripción: p.descripcion, Activo: p.activo ? 'Sí' : 'No' })),
+                filtered.map((p) => ({
+                  Código: p.codigo.toUpperCase(),
+                  Descripción: p.descripcion.toUpperCase(),
+                  Activo: p.activo ? 'SÍ' : 'NO',
+                })),
                 cfg.exportName,
                 cfg.title
               )
@@ -169,11 +173,27 @@ const TipoDanoCatalogoView: React.FC<{ kind: Kind }> = ({ kind }) => {
           <form ref={formRef} onSubmit={handleSave}>
             <div className="form-group">
               <label htmlFor={`dano-cod-${kind}`}>Código *</label>
-              <input id={`dano-cod-${kind}`} className="form-input" value={codigo} onChange={(e) => setCodigo(e.target.value)} required />
+              <input
+                id={`dano-cod-${kind}`}
+                className="form-input"
+                value={codigo}
+                onChange={(e) => setCodigo(e.target.value.toUpperCase())}
+                required
+                autoComplete="off"
+                style={{ textTransform: 'uppercase' }}
+              />
             </div>
             <div className="form-group">
               <label htmlFor={`dano-desc-${kind}`}>Descripción *</label>
-              <input id={`dano-desc-${kind}`} className="form-input" value={descripcion} onChange={(e) => setDescripcion(e.target.value)} required />
+              <input
+                id={`dano-desc-${kind}`}
+                className="form-input"
+                value={descripcion}
+                onChange={(e) => setDescripcion(e.target.value.toUpperCase())}
+                required
+                autoComplete="off"
+                style={{ textTransform: 'uppercase' }}
+              />
             </div>
             <label>
               <input type="checkbox" checked={activo} onChange={(e) => setActivo(e.target.checked)} /> Activo
@@ -195,14 +215,14 @@ const TipoDanoCatalogoView: React.FC<{ kind: Kind }> = ({ kind }) => {
                 <tr><td colSpan={4} className="no-data">Sin registros</td></tr>
               ) : pageItems.map((p) => (
                 <tr key={p.id}>
-                  <td><strong>{p.codigo}</strong></td>
-                  <td>{p.descripcion}</td>
-                  <td>{p.activo ? 'Sí' : 'No'}</td>
+                  <td><strong>{p.codigo.toUpperCase()}</strong></td>
+                  <td>{p.descripcion.toUpperCase()}</td>
+                  <td>{p.activo ? 'SÍ' : 'NO'}</td>
                   <td className="actions">
                     <button type="button" className="btn-edit" aria-label={`Editar ${p.codigo}`} onClick={() => {
                       setEditingId(p.id);
-                      setCodigo(p.codigo);
-                      setDescripcion(p.descripcion);
+                      setCodigo(p.codigo.toUpperCase());
+                      setDescripcion(p.descripcion.toUpperCase());
                       setActivo(p.activo);
                       setShowForm(true);
                     }}>✏️</button>
