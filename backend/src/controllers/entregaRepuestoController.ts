@@ -51,6 +51,9 @@ const DETALLE_SELECT = `
     rd.nombre_57 AS repuesto_nombre,
     dr.cantidad_60,
     mr.folio_59 AS folio_recepcion,
+    maq.numinterno_11 AS maquina_numinterno,
+    maq.ppu_11 AS maquina_ppu,
+    maq.descripcion_11 AS maquina_descripcion,
     m.folio_63 AS folio_entrega,
     m.fecha_entrega_63,
     m.hora_63,
@@ -73,6 +76,7 @@ const DETALLE_SELECT = `
   INNER JOIN ${TABLA_REC_D} dr ON d.iddetalle_recepcion_64 = dr.iddetalle_60
   INNER JOIN tbl_57_repuesto_danado rd ON dr.idrepuestodanado_60 = rd.idrepuestodanado_57
   INNER JOIN tbl_59_m_recepcion_repuesto mr ON dr.idrecepcion_60 = mr.idrecepcion_59
+  INNER JOIN tbl_11_maquina maq ON maq.idmaquina_11 = mr.idmaquina_59
   INNER JOIN tbl_08_responsable_entrega resp ON m.idresponsable_63 = resp.idresponsableentrega_08
   INNER JOIN tbl_58_proveedor prov ON m.idproveedor_63 = prov.idproveedor_58
   LEFT JOIN LATERAL (

@@ -21,6 +21,9 @@ interface LineaGrid {
   hora_63?: string;
   responsable_nombre?: string;
   proveedor_nombre?: string;
+  maquina_numinterno?: string;
+  maquina_ppu?: string;
+  maquina_descripcion?: string;
   dias_transcurridos?: number;
   semaforo_color?: string | null;
   semaforo_nombre?: string | null;
@@ -161,7 +164,10 @@ const EntregaRepuestoView: React.FC = () => {
         (r.repuesto_codigo || '').toLowerCase().includes(q) ||
         (r.repuesto_nombre || '').toLowerCase().includes(q) ||
         (r.proveedor_nombre || '').toLowerCase().includes(q) ||
-        (r.responsable_nombre || '').toLowerCase().includes(q)
+        (r.responsable_nombre || '').toLowerCase().includes(q) ||
+        String(r.maquina_numinterno || '').toLowerCase().includes(q) ||
+        String(r.maquina_ppu || '').toLowerCase().includes(q) ||
+        String(r.maquina_descripcion || '').toLowerCase().includes(q)
     );
   }, [lineas, searchTerm]);
 
@@ -616,7 +622,7 @@ const EntregaRepuestoView: React.FC = () => {
         <input
           type="search"
           className="form-input"
-          placeholder="🔍 BUSCAR POR FOLIO, REPUESTO, PROVEEDOR..."
+              placeholder="🔍 BUSCAR POR FOLIO, REPUESTO, MÁQUINA, PROVEEDOR..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value.toUpperCase())}
           aria-label="Buscar entregas"
@@ -629,6 +635,7 @@ const EntregaRepuestoView: React.FC = () => {
             <tr>
               <th>Folio entrega</th>
               <th>Repuesto</th>
+              <th>Máquina</th>
               <th>Cant.</th>
               <th>Responsable</th>
               <th>Proveedor</th>
@@ -643,7 +650,7 @@ const EntregaRepuestoView: React.FC = () => {
           <tbody>
             {pageItems.length === 0 ? (
               <tr>
-                <td colSpan={11}>No hay registros</td></tr>
+                <td colSpan={12}>No hay registros</td></tr>
             ) : (
               pageItems.map((t) => (
                 <tr
@@ -659,6 +666,11 @@ const EntregaRepuestoView: React.FC = () => {
                   </td>
                   <td>
                     <strong>{t.repuesto_codigo || '-'}</strong> {t.repuesto_nombre}
+                  </td>
+                  <td>
+                    {t.maquina_numinterno || t.maquina_ppu
+                      ? `${t.maquina_numinterno || '—'} — ${t.maquina_ppu || ''}`.trim()
+                      : '—'}
                   </td>
                   <td>{t.cantidad_60 ?? '-'}</td>
                   <td>{t.responsable_nombre}</td>
