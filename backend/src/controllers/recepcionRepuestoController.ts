@@ -48,7 +48,15 @@ const MAESTRO_SELECT = `
       FROM ${TABLA_D} d
       INNER JOIN tbl_57_repuesto_danado rd ON d.idrepuestodanado_60 = rd.idrepuestodanado_57
       WHERE d.idrecepcion_60 = m.idrecepcion_59
-    ) AS repuestos_resumen
+    ) AS repuestos_resumen,
+    (
+      SELECT CASE
+        WHEN COUNT(*) FILTER (WHERE d.estado_60 = 'PENDIENTE') > 0 THEN 'PENDIENTE'
+        ELSE 'TERMINADO'
+      END
+      FROM ${TABLA_D} d
+      WHERE d.idrecepcion_60 = m.idrecepcion_59
+    ) AS estado_resumen
   FROM ${TABLA_M} m
   INNER JOIN tbl_11_maquina ma ON m.idmaquina_59 = ma.idmaquina_11
   INNER JOIN tbl_21_tecnico t ON m.idtecnico_59 = t.id_tecnico_21

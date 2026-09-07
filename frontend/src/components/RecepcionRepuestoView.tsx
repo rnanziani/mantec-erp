@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import './BodegaView.css';
+import './RecepcionRepuestoView.css';
 import Pagination from './shared/Pagination';
 import SearchableSelect from './shared/SearchableSelect';
 import { showDeleteConfirm, showError, showSuccess } from '../utils/swal';
@@ -21,6 +22,7 @@ interface Maestro {
   responsable_nombre?: string;
   proveedor_nombre?: string;
   repuestos_resumen?: string | null;
+  estado_resumen?: 'PENDIENTE' | 'TERMINADO' | string;
 }
 
 interface DetalleLinea {
@@ -66,6 +68,7 @@ const RecepcionRepuestoView: React.FC = () => {
   const [filtroRepuesto, setFiltroRepuesto] = useState('');
   const [filtroTecnico, setFiltroTecnico] = useState('');
   const [filtroProveedor, setFiltroProveedor] = useState('');
+  const [filtroEstado, setFiltroEstado] = useState<'PENDIENTE' | 'TERMINADO' | ''>('PENDIENTE');
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
 
@@ -236,6 +239,7 @@ const RecepcionRepuestoView: React.FC = () => {
       if (filtroMaquina && String(r.idmaquina_59) !== filtroMaquina) return false;
       if (filtroTecnico && String(r.idtecnico_59) !== filtroTecnico) return false;
       if (filtroProveedor && String(r.idproveedor_59) !== filtroProveedor) return false;
+      if (filtroEstado && (r.estado_resumen || 'PENDIENTE') !== filtroEstado) return false;
       if (repuestoSelOpt) {
         const resumen = (r.repuestos_resumen || '').toLowerCase();
         const codigo = (repuestoSelOpt.codigo_57 || '').toLowerCase();
@@ -264,6 +268,7 @@ const RecepcionRepuestoView: React.FC = () => {
     filtroMaquina,
     filtroTecnico,
     filtroProveedor,
+    filtroEstado,
     filtroRepuesto,
     repuestos,
   ]);
@@ -281,6 +286,7 @@ const RecepcionRepuestoView: React.FC = () => {
     filtroRepuesto,
     filtroTecnico,
     filtroProveedor,
+    filtroEstado,
   ]);
 
   const limpiarFiltros = () => {
@@ -291,6 +297,7 @@ const RecepcionRepuestoView: React.FC = () => {
     setFiltroRepuesto('');
     setFiltroTecnico('');
     setFiltroProveedor('');
+    setFiltroEstado('');
   };
 
   const resetForm = () => {
@@ -697,6 +704,20 @@ const RecepcionRepuestoView: React.FC = () => {
             aria-label="Filtrar por técnico"
           />
         </div>
+        <div className="form-group" style={{ margin: 0, flex: '0 1 200px', minWidth: 180 }}>
+          <label htmlFor="filtro_estado">Estado</label>
+          <select
+            id="filtro_estado"
+            className="form-input"
+            value={filtroEstado}
+            onChange={(e) => setFiltroEstado(e.target.value as 'PENDIENTE' | 'TERMINADO' | '')}
+            aria-label="Filtrar por estado de la recepción"
+          >
+            <option value="PENDIENTE">Pendientes</option>
+            <option value="TERMINADO">Terminados</option>
+            <option value="">Todos</option>
+          </select>
+        </div>
         <div className="form-group" style={{ margin: 0, flex: '1 1 272px', minWidth: 272 }}>
           <label htmlFor="filtro_proveedor">Proveedor</label>
           <SearchableSelect
@@ -737,6 +758,7 @@ const RecepcionRepuestoView: React.FC = () => {
               <th>Fecha</th>
               <th>Máquina</th>
               <th>Repuesto dañado</th>
+              <th>Estado</th>
               <th>Técnico</th>
               <th>Proveedor</th>
               <th>Responsable</th>
@@ -745,15 +767,19 @@ const RecepcionRepuestoView: React.FC = () => {
           </thead>
           <tbody>
             {pageItems.length === 0 ? (
-              <tr><td colSpan={9}>No hay recepciones</td></tr>
+              <tr><td colSpan={10}>No hay recepciones</td></tr>
             ) : (
               pageItems.map((r) => (
-                <tr key={r.idrecepcion_59}>
+                <tr
+                  key={r.idrecepcion_59}
+                  className={r.estado_resumen === 'TERMINADO' ? 'recepcion-row--terminado' : 'recepcion-row--pendiente'}
+                >
                   <td>{r.idrecepcion_59}</td>
                   <td><strong>{r.folio_59 || '-'}</strong></td>
                   <td>{String(r.fecha_59).slice(0, 10)} {String(r.hora_59).slice(0, 5)}</td>
                   <td>{r.maquina_numinterno || r.idmaquina_59} — {r.maquina_descripcion || ''}</td>
                   <td>{r.repuestos_resumen || '—'}</td>
+                  <td className="recepcion-estado">{r.estado_resumen === 'TERMINADO' ? 'Terminado' : 'Pendiente'}</td>
                   <td>{r.tecnico_nombre || '-'}</td>
                   <td>{r.proveedor_nombre || '-'}</td>
                   <td>{r.responsable_nombre || '-'}</td>

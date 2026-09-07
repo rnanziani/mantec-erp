@@ -1,0 +1,12 @@
+.recepcion-row--pendiente {
+  background-color: #fdecef;
+}
+
+.recepcion-row--terminado {
+  background-color: #e7f6ec;
+}
+
+.recepcion-estado {
+  font-weight: 600;
+  white-space: nowrap;
+}
