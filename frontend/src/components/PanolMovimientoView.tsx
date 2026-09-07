@@ -4,7 +4,7 @@ import './PanolMovimientoView.css';
 import Pagination from './shared/Pagination';
 import SignaturePad from './shared/SignaturePad';
 import SearchableSelect from './shared/SearchableSelect';
-import { showDeleteConfirm, showError, showSuccess, showTipoMovimientoPanol } from '../utils/swal';
+import { showDeleteConfirm, showError, showInfo, showSuccess, showTipoMovimientoPanol } from '../utils/swal';
 import { filtrarTrabajadoresPorApellido } from '../utils/trabajadorSearch';
 import { apiFetch, apiUrl } from '../lib/apiClient';
 
@@ -154,6 +154,8 @@ const PanolMovimientoView: React.FC = () => {
   const [origenSalidaId, setOrigenSalidaId] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
   const savingRef = useRef(false);
+  const [devolviendoId, setDevolviendoId] = useState<number | null>(null);
+  const devolviendoRef = useRef(false);
 
   const dedupeMovimientos = (rows: MaestroPanol[]) => {
     const seen = new Set<number>();
@@ -448,6 +450,9 @@ const PanolMovimientoView: React.FC = () => {
    * precargado (trabajador, responsable, herramientas). Firmas nuevas obligatorias.
    */
   const startDevolucionDesdeSalida = async (idSalida: number) => {
+    if (devolviendoRef.current) return;
+    devolviendoRef.current = true;
+    setDevolviendoId(idSalida);
     try {
       const res = await apiFetch(`${API_URL}/${idSalida}`);
       const data: ApiResponse<{
@@ -507,9 +512,9 @@ const PanolMovimientoView: React.FC = () => {
       });
 
       if (!lineasPendientes.length) {
-        await showError(
-          'Sin pendiente',
-          `El préstamo ${maestro.folio_49 || ''} ya no tiene unidades por devolver. Si alguna herramienta seguía PRESTADA sin saldo, el catálogo se corrigió: recargue el listado.`
+        await showInfo(
+          'Préstamo ya cerrado',
+          `El préstamo ${maestro.folio_49 || ''} no tiene unidades pendientes. El listado se actualizó; no es necesario volver a devolver.`
         );
         await fetchAll();
         return;
@@ -545,6 +550,9 @@ const PanolMovimientoView: React.FC = () => {
       formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     } catch {
       await showError('Error', 'Error de conexión al cargar el préstamo');
+    } finally {
+      devolviendoRef.current = false;
+      setDevolviendoId(null);
     }
   };
 
@@ -681,11 +689,21 @@ const PanolMovimientoView: React.FC = () => {
         method: editingId ? 'PUT' : 'POST',
         body: JSON.stringify(payload),
       });
-      const data: ApiResponse = await res.json();
+      const data: ApiResponse<MaestroPanol> = await res.json();
       if (data.success) {
+        const folioNuevo = data.data?.folio_49 || '';
+        const folioOrigen = origenSalidaFolio;
+        const esDevolucion = tipo === 'DEVOLUCION';
         await fetchAll();
         resetForm();
-        await showSuccess(editingId ? 'Actualizado' : 'Creado', data.message || 'OK');
+        await showSuccess(
+          esDevolucion ? 'Devolución registrada' : editingId ? 'Actualizado' : 'Préstamo registrado',
+          data.message ||
+            (esDevolucion
+              ? `Folio ${folioNuevo}${folioOrigen ? ` (préstamo ${folioOrigen})` : ''}. No vuelva a pulsar Devolver.`
+              : 'OK'),
+          0
+        );
       } else {
         await showError(
           'Error',
@@ -1243,12 +1261,15 @@ const PanolMovimientoView: React.FC = () => {
                       <button
                         type="button"
                         className="btn-devolver"
+                        disabled={devolviendoId === m.idmpanol_49}
                         onClick={() => startDevolucionDesdeSalida(m.idmpanol_49)}
                         title="Generar devolución desde este préstamo"
                         aria-label={`Devolver herramientas de ${m.folio_49 || m.idmpanol_49}`}
                       >
                         <span aria-hidden="true">↩️</span>
-                        <span className="btn-devolver-label">Devolver</span>
+                        <span className="btn-devolver-label">
+                          {devolviendoId === m.idmpanol_49 ? 'Revisando...' : 'Devolver'}
+                        </span>
                       </button>
                     )}
                     <button

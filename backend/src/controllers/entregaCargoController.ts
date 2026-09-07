@@ -274,10 +274,11 @@ export const createEntregaCargo = async (req: Request, res: Response): Promise<v
       `${MAESTRO_SELECT} WHERE m.identrega_67 = $1`,
       [idMaestro]
     );
+    const creado = maestro.rows[0];
     res.status(201).json({
       success: true,
-      data: maestro.rows[0],
-      message: 'Entrega a cargo creada',
+      data: creado,
+      message: `Entrega ${creado.folio_67 || ''} registrada. La herramienta quedó a cargo del trabajador. No vuelva a guardar el mismo registro.`,
     });
   } catch (error) {
     await client.query('ROLLBACK');

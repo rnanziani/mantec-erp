@@ -85,6 +85,7 @@ const ESTADOS_DEV = ['BUENA', 'REGULAR', 'DANADA', 'PERDIDA'] as const;
 
 const EntregaCargoView: React.FC = () => {
   const formRef = React.useRef<HTMLFormElement>(null);
+  const savingRef = React.useRef(false);
   const [registros, setRegistros] = useState<Maestro[]>([]);
   const [herramientas, setHerramientas] = useState<HerramientaCargo[]>([]);
   const [trabajadores, setTrabajadores] = useState<Trabajador[]>([]);
@@ -261,6 +262,7 @@ const EntregaCargoView: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (savingRef.current) return;
     if (!idTrabajador || !idResponsable || !idCcosto) {
       await showError('Validación', 'Trabajador, responsable y centro de costo son obligatorios');
       return;
@@ -269,6 +271,7 @@ const EntregaCargoView: React.FC = () => {
       await showError('Validación', 'Agregue al menos una herramienta');
       return;
     }
+    savingRef.current = true;
     setSaving(true);
     try {
       const res = await apiFetch(API_URL, {
@@ -287,17 +290,25 @@ const EntregaCargoView: React.FC = () => {
           })),
         }),
       });
-      const data: ApiResponse = await res.json();
+      const data: ApiResponse<Maestro> = await res.json();
       if (data.success) {
-        await fetchAll();
+        const folio = data.data?.folio_67 || '';
+        const items = detalles.map((d) => d.label).join(', ');
+        const trabajador = trabajadorOptions.find((t) => t.value === idTrabajador)?.label || 'el trabajador';
+        await showSuccess(
+          'Herramienta asignada correctamente',
+          `Folio ${folio}: ${items} quedó a cargo de ${trabajador}. Ya no es necesario volver a guardar este mismo registro.`,
+          0
+        );
         resetForm();
-        await showSuccess('Entrega creada', data.message || 'OK');
+        await fetchAll();
       } else {
         await showError('Error', data.error || 'No se pudo crear');
       }
     } catch {
       await showError('Error', 'Error de conexión');
     } finally {
+      savingRef.current = false;
       setSaving(false);
     }
   };
@@ -427,7 +438,7 @@ const EntregaCargoView: React.FC = () => {
             + Nueva entrega
           </button>
           <button type="button" className="btn-success" disabled={!showForm || saving} onClick={() => formRef.current?.requestSubmit()}>
-            Guardar
+            {saving ? 'Guardando...' : 'Guardar'}
           </button>
           <button type="button" className="btn-info" onClick={handleExport}>Excel</button>
           <button type="button" className="btn-secondary" onClick={() => { window.location.hash = 'dashboard'; }}>

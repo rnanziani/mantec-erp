@@ -29,8 +29,9 @@ export const showSuccess = (title: string, message?: string, timer: number = 300
     icon: 'success',
     title,
     text: message,
-    timer,
-    timerProgressBar: true,
+    ...(timer > 0
+      ? { timer, timerProgressBar: true }
+      : { timer: undefined, timerProgressBar: false }),
     showConfirmButton: true,
     confirmButtonText: 'Aceptar'
   });
