@@ -1,5 +1,15 @@
--- Versión vigente (misma que fix_trigger_stock_baja_maquina.sql).
--- Ejecutar en local y Render (Alt+X).
+-- Baja desde máquina:
+-- el componente instalado NO está en tbl_26 (ubicación Máquina = 0),
+-- aunque el mismo código ya tenga stock en Bodega / Oficina.
+-- Ese movimiento solo suma +1 en destino (ingreso al ciclo de reparación).
+--
+-- Ciclo esperado:
+--   Máquina → Bodega (defectuoso)
+--   Bodega → Taller (a reparar)
+--   Taller → Bodega (reparado)
+--   Bodega → Máquina (reparado)
+--
+-- Ejecutar en local y Render (Alt+X). GitHub no aplica este trigger.
 
 CREATE OR REPLACE FUNCTION public.actualizar_stock_despues_de_transaccion()
 RETURNS trigger
@@ -23,6 +33,7 @@ BEGIN
       USING ERRCODE = 'P0001';
   END IF;
 
+  -- Entrada (+1): ingresar unidad en destino sin descontar origen
   IF v_valor = 1 THEN
     UPDATE public.tbl_26_existencia
     SET cantidad_26 = cantidad_26 + 1.00,
@@ -43,6 +54,7 @@ BEGIN
   FROM public.tbl_26_existencia
   WHERE id_alternador_26 = NEW.id_alternador_28;
 
+  -- Alta inicial: el alternador aún no existe en inventario (stock total 0)
   IF v_stock_total < 1 THEN
     UPDATE public.tbl_26_existencia
     SET cantidad_26 = cantidad_26 + 1.00,
@@ -63,6 +75,7 @@ BEGIN
   FROM public.tbl_27_ubicacion
   WHERE id_ubicacion_27 = NEW.id_ubicacion_origen_28;
 
+  -- Baja desde Máquina: no hay fila (o hay 0) en esa ubicación
   IF v_origen_norm IN ('MAQUINA', 'MAQUINAS') THEN
     SELECT cantidad_26
       INTO v_stock_origen
@@ -87,6 +100,7 @@ BEGIN
     END IF;
   END IF;
 
+  -- Salida (-1) o traslado (0) con inventario en origen
   SELECT cantidad_26
     INTO v_stock_origen
   FROM public.tbl_26_existencia

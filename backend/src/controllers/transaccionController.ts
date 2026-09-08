@@ -194,9 +194,24 @@ export const createTransaccion = async (req: Request, res: Response): Promise<vo
 
     const valorAccion = Number(tipoRes.rows[0].valor_accion_25);
     // Entradas (+1) no descuentan origen; salidas/traslados sí requieren stock,
-    // salvo alta inicial: el alternador no tiene existencias en ninguna ubicación
-    // (recién creado, baja defectuoso de máquina).
+    // salvo: (1) alta inicial (0 en todas las ubicaciones) o
+    // (2) baja desde Máquina: el componente instalado no está en tbl_26,
+    // aunque el mismo código tenga unidades en Bodega/Oficina.
     let requiereStockOrigen = valorAccion !== 1;
+
+    const origenLocRes = await pool.query<{
+      descripcion_27: string;
+      origen_norm: string;
+    }>(
+      `SELECT descripcion_27,
+              translate(upper(trim(descripcion_27)), 'ÁÉÍÓÚÜ', 'AEIOUU') AS origen_norm
+       FROM tbl_27_ubicacion
+       WHERE id_ubicacion_27 = $1`,
+      [id_ubicacion_origen_28]
+    );
+    const origenNorm = origenLocRes.rows[0]?.origen_norm || '';
+    const origenEsMaquina = origenNorm === 'MAQUINA' || origenNorm === 'MAQUINAS';
+    let esBajaMaquina = false;
 
     if (requiereStockOrigen) {
       const totalRes = await pool.query<{ total: string | number }>(
@@ -208,6 +223,30 @@ export const createTransaccion = async (req: Request, res: Response): Promise<vo
       const stockTotal = Number(totalRes.rows[0]?.total || 0);
       if (stockTotal < 1) {
         requiereStockOrigen = false;
+      }
+    }
+
+    if (requiereStockOrigen && origenEsMaquina) {
+      const stockMaqRes = await pool.query<{ cantidad_26: string | number }>(
+        `SELECT cantidad_26
+         FROM tbl_26_existencia
+         WHERE id_alternador_26 = $1 AND id_ubicacion_26 = $2`,
+        [id_alternador_28, id_ubicacion_origen_28]
+      );
+      const stockMaquina = stockMaqRes.rows[0] ? Number(stockMaqRes.rows[0].cantidad_26) : 0;
+      if (stockMaquina < 1) {
+        if (!id_maquina_28) {
+          const response: ApiResponse<null> = {
+            success: false,
+            error: 'Seleccione la máquina',
+            message:
+              'Para ingresar un alternador que baja de máquina (mal estado), indique de qué máquina proviene. No se descuenta stock de la ubicación Máquina; la unidad entra al ciclo en el destino (Bodega o Taller).'
+          };
+          res.status(400).json(response);
+          return;
+        }
+        requiereStockOrigen = false;
+        esBajaMaquina = true;
       }
     }
 
@@ -303,7 +342,9 @@ export const createTransaccion = async (req: Request, res: Response): Promise<vo
     const response: ApiResponse<Transaccion> = {
       success: true,
       data: result.rows[0],
-      message: 'Transacción creada exitosamente'
+      message: esBajaMaquina
+        ? 'Alternador ingresado al ciclo desde la máquina. Siguiente paso: Bodega → Taller (reparar), Taller → Bodega (reparado) y Bodega → Máquina (reparado).'
+        : 'Transacción creada exitosamente'
     };
 
     res.status(201).json(response);

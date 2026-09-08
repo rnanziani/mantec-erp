@@ -209,6 +209,14 @@ const TransaccionView: React.FC = () => {
     [ubicaciones]
   );
 
+  const esNombreMaquina = (nombre?: string) =>
+    /maquinas?/i.test(String(nombre || '').normalize('NFD').replace(/[\u0300-\u036f]/g, ''));
+
+  const origenEsMaquina = useMemo(() => {
+    const u = ubicaciones.find((x) => String(x.id_ubicacion_27) === idUbicacionOrigen);
+    return esNombreMaquina(u?.descripcion_27);
+  }, [ubicaciones, idUbicacionOrigen]);
+
   const fetchTiposTransaccion = async () => {
     try {
       const response = await fetch(TIPOS_URL);
@@ -343,6 +351,14 @@ const TransaccionView: React.FC = () => {
       return;
     }
 
+    if (origenEsMaquina && !idMaquina) {
+      await showError(
+        'Validación',
+        'Si el origen es Máquina, seleccione de qué máquina baja el alternador. No se exige stock en esa ubicación: la unidad entra al ciclo en el destino.'
+      );
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -365,7 +381,7 @@ const TransaccionView: React.FC = () => {
       const data: ApiResponse = await response.json();
 
       if (data.success) {
-        await showSuccess('¡Éxito!', data.message || 'Transacción creada exitosamente');
+        await showSuccess('¡Éxito!', data.message || 'Transacción creada exitosamente', 0);
         await fetchTransacciones();
         resetForm();
       } else {
@@ -796,6 +812,10 @@ const TransaccionView: React.FC = () => {
                     </option>
                   ))}
                 </select>
+                <small style={{ color: '#334155', fontSize: '0.85em', display: 'block', marginTop: '8px' }}>
+                  Ciclo de reparación: Máquina → Bodega (malo) → Taller → Bodega (reparado) → Máquina.
+                  Si baja de máquina, no se exige stock en Máquina; elija la máquina y el destino (Bodega).
+                </small>
               </div>
             </div>
 
@@ -857,7 +877,7 @@ const TransaccionView: React.FC = () => {
             </div>
 
               <div className="form-group">
-              <label>Seleccionar Máquina (opcional)</label>
+              <label>Seleccionar Máquina {origenEsMaquina ? '*' : '(opcional)'}</label>
               <div style={{ 
                   maxHeight: '150px', 
                 overflowY: 'auto', 
