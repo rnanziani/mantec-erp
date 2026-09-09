@@ -72,6 +72,9 @@ import TrazabilidadNeumaticoView from './components/TrazabilidadNeumaticoView';
 import DuracionNeumaticoView from './components/DuracionNeumaticoView';
 import DanosConductorNeumaticoView from './components/DanosConductorNeumaticoView';
 import ReportesRepuestoDanadoView from './components/ReportesRepuestoDanadoView';
+import UnidadRepuestoView from './components/UnidadRepuestoView';
+import MovimientoRepuestoView from './components/MovimientoRepuestoView';
+import ExistenciaRepuestoView from './components/ExistenciaRepuestoView';
 import { useUserPermissions } from './hooks/useUserPermissions';
 import SessionInactivityModal from './components/SessionInactivityModal';
 import SessionExpiredModal from './components/SessionExpiredModal';
@@ -208,6 +211,9 @@ function App() {
     'lubricantes': 'MENU_LUBRICANTES_CATALOGO',
     'consumos-lubricante': 'MENU_LUBRICANTES_CONSUMO',
     'repuestos-danados': 'MENU_REPUESTOS_DANADOS_CATALOGO',
+    'unidades-repuesto': 'MENU_REPUESTOS_DANADOS_UNIDAD',
+    'movimientos-repuesto': 'MENU_REPUESTOS_DANADOS_MOVIMIENTO',
+    'existencias-repuesto': 'MENU_REPUESTOS_DANADOS_STOCK',
     'proveedores-reparacion': 'MENU_REPUESTOS_DANADOS_PROVEEDOR',
     'recepcion-repuestos': 'MENU_REPUESTOS_DANADOS_RECEPCION',
     'entrega-repuestos': 'MENU_REPUESTOS_DANADOS_ENTREGA',
@@ -535,6 +541,13 @@ function App() {
           {currentView === 'lubricantes' && hasRouteAccess('lubricantes') && <LubricanteView />}
           {currentView === 'consumos-lubricante' && hasRouteAccess('consumos-lubricante') && <ConsumoLubricanteView />}
           {currentView === 'repuestos-danados' && hasRouteAccess('repuestos-danados') && <RepuestoDanadoView />}
+          {currentView === 'unidades-repuesto' && hasRouteAccess('unidades-repuesto') && <UnidadRepuestoView />}
+          {currentView === 'movimientos-repuesto' && hasRouteAccess('movimientos-repuesto') && (
+            <MovimientoRepuestoView />
+          )}
+          {currentView === 'existencias-repuesto' && hasRouteAccess('existencias-repuesto') && (
+            <ExistenciaRepuestoView />
+          )}
           {currentView === 'proveedores-reparacion' && hasRouteAccess('proveedores-reparacion') && <ProveedorView />}
           {currentView === 'recepcion-repuestos' && hasRouteAccess('recepcion-repuestos') && <RecepcionRepuestoView />}
           {currentView === 'entrega-repuestos' && hasRouteAccess('entrega-repuestos') && <EntregaRepuestoView />}

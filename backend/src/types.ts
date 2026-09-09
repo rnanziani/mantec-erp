@@ -2188,3 +2188,100 @@ export interface UpdateConsumoLubricanteDTO {
     observacion_72?: string | null;
   }>;
 }
+
+// ============================================
+// UNIDAD REPUESTO DAÑADO — tbl_81..tbl_85
+// ============================================
+
+export interface UnidadRepuesto {
+  idunidad_81: number;
+  codigo_81: string;
+  idrepuesto_81: number;
+  observacion_81?: string | null;
+  activo_81: boolean;
+  creado_en?: string | Date;
+  actualizado_en?: string | Date;
+  codigo_tipo_57?: string;
+  nombre_tipo_57?: string;
+  ubicacion_actual?: string | null;
+  maquina_actual?: string | null;
+  proveedor_actual?: string | null;
+}
+
+export interface CreateUnidadRepuestoDTO {
+  idrepuesto_81: number;
+  observacion_81?: string | null;
+  activo_81?: boolean;
+}
+
+export interface UpdateUnidadRepuestoDTO {
+  idrepuesto_81?: number;
+  observacion_81?: string | null;
+  activo_81?: boolean;
+}
+
+export interface UbicacionRepuesto {
+  idubicacion_82: number;
+  codigo_82: string;
+  descripcion_82: string;
+  activo_82: boolean;
+}
+
+export interface TipoMovimientoRepuesto {
+  idtipo_83: number;
+  codigo_83: string;
+  descripcion_83: string;
+  valor_accion_83: number;
+  codigo_origen_83: string;
+  codigo_destino_83: string;
+  activo_83: boolean;
+}
+
+export interface MovimientoRepuesto {
+  idmovimiento_84: number;
+  idunidad_84: number;
+  idubicacion_origen_84: number;
+  idubicacion_destino_84: number;
+  idtipo_84: number;
+  idtecnico_84?: number | null;
+  idmaquina_84?: number | null;
+  idproveedor_84?: number | null;
+  fecha_84: string | Date;
+  hora_84: string;
+  observacion_84?: string | null;
+  codigo_81?: string;
+  nombre_tipo_57?: string;
+  codigo_tipo_57?: string;
+  origen_descripcion?: string;
+  destino_descripcion?: string;
+  tipo_codigo?: string;
+  tipo_descripcion?: string;
+  tecnico_nombre?: string;
+  maquina_numinterno?: string;
+  maquina_ppu?: string;
+  proveedor_nombre?: string;
+}
+
+export interface CreateMovimientoRepuestoDTO {
+  idunidad_84: number;
+  idtipo_84: number;
+  idtecnico_84?: number | null;
+  idmaquina_84?: number | null;
+  idproveedor_84?: number | null;
+  fecha_84?: string;
+  hora_84?: string;
+  observacion_84?: string | null;
+}
+
+export interface ExistenciaRepuesto {
+  idexistencia_85: number;
+  idunidad_85: number;
+  idubicacion_85: number;
+  cantidad_85: number;
+  codigo_81?: string;
+  nombre_tipo_57?: string;
+  ubicacion_descripcion?: string;
+  maquina_numinterno?: string;
+  maquina_ppu?: string;
+  proveedor_nombre?: string;
+}

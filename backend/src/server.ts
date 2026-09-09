@@ -72,6 +72,9 @@ import tipoDanoLlantaRoutes from './routes/tipoDanoLlantaRoutes.js';
 import trazabilidadNeumaticoRoutes from './routes/trazabilidadNeumaticoRoutes.js';
 import reportesNeumaticoRoutes from './routes/reportesNeumaticoRoutes.js';
 import reportesRepuestoDanadoRoutes from './routes/reportesRepuestoDanadoRoutes.js';
+import unidadRepuestoRoutes from './routes/unidadRepuestoRoutes.js';
+import movimientoRepuestoRoutes from './routes/movimientoRepuestoRoutes.js';
+import existenciaRepuestoRoutes from './routes/existenciaRepuestoRoutes.js';
 
 console.log('🔄 Servidor iniciando - Cargando rutas...');
 
@@ -252,6 +255,9 @@ app.use('/api/tipos-dano-llanta', tipoDanoLlantaRoutes);
 app.use('/api/trazabilidad-neumatico', trazabilidadNeumaticoRoutes);
 app.use('/api/reportes-neumatico', reportesNeumaticoRoutes);
 app.use('/api/reportes-repuestos-danados', reportesRepuestoDanadoRoutes);
+app.use('/api/unidades-repuesto', unidadRepuestoRoutes);
+app.use('/api/movimientos-repuesto', movimientoRepuestoRoutes);
+app.use('/api/existencias-repuesto', existenciaRepuestoRoutes);
 
 console.log('✅ Todas las rutas cargadas');
 
