@@ -4,6 +4,12 @@ import { Transaccion, CreateTransaccionDTO, UpdateTransaccionDTO, ApiResponse } 
 import PdfPrinter from 'pdfmake';
 import type { PdfDocumentDefinition } from '../utils/pdfTypes.js';
 
+function normalizarObservacionMovimiento(value: unknown): string | null {
+  if (value == null) return null;
+  const t = String(value).trim().toUpperCase();
+  return t ? t.slice(0, 250) : null;
+}
+
 function normalizarUbicacion(nombre: string): string {
   return String(nombre || '')
     .normalize('NFD')
@@ -76,6 +82,7 @@ export const getAllTransacciones = async (req: Request, res: Response): Promise<
         t.id_maquina_28,
         t.fecha_28,
         t.hora_28,
+        t.observacion_28,
         t.created_at,
         t.updated_at,
         a.cod_alternador_19,
@@ -137,6 +144,7 @@ export const getTransaccionById = async (req: Request, res: Response): Promise<v
         t.id_maquina_28,
         t.fecha_28,
         t.hora_28,
+        t.observacion_28,
         t.created_at,
         t.updated_at,
         a.cod_alternador_19,
@@ -204,7 +212,8 @@ export const createTransaccion = async (req: Request, res: Response): Promise<vo
       id_tecnico_28,
       id_maquina_28,
       fecha_28, 
-      hora_28 
+      hora_28,
+      observacion_28
     }: CreateTransaccionDTO = req.body;
 
     // Validación
@@ -390,9 +399,10 @@ export const createTransaccion = async (req: Request, res: Response): Promise<vo
         id_tecnico_28,
         id_maquina_28,
         fecha_28, 
-        hora_28
+        hora_28,
+        observacion_28
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
       RETURNING *
     `;
 
@@ -404,7 +414,8 @@ export const createTransaccion = async (req: Request, res: Response): Promise<vo
       id_tecnico_28 || null,
       id_maquina_28 || null,
       fecha,
-      hora
+      hora,
+      normalizarObservacionMovimiento(observacion_28)
     ]);
 
     const response: ApiResponse<Transaccion> = {
@@ -470,7 +481,8 @@ export const updateTransaccion = async (req: Request, res: Response): Promise<vo
       id_tecnico_28,
       id_maquina_28,
       fecha_28, 
-      hora_28 
+      hora_28,
+      observacion_28
     }: UpdateTransaccionDTO = req.body;
 
     // Validar que origen y destino sean diferentes si ambos están presentes
@@ -521,6 +533,10 @@ export const updateTransaccion = async (req: Request, res: Response): Promise<vo
     if (hora_28 !== undefined) {
       updates.push(`hora_28 = $${paramCount++}`);
       values.push(hora_28);
+    }
+    if (observacion_28 !== undefined) {
+      updates.push(`observacion_28 = $${paramCount++}`);
+      values.push(normalizarObservacionMovimiento(observacion_28));
     }
 
     if (updates.length === 0) {
@@ -638,6 +654,7 @@ export const getTransaccionesFiltradas = async (req: Request, res: Response): Pr
         t.id_maquina_28,
         t.fecha_28,
         t.hora_28,
+        t.observacion_28,
         t.created_at,
         t.updated_at,
         a.cod_alternador_19,
@@ -740,6 +757,7 @@ export const generarReportePDF = async (req: Request, res: Response): Promise<vo
         t.id_maquina_28,
         t.fecha_28,
         t.hora_28,
+        t.observacion_28,
         a.cod_alternador_19,
         m.marca_18,
         uo.descripcion_27 AS ubicacion_origen_descripcion,
@@ -862,7 +880,8 @@ export const generarReportePDF = async (req: Request, res: Response): Promise<vo
         { text: 'Destino', style: 'tableHeader', alignment: 'left' },
         { text: 'Tipo', style: 'tableHeader', alignment: 'left' },
         { text: 'Técnico', style: 'tableHeader', alignment: 'left' },
-        { text: 'Máquina', style: 'tableHeader', alignment: 'left' }
+        { text: 'Máquina', style: 'tableHeader', alignment: 'left' },
+        { text: 'Observación', style: 'tableHeader', alignment: 'left' }
       ]
     ];
 
@@ -877,7 +896,8 @@ export const generarReportePDF = async (req: Request, res: Response): Promise<vo
         { text: t.ubicacion_destino_descripcion || 'N/A', style: 'tableCell', alignment: 'left' },
         { text: t.tipo_descripcion || 'N/A', style: 'tableCell', alignment: 'left' },
         { text: t.tecnico_nombre || 'N/A', style: 'tableCell', alignment: 'left' },
-        { text: t.maquina_numinterno ? `${t.maquina_numinterno}${t.maquina_ppu ? ` (${t.maquina_ppu})` : ''}` : 'N/A', style: 'tableCell', alignment: 'left' }
+        { text: t.maquina_numinterno ? `${t.maquina_numinterno}${t.maquina_ppu ? ` (${t.maquina_ppu})` : ''}` : 'N/A', style: 'tableCell', alignment: 'left' },
+        { text: t.observacion_28 || '—', style: 'tableCell', alignment: 'left' }
       ]);
     });
 
@@ -981,7 +1001,7 @@ export const generarReportePDF = async (req: Request, res: Response): Promise<vo
             // Máquina: 50% menos (130 -> 65), luego 30% menos adicional (65 -> 45), luego 10% más (45 -> 50), luego 10% más adicional (50 -> 55)
             // Técnico: 20% menos (150 -> 120), luego 10% más (120 -> 132)
             // Columna Impacto eliminada
-            widths: [50, 49, 35, 49, 61, 39, 39, 162, 132, 55],
+            widths: [42, 44, 32, 44, 52, 36, 36, 110, 100, 50, 95],
             body: tableBody
           },
           layout: {

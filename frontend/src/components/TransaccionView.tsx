@@ -13,6 +13,7 @@ interface Transaccion {
   id_maquina_28?: number;
   fecha_28: string;
   hora_28: string;
+  observacion_28?: string | null;
   created_at: string;
   updated_at: string;
   cod_alternador_19?: string;
@@ -105,6 +106,7 @@ const TransaccionView: React.FC = () => {
   const [idMaquina, setIdMaquina] = useState<string>('');
   const [fecha, setFecha] = useState<string>(new Date().toISOString().split('T')[0]);
   const [hora, setHora] = useState<string>(new Date().toTimeString().split(' ')[0].substring(0, 5));
+  const [observacion, setObservacion] = useState<string>('');
   
   // Búsqueda para alternadores y máquinas
   const [buscarAlternador, setBuscarAlternador] = useState<string>('');
@@ -297,6 +299,7 @@ const TransaccionView: React.FC = () => {
         t.tecnico_nombre?.toLowerCase().includes(lowerFiltro) ||
         t.maquina_numinterno?.toLowerCase().includes(lowerFiltro) ||
         t.maquina_ppu?.toLowerCase().includes(lowerFiltro) ||
+        (t.observacion_28 || '').toLowerCase().includes(lowerFiltro) ||
         t.id_transaccion_28.toString().includes(filtro)
       );
     }
@@ -377,7 +380,8 @@ const TransaccionView: React.FC = () => {
           id_tecnico_28: idTecnico ? parseInt(idTecnico) : undefined,
           id_maquina_28: idMaquina ? parseInt(idMaquina) : undefined,
           fecha_28: fecha || undefined,
-          hora_28: hora || undefined
+          hora_28: hora || undefined,
+          observacion_28: observacion.trim() || null
         })
       });
 
@@ -433,7 +437,8 @@ const TransaccionView: React.FC = () => {
           id_tecnico_28: idTecnico ? parseInt(idTecnico) : null,
           id_maquina_28: idMaquina ? parseInt(idMaquina) : null,
           fecha_28: fecha || undefined,
-          hora_28: hora || undefined
+          hora_28: hora || undefined,
+          observacion_28: observacion.trim() || null
         })
       });
 
@@ -469,6 +474,7 @@ const TransaccionView: React.FC = () => {
         : new Date().toISOString().split('T')[0]
     );
     setHora(transaccion.hora_28 ? String(transaccion.hora_28).slice(0, 5) : '');
+    setObservacion(transaccion.observacion_28 || '');
 
     const alt = alternadores.find((a) => a.id_alternador_19 === transaccion.id_alternador_28);
     setAlternadorSeleccionado(
@@ -527,6 +533,7 @@ const TransaccionView: React.FC = () => {
     setIdMaquina('');
     setFecha(new Date().toISOString().split('T')[0]);
     setHora(new Date().toTimeString().split(' ')[0].substring(0, 5));
+    setObservacion('');
     setBuscarAlternador('');
     setBuscarMaquina('');
     setAlternadorSeleccionado(null);
@@ -979,6 +986,23 @@ const TransaccionView: React.FC = () => {
               </div>
             </div>
 
+            <div className="form-group" style={{ marginBottom: '20px' }}>
+              <label htmlFor="observacion-movimiento">Observación del movimiento</label>
+              <textarea
+                id="observacion-movimiento"
+                value={observacion}
+                onChange={(e) => setObservacion(e.target.value.toUpperCase())}
+                placeholder="Ej: PRUEBA MARCA BOSCH / COMPONENTE NUEVO EN EVALUACION"
+                maxLength={250}
+                rows={3}
+                aria-describedby="observacion-movimiento-hint"
+                style={{ width: '100%', padding: '8px 12px', borderRadius: '4px', border: '1px solid #ced4da', fontSize: '14px', textTransform: 'uppercase', resize: 'vertical' }}
+              />
+              <small id="observacion-movimiento-hint" style={{ color: '#6c757d', fontSize: '0.85em', display: 'block', marginTop: '5px' }}>
+                Nota de este movimiento (prueba, marca distinta, etc.). Máx. 250. La observación del maestro queda en Alternadores.
+              </small>
+            </div>
+
             <div className="form-actions" style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '20px' }}>
               <button type="submit" className="btn-primary" disabled={loading} style={{ backgroundColor: '#28a745' }}>
                 {loading ? 'Guardando...' : editingId ? 'Actualizar' : 'Guardar'}
@@ -1250,12 +1274,13 @@ const TransaccionView: React.FC = () => {
                     <th style={{ padding: '10px', textAlign: 'left', border: '1px solid #ddd', width: '140px', minWidth: '140px' }}>Técnico</th>
                     <th style={{ padding: '10px', textAlign: 'left', border: '1px solid #ddd', width: '120px', minWidth: '120px' }}>Máquina</th>
                     <th style={{ padding: '10px', textAlign: 'left', border: '1px solid #ddd', width: '150px', minWidth: '150px' }}>Tipo Componente</th>
+                    <th style={{ padding: '10px', textAlign: 'left', border: '1px solid #ddd', width: '160px', minWidth: '160px' }}>Observación</th>
                   </tr>
                 </thead>
                 <tbody>
                   {previewData.length === 0 ? (
                     <tr>
-                      <td colSpan={11} style={{ padding: '20px', textAlign: 'center', color: '#999' }}>
+                      <td colSpan={12} style={{ padding: '20px', textAlign: 'center', color: '#999' }}>
                         No hay transacciones para mostrar
                       </td>
                     </tr>
@@ -1289,6 +1314,7 @@ const TransaccionView: React.FC = () => {
                             {t.maquina_ppu && ` (${t.maquina_ppu})`}
                           </td>
                           <td style={{ padding: '8px', textAlign: 'left', border: '1px solid #ddd', width: '150px' }}>{t.tipo_comp_descripcion || 'N/A'}</td>
+                          <td style={{ padding: '8px', textAlign: 'left', border: '1px solid #ddd', width: '160px' }}>{t.observacion_28 || '—'}</td>
                         </tr>
                       );
                     })
@@ -1348,14 +1374,17 @@ const TransaccionView: React.FC = () => {
               <th onClick={() => handleSort('tipo_comp_descripcion')} style={{ cursor: 'pointer' }}>
                 Tipo Componente {getSortIndicator('tipo_comp_descripcion')}
               </th>
+              <th onClick={() => handleSort('observacion_28')} style={{ cursor: 'pointer' }}>
+                Observación {getSortIndicator('observacion_28')}
+              </th>
               <th>Acciones</th>
             </tr>
           </thead>
           <tbody>
             {loading && transacciones.length === 0 ? (
-              <tr><td colSpan={12}>Cargando...</td></tr>
+              <tr><td colSpan={13}>Cargando...</td></tr>
             ) : processedTransacciones.length === 0 ? (
-              <tr><td colSpan={12}>No hay transacciones registradas</td></tr>
+              <tr><td colSpan={13}>No hay transacciones registradas</td></tr>
             ) : (
               processedTransacciones.map((transaccion) => (
                 <tr key={transaccion.id_transaccion_28}>
@@ -1381,6 +1410,12 @@ const TransaccionView: React.FC = () => {
                     {transaccion.maquina_ppu && ` (${transaccion.maquina_ppu})`}
                   </td>
                   <td>{transaccion.tipo_comp_descripcion || 'N/A'}</td>
+                  <td
+                    title={transaccion.observacion_28 || ''}
+                    style={{ maxWidth: '220px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                  >
+                    {transaccion.observacion_28 || '—'}
+                  </td>
                   <td className="actions">
                     <button
                       className="btn-edit"

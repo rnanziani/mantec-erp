@@ -839,6 +839,7 @@ export interface Transaccion {
   id_maquina_28?: number; // Opcional: Si es instalación
   fecha_28: Date;
   hora_28: string; // time without time zone
+  observacion_28?: string | null;
   created_at: Date;
   updated_at: Date;
   // Campos JOINed
@@ -867,6 +868,7 @@ export interface CreateTransaccionDTO {
   id_maquina_28?: number; // Opcional
   fecha_28?: string; // date format YYYY-MM-DD, default: CURRENT_DATE
   hora_28?: string; // time format HH:MM:SS, default: CURRENT_TIME
+  observacion_28?: string | null;
 }
 
 /**
@@ -881,6 +883,7 @@ export interface UpdateTransaccionDTO {
   id_maquina_28?: number;
   fecha_28?: string;
   hora_28?: string;
+  observacion_28?: string | null;
 }
 
 // ============================================
