@@ -22,23 +22,23 @@
     border: 1px solid #dee2e6;
 }
 
-/* Nueva transacción: 8 campos en 2 filas (escritorio) */
-.transaccion-ocho-campos {
+/* Nueva transacción: 5 campos por fila (escritorio) */
+.transaccion-cinco-campos {
     display: grid;
     grid-template-columns: 1fr;
-    gap: 15px;
+    gap: 12px;
     margin-bottom: 20px;
 }
 
 @media (min-width: 700px) {
-    .transaccion-ocho-campos {
+    .transaccion-cinco-campos {
         grid-template-columns: 1fr 1fr;
     }
 }
 
 @media (min-width: 1100px) {
-    .transaccion-ocho-campos {
-        grid-template-columns: repeat(4, minmax(0, 1fr));
+    .transaccion-cinco-campos {
+        grid-template-columns: repeat(5, minmax(0, 1fr));
     }
 }
 

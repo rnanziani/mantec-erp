@@ -805,8 +805,8 @@ const TransaccionView: React.FC = () => {
         <div className="form-container">
           <h3>{editingId ? '✏️ Editar Transacción' : 'Nueva Transacción'}</h3>
           <form onSubmit={editingId ? handleUpdate : handleCreate}>
-            {/* Ocho controles en dos filas (4 + 4) */}
-            <div className="transaccion-ocho-campos">
+            {/* 10 controles: 5 + 5 */}
+            <div className="transaccion-cinco-campos">
               <div className="form-group">
                 <label htmlFor="buscar-alternador">Buscar Alternador</label>
                 <input
@@ -1000,30 +1000,11 @@ const TransaccionView: React.FC = () => {
                   style={{ width: '100%', padding: '8px 12px', borderRadius: '4px', border: '1px solid #ced4da', fontSize: '14px' }}
                 />
               </div>
-            </div>
 
-            {stockHint && (
-              <p
-                role="status"
-                style={{
-                  margin: '0 0 16px',
-                  padding: '10px 12px',
-                  background: '#fff7ed',
-                  border: '1px solid #fdba74',
-                  borderRadius: '6px',
-                  color: '#9a3412',
-                  fontSize: '0.9em',
-                }}
-              >
-                {stockHint}
-              </p>
-            )}
-
-            {/* Cuarta fila: Búsqueda de Máquina y Selección de Máquina */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '20px' }}>
               <div className="form-group">
-                <label>Buscar Máquina</label>
+                <label htmlFor="buscar-maquina">Buscar Máquina</label>
                 <input
+                  id="buscar-maquina"
                   type="text"
                   value={buscarMaquina}
                   onChange={(e) => setBuscarMaquina(e.target.value.toUpperCase())}
@@ -1033,10 +1014,10 @@ const TransaccionView: React.FC = () => {
                 <small style={{ color: '#007bff', fontSize: '0.85em', display: 'block', marginTop: '5px' }}>
                   💡 Tip: Busque por patente, número interno o descripción
                 </small>
-            </div>
+              </div>
 
               <div className="form-group">
-              <label>Seleccionar Máquina {origenEsMaquina ? '*' : '(opcional)'}</label>
+              <label htmlFor="seleccionar-maquina">Seleccionar Máquina {origenEsMaquina ? '*' : '(opcional)'}</label>
               <div style={{ 
                   maxHeight: '150px', 
                 overflowY: 'auto', 
@@ -1079,6 +1060,23 @@ const TransaccionView: React.FC = () => {
                 </div>
               </div>
             </div>
+
+            {stockHint && (
+              <p
+                role="status"
+                style={{
+                  margin: '0 0 16px',
+                  padding: '10px 12px',
+                  background: '#fff7ed',
+                  border: '1px solid #fdba74',
+                  borderRadius: '6px',
+                  color: '#9a3412',
+                  fontSize: '0.9em',
+                }}
+              >
+                {stockHint}
+              </p>
+            )}
 
             <div className="form-group" style={{ marginBottom: '20px' }}>
               <label htmlFor="observacion-movimiento">Observación del movimiento</label>
