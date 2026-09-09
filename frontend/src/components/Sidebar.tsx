@@ -150,12 +150,12 @@ const Sidebar: React.FC<SidebarProps> = ({ onNavigate, currentView }) => {
             permissionRequired: 'MENU_GESTION_ALTERNADORES',
             children: [
                 { id: 'alternadores', label: 'Alternadores', icon: '⚡', path: 'lista-alternadores', permissionRequired: 'MENU_GESTION_ALTERNADORES_ALTERNADORES' },
+                { id: 'transacciones', label: 'Movimientos', icon: '📝', path: 'transacciones', permissionRequired: 'MENU_GESTION_ALTERNADORES_MOVIMIENTOS' },
+                { id: 'existencias', label: 'Stock Actual', icon: '📊', path: 'existencias', permissionRequired: 'MENU_GESTION_ALTERNADORES_STOCK' },
                 { id: 'marcas-alternador', label: 'Marca Alternadores', icon: '🏷️', path: 'alternadores', permissionRequired: 'MENU_GESTION_ALTERNADORES_MARCAS' },
                 { id: 'estados', label: 'Estado Alternador', icon: '📊', path: 'estados', permissionRequired: 'MENU_GESTION_ALTERNADORES_ESTADO' },
                 { id: 'bodegas', label: 'Bodegas', icon: '🏢', path: 'bodegas', permissionRequired: 'MENU_GESTION_ALTERNADORES_BODEGAS' },
                 { id: 'tipos-transaccion', label: 'Tipos de Transacción', icon: '🔄', path: 'tipos-transaccion', permissionRequired: 'MENU_GESTION_ALTERNADORES_TIPOS_TRANSACCION' },
-                { id: 'transacciones', label: 'Movimientos', icon: '📝', path: 'transacciones', permissionRequired: 'MENU_GESTION_ALTERNADORES_MOVIMIENTOS' },
-                { id: 'existencias', label: 'Stock Actual', icon: '📊', path: 'existencias', permissionRequired: 'MENU_GESTION_ALTERNADORES_STOCK' }
             ]
         },
         {
