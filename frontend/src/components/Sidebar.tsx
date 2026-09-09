@@ -10,6 +10,8 @@ interface MenuItem {
     path?: string;
     permissionRequired?: string | string[];
     children?: MenuItem[];
+    /** Título de grupo (Operación / Mantenedores); no navega */
+    isSection?: boolean;
 }
 
 interface SidebarProps {
@@ -133,15 +135,17 @@ const Sidebar: React.FC<SidebarProps> = ({ onNavigate, currentView }) => {
             icon: '🔩',
             permissionRequired: 'MENU_REPUESTOS_DANADOS',
             children: [
+                { id: 'rd-sec-operacion', label: 'Operación', icon: '', isSection: true },
                 { id: 'unidades-repuesto', label: 'Unidades', icon: '🔩', path: 'unidades-repuesto', permissionRequired: 'MENU_REPUESTOS_DANADOS_UNIDAD' },
                 { id: 'movimientos-repuesto', label: 'Movimientos', icon: '📝', path: 'movimientos-repuesto', permissionRequired: 'MENU_REPUESTOS_DANADOS_MOVIMIENTO' },
                 { id: 'existencias-repuesto', label: 'Stock actual', icon: '📊', path: 'existencias-repuesto', permissionRequired: 'MENU_REPUESTOS_DANADOS_STOCK' },
-                { id: 'repuestos-danados', label: 'Tipos (catálogo)', icon: '📦', path: 'repuestos-danados', permissionRequired: 'MENU_REPUESTOS_DANADOS_CATALOGO' },
-                { id: 'proveedores-reparacion', label: 'Proveedores', icon: '🏭', path: 'proveedores-reparacion', permissionRequired: 'MENU_REPUESTOS_DANADOS_PROVEEDOR' },
                 { id: 'recepcion-repuestos', label: 'Actas: recepción taller', icon: '📋', path: 'recepcion-repuestos', permissionRequired: 'MENU_REPUESTOS_DANADOS_RECEPCION' },
                 { id: 'entrega-repuestos', label: 'Actas: entrega proveedor', icon: '🚚', path: 'entrega-repuestos', permissionRequired: 'MENU_REPUESTOS_DANADOS_ENTREGA' },
                 { id: 'recepcion-reparado', label: 'Actas: recepción reparado', icon: '✅', path: 'recepcion-reparado', permissionRequired: 'MENU_REPUESTOS_DANADOS_RECEPCION_REPARADO' },
                 { id: 'reportes-repuestos-danados', label: 'Reportes actas', icon: '📈', path: 'reportes-repuestos-danados', permissionRequired: 'MENU_REPUESTOS_DANADOS_REPORTES' },
+                { id: 'rd-sec-mantenedores', label: 'Mantenedores', icon: '', isSection: true },
+                { id: 'repuestos-danados', label: 'Tipos (catálogo)', icon: '📦', path: 'repuestos-danados', permissionRequired: 'MENU_REPUESTOS_DANADOS_CATALOGO' },
+                { id: 'proveedores-reparacion', label: 'Proveedores', icon: '🏭', path: 'proveedores-reparacion', permissionRequired: 'MENU_REPUESTOS_DANADOS_PROVEEDOR' },
                 { id: 'estados-reparacion', label: 'Estados reparación', icon: '🔧', path: 'estados-reparacion', permissionRequired: 'MENU_REPUESTOS_DANADOS_ESTADO_REPARACION' },
                 { id: 'semaforo-entrega', label: 'Semáforo días', icon: '🚦', path: 'semaforo-entrega', permissionRequired: 'MENU_REPUESTOS_DANADOS_SEMAFORO' },
             ]
@@ -192,8 +196,22 @@ const Sidebar: React.FC<SidebarProps> = ({ onNavigate, currentView }) => {
         }
     ];
 
+    /** Quita títulos de grupo si no quedó ningún ítem navegable debajo. */
+    const pruneSectionHeaders = (items: MenuItem[]): MenuItem[] =>
+        items.filter((item, index) => {
+            if (!item.isSection) return true;
+            for (let i = index + 1; i < items.length; i += 1) {
+                if (items[i].isSection) return false;
+                return true;
+            }
+            return false;
+        });
+
     // Función para verificar si un menú debe mostrarse
     const shouldShowMenuItem = (item: MenuItem): boolean => {
+        if (item.isSection) {
+            return true;
+        }
         // Si no tiene permiso requerido, mostrarlo (compatibilidad hacia atrás)
         if (!item.permissionRequired) {
             return true;
@@ -215,7 +233,9 @@ const Sidebar: React.FC<SidebarProps> = ({ onNavigate, currentView }) => {
             .map(item => {
                 // Si tiene hijos, filtrarlos también
                 if (item.children) {
-                    const filteredChildren = filterMenuItems(item.children as MenuItem[]);
+                    const filteredChildren = pruneSectionHeaders(
+                        filterMenuItems(item.children as MenuItem[])
+                    );
                     // Si después de filtrar quedan hijos, mostrar el menú padre
                     if (filteredChildren.length > 0) {
                         return {
@@ -315,7 +335,12 @@ const Sidebar: React.FC<SidebarProps> = ({ onNavigate, currentView }) => {
                                 </button>
                                 {expandedMenus.has(item.id) && !isCollapsed && (
                                     <div className="sidebar-submenu">
-                                        {item.children.map((child) => (
+                                        {item.children.map((child) =>
+                                            child.isSection ? (
+                                                <div key={child.id} className="sidebar-section-label" role="presentation">
+                                                    {child.label}
+                                                </div>
+                                            ) : (
                                             <button
                                                 key={child.id}
                                                 className={`sidebar-sublink ${currentView === child.path ? 'active' : ''}`}
@@ -324,7 +349,8 @@ const Sidebar: React.FC<SidebarProps> = ({ onNavigate, currentView }) => {
                                                 <span className="sidebar-icon">{child.icon}</span>
                                                 <span className="sidebar-label">{child.label}</span>
                                             </button>
-                                        ))}
+                                            )
+                                        )}
                                     </div>
                                 )}
                             </>

@@ -22,6 +22,26 @@
     border: 1px solid #dee2e6;
 }
 
+/* Nueva transacción: 8 campos en 2 filas (escritorio) */
+.transaccion-ocho-campos {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 15px;
+    margin-bottom: 20px;
+}
+
+@media (min-width: 700px) {
+    .transaccion-ocho-campos {
+        grid-template-columns: 1fr 1fr;
+    }
+}
+
+@media (min-width: 1100px) {
+    .transaccion-ocho-campos {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+}
+
 .form-container h3 {
     margin-top: 0;
     color: #495057;

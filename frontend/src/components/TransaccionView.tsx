@@ -805,11 +805,12 @@ const TransaccionView: React.FC = () => {
         <div className="form-container">
           <h3>{editingId ? '✏️ Editar Transacción' : 'Nueva Transacción'}</h3>
           <form onSubmit={editingId ? handleUpdate : handleCreate}>
-            {/* Primera fila: Búsqueda de Alternador y Selección de Alternador */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '20px' }}>
+            {/* Ocho controles en dos filas (4 + 4) */}
+            <div className="transaccion-ocho-campos">
               <div className="form-group">
-                <label>Buscar Alternador</label>
+                <label htmlFor="buscar-alternador">Buscar Alternador</label>
                 <input
+                  id="buscar-alternador"
                   type="text"
                   value={buscarAlternador}
                   onChange={(e) => setBuscarAlternador(e.target.value.toUpperCase())}
@@ -900,6 +901,105 @@ const TransaccionView: React.FC = () => {
                   )}
                 </div>
               </div>
+
+              <div className="form-group">
+                <label htmlFor="ubicacion-origen">Ubicación Origen *</label>
+                <select
+                  id="ubicacion-origen"
+                  value={idUbicacionOrigen}
+                  onChange={(e) => setIdUbicacionOrigen(e.target.value)}
+                  required
+                  style={{ width: '100%', padding: '8px 12px', borderRadius: '4px', border: '1px solid #ced4da', fontSize: '14px' }}
+                >
+                  <option value="">Seleccione ubicación origen</option>
+                  {ubicacionesActivas.map(ubic => (
+                    <option key={ubic.id_ubicacion_27} value={ubic.id_ubicacion_27}>
+                      {ubic.descripcion_27}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="ubicacion-destino">Ubicación Destino *</label>
+                <select
+                  id="ubicacion-destino"
+                  value={idUbicacionDestino}
+                  onChange={(e) => setIdUbicacionDestino(e.target.value)}
+                  required
+                  style={{ width: '100%', padding: '8px 12px', borderRadius: '4px', border: '1px solid #ced4da', fontSize: '14px' }}
+                >
+                  <option value="">Seleccione ubicación destino</option>
+                  {ubicacionesActivas.map(ubic => (
+                    <option key={ubic.id_ubicacion_27} value={ubic.id_ubicacion_27}>
+                      {ubic.descripcion_27}
+                    </option>
+                  ))}
+                </select>
+            </div>
+
+              <div className="form-group">
+                <label htmlFor="tipo-transaccion">Tipo de Transacción *</label>
+                <select
+                  id="tipo-transaccion"
+                  value={idTipoTransaccion}
+                  onChange={(e) => setIdTipoTransaccion(e.target.value)}
+                  required
+                  style={{ width: '100%', padding: '8px 12px', borderRadius: '4px', border: '1px solid #ced4da', fontSize: '14px' }}
+                >
+                  <option value="">Seleccione un tipo</option>
+                  {tiposTransaccion.map(tipo => (
+                    <option key={tipo.id_tipo_transaccion_25} value={tipo.id_tipo_transaccion_25}>
+                      {tipo.cod_accion_25} - {tipo.descripcion_25} ({getValorAccionIcon(tipo.valor_accion_25)})
+                    </option>
+                  ))}
+                </select>
+                <small style={{ color: '#334155', fontSize: '0.85em', display: 'block', marginTop: '8px' }}>
+                  Ciclo de reparación: Máquina → Bodega (malo) → Taller → Bodega (reparado) → Máquina.
+                  Si baja de máquina, no se exige stock en Máquina; elija la máquina y el destino (Bodega).
+                </small>
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="tecnico-transaccion">Técnico</label>
+                <select
+                  id="tecnico-transaccion"
+                  value={idTecnico}
+                  onChange={(e) => setIdTecnico(e.target.value)}
+                  style={{ width: '100%', padding: '8px 12px', borderRadius: '4px', border: '1px solid #ced4da', fontSize: '14px' }}
+                >
+                  <option value="">Seleccione un técnico (opcional)</option>
+                  {tecnicos.map(tec => (
+                    <option key={tec.id_tecnico_21} value={tec.id_tecnico_21}>
+                      {tec.nombres_21} {tec.a_paterno_21} {tec.a_materno_21} {tec.nombre_cargo ? `- ${tec.nombre_cargo}` : ''}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="fecha-transaccion">Fecha *</label>
+                <input
+                  id="fecha-transaccion"
+                  type="date"
+                  value={fecha}
+                  onChange={(e) => setFecha(e.target.value)}
+                  required
+                  style={{ width: '100%', padding: '8px 12px', borderRadius: '4px', border: '1px solid #ced4da', fontSize: '14px' }}
+                />
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="hora-transaccion">Hora *</label>
+                <input
+                  id="hora-transaccion"
+                  type="time"
+                  value={hora}
+                  onChange={(e) => setHora(e.target.value)}
+                  required
+                  style={{ width: '100%', padding: '8px 12px', borderRadius: '4px', border: '1px solid #ced4da', fontSize: '14px' }}
+                />
+              </div>
             </div>
 
             {stockHint && (
@@ -918,105 +1018,6 @@ const TransaccionView: React.FC = () => {
                 {stockHint}
               </p>
             )}
-
-            {/* Segunda fila: Ubicación Origen, Ubicación Destino y Tipo de Transacción */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '15px', marginBottom: '20px' }}>
-              <div className="form-group">
-                <label>Ubicación Origen *</label>
-                <select
-                  value={idUbicacionOrigen}
-                  onChange={(e) => setIdUbicacionOrigen(e.target.value)}
-                  required
-                  style={{ width: '100%', padding: '8px 12px', borderRadius: '4px', border: '1px solid #ced4da', fontSize: '14px' }}
-                >
-                  <option value="">Seleccione ubicación origen</option>
-                  {ubicacionesActivas.map(ubic => (
-                    <option key={ubic.id_ubicacion_27} value={ubic.id_ubicacion_27}>
-                      {ubic.descripcion_27}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="form-group">
-                <label>Ubicación Destino *</label>
-                <select
-                  value={idUbicacionDestino}
-                  onChange={(e) => setIdUbicacionDestino(e.target.value)}
-                  required
-                  style={{ width: '100%', padding: '8px 12px', borderRadius: '4px', border: '1px solid #ced4da', fontSize: '14px' }}
-                >
-                  <option value="">Seleccione ubicación destino</option>
-                  {ubicacionesActivas.map(ubic => (
-                    <option key={ubic.id_ubicacion_27} value={ubic.id_ubicacion_27}>
-                      {ubic.descripcion_27}
-                    </option>
-                  ))}
-                </select>
-            </div>
-
-              <div className="form-group">
-                <label>Tipo de Transacción *</label>
-                <select
-                  value={idTipoTransaccion}
-                  onChange={(e) => setIdTipoTransaccion(e.target.value)}
-                  required
-                  style={{ width: '100%', padding: '8px 12px', borderRadius: '4px', border: '1px solid #ced4da', fontSize: '14px' }}
-                >
-                  <option value="">Seleccione un tipo</option>
-                  {tiposTransaccion.map(tipo => (
-                    <option key={tipo.id_tipo_transaccion_25} value={tipo.id_tipo_transaccion_25}>
-                      {tipo.cod_accion_25} - {tipo.descripcion_25} ({getValorAccionIcon(tipo.valor_accion_25)})
-                    </option>
-                  ))}
-                </select>
-                <small style={{ color: '#334155', fontSize: '0.85em', display: 'block', marginTop: '8px' }}>
-                  Ciclo de reparación: Máquina → Bodega (malo) → Taller → Bodega (reparado) → Máquina.
-                  Si baja de máquina, no se exige stock en Máquina; elija la máquina y el destino (Bodega).
-                </small>
-              </div>
-            </div>
-
-            {/* Tercera fila: Técnico, Fecha y Hora */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '15px', marginBottom: '20px' }}>
-              <div className="form-group">
-                <label>Técnico</label>
-                <select
-                  value={idTecnico}
-                  onChange={(e) => setIdTecnico(e.target.value)}
-                  style={{ width: '100%', padding: '8px 12px', borderRadius: '4px', border: '1px solid #ced4da', fontSize: '14px' }}
-                >
-                  <option value="">Seleccione un técnico (opcional)</option>
-                  {tecnicos.map(tec => (
-                    <option key={tec.id_tecnico_21} value={tec.id_tecnico_21}>
-                      {tec.nombres_21} {tec.a_paterno_21} {tec.a_materno_21} {tec.nombre_cargo ? `- ${tec.nombre_cargo}` : ''}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="form-group">
-                <label>Fecha *</label>
-                <input
-                  type="date"
-                  value={fecha}
-                  onChange={(e) => setFecha(e.target.value)}
-                  required
-                  style={{ width: '100%', padding: '8px 12px', borderRadius: '4px', border: '1px solid #ced4da', fontSize: '14px' }}
-                />
-              </div>
-
-              <div className="form-group">
-                <label>Hora *</label>
-                <input
-                  type="time"
-                  value={hora}
-                  onChange={(e) => setHora(e.target.value)}
-                  required
-                  style={{ width: '100%', padding: '8px 12px', borderRadius: '4px', border: '1px solid #ced4da', fontSize: '14px' }}
-                />
-              </div>
-            </div>
 
             {/* Cuarta fila: Búsqueda de Máquina y Selección de Máquina */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '20px' }}>
