@@ -147,6 +147,8 @@ const TransaccionView: React.FC = () => {
   const MAQUINAS_URL = apiUrl('/maquinas');
   const MARCAS_URL = apiUrl('/marcas');
   const TIPOS_COMP_URL = apiUrl('/tipos-comp-alternador');
+  const EXISTENCIAS_URL = apiUrl('/existencias');
+  const [stockHint, setStockHint] = useState('');
 
   useEffect(() => {
     fetchTransacciones();
@@ -528,6 +530,7 @@ const TransaccionView: React.FC = () => {
     setBuscarMaquina('');
     setAlternadorSeleccionado(null);
     setMaquinaSeleccionada(null);
+    setStockHint('');
     setEditingId(null);
     setShowForm(false);
     setError('');
@@ -732,6 +735,41 @@ const TransaccionView: React.FC = () => {
                         onClick={() => {
                           setAlternadorSeleccionado(alt);
                           setIdAlternador(alt.id_alternador_19.toString());
+                          void (async () => {
+                            try {
+                              const res = await fetch(EXISTENCIAS_URL);
+                              const data: ApiResponse = await res.json();
+                              if (!data.success || !Array.isArray(data.data)) {
+                                setStockHint('');
+                                return;
+                              }
+                              const filas = data.data.filter(
+                                (e: { id_alternador_26: number; cantidad_26: number; ubicacion_descripcion?: string }) =>
+                                  Number(e.id_alternador_26) === alt.id_alternador_19 && Number(e.cantidad_26) >= 1
+                              );
+                              if (!filas.length) {
+                                setStockHint(
+                                  `${alt.cod_alternador_19} no tiene existencias. Bájelo desde Máquina a Bodega para iniciar el ciclo.`
+                                );
+                                return;
+                              }
+                              const det = filas
+                                .map((e: { ubicacion_descripcion?: string; cantidad_26: number }) =>
+                                  `${e.ubicacion_descripcion} (${e.cantidad_26})`
+                                )
+                                .join(', ');
+                              const enMaq = filas.some((e: { ubicacion_descripcion?: string }) =>
+                                esNombreMaquina(e.ubicacion_descripcion)
+                              );
+                              setStockHint(
+                                enMaq
+                                  ? `${alt.cod_alternador_19} está en ${det}. Para reparación: origen Máquina → destino Bodega. No use SBM.`
+                                  : `${alt.cod_alternador_19} está en ${det}. Use esa ubicación como origen.`
+                              );
+                            } catch {
+                              setStockHint('');
+                            }
+                          })();
                         }}
                         style={{
                           padding: '8px',
@@ -760,6 +798,23 @@ const TransaccionView: React.FC = () => {
                 </div>
               </div>
             </div>
+
+            {stockHint && (
+              <p
+                role="status"
+                style={{
+                  margin: '0 0 16px',
+                  padding: '10px 12px',
+                  background: '#fff7ed',
+                  border: '1px solid #fdba74',
+                  borderRadius: '6px',
+                  color: '#9a3412',
+                  fontSize: '0.9em',
+                }}
+              >
+                {stockHint}
+              </p>
+            )}
 
             {/* Segunda fila: Ubicación Origen, Ubicación Destino y Tipo de Transacción */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '15px', marginBottom: '20px' }}>

@@ -91,6 +91,24 @@ BEGIN
     INTO v_stock_origen
   FROM public.tbl_26_existencia
   WHERE id_alternador_26 = NEW.id_alternador_28
+    AND id_ubicacion_26 = NEW.id_ubicacion_destino_28;
+
+  IF v_stock_origen IS NOT NULL AND v_stock_origen >= 1 THEN
+    SELECT cantidad_26
+      INTO v_stock_total
+    FROM public.tbl_26_existencia
+    WHERE id_alternador_26 = NEW.id_alternador_28
+      AND id_ubicacion_26 = NEW.id_ubicacion_origen_28;
+
+    IF v_stock_total IS NULL OR v_stock_total < 1 THEN
+      RETURN NEW;
+    END IF;
+  END IF;
+
+  SELECT cantidad_26
+    INTO v_stock_origen
+  FROM public.tbl_26_existencia
+  WHERE id_alternador_26 = NEW.id_alternador_28
     AND id_ubicacion_26 = NEW.id_ubicacion_origen_28
   FOR UPDATE;
 

@@ -4,6 +4,62 @@ import { Transaccion, CreateTransaccionDTO, UpdateTransaccionDTO, ApiResponse } 
 import PdfPrinter from 'pdfmake';
 import type { PdfDocumentDefinition } from '../utils/pdfTypes.js';
 
+function normalizarUbicacion(nombre: string): string {
+  return String(nombre || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toUpperCase()
+    .trim();
+}
+
+function mensajePasoCiclo(
+  codigo: string,
+  origen: string,
+  destino: string,
+  donde: Array<{ ubicacion: string; cantidad_26: string | number }>
+): string {
+  const o = normalizarUbicacion(origen);
+  const d = normalizarUbicacion(destino);
+  const sitios = donde.map((x) => normalizarUbicacion(x.ubicacion));
+  const detalle = donde.map((x) => `${x.ubicacion} (${x.cantidad_26})`).join(', ');
+  const enMaquina = sitios.some((s) => s === 'MAQUINA' || s === 'MAQUINAS');
+  const enTaller = sitios.some((s) => s.includes('TALLER'));
+  const enBodega = sitios.some((s) => s.includes('BODEGA'));
+  const destMaquina = d === 'MAQUINA' || d === 'MAQUINAS';
+  const origBodega = o.includes('BODEGA');
+  const destTaller = d.includes('TALLER');
+  const destBodega = d.includes('BODEGA');
+
+  if (origBodega && destMaquina && enMaquina) {
+    return (
+      `El alternador ${codigo} ya está en Máquina. No use SBM (Bodega → Máquina). ` +
+      `Si entra a reparación: origen Máquina y destino Bodega. Stock: ${detalle}.`
+    );
+  }
+  if (origBodega && destTaller && enMaquina) {
+    return (
+      `El alternador ${codigo} está en Máquina, no en Bodega. ` +
+      `Primero Máquina → Bodega (malo) y después Bodega → Taller. Stock: ${detalle}.`
+    );
+  }
+  if (origBodega && destMaquina && enTaller && !enBodega) {
+    return (
+      `El alternador ${codigo} está en Taller. ` +
+      `Antes de instalar: Taller → Bodega (reparado) y luego Bodega → Máquina. Stock: ${detalle}.`
+    );
+  }
+  if (o.includes('TALLER') && destBodega && enMaquina && !enTaller) {
+    return (
+      `El alternador ${codigo} está en Máquina. ` +
+      `El ciclo empieza Máquina → Bodega, no Taller → Bodega. Stock: ${detalle}.`
+    );
+  }
+  return (
+    `No hay stock de ${codigo} en "${origen}" (disponible: 0). ` +
+    (detalle ? `Stock disponible en: ${detalle}.` : 'No hay existencias registradas.')
+  );
+}
+
 /**
  * Obtener todas las transacciones con información de alternador, marca, ubicación y tipo
  */
@@ -212,6 +268,7 @@ export const createTransaccion = async (req: Request, res: Response): Promise<vo
     const origenNorm = origenLocRes.rows[0]?.origen_norm || '';
     const origenEsMaquina = origenNorm === 'MAQUINA' || origenNorm === 'MAQUINAS';
     let esBajaMaquina = false;
+    let yaEnDestino = false;
 
     if (requiereStockOrigen) {
       const totalRes = await pool.query<{ total: string | number }>(
@@ -271,41 +328,52 @@ export const createTransaccion = async (req: Request, res: Response): Promise<vo
       const cantidadOrigen = stockOrigen ? Number(stockOrigen.cantidad_26) : 0;
 
       if (cantidadOrigen < 1) {
-        const otrosRes = await pool.query<{ ubicacion: string; cantidad_26: string | number }>(
-          `SELECT u.descripcion_27 AS ubicacion, e.cantidad_26
-           FROM tbl_26_existencia e
-           INNER JOIN tbl_27_ubicacion u ON u.id_ubicacion_27 = e.id_ubicacion_26
-           WHERE e.id_alternador_26 = $1
-             AND e.cantidad_26 >= 1
-           ORDER BY u.descripcion_27`,
-          [id_alternador_28]
+        const destRes = await pool.query<{ cantidad_26: string | number }>(
+          `SELECT cantidad_26
+           FROM tbl_26_existencia
+           WHERE id_alternador_26 = $1 AND id_ubicacion_26 = $2`,
+          [id_alternador_28, id_ubicacion_destino_28]
         );
+        const stockDestino = destRes.rows[0] ? Number(destRes.rows[0].cantidad_26) : 0;
 
-        const cod = stockOrigen?.cod_alternador_19
-          ? ` ${stockOrigen.cod_alternador_19}`
-          : '';
-        const ubicacion = stockOrigen?.ubicacion || 'origen';
-        let mensaje =
-          `No hay stock suficiente del alternador${cod} en "${ubicacion}" ` +
-          `(disponible: ${cantidadOrigen}). No se puede registrar el movimiento.`;
-
-        if (otrosRes.rows.length > 0) {
-          const detalle = otrosRes.rows
-            .map((r) => `${r.ubicacion} (${r.cantidad_26})`)
-            .join(', ');
-          mensaje += ` Stock disponible en: ${detalle}.`;
+        // Ya está en el destino: se registra el movimiento y no se mueve stock
+        if (stockDestino >= 1) {
+          requiereStockOrigen = false;
+          yaEnDestino = true;
         } else {
-          mensaje +=
-            ' Verifique Existencias o registre primero una entrada a esa ubicación.';
+          const otrosRes = await pool.query<{
+            ubicacion: string;
+            cantidad_26: string | number;
+            codigo: string;
+          }>(
+            `SELECT u.descripcion_27 AS ubicacion, e.cantidad_26, a.cod_alternador_19 AS codigo
+             FROM tbl_26_existencia e
+             INNER JOIN tbl_27_ubicacion u ON u.id_ubicacion_27 = e.id_ubicacion_26
+             INNER JOIN tbl_19_alternador a ON a.id_alternador_19 = e.id_alternador_26
+             WHERE e.id_alternador_26 = $1
+               AND e.cantidad_26 >= 1
+             ORDER BY u.descripcion_27`,
+            [id_alternador_28]
+          );
+          const destLoc = await pool.query<{ descripcion_27: string }>(
+            `SELECT descripcion_27 FROM tbl_27_ubicacion WHERE id_ubicacion_27 = $1`,
+            [id_ubicacion_destino_28]
+          );
+          const codigo =
+            stockOrigen?.cod_alternador_19 || otrosRes.rows[0]?.codigo || String(id_alternador_28);
+          const response: ApiResponse<null> = {
+            success: false,
+            error: 'Paso incorrecto del ciclo',
+            message: mensajePasoCiclo(
+              codigo,
+              stockOrigen?.ubicacion || origenLocRes.rows[0]?.descripcion_27 || 'origen',
+              destLoc.rows[0]?.descripcion_27 || 'destino',
+              otrosRes.rows
+            )
+          };
+          res.status(400).json(response);
+          return;
         }
-
-        const response: ApiResponse<null> = {
-          success: false,
-          error: 'Stock insuficiente en ubicación de origen',
-          message: mensaje
-        };
-        res.status(400).json(response);
-        return;
       }
     }
 
@@ -344,7 +412,9 @@ export const createTransaccion = async (req: Request, res: Response): Promise<vo
       data: result.rows[0],
       message: esBajaMaquina
         ? 'Alternador ingresado al ciclo desde la máquina. Siguiente paso: Bodega → Taller (reparar), Taller → Bodega (reparado) y Bodega → Máquina (reparado).'
-        : 'Transacción creada exitosamente'
+        : yaEnDestino
+          ? 'El alternador ya estaba en el destino. Se registró el movimiento sin cambiar existencias. Si entra a reparación, use origen Máquina y destino Bodega.'
+          : 'Transacción creada exitosamente'
     };
 
     res.status(201).json(response);
