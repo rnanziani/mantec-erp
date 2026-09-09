@@ -13,6 +13,7 @@ interface Alternador {
   id_marca_19: number;
   estado_ubicacion?: string;
   id_tipo_comp_alternador_19: number;
+  observacion_19?: string | null;
   marca_18?: string;
   tipo_comp_descripcion?: string;
 }
@@ -49,6 +50,7 @@ const AlternadoresView: React.FC = () => {
   const [selectedMarca, setSelectedMarca] = useState<number>(0);
   const [estadoUbicacion, setEstadoUbicacion] = useState<string>('BODEGA');
   const [selectedTipoComp, setSelectedTipoComp] = useState<number>(1);
+  const [observacion, setObservacion] = useState<string>('');
   const [editingId, setEditingId] = useState<number | null>(null);
   const [showForm, setShowForm] = useState<boolean>(false);
 
@@ -122,7 +124,8 @@ const AlternadoresView: React.FC = () => {
       const matchesSearch = alt.cod_alternador_19.includes(searchTerm) ||
         alt.marca_18?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         alt.estado_ubicacion?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        alt.tipo_comp_descripcion?.toLowerCase().includes(searchTerm.toLowerCase());
+        alt.tipo_comp_descripcion?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (alt.observacion_19 || '').toLowerCase().includes(searchTerm.toLowerCase());
       
       // Filtro por tipo de componente
       const matchesTipoComp = filterTipoComp === 0 || alt.id_tipo_comp_alternador_19 === filterTipoComp;
@@ -182,7 +185,8 @@ const AlternadoresView: React.FC = () => {
         body: JSON.stringify({ 
           id_marca_19: selectedMarca,
           estado_ubicacion: estadoUbicacion || 'BODEGA',
-          id_tipo_comp_alternador_19: selectedTipoComp || 1
+          id_tipo_comp_alternador_19: selectedTipoComp || 1,
+          observacion_19: observacion.trim() || null
         })
       });
 
@@ -193,6 +197,7 @@ const AlternadoresView: React.FC = () => {
         setSelectedMarca(0);
         setEstadoUbicacion('BODEGA');
         setSelectedTipoComp(1);
+        setObservacion('');
         setShowForm(false);
         await showSuccess('¡Éxito!', 'Alternador creado exitosamente');
       } else {
@@ -216,7 +221,8 @@ const AlternadoresView: React.FC = () => {
         body: JSON.stringify({ 
           id_marca_19: selectedMarca,
           estado_ubicacion: estadoUbicacion || 'BODEGA',
-          id_tipo_comp_alternador_19: selectedTipoComp || 1
+          id_tipo_comp_alternador_19: selectedTipoComp || 1,
+          observacion_19: observacion.trim() || null
         })
       });
 
@@ -227,6 +233,7 @@ const AlternadoresView: React.FC = () => {
         setSelectedMarca(0);
         setEstadoUbicacion('BODEGA');
         setSelectedTipoComp(1);
+        setObservacion('');
         setEditingId(null);
         setShowForm(false);
         await showSuccess('¡Éxito!', 'Alternador actualizado exitosamente');
@@ -268,6 +275,7 @@ const AlternadoresView: React.FC = () => {
     setSelectedMarca(alternador.id_marca_19);
     setEstadoUbicacion(alternador.estado_ubicacion || 'BODEGA');
     setSelectedTipoComp(alternador.id_tipo_comp_alternador_19 || 1);
+    setObservacion(alternador.observacion_19 || '');
     setShowForm(true);
     setError('');
   };
@@ -276,6 +284,7 @@ const AlternadoresView: React.FC = () => {
     setSelectedMarca(0);
     setEstadoUbicacion('BODEGA');
     setSelectedTipoComp(1);
+    setObservacion('');
     setEditingId(null);
     setShowForm(false);
     setError('');
@@ -285,6 +294,7 @@ const AlternadoresView: React.FC = () => {
     setSelectedMarca(0);
     setEstadoUbicacion('BODEGA');
     setSelectedTipoComp(1);
+    setObservacion('');
     setEditingId(null);
     setShowForm(true);
     setError('');
@@ -296,7 +306,8 @@ const AlternadoresView: React.FC = () => {
       Código: a.cod_alternador_19,
       Marca: a.marca_18 || '',
       'Estado Ubicación': a.estado_ubicacion || 'BODEGA',
-      'Tipo Componente': a.tipo_comp_descripcion || 'Tipo ' + (a.id_tipo_comp_alternador_19 || 1)
+      'Tipo Componente': a.tipo_comp_descripcion || 'Tipo ' + (a.id_tipo_comp_alternador_19 || 1),
+      Observación: a.observacion_19 || ''
     }));
     exportToExcel(dataToExport, 'alternadores', 'Alternadores');
     await showSuccess('¡Éxito!', 'Datos exportados exitosamente');
@@ -336,10 +347,10 @@ const AlternadoresView: React.FC = () => {
           <div className="alternadores-filters-row">
             <div className="alternadores-search-wrap">
               <SearchBar
-                placeholder="Buscar por código o marca..."
+                placeholder="Buscar por código, marca u observación..."
                 value={searchTerm}
                 onChange={setSearchTerm}
-                ariaLabel="Buscar alternadores por código o marca"
+                ariaLabel="Buscar alternadores por código, marca u observación"
               />
             </div>
             <div className="alternadores-filter-wrap">
@@ -433,6 +444,22 @@ const AlternadoresView: React.FC = () => {
                 💡 Tipo de componente del alternador (por defecto: 1)
               </small>
             </div>
+            <div className="form-group">
+              <label htmlFor="observacion-alternador">Observación</label>
+              <textarea
+                id="observacion-alternador"
+                className="form-input"
+                value={observacion}
+                onChange={(e) => setObservacion(e.target.value.toUpperCase())}
+                placeholder="Ej: PRUEBA MARCA BOSCH / COMPONENTE NUEVO EN EVALUACION"
+                maxLength={250}
+                rows={3}
+                aria-describedby="observacion-hint"
+              />
+              <small id="observacion-hint" className="form-hint">
+                Identifica pruebas, marca distinta o componente nuevo (máx. 250).
+              </small>
+            </div>
             <div className="form-actions">
               <button
                 type="submit"
@@ -502,13 +529,21 @@ const AlternadoresView: React.FC = () => {
                   >
                     TIPO COMPONENTE
                   </th>
+                  <th
+                    onClick={() => handleSort('observacion_19')}
+                    className={`sortable ${sortConfig.key === 'observacion_19' ? (sortConfig.direction === 'asc' ? 'sort-asc' : 'sort-desc') : ''}`}
+                    scope="col"
+                    aria-sort={sortConfig.key === 'observacion_19' ? (sortConfig.direction === 'asc' ? 'ascending' : 'descending') : undefined}
+                  >
+                    OBSERVACIÓN
+                  </th>
                   <th scope="col">ACCIONES</th>
                 </tr>
               </thead>
               <tbody>
                 {currentAlternadores.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="no-data">
+                    <td colSpan={7} className="no-data">
                       {searchTerm
                         ? `📋 No se encontraron alternadores con "${searchTerm}"`
                         : '📋 No hay alternadores registrados'
@@ -523,6 +558,12 @@ const AlternadoresView: React.FC = () => {
                       <td className="marca-name">{alternador.marca_18}</td>
                       <td className="estado-ubicacion">{alternador.estado_ubicacion || 'BODEGA'}</td>
                       <td className="tipo-comp">{alternador.tipo_comp_descripcion || 'Tipo ' + (alternador.id_tipo_comp_alternador_19 || 1)}</td>
+                      <td
+                        className="observacion-alternador"
+                        title={alternador.observacion_19 || ''}
+                      >
+                        {alternador.observacion_19 || '—'}
+                      </td>
                       <td className="actions">
                         <button
                           type="button"

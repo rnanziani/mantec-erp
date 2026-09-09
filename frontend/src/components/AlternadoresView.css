@@ -193,6 +193,13 @@
   }
 
   .alternadores-table {
-    min-width: 600px;
+    min-width: 720px;
   }
+}
+
+.observacion-alternador {
+  max-width: 220px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }

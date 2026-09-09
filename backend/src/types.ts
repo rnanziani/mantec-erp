@@ -57,6 +57,7 @@ export interface Alternador {
   id_marca_19: number;
   estado_ubicacion?: string; // Estado de ubicación (default: 'BODEGA')
   id_tipo_comp_alternador_19: number; // Tipo de componente (default: 1)
+  observacion_19?: string | null;
   marca_18?: string; // Nombre de la marca (JOIN)
   tipo_comp_descripcion?: string; // Descripción del tipo de componente (JOIN)
 }
@@ -69,6 +70,7 @@ export interface CreateAlternadorDTO {
   id_marca_19: number;
   estado_ubicacion?: string; // Opcional, default: 'BODEGA'
   id_tipo_comp_alternador_19?: number; // Opcional, default: 1
+  observacion_19?: string | null;
 }
 
 /**
@@ -78,6 +80,7 @@ export interface UpdateAlternadorDTO {
   id_marca_19?: number;
   estado_ubicacion?: string;
   id_tipo_comp_alternador_19?: number;
+  observacion_19?: string | null;
 }
 
 /**

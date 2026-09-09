@@ -2,23 +2,34 @@ import { Request, Response } from 'express';
 import { pool } from '../db.js';
 import { Alternador, CreateAlternadorDTO, UpdateAlternadorDTO } from '../types.js';
 
+const ALTERNADOR_SELECT = `
+  SELECT
+    a.id_alternador_19,
+    a.cod_alternador_19,
+    a.id_marca_19,
+    a.estado_ubicacion,
+    a.id_tipo_comp_alternador_19,
+    a.observacion_19,
+    m.marca_18,
+    t.tipo_comp_alternador_30 as tipo_comp_descripcion
+  FROM tbl_19_alternador a
+  INNER JOIN tbl_18_marca_alternador m ON a.id_marca_19 = m.id_marca_18
+  LEFT JOIN tbl_30_tipo_comp_alternador t ON a.id_tipo_comp_alternador_19 = t.id_tipo_comp_alternador_30
+`;
+
+function normalizarObservacion(value: unknown): string | null {
+  if (value == null) return null;
+  const t = String(value).trim().toUpperCase();
+  return t ? t.slice(0, 250) : null;
+}
+
 /**
  * Obtener todos los alternadores con información de marca
  */
 export const getAllAlternadores = async (req: Request, res: Response): Promise<void> => {
   try {
     const result = await pool.query<Alternador>(
-      `SELECT 
-        a.id_alternador_19, 
-        a.cod_alternador_19, 
-        a.id_marca_19,
-        a.estado_ubicacion,
-        a.id_tipo_comp_alternador_19,
-        m.marca_18,
-        t.tipo_comp_alternador_30 as tipo_comp_descripcion
-       FROM tbl_19_alternador a
-       INNER JOIN tbl_18_marca_alternador m ON a.id_marca_19 = m.id_marca_18
-       LEFT JOIN tbl_30_tipo_comp_alternador t ON a.id_tipo_comp_alternador_19 = t.id_tipo_comp_alternador_30
+      `${ALTERNADOR_SELECT}
        ORDER BY a.id_alternador_19 ASC`
     );
 
@@ -44,17 +55,7 @@ export const getAlternadorById = async (req: Request, res: Response): Promise<vo
   try {
     const { id } = req.params;
     const result = await pool.query<Alternador>(
-      `SELECT 
-        a.id_alternador_19, 
-        a.cod_alternador_19, 
-        a.id_marca_19,
-        a.estado_ubicacion,
-        a.id_tipo_comp_alternador_19,
-        m.marca_18,
-        t.tipo_comp_alternador_30 as tipo_comp_descripcion
-       FROM tbl_19_alternador a
-       INNER JOIN tbl_18_marca_alternador m ON a.id_marca_19 = m.id_marca_18
-       LEFT JOIN tbl_30_tipo_comp_alternador t ON a.id_tipo_comp_alternador_19 = t.id_tipo_comp_alternador_30
+      `${ALTERNADOR_SELECT}
        WHERE a.id_alternador_19 = $1`,
       [id]
     );
@@ -87,7 +88,7 @@ export const getAlternadorById = async (req: Request, res: Response): Promise<vo
  */
 export const createAlternador = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { id_marca_19, estado_ubicacion, id_tipo_comp_alternador_19 }: CreateAlternadorDTO = req.body;
+    const { id_marca_19, estado_ubicacion, id_tipo_comp_alternador_19, observacion_19 }: CreateAlternadorDTO = req.body;
 
     // Validación
     if (!id_marca_19) {
@@ -131,25 +132,19 @@ export const createAlternador = async (req: Request, res: Response): Promise<voi
     // Insertar alternador (el código se genera automáticamente por trigger)
     // Si estado_ubicacion o id_tipo_comp_alternador_19 no se proporcionan, se usan los defaults de la BD
     const result = await pool.query<Alternador>(
-      `INSERT INTO tbl_19_alternador (id_marca_19, estado_ubicacion, id_tipo_comp_alternador_19) 
-       VALUES ($1, $2, $3) 
-       RETURNING id_alternador_19, cod_alternador_19, id_marca_19, estado_ubicacion, id_tipo_comp_alternador_19`,
-      [id_marca_19, estado_ubicacion || 'BODEGA', id_tipo_comp_alternador_19 || 1]
+      `INSERT INTO tbl_19_alternador (id_marca_19, estado_ubicacion, id_tipo_comp_alternador_19, observacion_19)
+       VALUES ($1, $2, $3, $4)
+       RETURNING id_alternador_19, cod_alternador_19, id_marca_19, estado_ubicacion, id_tipo_comp_alternador_19, observacion_19`,
+      [
+        id_marca_19,
+        estado_ubicacion || 'BODEGA',
+        id_tipo_comp_alternador_19 || 1,
+        normalizarObservacion(observacion_19),
+      ]
     );
 
-    // Obtener el alternador completo con la marca y tipo de componente
     const alternadorCompleto = await pool.query<Alternador>(
-      `SELECT 
-        a.id_alternador_19, 
-        a.cod_alternador_19, 
-        a.id_marca_19,
-        a.estado_ubicacion,
-        a.id_tipo_comp_alternador_19,
-        m.marca_18,
-        t.tipo_comp_alternador_30 as tipo_comp_descripcion
-       FROM tbl_19_alternador a
-       INNER JOIN tbl_18_marca_alternador m ON a.id_marca_19 = m.id_marca_18
-       LEFT JOIN tbl_30_tipo_comp_alternador t ON a.id_tipo_comp_alternador_19 = t.id_tipo_comp_alternador_30
+      `${ALTERNADOR_SELECT}
        WHERE a.id_alternador_19 = $1`,
       [result.rows[0].id_alternador_19]
     );
@@ -175,10 +170,14 @@ export const createAlternador = async (req: Request, res: Response): Promise<voi
 export const updateAlternador = async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
-    const { id_marca_19, estado_ubicacion, id_tipo_comp_alternador_19 }: UpdateAlternadorDTO = req.body;
+    const { id_marca_19, estado_ubicacion, id_tipo_comp_alternador_19, observacion_19 }: UpdateAlternadorDTO = req.body;
 
-    // Validación: al menos uno de los campos debe estar presente
-    if (!id_marca_19 && estado_ubicacion === undefined && id_tipo_comp_alternador_19 === undefined) {
+    if (
+      !id_marca_19 &&
+      estado_ubicacion === undefined &&
+      id_tipo_comp_alternador_19 === undefined &&
+      observacion_19 === undefined
+    ) {
       res.status(400).json({
         success: false,
         error: 'Debe proporcionar al menos un campo para actualizar'
@@ -241,6 +240,12 @@ export const updateAlternador = async (req: Request, res: Response): Promise<voi
       paramIndex++;
     }
 
+    if (observacion_19 !== undefined) {
+      updates.push(`observacion_19 = $${paramIndex}`);
+      values.push(normalizarObservacion(observacion_19));
+      paramIndex++;
+    }
+
     values.push(id); // ID al final para el WHERE
 
     const result = await pool.query(
@@ -258,17 +263,7 @@ export const updateAlternador = async (req: Request, res: Response): Promise<voi
 
     // Obtener el alternador actualizado con la marca y tipo de componente
     const alternadorActualizado = await pool.query<Alternador>(
-      `SELECT 
-        a.id_alternador_19, 
-        a.cod_alternador_19, 
-        a.id_marca_19,
-        a.estado_ubicacion,
-        a.id_tipo_comp_alternador_19,
-        m.marca_18,
-        t.tipo_comp_alternador_30 as tipo_comp_descripcion
-       FROM tbl_19_alternador a
-       INNER JOIN tbl_18_marca_alternador m ON a.id_marca_19 = m.id_marca_18
-       LEFT JOIN tbl_30_tipo_comp_alternador t ON a.id_tipo_comp_alternador_19 = t.id_tipo_comp_alternador_30
+      `${ALTERNADOR_SELECT}
        WHERE a.id_alternador_19 = $1`,
       [id]
     );

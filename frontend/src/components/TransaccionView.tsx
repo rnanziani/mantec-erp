@@ -32,6 +32,7 @@ interface Alternador {
   id_alternador_19: number;
   cod_alternador_19: string;
   marca_18?: string;
+  observacion_19?: string | null;
 }
 
 interface Ubicacion {
@@ -542,7 +543,8 @@ const TransaccionView: React.FC = () => {
     const busquedaLower = buscarAlternador.toLowerCase();
     return alternadores.filter(alt =>
       (alt.cod_alternador_19 && alt.cod_alternador_19.toLowerCase().includes(busquedaLower)) ||
-      (alt.marca_18 && alt.marca_18.toLowerCase().includes(busquedaLower))
+      (alt.marca_18 && alt.marca_18.toLowerCase().includes(busquedaLower)) ||
+      (alt.observacion_19 && alt.observacion_19.toLowerCase().includes(busquedaLower))
     );
   }, [alternadores, buscarAlternador]);
 
@@ -783,6 +785,7 @@ const TransaccionView: React.FC = () => {
                         }}
                       >
                         <strong>{alt.cod_alternador_19 || 'N/A'}</strong> - {alt.marca_18 || 'N/A'}
+                        {alt.observacion_19 ? ` — ${alt.observacion_19}` : ''}
                       </div>
                     ))
                   ) : (
