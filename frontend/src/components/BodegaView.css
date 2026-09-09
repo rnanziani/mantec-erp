@@ -42,7 +42,11 @@
 .form-group input[type="number"],
 .form-group input[type="email"],
 .form-group input[type="password"],
+.form-group input[type="date"],
+.form-group input[type="search"],
 .form-container input[type="text"],
+.form-container input[type="date"],
+.form-container input[type="search"],
 .form-container select {
     width: 100%;
     padding: 8px 12px;

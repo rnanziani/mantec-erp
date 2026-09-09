@@ -2,6 +2,13 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { showSuccess, showError, showDeleteConfirm, showWarning } from '../utils/swal';
 import './BodegaView.css'; // Reutilizamos los mismos estilos que TipoTransaccionView
 import { apiUrl, openAuthenticatedBlob } from '../lib/apiClient';
+import SearchableSelect from './shared/SearchableSelect';
+
+/** DATE de PostgreSQL llega como YYYY-MM-DD; slice evita el desfase UTC. */
+function toFechaISO(value?: string): string {
+  const raw = String(value || '');
+  return /^\d{4}-\d{2}-\d{2}/.test(raw) ? raw.slice(0, 10) : '';
+}
 
 interface Transaccion {
   id_transaccion_28: number;
@@ -140,6 +147,12 @@ const TransaccionView: React.FC = () => {
 
   // Búsqueda y ordenamiento (igual que TipoTransaccionView)
   const [filtro, setFiltro] = useState<string>('');
+  const [filtroFechaDesde, setFiltroFechaDesde] = useState<string>('');
+  const [filtroFechaHasta, setFiltroFechaHasta] = useState<string>('');
+  const [filtroIdAlternador, setFiltroIdAlternador] = useState<string>('');
+  const [filtroIdTipo, setFiltroIdTipo] = useState<string>('');
+  const [filtroIdTecnico, setFiltroIdTecnico] = useState<string>('');
+  const [filtroIdMaquina, setFiltroIdMaquina] = useState<string>('');
   const [sortConfig, setSortConfig] = useState<{ key: keyof Transaccion; direction: 'asc' | 'desc' } | null>(null);
 
   const API_URL = apiUrl('/transacciones');
@@ -282,14 +295,85 @@ const TransaccionView: React.FC = () => {
     }
   };
 
-  // Lógica de Filtrado y Ordenamiento Combinada (igual que TipoTransaccionView)
-  const processedTransacciones = useMemo(() => {
-    let data = [...transacciones];
+  const filtroAlternadorOptions = useMemo(
+    () =>
+      [...alternadores]
+        .map((a) => ({
+          value: String(a.id_alternador_19),
+          label: `${a.cod_alternador_19}${a.marca_18 ? ` — ${a.marca_18}` : ''}`
+        }))
+        .sort((a, b) => a.label.localeCompare(b.label, 'es', { numeric: true })),
+    [alternadores]
+  );
 
-    // 1. Filtrar
-    if (filtro) {
-      const lowerFiltro = filtro.toLowerCase();
-      data = data.filter(t =>
+  const filtroTipoOptions = useMemo(
+    () =>
+      [...tiposTransaccion]
+        .map((t) => ({
+          value: String(t.id_tipo_transaccion_25),
+          label: `${t.cod_accion_25} — ${t.descripcion_25}`
+        }))
+        .sort((a, b) => a.label.localeCompare(b.label, 'es')),
+    [tiposTransaccion]
+  );
+
+  const filtroTecnicoOptions = useMemo(
+    () =>
+      [...tecnicos]
+        .map((t) => ({
+          value: String(t.id_tecnico_21),
+          label: `${t.nombres_21} ${t.a_paterno_21 || ''} ${t.a_materno_21 || ''}`.trim()
+        }))
+        .sort((a, b) => a.label.localeCompare(b.label, 'es')),
+    [tecnicos]
+  );
+
+  const filtroMaquinaOptions = useMemo(
+    () =>
+      [...maquinas]
+        .map((m) => ({
+          value: String(m.idmaquina_11),
+          label: [m.numinterno_11 || m.idmaquina_11, m.ppu_11 ? `(${m.ppu_11})` : null]
+            .filter(Boolean)
+            .join(' ')
+        }))
+        .sort((a, b) => a.label.localeCompare(b.label, 'es', { numeric: true })),
+    [maquinas]
+  );
+
+  const hayFiltrosActivos = Boolean(
+    filtro.trim() ||
+      filtroFechaDesde ||
+      filtroFechaHasta ||
+      filtroIdAlternador ||
+      filtroIdTipo ||
+      filtroIdTecnico ||
+      filtroIdMaquina
+  );
+
+  const limpiarFiltros = () => {
+    setFiltro('');
+    setFiltroFechaDesde('');
+    setFiltroFechaHasta('');
+    setFiltroIdAlternador('');
+    setFiltroIdTipo('');
+    setFiltroIdTecnico('');
+    setFiltroIdMaquina('');
+  };
+
+  // Filtrado por combos (AND) + texto libre; después orden
+  const processedTransacciones = useMemo(() => {
+    const lowerFiltro = filtro.trim().toLowerCase();
+    let data = transacciones.filter((t) => {
+      const fecha = toFechaISO(t.fecha_28);
+      if (filtroFechaDesde && (!fecha || fecha < filtroFechaDesde)) return false;
+      if (filtroFechaHasta && (!fecha || fecha > filtroFechaHasta)) return false;
+      if (filtroIdAlternador && String(t.id_alternador_28) !== filtroIdAlternador) return false;
+      if (filtroIdTipo && String(t.id_tipo_transaccion_28) !== filtroIdTipo) return false;
+      if (filtroIdTecnico && String(t.id_tecnico_28 || '') !== filtroIdTecnico) return false;
+      if (filtroIdMaquina && String(t.id_maquina_28 || '') !== filtroIdMaquina) return false;
+      if (!lowerFiltro) return true;
+      return (
         t.cod_alternador_19?.toLowerCase().includes(lowerFiltro) ||
         t.marca_18?.toLowerCase().includes(lowerFiltro) ||
         t.ubicacion_origen_descripcion?.toLowerCase().includes(lowerFiltro) ||
@@ -300,18 +384,17 @@ const TransaccionView: React.FC = () => {
         t.maquina_numinterno?.toLowerCase().includes(lowerFiltro) ||
         t.maquina_ppu?.toLowerCase().includes(lowerFiltro) ||
         (t.observacion_28 || '').toLowerCase().includes(lowerFiltro) ||
-        t.id_transaccion_28.toString().includes(filtro)
+        t.id_transaccion_28.toString().includes(filtro.trim())
       );
-    }
+    });
 
-    // 2. Ordenar
     if (sortConfig) {
-      data.sort((a, b) => {
-        const aValue = a[sortConfig.key];
-        const bValue = b[sortConfig.key];
+      data = [...data].sort((a, b) => {
+        const aValue = a[sortConfig.key] ?? '';
+        const bValue = b[sortConfig.key] ?? '';
 
-        if (aValue === undefined || aValue === null) return 1;
-        if (bValue === undefined || bValue === null) return -1;
+        if (aValue === undefined || aValue === null || aValue === '') return 1;
+        if (bValue === undefined || bValue === null || bValue === '') return -1;
 
         if (aValue < bValue) {
           return sortConfig.direction === 'asc' ? -1 : 1;
@@ -324,7 +407,17 @@ const TransaccionView: React.FC = () => {
     }
 
     return data;
-  }, [transacciones, filtro, sortConfig]);
+  }, [
+    transacciones,
+    filtro,
+    filtroFechaDesde,
+    filtroFechaHasta,
+    filtroIdAlternador,
+    filtroIdTipo,
+    filtroIdTecnico,
+    filtroIdMaquina,
+    sortConfig
+  ]);
 
   // Lógica de Ordenamiento (igual que TipoTransaccionView)
   const handleSort = (key: keyof Transaccion) => {
@@ -1326,15 +1419,122 @@ const TransaccionView: React.FC = () => {
         </div>
       )}
 
-      {/* Buscador */}
-      <div className="form-container" style={{ marginBottom: '20px' }}>
-        <input
-          type="text"
-          placeholder="🔍 Buscar transacción..."
-          value={filtro}
-          onChange={(e) => setFiltro(e.target.value)}
-          style={{ width: '100%', padding: '10px', fontSize: '14px', borderRadius: '4px', border: '1px solid #ced4da' }}
-        />
+      {/* Filtros: rango de fecha + combos (AND) + texto libre */}
+      <div
+        className="form-container"
+        style={{ marginBottom: '20px', position: 'relative', zIndex: 5 }}
+        role="search"
+        aria-label="Filtros de transacciones"
+      >
+        <div
+          style={{
+            display: 'flex',
+            flexWrap: 'wrap',
+            gap: 12,
+            alignItems: 'end'
+          }}
+        >
+          <div className="form-group" style={{ margin: 0, flex: '0 1 150px', minWidth: 140 }}>
+            <label htmlFor="filtro-fecha-desde">Fecha desde</label>
+            <input
+              id="filtro-fecha-desde"
+              type="date"
+              value={filtroFechaDesde}
+              onChange={(e) => setFiltroFechaDesde(e.target.value)}
+              max={filtroFechaHasta || undefined}
+              aria-label="Filtrar desde fecha"
+              style={{ width: '100%', padding: '8px 12px', borderRadius: '4px', border: '1px solid #ced4da', fontSize: '14px' }}
+            />
+          </div>
+          <div className="form-group" style={{ margin: 0, flex: '0 1 150px', minWidth: 140 }}>
+            <label htmlFor="filtro-fecha-hasta">Fecha hasta</label>
+            <input
+              id="filtro-fecha-hasta"
+              type="date"
+              value={filtroFechaHasta}
+              onChange={(e) => setFiltroFechaHasta(e.target.value)}
+              min={filtroFechaDesde || undefined}
+              aria-label="Filtrar hasta fecha"
+              style={{ width: '100%', padding: '8px 12px', borderRadius: '4px', border: '1px solid #ced4da', fontSize: '14px' }}
+            />
+          </div>
+          <div className="form-group" style={{ margin: 0, flex: '1 1 200px', minWidth: 180 }}>
+            <label htmlFor="filtro-alternador">Alternador</label>
+            <SearchableSelect
+              id="filtro-alternador"
+              value={filtroIdAlternador}
+              onChange={setFiltroIdAlternador}
+              options={[{ value: '', label: 'Todos' }, ...filtroAlternadorOptions]}
+              placeholder="Todos los alternadores..."
+              aria-label="Filtrar por alternador"
+              emptyMessage="Sin alternadores"
+            />
+          </div>
+          <div className="form-group" style={{ margin: 0, flex: '1 1 240px', minWidth: 200 }}>
+            <label htmlFor="filtro-tipo">Tipo transacción</label>
+            <SearchableSelect
+              id="filtro-tipo"
+              value={filtroIdTipo}
+              onChange={setFiltroIdTipo}
+              options={[{ value: '', label: 'Todos' }, ...filtroTipoOptions]}
+              placeholder="Todos los tipos..."
+              aria-label="Filtrar por tipo de transacción"
+              emptyMessage="Sin tipos"
+            />
+          </div>
+          <div className="form-group" style={{ margin: 0, flex: '1 1 220px', minWidth: 200 }}>
+            <label htmlFor="filtro-tecnico">Técnico</label>
+            <SearchableSelect
+              id="filtro-tecnico"
+              value={filtroIdTecnico}
+              onChange={setFiltroIdTecnico}
+              options={[{ value: '', label: 'Todos' }, ...filtroTecnicoOptions]}
+              placeholder="Todos los técnicos..."
+              uppercase={false}
+              aria-label="Filtrar por técnico"
+              emptyMessage="Sin técnicos"
+            />
+          </div>
+          <div className="form-group" style={{ margin: 0, flex: '1 1 200px', minWidth: 180 }}>
+            <label htmlFor="filtro-maquina">Máquina</label>
+            <SearchableSelect
+              id="filtro-maquina"
+              value={filtroIdMaquina}
+              onChange={setFiltroIdMaquina}
+              options={[{ value: '', label: 'Todas' }, ...filtroMaquinaOptions]}
+              placeholder="Todas las máquinas..."
+              aria-label="Filtrar por máquina"
+              emptyMessage="Sin máquinas"
+            />
+          </div>
+          <div className="form-group" style={{ margin: 0, flex: '1 1 100%', minWidth: 200 }}>
+            <label htmlFor="filtro-texto">Búsqueda libre</label>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+              <input
+                id="filtro-texto"
+                type="search"
+                placeholder="Buscar origen, destino, observación..."
+                value={filtro}
+                onChange={(e) => setFiltro(e.target.value)}
+                aria-label="Búsqueda libre de transacciones"
+                style={{ flex: 1, minWidth: 180, padding: '8px 12px', fontSize: '14px', borderRadius: '4px', border: '1px solid #ced4da' }}
+              />
+              {hayFiltrosActivos && (
+                <button
+                  type="button"
+                  className="btn-secondary"
+                  onClick={limpiarFiltros}
+                  aria-label="Limpiar todos los filtros"
+                >
+                  Limpiar filtros
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+        <p style={{ margin: '12px 0 0', fontSize: '14px', color: '#495057' }}>
+          Mostrando <strong>{processedTransacciones.length}</strong> de {transacciones.length} transacciones
+        </p>
       </div>
 
       <div className="table-container">
@@ -1384,7 +1584,13 @@ const TransaccionView: React.FC = () => {
             {loading && transacciones.length === 0 ? (
               <tr><td colSpan={13}>Cargando...</td></tr>
             ) : processedTransacciones.length === 0 ? (
-              <tr><td colSpan={13}>No hay transacciones registradas</td></tr>
+              <tr>
+                <td colSpan={13}>
+                  {hayFiltrosActivos
+                    ? 'No hay transacciones con esos filtros'
+                    : 'No hay transacciones registradas'}
+                </td>
+              </tr>
             ) : (
               processedTransacciones.map((transaccion) => (
                 <tr key={transaccion.id_transaccion_28}>
