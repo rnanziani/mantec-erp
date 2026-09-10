@@ -267,75 +267,83 @@ const MovimientoRepuestoView: React.FC = () => {
         <div className="form-container">
           <h3>Nuevo movimiento</h3>
           <p className="form-help-text">
-            El tipo fija origen y destino: Máquina → Bodega → Proveedor → Bodega → Máquina.
+            Mismo ciclo de trazabilidad: 1. Taller → Bodega (en mal estado) → 2. Bodega → Proveedor
+            (a reparar) → 3. Proveedor → Bodega (reparado) → 4. Bodega → Máquina (instalado).
+            Cada movimiento deja técnico y unidad.
           </p>
           <form onSubmit={handleCreate}>
-            <div className="form-group">
-              <label htmlFor="mov-tipo">Tipo *</label>
-              <SearchableSelect
-                id="mov-tipo"
-                value={idTipo}
-                onChange={setIdTipo}
-                options={tipoOpts}
-                placeholder="Elija el paso del ciclo…"
-                required
-              />
-              {tipoSel && (
-                <small className="form-help-text">
-                  {tipoSel.codigo_origen_83} → {tipoSel.codigo_destino_83}
-                </small>
-              )}
-            </div>
-            <div className="form-group">
-              <label htmlFor="mov-unidad">Unidad *</label>
-              <SearchableSelect
-                id="mov-unidad"
-                value={idUnidad}
-                onChange={setIdUnidad}
-                options={unidadOpts}
-                placeholder="RD-000001…"
-                required
-                emptyMessage="Cree la unidad primero"
-              />
-            </div>
-            {usaMaquina && (
+            <div className="movimiento-tres-campos">
               <div className="form-group">
-                <label htmlFor="mov-maq">Máquina *</label>
+                <label htmlFor="mov-tipo">Tipo *</label>
                 <SearchableSelect
-                  id="mov-maq"
-                  value={idMaquina}
-                  onChange={setIdMaquina}
-                  options={maqOpts}
-                  placeholder="Interno o patente…"
+                  id="mov-tipo"
+                  value={idTipo}
+                  onChange={setIdTipo}
+                  options={tipoOpts}
+                  placeholder="Elija el paso del ciclo…"
                   required
                 />
+                {tipoSel && (
+                  <small className="form-help-text">
+                    {tipoSel.codigo_origen_83} → {tipoSel.codigo_destino_83}
+                  </small>
+                )}
               </div>
-            )}
-            {usaProveedor && (
               <div className="form-group">
-                <label htmlFor="mov-prov">Proveedor *</label>
+                <label htmlFor="mov-unidad">Unidad *</label>
                 <SearchableSelect
-                  id="mov-prov"
-                  value={idProveedor}
-                  onChange={setIdProveedor}
-                  options={provOpts}
-                  placeholder="Quién repara…"
+                  id="mov-unidad"
+                  value={idUnidad}
+                  onChange={setIdUnidad}
+                  options={unidadOpts}
+                  placeholder="RD-000001…"
                   required
+                  emptyMessage="Cree la unidad primero"
                 />
               </div>
-            )}
-            <div className="form-group">
-              <label htmlFor="mov-tec">Técnico</label>
-              <SearchableSelect
-                id="mov-tec"
-                value={idTecnico}
-                onChange={setIdTecnico}
-                options={[{ value: '', label: 'Sin técnico' }, ...tecOpts]}
-                placeholder="Opcional…"
-                uppercase={false}
-              />
+              <div className="form-group">
+                <label htmlFor="mov-tec">Técnico</label>
+                <SearchableSelect
+                  id="mov-tec"
+                  value={idTecnico}
+                  onChange={setIdTecnico}
+                  options={[{ value: '', label: 'Sin técnico' }, ...tecOpts]}
+                  placeholder="Opcional…"
+                  uppercase={false}
+                />
+              </div>
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            {(usaMaquina || usaProveedor) && (
+              <div className="movimiento-tres-campos">
+                {usaMaquina && (
+                  <div className="form-group">
+                    <label htmlFor="mov-maq">Máquina *</label>
+                    <SearchableSelect
+                      id="mov-maq"
+                      value={idMaquina}
+                      onChange={setIdMaquina}
+                      options={maqOpts}
+                      placeholder="Interno o patente…"
+                      required
+                    />
+                  </div>
+                )}
+                {usaProveedor && (
+                  <div className="form-group">
+                    <label htmlFor="mov-prov">Proveedor *</label>
+                    <SearchableSelect
+                      id="mov-prov"
+                      value={idProveedor}
+                      onChange={setIdProveedor}
+                      options={provOpts}
+                      placeholder="Quién repara…"
+                      required
+                    />
+                  </div>
+                )}
+              </div>
+            )}
+            <div className="movimiento-tres-campos">
               <div className="form-group">
                 <label htmlFor="mov-fecha">Fecha *</label>
                 <input id="mov-fecha" type="date" required value={fecha} onChange={(e) => setFecha(e.target.value)} />
@@ -344,17 +352,16 @@ const MovimientoRepuestoView: React.FC = () => {
                 <label htmlFor="mov-hora">Hora *</label>
                 <input id="mov-hora" type="time" required value={hora} onChange={(e) => setHora(e.target.value)} />
               </div>
-            </div>
-            <div className="form-group">
-              <label htmlFor="mov-obs">Observación</label>
-              <textarea
-                id="mov-obs"
-                value={observacion}
-                onChange={(e) => setObservacion(e.target.value.toUpperCase())}
-                maxLength={250}
-                rows={2}
-                style={{ width: '100%', padding: '8px 12px', borderRadius: 4, border: '1px solid #ced4da' }}
-              />
+              <div className="form-group">
+                <label htmlFor="mov-obs">Observación</label>
+                <input
+                  id="mov-obs"
+                  type="text"
+                  value={observacion}
+                  onChange={(e) => setObservacion(e.target.value.toUpperCase())}
+                  maxLength={250}
+                />
+              </div>
             </div>
             <div className="form-actions">
               <button type="submit" className="btn-success">

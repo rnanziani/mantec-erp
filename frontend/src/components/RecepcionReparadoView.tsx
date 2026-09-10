@@ -52,8 +52,8 @@ interface ApiResponse<T = unknown> {
 }
 
 const ESTADOS = [
-  { value: 'DISPONIBLE', label: 'Disponible en bodega' },
-  { value: 'INSTALADO', label: 'Instalado en máquina' },
+  { value: 'DISPONIBLE', label: '3. Proveedor → Bodega (reparado)' },
+  { value: 'INSTALADO', label: '4. Bodega → Máquina (instalado)' },
 ] as const;
 
 const RecepcionReparadoView: React.FC = () => {
@@ -420,9 +420,10 @@ const RecepcionReparadoView: React.FC = () => {
         <div className="form-container" style={{ overflow: 'visible' }}>
           <h3>{editingId ? `Editar cierre #${editingId}` : 'Nuevo cierre de reparación'}</h3>
           <p style={{ marginTop: 0, color: '#6b7280', fontSize: 14 }}>
-            Solo aparecen líneas de <strong>entrega (etapa 2)</strong> con fecha de recepción del proveedor.
-            Estados: <strong>Disponible en bodega</strong> o <strong>Instalado en máquina</strong> (requiere máquina).
-            Puede agregar varios repuestos (ej. 2 calipers) a la misma máquina.
+            Pasos <strong>3</strong> y <strong>4</strong> del ciclo. Solo líneas ya enviadas al proveedor
+            con fecha de vuelta. Elija <strong>3. Proveedor → Bodega (reparado)</strong> o{' '}
+            <strong>4. Bodega → Máquina (instalado)</strong> (este último pide máquina y técnico).
+            Queda la trazabilidad de quién intervino el equipo.
           </p>
           <form ref={formRef} onSubmit={handleSubmit}>
             <div className="form-row form-row-3">
@@ -703,7 +704,9 @@ const RecepcionReparadoView: React.FC = () => {
                         fontSize: 12,
                       }}
                     >
-                      {r.estado_disponible_65 === 'INSTALADO' ? 'Instalado' : 'Disponible'}
+                      {r.estado_disponible_65 === 'INSTALADO'
+                        ? '4. Bodega → Máquina (instalado)'
+                        : '3. Proveedor → Bodega (reparado)'}
                     </span>
                   </td>
                   <td>{r.responsable_nombre}</td>

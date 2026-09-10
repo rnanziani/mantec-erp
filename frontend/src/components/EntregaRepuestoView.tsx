@@ -389,11 +389,12 @@ const EntregaRepuestoView: React.FC = () => {
         <div className="form-container">
           <h3>{editingId ? `Editar entrega #${editingId}` : 'Nueva entrega a proveedor'}</h3>
           <p style={{ marginTop: 0, color: '#6b7280', fontSize: 14 }}>
-            Solo aparecen líneas de recepción en estado <strong>PENDIENTE</strong>. Al guardar pasan a{' '}
-            <strong>ENVIADO_PROVEEDOR</strong>. Si completa fecha de recepción, el contador de días se congela.
+            Paso <strong>2. Bodega → Proveedor (a reparar)</strong>. Solo aparecen líneas en{' '}
+            <strong>1. Taller → Bodega (en mal estado)</strong>. Al guardar avanzan de paso.
+            El técnico y el responsable quedan para trazabilidad.
           </p>
           <form ref={formRef} onSubmit={handleSubmit}>
-            <div className="form-row form-row-3">
+            <div className="form-row form-row-5">
               <div className="form-group">
                 <label htmlFor="idresponsable_63">Responsable entrega *</label>
                 <select
@@ -442,8 +443,6 @@ const EntregaRepuestoView: React.FC = () => {
                   onChange={(e) => setFechaEntrega(e.target.value)}
                 />
               </div>
-            </div>
-            <div className="form-row">
               <div className="form-group">
                 <label htmlFor="hora_63">Hora *</label>
                 <input
@@ -475,7 +474,7 @@ const EntregaRepuestoView: React.FC = () => {
                   value={pendienteSel}
                   onChange={(e) => setPendienteSel(e.target.value)}
                 >
-                  <option value="">Seleccione línea PENDIENTE...</option>
+                  <option value="">Seleccione línea en Taller → Bodega...</option>
                   {pendientesDisponibles.map((p) => (
                     <option key={p.iddetalle_60} value={p.iddetalle_60}>
                       {p.folio_59} · {p.repuesto_codigo} {p.repuesto_nombre} (x{p.cantidad_60})

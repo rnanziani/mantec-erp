@@ -5,6 +5,12 @@ import Pagination from './shared/Pagination';
 import SearchableSelect from './shared/SearchableSelect';
 import { showDeleteConfirm, showError, showSuccess } from '../utils/swal';
 import { apiFetch, apiUrl } from '../lib/apiClient';
+import {
+  CICLO_CON_ANULADO,
+  CICLO_REPUESTO,
+  claseFilaCiclo,
+  labelCicloResumen,
+} from '../constants/cicloRepuesto';
 
 interface Maestro {
   idrecepcion_59: number;
@@ -22,7 +28,7 @@ interface Maestro {
   responsable_nombre?: string;
   proveedor_nombre?: string;
   repuestos_resumen?: string | null;
-  estado_resumen?: 'PENDIENTE' | 'TERMINADO' | string;
+  estado_resumen?: string;
 }
 
 interface DetalleLinea {
@@ -39,8 +45,6 @@ interface ApiResponse<T = unknown> {
   message?: string;
   error?: string;
 }
-
-const ESTADOS = ['PENDIENTE', 'ENVIADO_PROVEEDOR', 'RECIBIDO', 'ANULADO'] as const;
 
 const RecepcionRepuestoView: React.FC = () => {
   const formRef = React.useRef<HTMLFormElement>(null);
@@ -68,7 +72,7 @@ const RecepcionRepuestoView: React.FC = () => {
   const [filtroRepuesto, setFiltroRepuesto] = useState('');
   const [filtroTecnico, setFiltroTecnico] = useState('');
   const [filtroProveedor, setFiltroProveedor] = useState('');
-  const [filtroEstado, setFiltroEstado] = useState<'PENDIENTE' | 'TERMINADO' | ''>('PENDIENTE');
+  const [filtroEstado, setFiltroEstado] = useState('PENDIENTE');
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
 
@@ -82,7 +86,7 @@ const RecepcionRepuestoView: React.FC = () => {
   const [detalles, setDetalles] = useState<DetalleLinea[]>([]);
   const [repuestoSel, setRepuestoSel] = useState('');
   const [cantidadSel, setCantidadSel] = useState('1');
-  const [estadoSel, setEstadoSel] = useState<string>('PENDIENTE');
+  const [estadoSel, setEstadoSel] = useState('PENDIENTE');
 
   const API_URL = apiUrl('/recepciones-repuestos');
 
@@ -543,7 +547,14 @@ const RecepcionRepuestoView: React.FC = () => {
               <textarea id="obs" className="form-input" rows={2} value={observacion} onChange={(e) => setObservacion(e.target.value)} />
             </div>
 
-            <h4>Detalle de repuestos (estado por línea)</h4>
+            <h4>Detalle de repuestos</h4>
+            <p id="estado-ciclo-ayuda" className="form-help-text">
+              Ciclo de trazabilidad: <strong>1. Taller → Bodega (en mal estado)</strong> →
+              {' '}<strong>2. Bodega → Proveedor (a reparar)</strong> →
+              {' '}<strong>3. Proveedor → Bodega (reparado)</strong> →
+              {' '}<strong>4. Bodega → Máquina (instalado)</strong>.
+              El técnico de cada acta queda en el historial del equipo.
+            </p>
             <div className="form-row form-row-3">
               <div className="form-group">
                 <label htmlFor="repuesto">Repuesto</label>
@@ -562,9 +573,17 @@ const RecepcionRepuestoView: React.FC = () => {
                 <input id="cant" type="number" min={1} className="form-input" value={cantidadSel} onChange={(e) => setCantidadSel(e.target.value)} />
               </div>
               <div className="form-group">
-                <label htmlFor="estado-linea">Estado línea</label>
-                <select id="estado-linea" className="form-input" value={estadoSel} onChange={(e) => setEstadoSel(e.target.value)}>
-                  {ESTADOS.map((e) => <option key={e} value={e}>{e}</option>)}
+                <label htmlFor="estado-linea">Estado *</label>
+                <select
+                  id="estado-linea"
+                  className="form-input"
+                  value={estadoSel}
+                  onChange={(e) => setEstadoSel(e.target.value)}
+                  aria-describedby="estado-ciclo-ayuda"
+                >
+                  {CICLO_CON_ANULADO.map((e) => (
+                    <option key={e.value} value={e.value}>{e.label}</option>
+                  ))}
                 </select>
               </div>
             </div>
@@ -609,8 +628,11 @@ const RecepcionRepuestoView: React.FC = () => {
                               const v = e.target.value;
                               setDetalles((prev) => prev.map((x, i) => (i === idx ? { ...x, estado_60: v } : x)));
                             }}
+                            aria-label={`Estado de ${nombreRepuesto(d.idrepuestodanado_60)}`}
                           >
-                            {ESTADOS.map((est) => <option key={est} value={est}>{est}</option>)}
+                            {CICLO_CON_ANULADO.map((est) => (
+                              <option key={est.value} value={est.value}>{est.label}</option>
+                            ))}
                           </select>
                         </td>
                         <td>
@@ -710,11 +732,13 @@ const RecepcionRepuestoView: React.FC = () => {
             id="filtro_estado"
             className="form-input"
             value={filtroEstado}
-            onChange={(e) => setFiltroEstado(e.target.value as 'PENDIENTE' | 'TERMINADO' | '')}
+            onChange={(e) => setFiltroEstado(e.target.value)}
             aria-label="Filtrar por estado de la recepción"
           >
-            <option value="PENDIENTE">Pendientes</option>
-            <option value="TERMINADO">Terminados</option>
+            {CICLO_REPUESTO.map((e) => (
+              <option key={e.resumen} value={e.resumen}>{e.label}</option>
+            ))}
+            <option value="ANULADO">Anulado</option>
             <option value="">Todos</option>
           </select>
         </div>
@@ -772,14 +796,14 @@ const RecepcionRepuestoView: React.FC = () => {
               pageItems.map((r) => (
                 <tr
                   key={r.idrecepcion_59}
-                  className={r.estado_resumen === 'TERMINADO' ? 'recepcion-row--terminado' : 'recepcion-row--pendiente'}
+                  className={claseFilaCiclo(r.estado_resumen)}
                 >
                   <td>{r.idrecepcion_59}</td>
                   <td><strong>{r.folio_59 || '-'}</strong></td>
                   <td>{String(r.fecha_59).slice(0, 10)} {String(r.hora_59).slice(0, 5)}</td>
                   <td>{r.maquina_numinterno || r.idmaquina_59} — {r.maquina_descripcion || ''}</td>
                   <td>{r.repuestos_resumen || '—'}</td>
-                  <td className="recepcion-estado">{r.estado_resumen === 'TERMINADO' ? 'Terminado' : 'Pendiente'}</td>
+                  <td className="recepcion-estado">{labelCicloResumen(r.estado_resumen)}</td>
                   <td>{r.tecnico_nombre || '-'}</td>
                   <td>{r.proveedor_nombre || '-'}</td>
                   <td>{r.responsable_nombre || '-'}</td>

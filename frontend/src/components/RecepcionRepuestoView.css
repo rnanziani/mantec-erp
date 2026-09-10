@@ -2,8 +2,21 @@
   background-color: #fdecef;
 }
 
+.recepcion-row--en-proveedor {
+  background-color: #fff6e0;
+}
+
+.recepcion-row--recibido,
 .recepcion-row--terminado {
   background-color: #e7f6ec;
+}
+
+.recepcion-row--instalado {
+  background-color: #dbeafe;
+}
+
+.recepcion-row--anulado {
+  background-color: #f1f5f9;
 }
 
 .recepcion-estado {

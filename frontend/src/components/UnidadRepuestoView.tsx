@@ -200,29 +200,31 @@ const UnidadRepuestoView: React.FC = () => {
         <div className="form-container">
           <h3>{editingId ? 'Editar unidad' : 'Nueva unidad (una pieza)'}</h3>
           <form ref={formRef} onSubmit={handleSubmit}>
-            <div className="form-group">
-              <label htmlFor="unidad-tipo">Tipo *</label>
-              <SearchableSelect
-                id="unidad-tipo"
-                value={idTipo}
-                onChange={setIdTipo}
-                options={tipoOptions}
-                placeholder="Caliper, barra, secador…"
-                required
-                emptyMessage="Cargue el catálogo de tipos primero"
-              />
-              <small className="form-help-text">El código RD-000001 se asigna al guardar, como el 0131 del alternador.</small>
-            </div>
-            <div className="form-group">
-              <label htmlFor="unidad-obs">Observación</label>
-              <textarea
-                id="unidad-obs"
-                value={observacion}
-                onChange={(e) => setObservacion(e.target.value.toUpperCase())}
-                maxLength={250}
-                rows={2}
-                style={{ width: '100%', padding: '8px 12px', borderRadius: 4, border: '1px solid #ced4da' }}
-              />
+            <div className="unidad-form-campos">
+              <div className="form-group">
+                <label htmlFor="unidad-tipo">Tipo *</label>
+                <SearchableSelect
+                  id="unidad-tipo"
+                  value={idTipo}
+                  onChange={setIdTipo}
+                  options={tipoOptions}
+                  placeholder="Caliper, barra, secador…"
+                  required
+                  emptyMessage="Cargue el catálogo de tipos primero"
+                />
+                <small className="form-help-text">El código RD-000001 se asigna al guardar, como el 0131 del alternador.</small>
+              </div>
+              <div className="form-group">
+                <label htmlFor="unidad-obs">Observación</label>
+                <textarea
+                  id="unidad-obs"
+                  value={observacion}
+                  onChange={(e) => setObservacion(e.target.value.toUpperCase())}
+                  maxLength={250}
+                  rows={3}
+                  style={{ width: '100%', padding: '8px 12px', borderRadius: 4, border: '1px solid #ced4da', boxSizing: 'border-box' }}
+                />
+              </div>
             </div>
           </form>
         </div>

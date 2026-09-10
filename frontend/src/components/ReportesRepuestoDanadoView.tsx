@@ -6,6 +6,7 @@ import SearchableSelect from './shared/SearchableSelect';
 import { exportToExcel } from '../utils/exportUtils';
 import { showError, showSuccess } from '../utils/swal';
 import { apiFetch, apiUrl } from '../lib/apiClient';
+import { CICLO_CON_ANULADO, labelCicloLinea } from '../constants/cicloRepuesto';
 
 type Tab = 'recepcion' | 'proveedor' | 'instalados';
 
@@ -76,11 +77,11 @@ interface FilaInstalado {
 }
 
 const SITUACION_LABEL: Record<string, string> = {
-  PENDIENTE_ENVIO: 'Pendiente de enviar',
-  EN_PROVEEDOR: 'En el proveedor',
-  DEVUELTO_SIN_CERRAR: 'Volvió, sin asignar',
-  DISPONIBLE_BODEGA: 'Disponible en bodega',
-  INSTALADO: 'Instalado',
+  PENDIENTE_ENVIO: '1. Taller → Bodega (en mal estado)',
+  EN_PROVEEDOR: '2. Bodega → Proveedor (a reparar)',
+  DEVUELTO_SIN_CERRAR: '3. Proveedor → Bodega (reparado, sin cerrar)',
+  DISPONIBLE_BODEGA: '3. Proveedor → Bodega (reparado)',
+  INSTALADO: '4. Bodega → Máquina (instalado)',
   ANULADO: 'Anulado',
 };
 
@@ -317,10 +318,9 @@ const ReportesRepuestoDanadoView: React.FC = () => {
               <label htmlFor="rd-est">Estado línea</label>
               <select id="rd-est" className="form-input" value={estado} onChange={(e) => setEstado(e.target.value)}>
                 <option value="">Todos</option>
-                <option value="PENDIENTE">PENDIENTE</option>
-                <option value="ENVIADO_PROVEEDOR">ENVIADO_PROVEEDOR</option>
-                <option value="RECIBIDO">RECIBIDO</option>
-                <option value="ANULADO">ANULADO</option>
+                {CICLO_CON_ANULADO.map((e) => (
+                  <option key={e.value} value={e.value}>{e.label}</option>
+                ))}
               </select>
             </div>
           )}
@@ -396,7 +396,7 @@ const ReportesRepuestoDanadoView: React.FC = () => {
                   <td>{maquinaTxt(r.maquina_numinterno, r.maquina_ppu)}</td>
                   <td>{r.repuesto_codigo} {r.repuesto_nombre}</td>
                   <td>{r.cantidad_60}</td>
-                  <td>{r.estado_60}</td>
+                  <td>{labelCicloLinea(r.estado_60)}</td>
                   <td>{r.tecnico_nombre}</td>
                   <td>{r.proveedor_nombre}</td>
                 </tr>

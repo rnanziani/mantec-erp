@@ -9,7 +9,7 @@ import {
 
 const TABLA_M = 'tbl_59_m_recepcion_repuesto';
 const TABLA_D = 'tbl_60_d_recepcion_repuesto';
-const ESTADOS = new Set(['PENDIENTE', 'ENVIADO_PROVEEDOR', 'RECIBIDO', 'ANULADO']);
+const ESTADOS = new Set(['PENDIENTE', 'ENVIADO_PROVEEDOR', 'RECIBIDO', 'INSTALADO', 'ANULADO']);
 
 const MAESTRO_SELECT = `
   SELECT
@@ -51,8 +51,12 @@ const MAESTRO_SELECT = `
     ) AS repuestos_resumen,
     (
       SELECT CASE
+        WHEN COUNT(*) = 0 THEN 'PENDIENTE'
         WHEN COUNT(*) FILTER (WHERE d.estado_60 = 'PENDIENTE') > 0 THEN 'PENDIENTE'
-        ELSE 'TERMINADO'
+        WHEN COUNT(*) FILTER (WHERE d.estado_60 = 'ENVIADO_PROVEEDOR') > 0 THEN 'EN_PROVEEDOR'
+        WHEN COUNT(*) FILTER (WHERE d.estado_60 = 'RECIBIDO') > 0 THEN 'RECIBIDO'
+        WHEN COUNT(*) FILTER (WHERE d.estado_60 = 'INSTALADO') > 0 THEN 'INSTALADO'
+        ELSE 'ANULADO'
       END
       FROM ${TABLA_D} d
       WHERE d.idrecepcion_60 = m.idrecepcion_59
@@ -94,7 +98,7 @@ function validarDetalles(
     if (!d.cantidad_60 || d.cantidad_60 < 1) return 'La cantidad debe ser mayor a 0';
     const estado = String(d.estado_60 || 'PENDIENTE').toUpperCase();
     if (!ESTADOS.has(estado)) {
-      return `Estado inválido: ${estado}. Use PENDIENTE, ENVIADO_PROVEEDOR, RECIBIDO o ANULADO`;
+      return `Estado inválido: ${estado}. Use el ciclo Taller→Bodega, Bodega→Proveedor, Proveedor→Bodega, Bodega→Máquina o Anulado`;
     }
   }
   return null;

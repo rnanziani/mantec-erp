@@ -53,6 +53,23 @@ const SELECT_ALL = `
   LEFT JOIN tbl_11_maquina ma ON r.idmaquina_65 = ma.idmaquina_11
 `;
 
+async function sincronizarEstado60DesdeCierre(
+  client: { query: typeof pool.query },
+  idDetalleEntrega: number,
+  estado65: string
+): Promise<void> {
+  const estado60 = estado65 === 'INSTALADO' ? 'INSTALADO' : 'RECIBIDO';
+  await client.query(
+    `UPDATE tbl_60_d_recepcion_repuesto d
+     SET estado_60 = $2, actualizado_en = CURRENT_TIMESTAMP
+     FROM tbl_64_d_entrega_repuesto e
+     WHERE e.iddetalle_64 = $1
+       AND d.iddetalle_60 = e.iddetalle_recepcion_64
+       AND d.estado_60 <> 'ANULADO'`,
+    [idDetalleEntrega, estado60]
+  );
+}
+
 function validarEstadoYMaquina(
   estado: string,
   idMaquina: number | null | undefined
@@ -210,6 +227,7 @@ export const createRecepcionReparado = async (req: Request, res: Response): Prom
           ]
         );
         createdIds.push(ins.rows[0].idrecepcion_65);
+        await sincronizarEstado60DesdeCierre(client, linea.iddetalle_entrega_65, estado);
       }
       await client.query('COMMIT');
       const rows = await pool.query<RecepcionRepuestoReparado>(
@@ -259,6 +277,7 @@ export const createRecepcionReparado = async (req: Request, res: Response): Prom
         single.observacion_65?.trim() || null,
       ]
     );
+    await sincronizarEstado60DesdeCierre(client, single.iddetalle_entrega_65, estado);
     await client.query('COMMIT');
     const row = await pool.query<RecepcionRepuestoReparado>(
       `${SELECT_ALL} WHERE r.idrecepcion_65 = $1`,
@@ -346,6 +365,9 @@ export const updateRecepcionReparado = async (req: Request, res: Response): Prom
       values
     );
 
+    const idDetalleEntrega = body.iddetalle_entrega_65 ?? current.iddetalle_entrega_65;
+    await sincronizarEstado60DesdeCierre(client, Number(idDetalleEntrega), estado);
+
     const row = await pool.query<RecepcionRepuestoReparado>(
       `${SELECT_ALL} WHERE r.idrecepcion_65 = $1`,
       [id]
@@ -364,6 +386,10 @@ export const updateRecepcionReparado = async (req: Request, res: Response): Prom
 export const deleteRecepcionReparado = async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
+    const prev = await pool.query<{ iddetalle_entrega_65: number }>(
+      `SELECT iddetalle_entrega_65 FROM ${TABLA} WHERE idrecepcion_65 = $1`,
+      [id]
+    );
     const result = await pool.query(
       `DELETE FROM ${TABLA} WHERE idrecepcion_65 = $1 RETURNING idrecepcion_65`,
       [id]
@@ -371,6 +397,9 @@ export const deleteRecepcionReparado = async (req: Request, res: Response): Prom
     if (result.rowCount === 0) {
       res.status(404).json({ success: false, error: 'Registro no encontrado' });
       return;
+    }
+    if (prev.rows[0]) {
+      await sincronizarEstado60DesdeCierre(pool, prev.rows[0].iddetalle_entrega_65, 'DISPONIBLE');
     }
     res.json({ success: true, message: 'Registro eliminado' });
   } catch (error) {

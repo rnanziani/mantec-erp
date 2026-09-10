@@ -43,7 +43,7 @@ INSERT INTO public.tbl_83_tipo_movimiento_repuesto
   (codigo_83, descripcion_83, valor_accion_83, codigo_origen_83, codigo_destino_83)
 SELECT v.codigo, v.descripcion, v.valor, v.origen, v.destino
 FROM (VALUES
-  ('MBD', 'Máquina → Bodega (dañado)', -1, 'MAQUINA', 'BODEGA'),
+  ('MBD', 'Taller → Bodega (en mal estado)', -1, 'MAQUINA', 'BODEGA'),
   ('BPR', 'Bodega → Proveedor (a reparar)', -1, 'BODEGA', 'PROVEEDOR'),
   ('PRB', 'Proveedor → Bodega (reparado)', -1, 'PROVEEDOR', 'BODEGA'),
   ('BMA', 'Bodega → Máquina (instalado)', -1, 'BODEGA', 'MAQUINA')
