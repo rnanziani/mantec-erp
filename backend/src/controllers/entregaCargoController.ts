@@ -1,5 +1,9 @@
 import { Request, Response } from 'express';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import PdfPrinter from 'pdfmake';
+import type { PdfDocumentDefinition } from '../utils/pdfTypes.js';
 import { pool } from '../db.js';
 import {
   CreateDevolucionCargoDTO,
@@ -8,6 +12,30 @@ import {
   InventarioCargoVigente,
   MaestroEntregaCargo,
 } from '../types.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+const CODIGO_DOC = 'SIG F-622-008';
+const VERSION_DOC = '001';
+const EMPRESA_LEGAL = {
+  nombre: 'Transporte Transantin',
+  rut: '77.189.090-3',
+};
+const ENCARGADO_BODEGA = {
+  nombre: 'Ricardo Nuñez Anziani',
+  rut: '10.050.993-8',
+};
+const MESES = [
+  'enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
+  'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre',
+];
+const COMPROMISOS_ACTA = [
+  'Utilizar las herramientas exclusivamente para fines laborales.',
+  'Mantenerlas en buen estado de conservación y funcionamiento.',
+  'Informar oportunamente cualquier daño, pérdida o desperfecto.',
+  'Restituir las herramientas a la empresa cuando ésta lo requiera o al término de la relación laboral, en las mismas condiciones de uso normal en que fueron entregadas.',
+];
 
 const TABLA_M = 'tbl_67_m_entrega_cargo';
 const TABLA_D = 'tbl_68_d_entrega_cargo';
@@ -21,7 +49,7 @@ const MAESTRO_SELECT = `
     m.fecha_67, m.hora_67, m.estado_67, m.observacion_67, m.creado_en, m.actualizado_en,
     CONCAT(t.nombre_06, ' ', COALESCE(t.apaterno_06, ''), ' ', COALESCE(t.amaterno_06, '')) AS trabajador_nombre,
     t.ruttrabajador_06 AS trabajador_rut,
-    c.nombrecargo_14 AS trabajador_cargo,
+    c.cargo_14 AS trabajador_cargo,
     CONCAT(
       COALESCE(r.nombreresponsableentrega_08, ''), ' ',
       COALESCE(r.apaternoresponsableentrega_08, ''), ' ',
@@ -42,9 +70,12 @@ const DETALLE_SELECT = `
     (d.cantidad_68 - d.cantidad_devuelta_68) AS pendiente,
     h.codigo_66 AS herramienta_codigo,
     h.nombre_66 AS herramienta_nombre,
-    h.serie_66 AS herramienta_serie
+    h.serie_66 AS herramienta_serie,
+    h.valor_66 AS herramienta_valor,
+    mi.marca_insumo_37 AS herramienta_marca
   FROM ${TABLA_D} d
   INNER JOIN ${TABLA_H} h ON d.idherramienta_68 = h.idherramienta_66
+  LEFT JOIN tbl_37_marca_insumo mi ON h.idmarca_insumo_66 = mi.id_marca_insumo_37
 `;
 
 async function refrescarEstadoMaestro(
@@ -548,22 +579,190 @@ export const anularEntregaCargo = async (req: Request, res: Response): Promise<v
   }
 };
 
-export const getActaPdfEntregaCargo = async (req: Request, res: Response): Promise<void> => {
+function loadActaAssetDataUrl(fileName: string): string | null {
   try {
-    const { id } = req.params;
-    const maestro = await pool.query<MaestroEntregaCargo>(
-      `${MAESTRO_SELECT} WHERE m.identrega_67 = $1`,
-      [id]
-    );
-    if (maestro.rowCount === 0) {
+    const fullPath = path.join(__dirname, '../../assets/acta-epp', fileName);
+    const base64 = fs.readFileSync(fullPath).toString('base64');
+    return `data:image/png;base64,${base64}`;
+  } catch {
+    return null;
+  }
+}
+
+function partesFechaEntrega(value: Date | string | null | undefined): {
+  dia: number;
+  mes: string;
+  anio: number;
+} {
+  if (value instanceof Date && !Number.isNaN(value.getTime())) {
+    return {
+      dia: value.getUTCDate(),
+      mes: MESES[value.getUTCMonth()] || 'enero',
+      anio: value.getUTCFullYear(),
+    };
+  }
+  const raw = String(value ?? '').trim();
+  const iso = raw.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (iso) {
+    const anio = Number(iso[1]);
+    const mesNum = Number(iso[2]);
+    const dia = Number(iso[3]);
+    return { dia, mes: MESES[mesNum - 1] || 'enero', anio };
+  }
+  const hoy = new Date();
+  return {
+    dia: hoy.getDate(),
+    mes: MESES[hoy.getMonth()] || 'enero',
+    anio: hoy.getFullYear(),
+  };
+}
+
+function formatFechaCorta(value: Date | string | null | undefined): string {
+  const { dia, mes, anio } = partesFechaEntrega(value);
+  const mm = String(MESES.indexOf(mes) + 1).padStart(2, '0');
+  return `${String(dia).padStart(2, '0')}/${mm}/${String(anio).slice(-2)}`;
+}
+
+function formatClp(value: unknown): string {
+  const n = Number(value) || 0;
+  return new Intl.NumberFormat('es-CL', {
+    style: 'currency',
+    currency: 'CLP',
+    maximumFractionDigits: 0,
+  }).format(n);
+}
+
+function stampArchivoActa(date = new Date()): string {
+  const formatted = new Intl.DateTimeFormat('sv-SE', {
+    timeZone: 'America/Santiago',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }).format(date);
+  const normalized = formatted.replace('T', ' ');
+  const [fechaPart, horaPart = '00:00'] = normalized.split(' ');
+  const [anio, mes, dia] = fechaPart.split('-');
+  const [hh, mm] = horaPart.split(':');
+  return `${anio.slice(-2)}${mes}${dia}_${hh}${mm}`;
+}
+
+type ActaHerramientaCargo = {
+  codigoDoc: string;
+  versionDoc: string;
+  titulo: string;
+  folio: string;
+  intro: { dia: number; mes: string; anio: number };
+  empresaLegal: { nombre: string; rut: string };
+  trabajador: { nombre: string; rut: string; cargo: string; ccosto: string };
+  fechaEntrega: string;
+  herramientas: Array<{
+    codigo: string;
+    nombre: string;
+    marca: string;
+    serie: string;
+    cantidad: number;
+    valor: number;
+    valorFmt: string;
+  }>;
+  observacion: string | null;
+  declaraciones: {
+    intro: string;
+    compromisos: string[];
+    cierre: string;
+  };
+  firmas: {
+    trabajadorNombre: string;
+    trabajadorRut: string;
+    encargadoNombre: string;
+    encargadoRut: string;
+  };
+};
+
+async function cargarDatosActaCargo(id: string): Promise<ActaHerramientaCargo | null> {
+  const maestro = await pool.query<MaestroEntregaCargo>(
+    `${MAESTRO_SELECT} WHERE m.identrega_67 = $1`,
+    [id]
+  );
+  if (maestro.rowCount === 0) return null;
+
+  const detalles = await pool.query<
+    DetalleEntregaCargo & { herramienta_valor?: number; herramienta_marca?: string | null }
+  >(
+    `${DETALLE_SELECT} WHERE d.identrega_68 = $1 ORDER BY d.iddetalle_68`,
+    [id]
+  );
+  const m = maestro.rows[0];
+  const nombre = (m.trabajador_nombre || '').trim();
+  const rut = m.trabajador_rut || '';
+
+  return {
+    codigoDoc: CODIGO_DOC,
+    versionDoc: VERSION_DOC,
+    titulo: 'ANEXO DE ENTREGA DE HERRAMIENTAS DE TRABAJO',
+    folio: m.folio_67 || String(m.identrega_67),
+    intro: partesFechaEntrega(m.fecha_67),
+    empresaLegal: EMPRESA_LEGAL,
+    trabajador: {
+      nombre,
+      rut,
+      cargo: m.trabajador_cargo || '',
+      ccosto: m.ccosto_nombre || '',
+    },
+    fechaEntrega: formatFechaCorta(m.fecha_67),
+    herramientas: detalles.rows.map((d) => ({
+      codigo: d.herramienta_codigo || '',
+      nombre: d.herramienta_nombre || '',
+      marca: d.herramienta_marca || '',
+      serie: d.herramienta_serie || '',
+      cantidad: Number(d.cantidad_68 || 0),
+      valor: Number(d.herramienta_valor || 0),
+      valorFmt: formatClp(d.herramienta_valor),
+    })),
+    observacion: m.observacion_67 || null,
+    declaraciones: {
+      intro:
+        'El trabajador declara haber recibido los elementos antes descritos en buen estado de funcionamiento y se compromete a:',
+      compromisos: COMPROMISOS_ACTA,
+      cierre:
+        'Las partes firman la presente acta en señal de conformidad, quedando una copia en poder de cada una de ellas.',
+    },
+    firmas: {
+      trabajadorNombre: nombre,
+      trabajadorRut: rut,
+      encargadoNombre: ENCARGADO_BODEGA.nombre,
+      encargadoRut: ENCARGADO_BODEGA.rut,
+    },
+  };
+}
+
+export const getActaDatosEntregaCargo = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const acta = await cargarDatosActaCargo(req.params.id);
+    if (!acta) {
       res.status(404).json({ success: false, error: 'Entrega no encontrada' });
       return;
     }
-    const detalles = await pool.query<DetalleEntregaCargo>(
-      `${DETALLE_SELECT} WHERE d.identrega_68 = $1 ORDER BY d.iddetalle_68`,
-      [id]
-    );
-    const m = maestro.rows[0];
+    res.json({ success: true, data: acta });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: 'Error al obtener los datos del acta',
+      message: error instanceof Error ? error.message : 'Error desconocido',
+    });
+  }
+};
+
+export const getActaPdfEntregaCargo = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const acta = await cargarDatosActaCargo(req.params.id);
+    if (!acta) {
+      res.status(404).json({ success: false, error: 'Entrega no encontrada' });
+      return;
+    }
+
     const fonts = {
       Roboto: {
         normal: 'Helvetica',
@@ -573,94 +772,256 @@ export const getActaPdfEntregaCargo = async (req: Request, res: Response): Promi
       },
     };
     const printer = new PdfPrinter(fonts);
+    const logoDataUrl = loadActaAssetDataUrl('logo-transantin.png');
 
-    const bodyRows = [
-      [
-        { text: 'Código', bold: true },
-        { text: 'Herramienta', bold: true },
-        { text: 'Serie', bold: true },
-        { text: 'Cant.', bold: true },
-        { text: 'Estado', bold: true },
-      ],
-      ...detalles.rows.map((d) => [
-        d.herramienta_codigo || '',
-        d.herramienta_nombre || '',
-        d.herramienta_serie || '—',
-        String(d.cantidad_68),
-        d.estado_entrega_68 || '',
-      ]),
+    const labelCell = (text: string) => ({
+      text,
+      fillColor: '#555555',
+      color: '#ffffff',
+      bold: true,
+      fontSize: 8,
+      margin: [5, 6, 5, 6],
+      alignment: 'left' as const,
+    });
+    const valueCell = (text: string) => ({
+      text: text || ' ',
+      fontSize: 9,
+      margin: [5, 6, 5, 6],
+      alignment: 'left' as const,
+    });
+    const tableLayout = {
+      hLineWidth: () => 0.6,
+      vLineWidth: () => 0.6,
+      hLineColor: () => '#888888',
+      vLineColor: () => '#888888',
+    };
+
+    const itemsHeader = [
+      { text: 'Nº', style: 'gridHeader', alignment: 'center' },
+      { text: 'Herramienta / equipo', style: 'gridHeader', alignment: 'center' },
+      { text: 'Marca', style: 'gridHeader', alignment: 'center' },
+      { text: 'Cant.', style: 'gridHeader', alignment: 'center' },
+      { text: 'Valor', style: 'gridHeader', alignment: 'center' },
+      { text: 'Fecha de Entrega\n(DD/MM/AA)', style: 'gridHeader', alignment: 'center' },
     ];
+    const itemsBody: unknown[] = [itemsHeader];
+    acta.herramientas.forEach((h, index) => {
+      const nombre = [h.nombre, h.serie ? `Serie ${h.serie}` : '']
+        .filter(Boolean)
+        .join(' — ');
+      itemsBody.push([
+        { text: String(index + 1).padStart(2, '0'), style: 'gridCell', alignment: 'center' },
+        { text: nombre || '—', style: 'gridCell' },
+        { text: h.marca || '—', style: 'gridCell', alignment: 'center' },
+        { text: String(h.cantidad), style: 'gridCell', alignment: 'center' },
+        { text: h.valorFmt, style: 'gridCell', alignment: 'right' },
+        { text: acta.fechaEntrega, style: 'gridCell', alignment: 'center' },
+      ]);
+    });
+    if (itemsBody.length === 1) {
+      itemsBody.push([
+        { text: '', style: 'gridCell' },
+        { text: '', style: 'gridCell' },
+        { text: '', style: 'gridCell' },
+        { text: '', style: 'gridCell' },
+        { text: '', style: 'gridCell' },
+        { text: '', style: 'gridCell' },
+      ]);
+    }
 
-    const docDefinition: any = {
-      pageSize: 'LETTER',
-      pageMargins: [40, 40, 40, 40],
-      content: [
-        { text: 'ACTA DE ENTREGA DE HERRAMIENTAS A CARGO', style: 'title', alignment: 'center' },
-        { text: `Folio: ${m.folio_67 || id}`, margin: [0, 8, 0, 4] },
+    const headerCols: unknown[] = [];
+    if (logoDataUrl) {
+      headerCols.push({ image: logoDataUrl, width: 110, margin: [0, 0, 12, 0] });
+    } else {
+      headerCols.push({
+        text: 'TranSantin',
+        fontSize: 14,
+        bold: true,
+        color: '#1d4ed8',
+        width: 110,
+      });
+    }
+    headerCols.push({
+      stack: [
         {
-          text: `Fecha: ${String(m.fecha_67).slice(0, 10)}  Hora: ${String(m.hora_67).slice(0, 5)}`,
+          text: acta.titulo,
+          fontSize: 12,
+          bold: true,
+          alignment: 'center',
+          color: '#111111',
+          margin: [0, 8, 0, 0],
+        },
+      ],
+      width: '*',
+    });
+
+    const docDefinition: PdfDocumentDefinition = {
+      pageSize: 'LETTER',
+      pageMargins: [48, 42, 48, 48],
+      content: [
+        {
+          text: `${acta.codigoDoc}\nVersión ${acta.versionDoc}`,
+          fontSize: 8,
+          color: '#888888',
+          alignment: 'right',
           margin: [0, 0, 0, 10],
         },
+        { columns: headerCols, margin: [0, 0, 0, 14] },
         {
-          columns: [
+          text: [
+            { text: 'A ', fontSize: 10 },
+            { text: String(acta.intro.dia), bold: true, fontSize: 10 },
+            { text: ' de ', fontSize: 10 },
+            { text: String(acta.intro.mes), bold: true, fontSize: 10 },
+            { text: ' de ', fontSize: 10 },
+            { text: String(acta.intro.anio), bold: true, fontSize: 10 },
+            { text: ', la ', fontSize: 10 },
+            { text: acta.empresaLegal.nombre, bold: true, fontSize: 10 },
+            { text: ', Rut ', fontSize: 10 },
+            { text: acta.empresaLegal.rut, bold: true, fontSize: 10 },
             {
-              width: '*',
-              stack: [
-                { text: 'Trabajador', bold: true },
-                { text: m.trabajador_nombre || '—' },
-                { text: `RUT: ${m.trabajador_rut || '—'}` },
-                { text: `Cargo: ${m.trabajador_cargo || '—'}` },
-              ],
+              text:
+                ' hace entrega de las siguientes herramientas y/o equipos de trabajo para el desempeño de sus funciones laborales a Don(ña) ',
+              fontSize: 10,
             },
-            {
-              width: '*',
-              stack: [
-                { text: 'Responsable entrega', bold: true },
-                { text: m.responsable_nombre || '—' },
-                { text: `CCosto: ${m.ccosto_nombre || '—'}` },
-                { text: `Estado doc.: ${m.estado_67}` },
-              ],
-            },
+            { text: acta.trabajador.nombre || '—', bold: true, fontSize: 10 },
+            { text: ', cédula de identidad ', fontSize: 10 },
+            { text: acta.trabajador.rut || '—', bold: true, fontSize: 10 },
+            { text: '.', fontSize: 10 },
           ],
+          alignment: 'justify',
+          lineHeight: 1.35,
           margin: [0, 0, 0, 14],
         },
         {
-          table: { headerRows: 1, widths: [70, '*', 70, 40, 55], body: bodyRows },
-          layout: 'lightHorizontalLines',
+          text: 'Datos del Trabajador',
+          fontSize: 10,
+          bold: true,
+          color: '#111111',
+          margin: [0, 0, 0, 6],
         },
         {
-          text:
-            m.observacion_67
-              ? `Observaciones: ${m.observacion_67}`
-              : 'Observaciones: —',
-          margin: [0, 14, 0, 0],
+          table: {
+            widths: [70, '*', 80, '*'],
+            body: [
+              [
+                labelCell('Nombre'),
+                valueCell(acta.trabajador.nombre),
+                labelCell('Cargo'),
+                valueCell(acta.trabajador.cargo),
+              ],
+              [
+                labelCell('RUT'),
+                valueCell(acta.trabajador.rut),
+                labelCell('CCosto'),
+                valueCell(acta.trabajador.ccosto),
+              ],
+            ],
+          },
+          layout: tableLayout,
+          margin: [0, 0, 0, 14],
         },
         {
-          text:
-            'El trabajador recibe las herramientas detalladas bajo su responsabilidad (a cargo), ' +
-            'debiendo devolverlas en buen estado al desvincularse o cuando la empresa lo requiera.',
-          margin: [0, 16, 0, 0],
+          text: 'Detalle de las herramientas de trabajo',
+          fontSize: 10,
+          bold: true,
+          color: '#111111',
+          margin: [0, 0, 0, 6],
+        },
+        {
+          table: {
+            headerRows: 1,
+            widths: [28, '*', 70, 40, 70, 80],
+            body: itemsBody,
+          },
+          layout: {
+            ...tableLayout,
+            fillColor: (rowIndex: number) => (rowIndex === 0 ? '#555555' : null),
+          },
+          margin: [0, 0, 0, 12],
+        },
+        acta.observacion
+          ? {
+              text: `Observaciones: ${acta.observacion}`,
+              fontSize: 9,
+              margin: [0, 0, 0, 12],
+            }
+          : { text: '' },
+        {
+          text: 'Declaraciones del trabajador',
+          fontSize: 10,
+          bold: true,
+          color: '#111111',
+          margin: [0, 4, 0, 4],
+        },
+        {
+          text: acta.declaraciones.intro,
+          fontSize: 9,
+          alignment: 'justify',
+          margin: [0, 0, 0, 6],
+        },
+        {
+          ol: acta.declaraciones.compromisos.map((text) => ({
+            text,
+            margin: [0, 0, 0, 10],
+            lineHeight: 1.45,
+          })),
+          fontSize: 9,
+          color: '#222222',
+          margin: [0, 4, 0, 16],
+        },
+        {
+          text: acta.declaraciones.cierre,
+          fontSize: 9,
+          alignment: 'justify',
+          lineHeight: 1.35,
+          margin: [0, 0, 0, 18],
+        },
+        {
+          text: 'Firmado digitalmente por:',
+          fontSize: 10,
+          bold: true,
+          color: '#111111',
+          margin: [0, 0, 0, 6],
+        },
+        {
+          text: `Trabajador: ${acta.firmas.trabajadorNombre || '—'}, cédula de identidad ${acta.firmas.trabajadorRut || '—'}`,
+          fontSize: 9,
+          margin: [0, 0, 0, 4],
+        },
+        {
+          text: `Encargado de Bodega: ${acta.firmas.encargadoNombre}, cédula de identidad ${acta.firmas.encargadoRut}`,
           fontSize: 9,
         },
+        {
+          text: `Folio: ${acta.folio}`,
+          fontSize: 8,
+          color: '#888888',
+          margin: [0, 16, 0, 0],
+        },
       ],
+      footer: (currentPage: number, pageCount: number) => ({
+        text: `${acta.codigoDoc} · Versión ${acta.versionDoc} · Página ${currentPage} de ${pageCount}`,
+        fontSize: 7,
+        color: '#999999',
+        alignment: 'center',
+        margin: [48, 0, 48, 0],
+      }),
       styles: {
-        title: { fontSize: 13, bold: true },
+        gridHeader: { fontSize: 8, bold: true, color: '#ffffff', margin: [2, 5, 2, 5] },
+        gridCell: { fontSize: 8, margin: [3, 6, 3, 6] },
       },
-      defaultStyle: { font: 'Roboto', fontSize: 10 },
+      defaultStyle: { font: 'Roboto', fontSize: 9, color: '#111111' },
     };
 
     const pdfDoc = printer.createPdfKitDocument(docDefinition);
-    const chunks: Buffer[] = [];
-    pdfDoc.on('data', (c) => chunks.push(c));
-    pdfDoc.on('end', () => {
-      const pdfBuffer = Buffer.concat(chunks);
-      res.setHeader('Content-Type', 'application/pdf');
-      res.setHeader(
-        'Content-Disposition',
-        `attachment; filename="acta_herramienta_cargo_${m.folio_67 || id}.pdf"`
-      );
-      res.send(pdfBuffer);
-    });
+    const filename = `anexo_entrega_herramientas_${acta.folio}_${stampArchivoActa()}.pdf`;
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename="${filename}"; filename*=UTF-8''${encodeURIComponent(filename)}`
+    );
+    pdfDoc.pipe(res);
     pdfDoc.end();
   } catch (error) {
     res.status(500).json({

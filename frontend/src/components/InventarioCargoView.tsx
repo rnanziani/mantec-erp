@@ -6,6 +6,7 @@ import { exportToExcel } from '../utils/exportUtils';
 import { filtrarTrabajadoresPorApellido } from '../utils/trabajadorSearch';
 import { showError } from '../utils/swal';
 import { apiFetch, apiUrl } from '../lib/apiClient';
+import ActaEntregaCargoModal from './ActaEntregaCargoModal';
 
 interface InventarioRow {
   idtrabajador_06: number;
@@ -47,6 +48,7 @@ const InventarioCargoView: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
+  const [actaId, setActaId] = useState<number | null>(null);
   const itemsPerPage = 15;
 
   const fetchData = async (trabajadorId?: string) => {
@@ -193,11 +195,12 @@ const InventarioCargoView: React.FC = () => {
               <th>Herramienta</th>
               <th>Valor</th>
               <th>Pendiente</th>
+              <th>Acciones</th>
             </tr>
           </thead>
           <tbody>
             {pageItems.length === 0 ? (
-              <tr><td colSpan={9}>Sin cargo vigente</td></tr>
+              <tr><td colSpan={10}>Sin cargo vigente</td></tr>
             ) : (
               pageItems.map((r) => (
                 <tr key={`${r.iddetalle_68}-${r.idherramienta_66}`}>
@@ -210,6 +213,17 @@ const InventarioCargoView: React.FC = () => {
                   <td>{r.nombre_66}</td>
                   <td>{formatValor(r.valor_66)}</td>
                   <td>{r.cantidad_pendiente}</td>
+                  <td className="actions">
+                    <button
+                      type="button"
+                      className="btn-acta"
+                      onClick={() => setActaId(r.identrega_67)}
+                      title="Vista previa del anexo"
+                      aria-label={`Vista previa del anexo ${r.folio_67 || r.identrega_67}`}
+                    >
+                      📄
+                    </button>
+                  </td>
                 </tr>
               ))
             )}
@@ -223,6 +237,8 @@ const InventarioCargoView: React.FC = () => {
         itemsPerPage={itemsPerPage}
         onPageChange={setCurrentPage}
       />
+
+      <ActaEntregaCargoModal entregaId={actaId} onClose={() => setActaId(null)} />
     </div>
   );
 };

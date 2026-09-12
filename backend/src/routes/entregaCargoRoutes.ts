@@ -4,6 +4,7 @@ import {
   createDevolucionCargo,
   createEntregaCargo,
   devolverTodoCargo,
+  getActaDatosEntregaCargo,
   getActaPdfEntregaCargo,
   getAllEntregasCargo,
   getEntregaCargoById,
@@ -14,6 +15,7 @@ const router = Router();
 
 router.get('/', getAllEntregasCargo);
 router.get('/inventario-vigente', getInventarioCargoVigente);
+router.get('/:id/acta-datos', getActaDatosEntregaCargo);
 router.get('/:id/acta-pdf', getActaPdfEntregaCargo);
 router.get('/:id', getEntregaCargoById);
 router.post('/', createEntregaCargo);

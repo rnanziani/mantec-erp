@@ -1,0 +1,137 @@
+.acta-cargo-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.55);
+  z-index: 1200;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  overflow: auto;
+  padding: 24px 12px;
+}
+
+.acta-cargo-modal {
+  width: min(816px, 100%);
+  background: #fff;
+  border-radius: 10px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.25);
+  margin-bottom: 24px;
+}
+
+.acta-cargo-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 18px;
+  border-bottom: 1px solid #e2e8f0;
+  flex-wrap: wrap;
+}
+
+.acta-cargo-toolbar h3 {
+  margin: 0;
+  font-size: 1.05rem;
+}
+
+.acta-cargo-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.acta-cargo-content {
+  padding: 20px 24px 28px;
+  max-height: min(80vh, 900px);
+  overflow: auto;
+}
+
+.acta-cargo-loading {
+  text-align: center;
+  padding: 40px;
+  color: #64748b;
+}
+
+.acta-cargo-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+
+.acta-cargo-logo {
+  width: 120px;
+  height: auto;
+}
+
+.acta-cargo-header h2 {
+  margin: 0;
+  font-size: 1.05rem;
+  text-align: center;
+  flex: 1;
+  letter-spacing: 0.04em;
+  color: #111;
+}
+
+.acta-cargo-ol {
+  margin: 0 0 20px;
+  padding-left: 1.4rem;
+  font-size: 12px;
+  color: #222;
+  line-height: 1.5;
+}
+
+.acta-cargo-ol li {
+  margin-bottom: 12px;
+  text-align: justify;
+}
+
+@media print {
+  body * {
+    visibility: hidden !important;
+  }
+
+  .acta-cargo-overlay,
+  .acta-cargo-overlay * {
+    visibility: visible !important;
+  }
+
+  .acta-cargo-overlay {
+    position: static !important;
+    background: white !important;
+    overflow: visible !important;
+    padding: 0 !important;
+  }
+
+  .acta-cargo-modal {
+    box-shadow: none !important;
+    max-width: none !important;
+    width: 100% !important;
+  }
+
+  .acta-cargo-content {
+    max-height: none !important;
+    overflow: visible !important;
+  }
+
+  .acta-cargo-no-print {
+    display: none !important;
+  }
+
+  .uniforme-document,
+  .uniforme-document th,
+  .uniforme-document td {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+}
+
+@media (max-width: 640px) {
+  .acta-cargo-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .acta-cargo-header h2 {
+    text-align: left;
+  }
+}

@@ -1975,6 +1975,8 @@ export interface DetalleEntregaCargo {
   herramienta_codigo?: string;
   herramienta_nombre?: string;
   herramienta_serie?: string | null;
+  herramienta_valor?: number;
+  herramienta_marca?: string | null;
 }
 
 export interface CreateEntregaCargoDTO {

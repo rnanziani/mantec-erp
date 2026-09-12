@@ -5,7 +5,8 @@ import SearchableSelect from './shared/SearchableSelect';
 import { exportToExcel } from '../utils/exportUtils';
 import { filtrarTrabajadoresPorApellido } from '../utils/trabajadorSearch';
 import { showDeleteConfirm, showError, showSuccess } from '../utils/swal';
-import { apiFetch, apiUrl, openAuthenticatedBlob } from '../lib/apiClient';
+import { apiFetch, apiUrl } from '../lib/apiClient';
+import ActaEntregaCargoModal from './ActaEntregaCargoModal';
 
 interface Maestro {
   identrega_67: number;
@@ -116,6 +117,7 @@ const EntregaCargoView: React.FC = () => {
   const [devEstado, setDevEstado] = useState('BUENA');
   const [devObs, setDevObs] = useState('');
   const [devLineaId, setDevLineaId] = useState<number | null>(null);
+  const [actaId, setActaId] = useState<number | null>(null);
 
   const API_URL = apiUrl('/entregas-cargo');
 
@@ -405,11 +407,7 @@ const EntregaCargoView: React.FC = () => {
     }
   };
 
-  const pdfActa = (id: number) => {
-    openAuthenticatedBlob(`/entregas-cargo/${id}/acta-pdf`).catch(() =>
-      showError('Error', 'No se pudo abrir el PDF')
-    );
-  };
+  const abrirActa = (id: number) => setActaId(id);
 
   const handleExport = () => {
     exportToExcel(
@@ -619,14 +617,46 @@ const EntregaCargoView: React.FC = () => {
                   <td>{r.trabajador_nombre}</td>
                   <td>{r.ccosto_nombre}</td>
                   <td>{r.estado_67}</td>
-                  <td style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                    <button type="button" className="btn-edit" onClick={() => openDetalle(r.identrega_67)}>Ver / Devolver</button>
-                    <button type="button" className="btn-info" onClick={() => pdfActa(r.identrega_67)}>PDF</button>
+                  <td className="actions">
+                    <button
+                      type="button"
+                      className="btn-acta"
+                      onClick={() => abrirActa(r.identrega_67)}
+                      title="Vista previa del anexo"
+                      aria-label={`Vista previa del anexo ${r.folio_67 || r.identrega_67}`}
+                    >
+                      📄
+                    </button>
+                    <button
+                      type="button"
+                      className="btn-edit"
+                      onClick={() => openDetalle(r.identrega_67)}
+                      title="Ver / Devolver"
+                      aria-label={`Ver o devolver entrega ${r.folio_67 || r.identrega_67}`}
+                    >
+                      👁️
+                    </button>
                     {(r.estado_67 === 'ACTIVA' || r.estado_67 === 'PARCIAL') && (
-                      <button type="button" className="btn-success" onClick={() => devolverTodo(r.identrega_67)}>Devolver todo</button>
+                      <button
+                        type="button"
+                        className="btn-success"
+                        onClick={() => devolverTodo(r.identrega_67)}
+                        title="Devolver todo"
+                        aria-label={`Devolver todo de ${r.folio_67 || r.identrega_67}`}
+                      >
+                        ↩️
+                      </button>
                     )}
                     {r.estado_67 !== 'ANULADA' && r.estado_67 !== 'DEVUELTA' && (
-                      <button type="button" className="btn-delete" onClick={() => anular(r.identrega_67)}>Anular</button>
+                      <button
+                        type="button"
+                        className="btn-delete"
+                        onClick={() => anular(r.identrega_67)}
+                        title="Anular"
+                        aria-label={`Anular entrega ${r.folio_67 || r.identrega_67}`}
+                      >
+                        🚫
+                      </button>
                     )}
                   </td>
                 </tr>
@@ -738,13 +768,23 @@ const EntregaCargoView: React.FC = () => {
               </div>
             )}
 
-            <div style={{ display: 'flex', gap: 8, marginTop: 16, flexWrap: 'wrap' }}>
-              <button type="button" className="btn-info" onClick={() => pdfActa(detalleModal.maestro.identrega_67)}>PDF acta</button>
+            <div className="actions" style={{ marginTop: 16 }}>
+              <button
+                type="button"
+                className="btn-acta"
+                onClick={() => abrirActa(detalleModal.maestro.identrega_67)}
+                title="Vista previa del anexo"
+                aria-label="Vista previa del anexo de entrega"
+              >
+                📄
+              </button>
               <button type="button" className="btn-secondary" onClick={() => setDetalleModal(null)}>Cerrar</button>
             </div>
           </div>
         </div>
       )}
+
+      <ActaEntregaCargoModal entregaId={actaId} onClose={() => setActaId(null)} />
     </div>
   );
 };
