@@ -119,6 +119,29 @@ const EntregaRepuestoView: React.FC = () => {
     return e?.idestado_61 || estados.find((x) => x.activo_61)?.idestado_61 || 0;
   }, [estados]);
 
+  const estadoReparadoId = useMemo(() => {
+    const e = estados.find((x) => x.codigo_61 === 'REPARADO' && x.activo_61);
+    return e?.idestado_61 || 0;
+  }, [estados]);
+
+  const estadosCiclo = useMemo(
+    () =>
+      estados.filter(
+        (e) => e.activo_61 && (e.codigo_61 === 'EN_REPARACION' || e.codigo_61 === 'REPARADO')
+      ),
+    [estados]
+  );
+
+  const codigoEstado = (id: number) =>
+    estados.find((e) => e.idestado_61 === id)?.codigo_61 || '';
+
+  const idEstadoCiclo = (id: number, tieneFecha: boolean) => {
+    if (tieneFecha && estadoReparadoId) return estadoReparadoId;
+    const codigo = codigoEstado(id);
+    if (codigo === 'REPARADO' && estadoReparadoId) return estadoReparadoId;
+    return estadoDefaultId || id;
+  };
+
   const fetchAll = async () => {
     try {
       setLoading(true);
@@ -254,16 +277,17 @@ const EntregaRepuestoView: React.FC = () => {
       setHora(String(maestro.hora_63).slice(0, 5));
       setObservacion(maestro.observacion_63 || '');
       setDetalles(
-        (dets || []).map((d) => ({
-          iddetalle_recepcion_64: d.iddetalle_recepcion_64,
-          idestado_reparacion_64: d.idestado_reparacion_64,
-          fecha_recepcion_64: d.fecha_recepcion_64
-            ? String(d.fecha_recepcion_64).slice(0, 10)
-            : '',
-          valor_unitario: unitarioDesdeTotal(Number(d.valor_reparacion_64 ?? 0), d.cantidad_60 || 1),
-          label: `${d.folio_recepcion || ''} · ${d.repuesto_codigo || ''} ${d.repuesto_nombre || ''} (x${d.cantidad_60 || 1})`,
-          cantidad: d.cantidad_60 || 1,
-        }))
+        (dets || []).map((d) => {
+          const fecha = d.fecha_recepcion_64 ? String(d.fecha_recepcion_64).slice(0, 10) : '';
+          return {
+            iddetalle_recepcion_64: d.iddetalle_recepcion_64,
+            idestado_reparacion_64: idEstadoCiclo(d.idestado_reparacion_64, Boolean(fecha)),
+            fecha_recepcion_64: fecha,
+            valor_unitario: unitarioDesdeTotal(Number(d.valor_reparacion_64 ?? 0), d.cantidad_60 || 1),
+            label: `${d.folio_recepcion || ''} · ${d.repuesto_codigo || ''} ${d.repuesto_nombre || ''} (x${d.cantidad_60 || 1})`,
+            cantidad: d.cantidad_60 || 1,
+          };
+        })
       );
       setShowForm(true);
     } catch {
@@ -285,6 +309,16 @@ const EntregaRepuestoView: React.FC = () => {
       await showError('Validación', 'Cada línea necesita estado de reparación');
       return;
     }
+    const lineaSinFecha = detalles.find(
+      (d) => codigoEstado(d.idestado_reparacion_64) === 'REPARADO' && !d.fecha_recepcion_64
+    );
+    if (lineaSinFecha) {
+      await showError(
+        'Validación',
+        'Reparado requiere fecha de recepción. Mientras esté en el proveedor, use En reparación.'
+      );
+      return;
+    }
     const payload = {
       idresponsable_63: Number(idResponsable),
       idproveedor_63: Number(idProveedor),
@@ -294,7 +328,8 @@ const EntregaRepuestoView: React.FC = () => {
       detalles: detalles.map((d) => ({
         iddetalle_recepcion_64: d.iddetalle_recepcion_64,
         idestado_reparacion_64: d.idestado_reparacion_64,
-        fecha_recepcion_64: d.fecha_recepcion_64 || null,
+        fecha_recepcion_64:
+          codigoEstado(d.idestado_reparacion_64) === 'REPARADO' ? d.fecha_recepcion_64 || null : null,
         valor_reparacion_64: parseMoney(d.valor_unitario),
         observacion_64: null,
       })),
@@ -489,12 +524,18 @@ const EntregaRepuestoView: React.FC = () => {
               </div>
             </div>
 
+            <p className="form-help-text" style={{ margin: '0 0 8px' }}>
+              <strong>En reparación</strong>: sigue en el proveedor (no avanza).
+              {' '}<strong>Reparado</strong>: ya volvió; indique fecha de recepción para cerrar en
+              Recepción reparado.
+            </p>
+
             <div className="table-container" style={{ marginBottom: 12 }}>
               <table className="data-table">
                 <thead>
                   <tr>
                     <th>Repuesto (recepción)</th>
-                    <th>Estado reparación</th>
+                    <th>Estado (en proveedor / reparado)</th>
                     <th>Fecha recepción</th>
                     <th>Valor unitario</th>
                     <th>Total</th>
@@ -516,23 +557,26 @@ const EntregaRepuestoView: React.FC = () => {
                             value={d.idestado_reparacion_64}
                             onChange={(e) => {
                               const v = Number(e.target.value);
+                              const reparado = codigoEstado(v) === 'REPARADO';
                               setDetalles((prev) =>
                                 prev.map((x) =>
                                   x.iddetalle_recepcion_64 === d.iddetalle_recepcion_64
-                                    ? { ...x, idestado_reparacion_64: v }
+                                    ? {
+                                        ...x,
+                                        idestado_reparacion_64: v,
+                                        fecha_recepcion_64: reparado ? x.fecha_recepcion_64 : '',
+                                      }
                                     : x
                                 )
                               );
                             }}
-                            aria-label="Estado de reparación"
+                            aria-label="Estado: en reparación o reparado"
                           >
-                            {estados
-                              .filter((e) => e.activo_61)
-                              .map((e) => (
-                                <option key={e.idestado_61} value={e.idestado_61}>
-                                  {e.nombre_61}
-                                </option>
-                              ))}
+                            {estadosCiclo.map((est) => (
+                              <option key={est.idestado_61} value={est.idestado_61}>
+                                {est.nombre_61}
+                              </option>
+                            ))}
                           </select>
                         </td>
                         <td>
@@ -540,17 +584,24 @@ const EntregaRepuestoView: React.FC = () => {
                             type="date"
                             className="form-input"
                             value={d.fecha_recepcion_64}
+                            disabled={codigoEstado(d.idestado_reparacion_64) !== 'REPARADO'}
                             onChange={(e) => {
                               const v = e.target.value;
                               setDetalles((prev) =>
                                 prev.map((x) =>
                                   x.iddetalle_recepcion_64 === d.iddetalle_recepcion_64
-                                    ? { ...x, fecha_recepcion_64: v }
+                                    ? {
+                                        ...x,
+                                        fecha_recepcion_64: v,
+                                        idestado_reparacion_64: v
+                                          ? estadoReparadoId || x.idestado_reparacion_64
+                                          : estadoDefaultId || x.idestado_reparacion_64,
+                                      }
                                     : x
                                 )
                               );
                             }}
-                            aria-label="Fecha de recepción del proveedor"
+                            aria-label="Fecha de recepción del proveedor (solo si está reparado)"
                           />
                         </td>
                         <td>

@@ -64,7 +64,6 @@ export const API_PREFIX_RULES: Array<{
   { prefix: '/api/asignaciones-productos-aseo', permission: 'MENU_OPERACIONES_ASIGNACION_ASEO' },
   { prefix: '/api/asignaciones-prendas', permission: 'MENU_OPERACIONES_ASIGNACION_PRENDAS' },
   { prefix: '/api/cargo-maquinas', permission: 'MENU_OPERACIONES_CARGO_MAQUINA' },
-  { prefix: '/api/consumo-insumos', permission: 'MENU_OPERACIONES' },
 
   // Pañol
   { prefix: '/api/herramientas', permission: 'MENU_PANOL_HERRAMIENTAS', readAuthOnly: true },
@@ -77,6 +76,11 @@ export const API_PREFIX_RULES: Array<{
   // Control de lubricantes
   { prefix: '/api/lubricantes', permission: 'MENU_LUBRICANTES_CATALOGO', readAuthOnly: true },
   { prefix: '/api/consumos-lubricante', permission: 'MENU_LUBRICANTES_CONSUMO' },
+
+  // Insumos
+  { prefix: '/api/consumo-insumos', permission: 'MENU_INSUMOS_ASIGNACION' },
+  { prefix: '/api/insumos', permission: 'MENU_INSUMOS_CATALOGO', readAuthOnly: true },
+  { prefix: '/api/marcas-insumo', permission: 'MENU_INSUMOS_MARCAS', readAuthOnly: true },
 
   // Entrega de EPP / Ropa de Trabajo (catálogos con lectura autenticada para lookups)
   { prefix: '/api/epp-clases', permission: 'MENU_EPP_CLASES', readAuthOnly: true },
@@ -131,8 +135,6 @@ export const API_PREFIX_RULES: Array<{
   { prefix: '/api/cargos', permission: 'MENU_MANTENEDORES_CARGOS', readAuthOnly: true },
   { prefix: '/api/maquinas', permission: 'MENU_MANTENEDORES_MAQUINAS', readAuthOnly: true },
   { prefix: '/api/ccostos', permission: 'MENU_MANTENEDORES_CCOSTOS', readAuthOnly: true },
-  { prefix: '/api/insumos', permission: 'MENU_MANTENEDORES_INSUMOS', readAuthOnly: true },
-  { prefix: '/api/marcas-insumo', permission: 'MENU_MANTENEDORES_MARCAS_INSUMO', readAuthOnly: true },
   { prefix: '/api/tallas', permission: 'MENU_MANTENEDORES_TALLAS', readAuthOnly: true },
   { prefix: '/api/prendas', permission: 'MENU_MANTENEDORES_PRENDAS', readAuthOnly: true },
 ];

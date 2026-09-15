@@ -385,9 +385,25 @@ const HerramientaCargoView: React.FC = () => {
                   <td>{h.stock_disponible_66}</td>
                   <td>{h.estado_66}</td>
                   <td>{h.activo_66 ? 'Sí' : 'No'}</td>
-                  <td>
-                    <button type="button" className="btn-edit" onClick={() => startEdit(h)}>Editar</button>
-                    <button type="button" className="btn-delete" onClick={() => handleDelete(h.idherramienta_66)}>Eliminar</button>
+                  <td className="actions">
+                    <button
+                      type="button"
+                      className="btn-edit"
+                      onClick={() => startEdit(h)}
+                      title="Editar"
+                      aria-label={`Editar ${h.codigo_66}`}
+                    >
+                      ✏️
+                    </button>
+                    <button
+                      type="button"
+                      className="btn-delete"
+                      onClick={() => handleDelete(h.idherramienta_66)}
+                      title="Eliminar"
+                      aria-label={`Eliminar ${h.codigo_66}`}
+                    >
+                      🗑️
+                    </button>
                   </td>
                 </tr>
               ))

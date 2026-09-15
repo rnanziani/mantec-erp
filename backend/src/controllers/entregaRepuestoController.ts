@@ -115,6 +115,46 @@ async function getEstadoIdByCodigo(
   return r.rows[0]?.idestado_61 ?? null;
 }
 
+/** Solo 2 estados de proceso: en el proveedor vs ya volvió reparado. */
+async function resolverEstadoYFecha(
+  client: { query: typeof pool.query },
+  idEstado: number | undefined,
+  fechaRec: string | null,
+  estadoEnReparacion: number | null,
+  estadoReparado: number | null
+): Promise<{ idEstado: number; fechaRec: string | null }> {
+  if (!estadoEnReparacion) {
+    throw new Error('Falta el estado EN_REPARACION en el catálogo');
+  }
+
+  let codigo = '';
+  if (idEstado) {
+    const r = await client.query<{ codigo_61: string }>(
+      `SELECT codigo_61 FROM tbl_61_estado_reparacion WHERE idestado_61 = $1`,
+      [idEstado]
+    );
+    codigo = r.rows[0]?.codigo_61 || '';
+  }
+
+  if (codigo === 'ESPERANDO_REPUESTO' || codigo === 'NO_REPARABLE') {
+    codigo = fechaRec ? 'REPARADO' : 'EN_REPARACION';
+  }
+
+  if (fechaRec || codigo === 'REPARADO') {
+    if (!estadoReparado) {
+      throw new Error('Falta el estado REPARADO en el catálogo');
+    }
+    if (!fechaRec) {
+      throw new Error(
+        'Reparado requiere fecha de recepción. Mientras esté en el proveedor use En reparación.'
+      );
+    }
+    return { idEstado: estadoReparado, fechaRec };
+  }
+
+  return { idEstado: estadoEnReparacion, fechaRec: null };
+}
+
 function normalizeValorReparacion(value: unknown): number {
   if (value == null || value === '') return 0;
   const n = Number(value);
@@ -325,13 +365,13 @@ export const createEntrega = async (req: Request, res: Response): Promise<void> 
         );
       }
 
-      let idEstado = d.idestado_reparacion_64 || defaultEstado;
-      if (!idEstado) throw new Error('No hay estado de reparación configurado');
-
-      const fechaRec = d.fecha_recepcion_64 || null;
-      if (fechaRec && estadoReparado) {
-        idEstado = estadoReparado;
-      }
+      const { idEstado, fechaRec } = await resolverEstadoYFecha(
+        client,
+        d.idestado_reparacion_64 || defaultEstado || undefined,
+        d.fecha_recepcion_64 || null,
+        defaultEstado,
+        estadoReparado
+      );
       const valorRep = await totalValorReparacion(client, d.iddetalle_recepcion_64, d.valor_reparacion_64);
 
       await client.query(
@@ -463,10 +503,13 @@ export const updateEntrega = async (req: Request, res: Response): Promise<void> 
       );
 
       for (const d of body.detalles) {
-        const fechaRec = d.fecha_recepcion_64 || null;
-        let idEstado = d.idestado_reparacion_64 || defaultEstado;
-        if (!idEstado) throw new Error('No hay estado de reparación configurado');
-        if (fechaRec && estadoReparado) idEstado = estadoReparado;
+        const { idEstado, fechaRec } = await resolverEstadoYFecha(
+          client,
+          d.idestado_reparacion_64 || defaultEstado || undefined,
+          d.fecha_recepcion_64 || null,
+          defaultEstado,
+          estadoReparado
+        );
         const valorRep = await totalValorReparacion(client, d.iddetalle_recepcion_64, d.valor_reparacion_64);
 
         const existente = mapActual.get(d.iddetalle_recepcion_64);

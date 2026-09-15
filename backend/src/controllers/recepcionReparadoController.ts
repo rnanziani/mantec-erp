@@ -120,6 +120,7 @@ export const getLineasEntregaDisponibles = async (_req: Request, res: Response):
        INNER JOIN tbl_59_m_recepcion_repuesto mr ON dr.idrecepcion_60 = mr.idrecepcion_59
        INNER JOIN tbl_57_repuesto_danado rd ON dr.idrepuestodanado_60 = rd.idrepuestodanado_57
        WHERE de.fecha_recepcion_64 IS NOT NULL
+         AND er.codigo_61 = 'REPARADO'
          AND NOT EXISTS (
            SELECT 1 FROM ${TABLA} x WHERE x.iddetalle_entrega_65 = de.iddetalle_64
          )

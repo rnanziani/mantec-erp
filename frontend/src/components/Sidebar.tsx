@@ -61,7 +61,6 @@ const Sidebar: React.FC<SidebarProps> = ({ onNavigate, currentView }) => {
                 { id: 'ordenes-trabajo', label: 'Órdenes de Trabajo', icon: '🔧', path: 'ordenes-trabajo', permissionRequired: 'MENU_OPERACIONES_ORDENES_TRABAJO' },
                 { id: 'asignacion-productos-aseo', label: 'Asignación Productos Aseo', icon: '📋', path: 'asignacion-productos-aseo', permissionRequired: 'MENU_OPERACIONES_ASIGNACION_ASEO' },
                 { id: 'asignacion-prendas', label: 'Asignación de Prendas', icon: '👔', path: 'asignacion-prendas', permissionRequired: 'MENU_OPERACIONES_ASIGNACION_PRENDAS' },
-                { id: 'consumo-insumos', label: 'Asignación de Insumos', icon: '📦', path: 'consumo-insumos', permissionRequired: 'MENU_OPERACIONES' },
                 { id: 'cargo-maquina', label: 'Cargo Máquina', icon: '🚛', path: 'cargo-maquina', permissionRequired: 'MENU_OPERACIONES_CARGO_MAQUINA' }
             ]
         },
@@ -130,18 +129,26 @@ const Sidebar: React.FC<SidebarProps> = ({ onNavigate, currentView }) => {
             ]
         },
         {
+            id: 'insumos-menu',
+            label: 'Insumos',
+            icon: '📦',
+            permissionRequired: 'MENU_INSUMOS',
+            children: [
+                { id: 'consumo-insumos', label: 'Asignación de insumos', icon: '📋', path: 'consumo-insumos', permissionRequired: 'MENU_INSUMOS_ASIGNACION' },
+                { id: 'insumos', label: 'Insumos', icon: '🧾', path: 'insumos', permissionRequired: 'MENU_INSUMOS_CATALOGO' },
+                { id: 'marcas-insumo', label: 'Marca de insumo', icon: '🏭', path: 'marcas-insumo', permissionRequired: 'MENU_INSUMOS_MARCAS' },
+            ]
+        },
+        {
             id: 'repuestos-danados-menu',
             label: 'Repuestos Dañados',
             icon: '🔩',
             permissionRequired: 'MENU_REPUESTOS_DANADOS',
             children: [
                 { id: 'rd-sec-operacion', label: 'Operación', icon: '', isSection: true },
-                { id: 'unidades-repuesto', label: 'Unidades', icon: '🔩', path: 'unidades-repuesto', permissionRequired: 'MENU_REPUESTOS_DANADOS_UNIDAD' },
-                { id: 'movimientos-repuesto', label: 'Movimientos', icon: '📝', path: 'movimientos-repuesto', permissionRequired: 'MENU_REPUESTOS_DANADOS_MOVIMIENTO' },
-                { id: 'existencias-repuesto', label: 'Stock actual', icon: '📊', path: 'existencias-repuesto', permissionRequired: 'MENU_REPUESTOS_DANADOS_STOCK' },
-                { id: 'recepcion-repuestos', label: 'Actas: recepción taller', icon: '📋', path: 'recepcion-repuestos', permissionRequired: 'MENU_REPUESTOS_DANADOS_RECEPCION' },
-                { id: 'entrega-repuestos', label: 'Actas: entrega proveedor', icon: '🚚', path: 'entrega-repuestos', permissionRequired: 'MENU_REPUESTOS_DANADOS_ENTREGA' },
-                { id: 'recepcion-reparado', label: 'Actas: recepción reparado', icon: '✅', path: 'recepcion-reparado', permissionRequired: 'MENU_REPUESTOS_DANADOS_RECEPCION_REPARADO' },
+                { id: 'recepcion-repuestos', label: 'Recepción taller', icon: '📋', path: 'recepcion-repuestos', permissionRequired: 'MENU_REPUESTOS_DANADOS_RECEPCION' },
+                { id: 'entrega-repuestos', label: 'Entrega proveedor', icon: '🚚', path: 'entrega-repuestos', permissionRequired: 'MENU_REPUESTOS_DANADOS_ENTREGA' },
+                { id: 'recepcion-reparado', label: 'Recepción reparado', icon: '✅', path: 'recepcion-reparado', permissionRequired: 'MENU_REPUESTOS_DANADOS_RECEPCION_REPARADO' },
                 { id: 'reportes-repuestos-danados', label: 'Reportes actas', icon: '📈', path: 'reportes-repuestos-danados', permissionRequired: 'MENU_REPUESTOS_DANADOS_REPORTES' },
                 { id: 'rd-sec-mantenedores', label: 'Mantenedores', icon: '', isSection: true },
                 { id: 'repuestos-danados', label: 'Tipos (catálogo)', icon: '📦', path: 'repuestos-danados', permissionRequired: 'MENU_REPUESTOS_DANADOS_CATALOGO' },
@@ -183,8 +190,6 @@ const Sidebar: React.FC<SidebarProps> = ({ onNavigate, currentView }) => {
                 { id: 'tallas', label: 'Tallas', icon: '📏', path: 'tallas', permissionRequired: 'MENU_MANTENEDORES_TALLAS' },
                 { id: 'prendas', label: 'Prendas', icon: '👕', path: 'prendas', permissionRequired: 'MENU_MANTENEDORES_PRENDAS' },
                 { id: 'ccostos', label: 'Centros de Costo', icon: '🏷️', path: 'ccostos', permissionRequired: 'MENU_MANTENEDORES_CCOSTOS' },
-                { id: 'marcas-insumo', label: 'Marcas de Insumo', icon: '🏭', path: 'marcas-insumo', permissionRequired: 'MENU_MANTENEDORES_MARCAS_INSUMO' },
-                { id: 'insumos', label: 'Insumos', icon: '🧾', path: 'insumos', permissionRequired: 'MENU_MANTENEDORES_INSUMOS' }
             ]
         },
         {

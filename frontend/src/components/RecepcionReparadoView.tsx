@@ -52,9 +52,17 @@ interface ApiResponse<T = unknown> {
 }
 
 const ESTADOS = [
-  { value: 'DISPONIBLE', label: '3. Proveedor → Bodega (reparado)' },
-  { value: 'INSTALADO', label: '4. Bodega → Máquina (instalado)' },
+  { value: 'DISPONIBLE', label: 'Disponible en bodega (reparado, sin asignar)' },
+  { value: 'INSTALADO', label: 'Asignado a máquina' },
 ] as const;
+
+function esAsignado(estado?: string | null): boolean {
+  return String(estado || '').toUpperCase() === 'INSTALADO';
+}
+
+function etiquetaDisponibilidad(estado?: string | null): string {
+  return esAsignado(estado) ? 'Asignado a máquina' : 'Disponible en bodega';
+}
 
 const RecepcionReparadoView: React.FC = () => {
   const formRef = React.useRef<HTMLFormElement>(null);
@@ -93,6 +101,9 @@ const RecepcionReparadoView: React.FC = () => {
   const [editingId, setEditingId] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [filtroDisponibilidad, setFiltroDisponibilidad] = useState<'DISPONIBLE' | 'INSTALADO' | ''>(
+    'DISPONIBLE'
+  );
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 12;
 
@@ -190,26 +201,40 @@ const RecepcionReparadoView: React.FC = () => {
     fetchAll();
   }, []);
 
+  const conteoDisponibles = useMemo(
+    () => registros.filter((r) => !esAsignado(r.estado_disponible_65)).length,
+    [registros]
+  );
+  const conteoAsignados = useMemo(
+    () => registros.filter((r) => esAsignado(r.estado_disponible_65)).length,
+    [registros]
+  );
+
   const filtered = useMemo(() => {
     const q = searchTerm.trim().toLowerCase();
-    if (!q) return registros;
-    return registros.filter(
-      (r) =>
+    return registros.filter((r) => {
+      if (filtroDisponibilidad === 'DISPONIBLE' && esAsignado(r.estado_disponible_65)) return false;
+      if (filtroDisponibilidad === 'INSTALADO' && !esAsignado(r.estado_disponible_65)) return false;
+      if (!q) return true;
+      const etiqueta = etiquetaDisponibilidad(r.estado_disponible_65).toLowerCase();
+      return (
         String(r.folio_entrega || '').toLowerCase().includes(q) ||
         (r.repuesto_codigo || '').toLowerCase().includes(q) ||
         (r.repuesto_nombre || '').toLowerCase().includes(q) ||
         (r.responsable_nombre || '').toLowerCase().includes(q) ||
         (r.estado_disponible_65 || '').toLowerCase().includes(q) ||
+        etiqueta.includes(q) ||
         (r.maquina_numinterno || '').toLowerCase().includes(q)
-    );
-  }, [registros, searchTerm]);
+      );
+    });
+  }, [registros, searchTerm, filtroDisponibilidad]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / itemsPerPage));
   const pageItems = filtered.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm]);
+  }, [searchTerm, filtroDisponibilidad]);
 
   const resetForm = () => {
     setEditingId(null);
@@ -420,10 +445,9 @@ const RecepcionReparadoView: React.FC = () => {
         <div className="form-container" style={{ overflow: 'visible' }}>
           <h3>{editingId ? `Editar cierre #${editingId}` : 'Nuevo cierre de reparación'}</h3>
           <p style={{ marginTop: 0, color: '#6b7280', fontSize: 14 }}>
-            Pasos <strong>3</strong> y <strong>4</strong> del ciclo. Solo líneas ya enviadas al proveedor
-            con fecha de vuelta. Elija <strong>3. Proveedor → Bodega (reparado)</strong> o{' '}
-            <strong>4. Bodega → Máquina (instalado)</strong> (este último pide máquina y técnico).
-            Queda la trazabilidad de quién intervino el equipo.
+            Dos momentos distintos: <strong>Disponible en bodega</strong> = reparado y sin máquina
+            (hoy). <strong>Asignado a máquina</strong> = se instala (el lunes: edite la fila, no cree
+            otra). El segundo pide máquina y técnico.
           </p>
           <form ref={formRef} onSubmit={handleSubmit}>
             <div className="form-row form-row-3">
@@ -651,11 +675,31 @@ const RecepcionReparadoView: React.FC = () => {
         </div>
       )}
 
-      <div style={{ marginBottom: 12 }}>
+      <div
+        className="filters-row"
+        style={{ display: 'flex', gap: 12, marginBottom: 12, flexWrap: 'wrap', alignItems: 'end' }}
+      >
+        <div className="form-group" style={{ margin: 0, minWidth: 260 }}>
+          <label htmlFor="filtro-disponibilidad">Disponibilidad</label>
+          <select
+            id="filtro-disponibilidad"
+            className="form-input"
+            value={filtroDisponibilidad}
+            onChange={(e) =>
+              setFiltroDisponibilidad(e.target.value as 'DISPONIBLE' | 'INSTALADO' | '')
+            }
+            aria-label="Filtrar por disponibilidad"
+          >
+            <option value="DISPONIBLE">Disponibles en bodega ({conteoDisponibles})</option>
+            <option value="INSTALADO">Asignados a máquina ({conteoAsignados})</option>
+            <option value="">Todos ({registros.length})</option>
+          </select>
+        </div>
         <input
           type="search"
           className="form-input"
-          placeholder="🔍 BUSCAR FOLIO, REPUESTO, ESTADO, MÁQUINA..."
+          style={{ flex: 1, minWidth: 220 }}
+          placeholder="Buscar folio, repuesto, máquina..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value.toUpperCase())}
           aria-label="Buscar cierres"
@@ -680,7 +724,13 @@ const RecepcionReparadoView: React.FC = () => {
           <tbody>
             {pageItems.length === 0 ? (
               <tr>
-                <td colSpan={9}>No hay registros</td>
+                <td colSpan={9}>
+                  {filtroDisponibilidad === 'DISPONIBLE'
+                    ? 'No hay repuestos reparados disponibles en bodega. Si acaba de recibir del proveedor, cree un cierre en Disponible en bodega.'
+                    : filtroDisponibilidad === 'INSTALADO'
+                      ? 'No hay repuestos asignados a máquina.'
+                      : 'No hay registros'}
+                </td>
               </tr>
             ) : (
               pageItems.map((r) => (
@@ -699,14 +749,17 @@ const RecepcionReparadoView: React.FC = () => {
                       style={{
                         padding: '2px 8px',
                         borderRadius: 4,
-                        background: r.estado_disponible_65 === 'INSTALADO' ? '#dbeafe' : '#dcfce7',
+                        background: esAsignado(r.estado_disponible_65) ? '#dbeafe' : '#dcfce7',
                         fontWeight: 600,
                         fontSize: 12,
                       }}
+                      title={
+                        esAsignado(r.estado_disponible_65)
+                          ? 'Paso 4: Bodega → Máquina'
+                          : 'Paso 3: reparado en bodega, pendiente de asignar'
+                      }
                     >
-                      {r.estado_disponible_65 === 'INSTALADO'
-                        ? '4. Bodega → Máquina (instalado)'
-                        : '3. Proveedor → Bodega (reparado)'}
+                      {etiquetaDisponibilidad(r.estado_disponible_65)}
                     </span>
                   </td>
                   <td>{r.responsable_nombre}</td>
