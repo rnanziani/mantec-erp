@@ -297,11 +297,14 @@ function validarDetalles(
   detalles: CreateMaestroEntregaEppDTO['detalles']
 ): string | null {
   if (!detalles?.length) return 'Debe agregar al menos un elemento EPP';
-  const seen = new Set<number>();
+  const seen = new Set<string>();
   for (const d of detalles) {
     if (!d.idelemento_55) return 'Cada línea debe tener un elemento';
-    if (seen.has(d.idelemento_55)) return 'No se puede repetir el mismo elemento en el detalle';
-    seen.add(d.idelemento_55);
+    const clave = `${d.idelemento_55}:${d.idtalla_55 ?? 0}`;
+    if (seen.has(clave)) {
+      return 'El mismo elemento con la misma talla ya está en el detalle';
+    }
+    seen.add(clave);
     if (!d.cantidad_55 || d.cantidad_55 < 1) return 'La cantidad debe ser mayor a 0';
     const estado = String(d.estadoentrega_55 || 'BUENO/A').toUpperCase();
     if (!ESTADOS_DETALLE.has(estado)) {
@@ -318,7 +321,13 @@ async function validarStock(
   client: { query: typeof pool.query },
   detalles: CreateMaestroEntregaEppDTO['detalles']
 ): Promise<string | null> {
+  const pedidoPorElemento = new Map<number, number>();
   for (const d of detalles) {
+    const id = Number(d.idelemento_55);
+    pedidoPorElemento.set(id, (pedidoPorElemento.get(id) || 0) + Number(d.cantidad_55));
+  }
+
+  for (const [idElemento, cant] of pedidoPorElemento) {
     const result = await client.query<{
       codigo_53: string;
       nombre_53: string;
@@ -329,15 +338,14 @@ async function validarStock(
        FROM tbl_53_elemento
        WHERE idelemento_53 = $1
        FOR UPDATE`,
-      [d.idelemento_55]
+      [idElemento]
     );
 
     if (result.rowCount === 0) {
-      return `Elemento ${d.idelemento_55} no encontrado`;
+      return `Elemento ${idElemento} no encontrado`;
     }
 
     const el = result.rows[0];
-    const cant = Number(d.cantidad_55);
 
     if (!el.activo_53) {
       return `${el.codigo_53} está inactivo y no se puede entregar`;

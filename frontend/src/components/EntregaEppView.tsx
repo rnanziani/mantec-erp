@@ -121,6 +121,10 @@ interface DetalleLinea {
   observacion_55: string;
 }
 
+function claveLineaEpp(idelemento: number, idtalla: string): string {
+  return `${idelemento}:${idtalla || '0'}`;
+}
+
 interface ApiResponse<T = unknown> {
   success: boolean;
   data?: T;
@@ -302,17 +306,24 @@ const EntregaEppView: React.FC = () => {
     [clases]
   );
 
+  const cantidadEnDetalle = (idElemento: number) =>
+    detalles
+      .filter((d) => d.idelemento_55 === idElemento)
+      .reduce((sum, d) => sum + Number(d.cantidad_55), 0);
+
   const elementosDisponibles = useMemo(
     () =>
-      elementos.filter(
-        (el) =>
-          el.activo_53 &&
-          Number(el.stock_actual_53) > 0 &&
-          !detalles.some((d) => d.idelemento_55 === el.idelemento_53) &&
-          Boolean(idClase) &&
-          String(el.idclase_51 ?? '') === idClase
-      ),
-    [elementos, detalles, idClase]
+      elementos.filter((el) => {
+        if (!el.activo_53 || !idClase || String(el.idclase_51 ?? '') !== idClase) {
+          return false;
+        }
+        const stockCatalogo = Number(el.stock_actual_53);
+        const restante = editingId
+          ? stockCatalogo + cantidadEnDetalle(el.idelemento_53)
+          : stockCatalogo - cantidadEnDetalle(el.idelemento_53);
+        return restante > 0;
+      }),
+    [elementos, detalles, idClase, editingId]
   );
 
   const elementoOptions = useMemo(
@@ -325,11 +336,16 @@ const EntregaEppView: React.FC = () => {
             { sensitivity: 'base' }
           )
         )
-        .map((el) => ({
-          value: String(el.idelemento_53),
-          label: `${el.codigo_53} — ${el.nombre_53} (stock: ${el.stock_actual_53})`,
-        })),
-    [elementosDisponibles]
+        .map((el) => {
+          const restante = editingId
+            ? Number(el.stock_actual_53) + cantidadEnDetalle(el.idelemento_53)
+            : Number(el.stock_actual_53) - cantidadEnDetalle(el.idelemento_53);
+          return {
+            value: String(el.idelemento_53),
+            label: `${el.codigo_53} — ${el.nombre_53} (stock: ${restante})`,
+          };
+        }),
+    [elementosDisponibles, detalles, editingId]
   );
 
   const trabajadorFiltroOptions = useMemo(() => {
@@ -538,15 +554,19 @@ const EntregaEppView: React.FC = () => {
       showError('Validación', 'El elemento no pertenece a la clase seleccionada');
       return;
     }
-    if (Number(el.stock_actual_53) < cant) {
+    const yaPedida = cantidadEnDetalle(idEl);
+    if (!editingId && Number(el.stock_actual_53) < yaPedida + cant) {
       showError(
         'Sin stock',
-        `${el.codigo_53} no tiene stock suficiente (disponible: ${el.stock_actual_53})`
+        `${el.codigo_53} no tiene stock suficiente (disponible: ${Math.max(0, Number(el.stock_actual_53) - yaPedida)})`
       );
       return;
     }
-    if (detalles.some((d) => d.idelemento_55 === idEl)) {
-      showError('Validación', 'El elemento ya está en el detalle');
+    if (detalles.some((d) => claveLineaEpp(d.idelemento_55, d.idtalla_55) === claveLineaEpp(idEl, tallaSel))) {
+      showError(
+        'Validación',
+        'Ese elemento con esa talla ya está en el detalle. Elija otra talla o edite la línea.'
+      );
       return;
     }
 
@@ -568,8 +588,11 @@ const EntregaEppView: React.FC = () => {
     setEstadoSel('BUENO/A');
   };
 
-  const removeDetalle = (idelemento: number) => {
-    setDetalles((prev) => prev.filter((d) => d.idelemento_55 !== idelemento));
+  const removeDetalle = (idelemento: number, idtalla: string) => {
+    const clave = claveLineaEpp(idelemento, idtalla);
+    setDetalles((prev) =>
+      prev.filter((d) => claveLineaEpp(d.idelemento_55, d.idtalla_55) !== clave)
+    );
   };
 
   const startEdit = async (id: number) => {
@@ -645,14 +668,21 @@ const EntregaEppView: React.FC = () => {
       return;
     }
 
+    const pedidoPorElemento = new Map<number, number>();
     for (const d of detalles) {
-      const el = elementos.find((x) => x.idelemento_53 === d.idelemento_55);
+      pedidoPorElemento.set(
+        d.idelemento_55,
+        (pedidoPorElemento.get(d.idelemento_55) || 0) + Number(d.cantidad_55)
+      );
+    }
+    for (const [idEl, cant] of pedidoPorElemento) {
+      const el = elementos.find((x) => x.idelemento_53 === idEl);
       if (!el) {
-        await showError('Validación', `Elemento ${d.idelemento_55} no encontrado`);
+        await showError('Validación', `Elemento ${idEl} no encontrado`);
         return;
       }
       // En edición el stock ya descontó la entrega actual; el backend restaura al reemplazar
-      if (!editingId && Number(el.stock_actual_53) < d.cantidad_55) {
+      if (!editingId && Number(el.stock_actual_53) < cant) {
         await showError(
           'Sin stock',
           `${el.codigo_53} sin stock suficiente (disponible: ${el.stock_actual_53})`
@@ -1051,8 +1081,9 @@ const EntregaEppView: React.FC = () => {
                         const el = getElemento(d.idelemento_55);
                         const talla = tallas.find((t) => String(t.id_16) === d.idtalla_55);
                         const marca = marcas.find((m) => String(m.id_marca_insumo_37) === d.idmarca_55);
+                        const clave = claveLineaEpp(d.idelemento_55, d.idtalla_55);
                         return (
-                          <tr key={d.idelemento_55}>
+                          <tr key={clave}>
                             <td>{el?.codigo_53 || d.idelemento_55}</td>
                             <td>{el?.nombre_53 || '-'}</td>
                             <td>{talla?.talla_16 || '-'}</td>
@@ -1065,7 +1096,7 @@ const EntregaEppView: React.FC = () => {
                                 onChange={(e) =>
                                   setDetalles((prev) =>
                                     prev.map((x) =>
-                                      x.idelemento_55 === d.idelemento_55
+                                      claveLineaEpp(x.idelemento_55, x.idtalla_55) === clave
                                         ? { ...x, estadoentrega_55: e.target.value }
                                         : x
                                     )
@@ -1085,7 +1116,7 @@ const EntregaEppView: React.FC = () => {
                                 onChange={(e) =>
                                   setDetalles((prev) =>
                                     prev.map((x) =>
-                                      x.idelemento_55 === d.idelemento_55
+                                      claveLineaEpp(x.idelemento_55, x.idtalla_55) === clave
                                         ? { ...x, observacion_55: e.target.value.toUpperCase() }
                                         : x
                                     )
@@ -1098,7 +1129,7 @@ const EntregaEppView: React.FC = () => {
                               <button
                                 type="button"
                                 className="btn-delete"
-                                onClick={() => removeDetalle(d.idelemento_55)}
+                                onClick={() => removeDetalle(d.idelemento_55, d.idtalla_55)}
                                 aria-label="Quitar línea"
                               >
                                 ✕

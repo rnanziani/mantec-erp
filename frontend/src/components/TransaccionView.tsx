@@ -65,6 +65,10 @@ interface Tecnico {
   nombre_cargo?: string;
 }
 
+function nombreCompletoTecnico(t: Tecnico): string {
+  return `${t.nombres_21} ${t.a_paterno_21 || ''} ${t.a_materno_21 || ''}`.trim();
+}
+
 interface Maquina {
   idmaquina_11: number;
   numinterno_11: string;
@@ -317,15 +321,24 @@ const TransaccionView: React.FC = () => {
     [tiposTransaccion]
   );
 
+  /** El combo muestra nombre + apellidos; la API ordena por apellido y la lista se ve desordenada. */
+  const tecnicosOrdenados = useMemo(
+    () =>
+      [...tecnicos].sort((a, b) =>
+        nombreCompletoTecnico(a).localeCompare(nombreCompletoTecnico(b), 'es', {
+          sensitivity: 'base'
+        })
+      ),
+    [tecnicos]
+  );
+
   const filtroTecnicoOptions = useMemo(
     () =>
-      [...tecnicos]
-        .map((t) => ({
-          value: String(t.id_tecnico_21),
-          label: `${t.nombres_21} ${t.a_paterno_21 || ''} ${t.a_materno_21 || ''}`.trim()
-        }))
-        .sort((a, b) => a.label.localeCompare(b.label, 'es')),
-    [tecnicos]
+      tecnicosOrdenados.map((t) => ({
+        value: String(t.id_tecnico_21),
+        label: nombreCompletoTecnico(t)
+      })),
+    [tecnicosOrdenados]
   );
 
   const filtroMaquinaOptions = useMemo(
@@ -969,7 +982,7 @@ const TransaccionView: React.FC = () => {
                   style={{ width: '100%', padding: '8px 12px', borderRadius: '4px', border: '1px solid #ced4da', fontSize: '14px' }}
                 >
                   <option value="">Seleccione un técnico (opcional)</option>
-                  {tecnicos.map(tec => (
+                  {tecnicosOrdenados.map(tec => (
                     <option key={tec.id_tecnico_21} value={tec.id_tecnico_21}>
                       {tec.nombres_21} {tec.a_paterno_21} {tec.a_materno_21} {tec.nombre_cargo ? `- ${tec.nombre_cargo}` : ''}
                     </option>

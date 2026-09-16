@@ -121,9 +121,11 @@ CREATE TABLE IF NOT EXISTS public.tbl_55_d_entrega_epp (
     CONSTRAINT tbl_55_d_entrega_epp_pkey PRIMARY KEY (iddetalleentrega_55),
     CONSTRAINT chk_tbl_55_cantidad_positiva CHECK (cantidad_55 > 0),
     CONSTRAINT chk_tbl_55_estado_entrega_valido CHECK (estadoentrega_55 IN ('NUEVO/A', 'BUENO/A', 'USADO/A', 'DAÑADO/A')),
-    CONSTRAINT chk_tbl_55_valor_no_negativo CHECK (valor_unitario_55 IS NULL OR valor_unitario_55 >= 0),
-    CONSTRAINT uq_tbl_55_detalle UNIQUE (identregaepp_55, idelemento_55)
+    CONSTRAINT chk_tbl_55_valor_no_negativo CHECK (valor_unitario_55 IS NULL OR valor_unitario_55 >= 0)
 );
+
+CREATE UNIQUE INDEX IF NOT EXISTS uq_tbl_55_detalle_elemento_talla
+  ON public.tbl_55_d_entrega_epp (identregaepp_55, idelemento_55, COALESCE(idtalla_55, 0));
 
 CREATE INDEX IF NOT EXISTS idx_tbl_55_detalle_maestro ON public.tbl_55_d_entrega_epp (identregaepp_55);
 CREATE INDEX IF NOT EXISTS idx_tbl_55_detalle_elemento ON public.tbl_55_d_entrega_epp (idelemento_55);
