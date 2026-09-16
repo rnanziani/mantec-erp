@@ -113,8 +113,8 @@ const Sidebar: React.FC<SidebarProps> = ({ onNavigate, currentView }) => {
             icon: '🛠️',
             permissionRequired: 'MENU_HERRAMIENTAS_CARGO',
             children: [
-                { id: 'herramientas-cargo', label: 'Catálogo', icon: '🔧', path: 'herramientas-cargo', permissionRequired: 'MENU_HERRAMIENTAS_CARGO_CATALOGO' },
                 { id: 'entregas-cargo', label: 'Entregas / Devoluciones', icon: '📋', path: 'entregas-cargo', permissionRequired: 'MENU_HERRAMIENTAS_CARGO_ENTREGAS' },
+                { id: 'herramientas-cargo', label: 'Catálogo', icon: '🔧', path: 'herramientas-cargo', permissionRequired: 'MENU_HERRAMIENTAS_CARGO_CATALOGO' },
                 { id: 'inventario-cargo', label: 'Inventario vigente', icon: '📊', path: 'inventario-cargo', permissionRequired: 'MENU_HERRAMIENTAS_CARGO_INVENTARIO' },
             ]
         },
