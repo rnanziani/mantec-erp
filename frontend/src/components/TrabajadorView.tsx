@@ -6,6 +6,7 @@ import { showSuccess, showError, showDeleteConfirm } from '../utils/swal';
 import { exportToExcel } from '../utils/exportUtils';
 import { validateRut, formatRut } from '../utils/rutValidator';
 import { apiUrl } from '../lib/apiClient';
+import SearchableSelect from './shared/SearchableSelect';
 import {
   filtrarTrabajadoresPorApellido,
   normalizeTrabajadorTexto
@@ -28,6 +29,10 @@ interface Cargo {
   idcargo_14: number;
   cargo_14: string;
   nombrecargo_14?: string;
+}
+
+function getCargoLabel(cargo: Cargo) {
+  return cargo.nombrecargo_14 || cargo.cargo_14 || '';
 }
 
 interface Empresa {
@@ -267,6 +272,19 @@ const TrabajadorView: React.FC = () => {
     resetForm();
   };
 
+  const cargoOptions = useMemo(
+    () =>
+      [...cargos]
+        .sort((a, b) =>
+          getCargoLabel(a).localeCompare(getCargoLabel(b), 'es', { sensitivity: 'base' })
+        )
+        .map((c) => ({
+          value: String(c.idcargo_14),
+          label: getCargoLabel(c),
+        })),
+    [cargos]
+  );
+
   const trabajadoresFiltradosPorNombreOApellido = useMemo(() => {
     if (!buscarApellido || buscarApellido.trim() === '') {
       return trabajadores;
@@ -358,8 +376,6 @@ const TrabajadorView: React.FC = () => {
     await showSuccess('¡Exportación exitosa!', 'Los datos han sido exportados correctamente.');
   };
 
-  const getCargoLabel = (cargo: Cargo) => cargo.nombrecargo_14 || cargo.cargo_14 || '';
-
   return (
     <div className="bodega-view">
       <div className="view-header">
@@ -441,21 +457,16 @@ const TrabajadorView: React.FC = () => {
               </div>
               <div className="form-group">
                 <label htmlFor="cargo">Cargo: *</label>
-                <select
+                <SearchableSelect
                   id="cargo"
-                  className="form-input"
                   value={idCargo}
-                  onChange={(e) => setIdCargo(e.target.value)}
+                  onChange={setIdCargo}
+                  options={cargoOptions}
+                  placeholder="Buscar cargo..."
                   required
                   aria-label="Seleccionar cargo"
-                >
-                  <option value="">Seleccione un cargo</option>
-                  {cargos.map(cargo => (
-                    <option key={cargo.idcargo_14} value={cargo.idcargo_14}>
-                      {getCargoLabel(cargo)}
-                    </option>
-                  ))}
-                </select>
+                  emptyMessage="No se encontraron cargos"
+                />
               </div>
               <div className="form-group checkbox-group">
                 <label htmlFor="estado" style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', marginBottom: 0 }}>
@@ -605,25 +616,20 @@ const TrabajadorView: React.FC = () => {
               <option value="inactive">Solo Inactivos</option>
             </select>
           </div>
-          <div className="filter-item">
+          <div className="filter-item" style={{ minWidth: 220, flex: '1 1 220px' }}>
             <label htmlFor="filter-cargo">Filtrar por Cargo:</label>
-            <select
+            <SearchableSelect
               id="filter-cargo"
-              value={filterCargo}
-              onChange={(e) => {
-                setFilterCargo(e.target.value);
+              value={filterCargo === 'all' ? '' : filterCargo}
+              onChange={(value) => {
+                setFilterCargo(value || 'all');
                 setCurrentPage(1);
               }}
-              className="filter-select"
+              options={[{ value: '', label: 'Todos los cargos' }, ...cargoOptions]}
+              placeholder="Buscar cargo..."
               aria-label="Filtrar por cargo"
-            >
-              <option value="all">Todos los cargos</option>
-              {cargos.map(cargo => (
-                <option key={cargo.idcargo_14} value={String(cargo.idcargo_14)}>
-                  {getCargoLabel(cargo)}
-                </option>
-              ))}
-            </select>
+              emptyMessage="No se encontraron cargos"
+            />
           </div>
           <div className="filter-item">
             <label htmlFor="filter-empresa">Filtrar por Empresa:</label>
