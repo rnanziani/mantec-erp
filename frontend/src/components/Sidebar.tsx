@@ -126,8 +126,8 @@ const Sidebar: React.FC<SidebarProps> = ({ onNavigate, currentView }) => {
             icon: '🛢️',
             permissionRequired: 'MENU_LUBRICANTES',
             children: [
-                { id: 'lubricantes', label: 'Catálogo', icon: '📦', path: 'lubricantes', permissionRequired: 'MENU_LUBRICANTES_CATALOGO' },
                 { id: 'consumos-lubricante', label: 'Consumos', icon: '📋', path: 'consumos-lubricante', permissionRequired: 'MENU_LUBRICANTES_CONSUMO' },
+                { id: 'lubricantes', label: 'Catálogo', icon: '📦', path: 'lubricantes', permissionRequired: 'MENU_LUBRICANTES_CATALOGO' },
             ]
         },
         {
