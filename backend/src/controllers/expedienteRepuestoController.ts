@@ -78,8 +78,16 @@ function idxEstado(estado: string): number {
 
 function toDate(value: unknown): string | null {
   if (value == null || value === '') return null;
-  const s = String(value);
-  return /^\d{4}-\d{2}-\d{2}/.test(s) ? s.slice(0, 10) : s;
+  // node-pg entrega DATE como Date en medianoche UTC; getUTC* evita correr un día en Chile.
+  if (value instanceof Date && !Number.isNaN(value.getTime())) {
+    const y = value.getUTCFullYear();
+    const m = String(value.getUTCMonth() + 1).padStart(2, '0');
+    const d = String(value.getUTCDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  }
+  const s = String(value).trim();
+  const iso = s.match(/^(\d{4}-\d{2}-\d{2})/);
+  return iso ? iso[1] : null;
 }
 
 function toMoney(value: unknown): number | null {
