@@ -33,6 +33,7 @@ const SELECT_ALL = `
     e.idproveedor_86,
     e.fecha_entrega_proveedor_86,
     e.fecha_vuelta_86,
+    e.valor_reparacion_86,
     e.fecha_instalacion_86,
     e.idtecnico_instalacion_86,
     e.idmaquina_instalacion_86,
@@ -79,6 +80,13 @@ function toDate(value: unknown): string | null {
   if (value == null || value === '') return null;
   const s = String(value);
   return /^\d{4}-\d{2}-\d{2}/.test(s) ? s.slice(0, 10) : s;
+}
+
+function toMoney(value: unknown): number | null {
+  if (value == null || value === '') return null;
+  const n = Number(String(value).replace(',', '.'));
+  if (!Number.isFinite(n) || n < 0) return null;
+  return Math.round(n * 100) / 100;
 }
 
 async function registrarHistorial(
@@ -293,6 +301,14 @@ export const updateExpediente = async (req: Request, res: Response): Promise<voi
     const idMaqInst = row.idmaquina_instalacion_86
       || body.idmaquina_instalacion_86
       || row.idmaquina_86;
+    const cerrado = row.estado_86 === 'BODEGA_A_MAQUINA';
+    const valorReparacion = cerrado
+      ? Number(row.valor_reparacion_86 ?? 0)
+      : body.valor_reparacion_86 !== undefined
+        ? toMoney(body.valor_reparacion_86)
+        : row.valor_reparacion_86 != null
+          ? Number(row.valor_reparacion_86)
+          : null;
 
     if (nuevoIdx >= 1 && (!idproveedor || !fechaEntrega)) {
       await client.query('ROLLBACK');
@@ -307,6 +323,14 @@ export const updateExpediente = async (req: Request, res: Response): Promise<voi
       res.status(400).json({
         success: false,
         error: 'Proveedor → Bodega requiere fecha de vuelta',
+      });
+      return;
+    }
+    if (nuevoIdx >= 2 && valorReparacion == null) {
+      await client.query('ROLLBACK');
+      res.status(400).json({
+        success: false,
+        error: 'Proveedor → Bodega requiere valor de reparación (0 si es garantía o no cobró)',
       });
       return;
     }
@@ -337,11 +361,12 @@ export const updateExpediente = async (req: Request, res: Response): Promise<voi
          idproveedor_86 = $10,
          fecha_entrega_proveedor_86 = $11,
          fecha_vuelta_86 = $12,
-         fecha_instalacion_86 = $13,
-         idtecnico_instalacion_86 = $14,
-         idmaquina_instalacion_86 = $15,
-         motivo_86 = $16,
-         observacion_instalacion_86 = $17
+         valor_reparacion_86 = $13,
+         fecha_instalacion_86 = $14,
+         idtecnico_instalacion_86 = $15,
+         idmaquina_instalacion_86 = $16,
+         motivo_86 = $17,
+         observacion_instalacion_86 = $18
        WHERE idexpediente_86 = $1`,
       [
         id,
@@ -358,6 +383,7 @@ export const updateExpediente = async (req: Request, res: Response): Promise<voi
         idproveedor || null,
         fechaEntrega,
         fechaVuelta,
+        valorReparacion,
         fechaInst,
         idTecInst || null,
         idMaqInst || null,

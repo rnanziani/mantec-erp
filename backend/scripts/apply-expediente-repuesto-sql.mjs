@@ -11,7 +11,10 @@ import pg from 'pg';
 dotenv.config();
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const sqlPath = path.resolve(__dirname, '../../database/create_tbl_86_87_expediente_repuesto.sql');
+const sqlFiles = [
+  path.resolve(__dirname, '../../database/create_tbl_86_87_expediente_repuesto.sql'),
+  path.resolve(__dirname, '../../database/alter_tbl_86_valor_reparacion.sql'),
+];
 
 function buildPool() {
   const databaseUrl = process.env.DATABASE_URL?.trim();
@@ -36,8 +39,11 @@ function buildPool() {
 const pool = buildPool();
 
 async function main() {
-  const sql = fs.readFileSync(sqlPath, 'utf8');
-  await pool.query(sql);
+  for (const sqlPath of sqlFiles) {
+    const sql = fs.readFileSync(sqlPath, 'utf8');
+    await pool.query(sql);
+    console.log('OK:', path.basename(sqlPath));
+  }
   const t = await pool.query(
     `SELECT table_name FROM information_schema.tables
      WHERE table_schema = 'public'

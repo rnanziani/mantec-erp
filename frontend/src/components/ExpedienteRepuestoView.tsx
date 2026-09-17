@@ -43,6 +43,7 @@ interface Expediente {
   idproveedor_86?: number | null;
   fecha_entrega_proveedor_86?: string | null;
   fecha_vuelta_86?: string | null;
+  valor_reparacion_86?: number | null;
   fecha_instalacion_86?: string | null;
   idtecnico_instalacion_86?: number | null;
   idmaquina_instalacion_86?: number | null;
@@ -74,6 +75,14 @@ const API_URL = apiUrl('/expedientes-repuesto');
 const hoyISO = () => new Date().toISOString().slice(0, 10);
 const horaNow = () => new Date().toTimeString().slice(0, 5);
 const fechaISO = (v?: string | null) => (v ? String(v).slice(0, 10) : '');
+const formatCLP = (n?: number | null) =>
+  n == null || Number.isNaN(Number(n))
+    ? '—'
+    : Number(n).toLocaleString('es-CL', { style: 'currency', currency: 'CLP', maximumFractionDigits: 0 });
+const parseMoney = (raw: string) => {
+  const n = Number(String(raw).replace(',', '.'));
+  return Number.isFinite(n) && n >= 0 ? n : null;
+};
 
 const ExpedienteRepuestoView: React.FC = () => {
   const formRef = React.useRef<HTMLFormElement>(null);
@@ -130,6 +139,7 @@ const ExpedienteRepuestoView: React.FC = () => {
   const [idProveedor, setIdProveedor] = useState('');
   const [fechaEntrega, setFechaEntrega] = useState('');
   const [fechaVuelta, setFechaVuelta] = useState('');
+  const [valorReparacion, setValorReparacion] = useState('');
   const [fechaInstalacion, setFechaInstalacion] = useState('');
   const [idTecnicoInst, setIdTecnicoInst] = useState('');
   const [idMaquinaInst, setIdMaquinaInst] = useState('');
@@ -257,6 +267,7 @@ const ExpedienteRepuestoView: React.FC = () => {
     setIdProveedor('');
     setFechaEntrega('');
     setFechaVuelta('');
+    setValorReparacion('');
     setFechaInstalacion('');
     setIdTecnicoInst('');
     setIdMaquinaInst('');
@@ -280,6 +291,7 @@ const ExpedienteRepuestoView: React.FC = () => {
     setIdProveedor(e.idproveedor_86 ? String(e.idproveedor_86) : '');
     setFechaEntrega(fechaISO(e.fecha_entrega_proveedor_86));
     setFechaVuelta(fechaISO(e.fecha_vuelta_86));
+    setValorReparacion(e.valor_reparacion_86 == null ? '' : String(e.valor_reparacion_86));
     setFechaInstalacion(fechaISO(e.fecha_instalacion_86));
     setIdTecnicoInst(e.idtecnico_instalacion_86 ? String(e.idtecnico_instalacion_86) : '');
     setIdMaquinaInst(e.idmaquina_instalacion_86 ? String(e.idmaquina_instalacion_86) : String(e.idmaquina_86));
@@ -308,6 +320,10 @@ const ExpedienteRepuestoView: React.FC = () => {
       await showError('Validación', 'Complete máquina, técnico, responsable y tipo de repuesto');
       return;
     }
+    if (ESTADOS.findIndex((e) => e.value === estado) >= 2 && parseMoney(valorReparacion) == null) {
+      await showError('Validación', 'Indique el valor de reparación (0 si es garantía o no cobró)');
+      return;
+    }
     const payload: Record<string, unknown> = {
       estado_86: estado,
       idmaquina_86: Number(idMaquina),
@@ -320,6 +336,7 @@ const ExpedienteRepuestoView: React.FC = () => {
       idproveedor_86: idProveedor ? Number(idProveedor) : null,
       fecha_entrega_proveedor_86: fechaEntrega || null,
       fecha_vuelta_86: fechaVuelta || null,
+      valor_reparacion_86: parseMoney(valorReparacion),
       fecha_instalacion_86: fechaInstalacion || null,
       idtecnico_instalacion_86: idTecnicoInst ? Number(idTecnicoInst) : null,
       idmaquina_instalacion_86: idMaquinaInst ? Number(idMaquinaInst) : null,
@@ -370,6 +387,7 @@ const ExpedienteRepuestoView: React.FC = () => {
   const mostrarInstalacion = idx >= 3;
   const freezeProv = idxGuardado >= 1;
   const freezeVuelta = idxGuardado >= 2;
+  const freezeValor = idxGuardado >= 3;
   const freezeInst = idxGuardado >= 3;
 
   return (
@@ -510,12 +528,32 @@ const ExpedienteRepuestoView: React.FC = () => {
                   <label htmlFor="exp-fent">Fecha entrega *</label>
                   <input id="exp-fent" className="form-input" type="date" value={fechaEntrega} onChange={(e) => setFechaEntrega(e.target.value)} required={!freezeProv} disabled={freezeProv} />
                 </div>
-                {mostrarVuelta && (
-                  <div className="form-group">
-                    <label htmlFor="exp-fvu">Fecha de vuelta *</label>
-                    <input id="exp-fvu" className="form-input" type="date" value={fechaVuelta} onChange={(e) => setFechaVuelta(e.target.value)} required={!freezeVuelta} disabled={freezeVuelta} />
-                  </div>
-                )}
+              </div>
+            )}
+
+            {mostrarVuelta && (
+              <div className="form-row form-row-3">
+                <div className="form-group">
+                  <label htmlFor="exp-fvu">Fecha de vuelta *</label>
+                  <input id="exp-fvu" className="form-input" type="date" value={fechaVuelta} onChange={(e) => setFechaVuelta(e.target.value)} required={!freezeVuelta} disabled={freezeVuelta} />
+                </div>
+                <div className="form-group">
+                  <label htmlFor="exp-valor">Valor reparación (CLP) *</label>
+                  <input
+                    id="exp-valor"
+                    className="form-input"
+                    type="number"
+                    min={0}
+                    step={1}
+                    inputMode="numeric"
+                    value={valorReparacion}
+                    onChange={(e) => setValorReparacion(e.target.value)}
+                    required={!freezeValor}
+                    disabled={freezeValor}
+                    aria-describedby="exp-valor-help"
+                  />
+                  <small id="exp-valor-help" style={{ color: '#6b7280' }}>0 si es garantía o no cobró</small>
+                </div>
               </div>
             )}
 
@@ -603,15 +641,16 @@ const ExpedienteRepuestoView: React.FC = () => {
               <th>Repuesto</th>
               <th>Responsable</th>
               <th>Proveedor</th>
+              <th>Valor</th>
               <th>Recepción</th>
               <th></th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={8}>Cargando...</td></tr>
+              <tr><td colSpan={9}>Cargando...</td></tr>
             ) : pageItems.length === 0 ? (
-              <tr><td colSpan={8}>No hay expedientes. Use Nuevo para Máquina → Bodega.</td></tr>
+              <tr><td colSpan={9}>No hay expedientes. Use Nuevo para Máquina → Bodega.</td></tr>
             ) : (
               pageItems.map((r) => (
                 <tr key={r.idexpediente_86}>
@@ -621,6 +660,7 @@ const ExpedienteRepuestoView: React.FC = () => {
                   <td>{r.repuesto_codigo ? `${r.repuesto_codigo} — ` : ''}{r.repuesto_nombre}</td>
                   <td>{r.responsable_nombre}</td>
                   <td>{r.proveedor_nombre || '—'}</td>
+                  <td>{r.valor_reparacion_86 == null ? '—' : formatCLP(r.valor_reparacion_86)}</td>
                   <td>{fechaISO(r.fecha_recepcion_86)}</td>
                   <td className="actions">
                     <button type="button" className="btn-edit" title="Editar / avanzar" aria-label={`Editar ${r.folio_86}`} onClick={() => startEdit(r.idexpediente_86)}>✏️</button>

@@ -2308,6 +2308,7 @@ export interface ExpedienteRepuesto {
   idproveedor_86?: number | null;
   fecha_entrega_proveedor_86?: string | null;
   fecha_vuelta_86?: string | null;
+  valor_reparacion_86?: number | null;
   fecha_instalacion_86?: string | null;
   idtecnico_instalacion_86?: number | null;
   idmaquina_instalacion_86?: number | null;
@@ -2358,6 +2359,7 @@ export interface UpdateExpedienteRepuestoDTO {
   idproveedor_86?: number | null;
   fecha_entrega_proveedor_86?: string | null;
   fecha_vuelta_86?: string | null;
+  valor_reparacion_86?: number | null;
   fecha_instalacion_86?: string | null;
   idtecnico_instalacion_86?: number | null;
   idmaquina_instalacion_86?: number | null;

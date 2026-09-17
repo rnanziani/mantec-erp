@@ -18,6 +18,7 @@ CREATE TABLE IF NOT EXISTS public.tbl_86_expediente_repuesto (
     idproveedor_86 int4 NULL,
     fecha_entrega_proveedor_86 date NULL,
     fecha_vuelta_86 date NULL,
+    valor_reparacion_86 numeric(12, 2) NULL,
     fecha_instalacion_86 date NULL,
     idtecnico_instalacion_86 int4 NULL,
     idmaquina_instalacion_86 int4 NULL,
@@ -42,6 +43,13 @@ CREATE TABLE IF NOT EXISTS public.tbl_86_expediente_repuesto (
     CONSTRAINT chk_tbl_86_vuelta CHECK (
         estado_86 NOT IN ('PROVEEDOR_A_BODEGA', 'BODEGA_A_MAQUINA')
         OR fecha_vuelta_86 IS NOT NULL
+    ),
+    CONSTRAINT chk_tbl_86_valor_reparacion CHECK (
+        valor_reparacion_86 IS NULL OR valor_reparacion_86 >= 0
+    ),
+    CONSTRAINT chk_tbl_86_valor_en_vuelta CHECK (
+        estado_86 NOT IN ('PROVEEDOR_A_BODEGA', 'BODEGA_A_MAQUINA')
+        OR valor_reparacion_86 IS NOT NULL
     ),
     CONSTRAINT chk_tbl_86_instalado CHECK (
         estado_86 <> 'BODEGA_A_MAQUINA'
@@ -123,6 +131,26 @@ BEGIN
       ON DELETE CASCADE ON UPDATE CASCADE;
   END IF;
 END $$;
+
+-- Tablas ya creadas antes de existir la columna (sin DO $$: DBeaver corta en el ;)
+ALTER TABLE public.tbl_86_expediente_repuesto
+  ADD COLUMN IF NOT EXISTS valor_reparacion_86 numeric(12, 2) NULL;
+
+ALTER TABLE public.tbl_86_expediente_repuesto
+  DROP CONSTRAINT IF EXISTS chk_tbl_86_valor_reparacion;
+
+ALTER TABLE public.tbl_86_expediente_repuesto
+  ADD CONSTRAINT chk_tbl_86_valor_reparacion
+  CHECK (valor_reparacion_86 IS NULL OR valor_reparacion_86 >= 0);
+
+ALTER TABLE public.tbl_86_expediente_repuesto
+  DROP CONSTRAINT IF EXISTS chk_tbl_86_valor_en_vuelta;
+
+ALTER TABLE public.tbl_86_expediente_repuesto
+  ADD CONSTRAINT chk_tbl_86_valor_en_vuelta CHECK (
+    estado_86 NOT IN ('PROVEEDOR_A_BODEGA', 'BODEGA_A_MAQUINA')
+    OR valor_reparacion_86 IS NOT NULL
+  );
 
 CREATE OR REPLACE FUNCTION fn_generar_folio_expediente_86()
 RETURNS TRIGGER AS $$
