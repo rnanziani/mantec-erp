@@ -2287,3 +2287,91 @@ export interface ExistenciaRepuesto {
   maquina_ppu?: string;
   proveedor_nombre?: string;
 }
+
+export type EstadoExpedienteRepuesto =
+  | 'MAQUINA_A_BODEGA'
+  | 'BODEGA_A_PROVEEDOR'
+  | 'PROVEEDOR_A_BODEGA'
+  | 'BODEGA_A_MAQUINA';
+
+export interface ExpedienteRepuesto {
+  idexpediente_86: number;
+  folio_86?: string | null;
+  estado_86: EstadoExpedienteRepuesto;
+  idmaquina_86: number;
+  idtecnico_86: number;
+  idresponsable_86: number;
+  idrepuestodanado_86: number;
+  observacion_86?: string | null;
+  fecha_recepcion_86: string;
+  hora_86: string;
+  idproveedor_86?: number | null;
+  fecha_entrega_proveedor_86?: string | null;
+  fecha_vuelta_86?: string | null;
+  fecha_instalacion_86?: string | null;
+  idtecnico_instalacion_86?: number | null;
+  idmaquina_instalacion_86?: number | null;
+  motivo_86?: string | null;
+  observacion_instalacion_86?: string | null;
+  creado_en: string;
+  actualizado_en: string;
+  maquina_numinterno?: string;
+  maquina_descripcion?: string;
+  tecnico_nombre?: string;
+  responsable_nombre?: string;
+  repuesto_codigo?: string;
+  repuesto_nombre?: string;
+  proveedor_nombre?: string;
+  tecnico_instalacion_nombre?: string;
+  maquina_instalacion_numinterno?: string;
+  dias_en_proveedor?: number | null;
+}
+
+export interface HistorialExpedienteRepuesto {
+  idhistorial_87: number;
+  idexpediente_87: number;
+  estado_anterior_87?: string | null;
+  estado_nuevo_87: string;
+  observacion_87?: string | null;
+  creado_en: string;
+}
+
+export interface CreateExpedienteRepuestoDTO {
+  idmaquina_86: number;
+  idtecnico_86: number;
+  idresponsable_86: number;
+  idrepuestodanado_86: number;
+  fecha_recepcion_86?: string;
+  hora_86?: string;
+  observacion_86?: string | null;
+}
+
+export interface UpdateExpedienteRepuestoDTO {
+  estado_86?: EstadoExpedienteRepuesto;
+  idmaquina_86?: number;
+  idtecnico_86?: number;
+  idresponsable_86?: number;
+  idrepuestodanado_86?: number;
+  observacion_86?: string | null;
+  fecha_recepcion_86?: string;
+  hora_86?: string;
+  idproveedor_86?: number | null;
+  fecha_entrega_proveedor_86?: string | null;
+  fecha_vuelta_86?: string | null;
+  fecha_instalacion_86?: string | null;
+  idtecnico_instalacion_86?: number | null;
+  idmaquina_instalacion_86?: number | null;
+  motivo_86?: string | null;
+  observacion_instalacion_86?: string | null;
+}
+
+export interface GarantiaExpedienteRepuesto {
+  idexpediente_86: number;
+  folio_86: string;
+  fecha_recepcion_86: string;
+  maquina_numinterno?: string;
+  repuesto_nombre?: string;
+  folio_anterior?: string | null;
+  fecha_instalacion_anterior?: string | null;
+  dias_vida?: number | null;
+}

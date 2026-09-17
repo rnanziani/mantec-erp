@@ -59,6 +59,8 @@ import EntregaRepuestoView from './components/EntregaRepuestoView';
 import EstadoReparacionView from './components/EstadoReparacionView';
 import SemaforoEntregaView from './components/SemaforoEntregaView';
 import RecepcionReparadoView from './components/RecepcionReparadoView';
+import ExpedienteRepuestoView from './components/ExpedienteRepuestoView';
+import ReportesExpedienteRepuestoView from './components/ReportesExpedienteRepuestoView';
 import MarcaNeumaticoView from './components/MarcaNeumaticoView';
 import NeumaticoView from './components/NeumaticoView';
 import EstadoNeumaticoView from './components/EstadoNeumaticoView';
@@ -221,6 +223,8 @@ function App() {
     'estados-reparacion': 'MENU_REPUESTOS_DANADOS_ESTADO_REPARACION',
     'semaforo-entrega': 'MENU_REPUESTOS_DANADOS_SEMAFORO',
     'reportes-repuestos-danados': 'MENU_REPUESTOS_DANADOS_REPORTES',
+    'expedientes-repuesto': 'MENU_REPUESTOS_DANADOS_EXPEDIENTE',
+    'reportes-expediente-repuesto': 'MENU_REPUESTOS_DANADOS_EXPEDIENTE_REPORTES',
   };
 
   // Función para verificar si el usuario tiene acceso a una ruta
@@ -549,6 +553,12 @@ function App() {
             <ExistenciaRepuestoView />
           )}
           {currentView === 'proveedores-reparacion' && hasRouteAccess('proveedores-reparacion') && <ProveedorView />}
+          {currentView === 'expedientes-repuesto' && hasRouteAccess('expedientes-repuesto') && (
+            <ExpedienteRepuestoView />
+          )}
+          {currentView === 'reportes-expediente-repuesto' && hasRouteAccess('reportes-expediente-repuesto') && (
+            <ReportesExpedienteRepuestoView />
+          )}
           {currentView === 'recepcion-repuestos' && hasRouteAccess('recepcion-repuestos') && <RecepcionRepuestoView />}
           {currentView === 'entrega-repuestos' && hasRouteAccess('entrega-repuestos') && <EntregaRepuestoView />}
           {currentView === 'recepcion-reparado' && hasRouteAccess('recepcion-reparado') && <RecepcionReparadoView />}

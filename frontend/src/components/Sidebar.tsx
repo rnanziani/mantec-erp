@@ -148,6 +148,8 @@ const Sidebar: React.FC<SidebarProps> = ({ onNavigate, currentView }) => {
             permissionRequired: 'MENU_REPUESTOS_DANADOS',
             children: [
                 { id: 'rd-sec-operacion', label: 'Operación', icon: '', isSection: true },
+                { id: 'expedientes-repuesto', label: 'Tablero expediente', icon: '📋', path: 'expedientes-repuesto', permissionRequired: 'MENU_REPUESTOS_DANADOS_EXPEDIENTE' },
+                { id: 'reportes-expediente-repuesto', label: 'Reportes / garantía', icon: '📈', path: 'reportes-expediente-repuesto', permissionRequired: 'MENU_REPUESTOS_DANADOS_EXPEDIENTE_REPORTES' },
                 { id: 'recepcion-repuestos', label: 'Recepción taller', icon: '📋', path: 'recepcion-repuestos', permissionRequired: 'MENU_REPUESTOS_DANADOS_RECEPCION' },
                 { id: 'entrega-repuestos', label: 'Entrega proveedor', icon: '🚚', path: 'entrega-repuestos', permissionRequired: 'MENU_REPUESTOS_DANADOS_ENTREGA' },
                 { id: 'recepcion-reparado', label: 'Recepción reparado', icon: '✅', path: 'recepcion-reparado', permissionRequired: 'MENU_REPUESTOS_DANADOS_RECEPCION_REPARADO' },
