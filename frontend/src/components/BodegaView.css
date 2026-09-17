@@ -351,6 +351,10 @@
     grid-template-columns: 1fr 1fr 1fr;
 }
 
+.form-row-4 {
+    grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr);
+}
+
 .form-row-5 {
     grid-template-columns: minmax(0, 1.3fr) minmax(0, 1.3fr) minmax(0, 0.9fr) minmax(0, 0.7fr) minmax(0, 1.2fr);
 }
@@ -362,12 +366,17 @@
     }
 
     .form-row-3,
+    .form-row-4,
     .form-row-5 {
         grid-template-columns: 1fr;
     }
 }
 
 @media (min-width: 769px) and (max-width: 1099px) {
+    .form-row-4 {
+        grid-template-columns: 1fr 1fr;
+    }
+
     .form-row-5 {
         grid-template-columns: 1fr 1fr 1fr;
     }

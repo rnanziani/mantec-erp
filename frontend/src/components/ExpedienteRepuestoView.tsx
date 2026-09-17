@@ -519,7 +519,7 @@ const ExpedienteRepuestoView: React.FC = () => {
             </div>
 
             {mostrarProveedor && (
-              <div className="form-row form-row-3">
+              <div className={`form-row ${mostrarVuelta ? 'form-row-4' : ''}`}>
                 <div className="form-group">
                   <label htmlFor="exp-prov">Proveedor / taller *</label>
                   <SearchableSelect
@@ -537,39 +537,38 @@ const ExpedienteRepuestoView: React.FC = () => {
                   <label htmlFor="exp-fent">Fecha entrega *</label>
                   <input id="exp-fent" className="form-input" type="date" value={fechaEntrega} onChange={(e) => setFechaEntrega(e.target.value)} required={!freezeProv} disabled={freezeProv} />
                 </div>
-              </div>
-            )}
-
-            {mostrarVuelta && (
-              <div className="form-row form-row-3">
-                <div className="form-group">
-                  <label htmlFor="exp-fvu">Fecha de vuelta *</label>
-                  <input id="exp-fvu" className="form-input" type="date" value={fechaVuelta} onChange={(e) => setFechaVuelta(e.target.value)} required={!freezeVuelta} disabled={freezeVuelta} />
-                </div>
-                <div className="form-group">
-                  <label htmlFor="exp-valor">Valor reparación (CLP) *</label>
-                  <input
-                    id="exp-valor"
-                    className="form-input"
-                    type="text"
-                    inputMode="numeric"
-                    autoComplete="off"
-                    value={valorReparacion}
-                    onChange={(e) => {
-                      const raw = e.target.value;
-                      if (raw.trim() === '') {
-                        setValorReparacion('');
-                        return;
-                      }
-                      setValorReparacion(formatMiles(raw));
-                    }}
-                    required={!freezeValor}
-                    disabled={freezeValor}
-                    aria-describedby="exp-valor-help"
-                    aria-label="Valor de reparación en pesos chilenos"
-                  />
-                  <small id="exp-valor-help" style={{ color: '#6b7280' }}>0 si es garantía o no cobró</small>
-                </div>
+                {mostrarVuelta && (
+                  <>
+                    <div className="form-group">
+                      <label htmlFor="exp-fvu">Fecha de vuelta *</label>
+                      <input id="exp-fvu" className="form-input" type="date" value={fechaVuelta} onChange={(e) => setFechaVuelta(e.target.value)} required={!freezeVuelta} disabled={freezeVuelta} />
+                    </div>
+                    <div className="form-group">
+                      <label htmlFor="exp-valor">Valor reparación (CLP) *</label>
+                      <input
+                        id="exp-valor"
+                        className="form-input"
+                        type="text"
+                        inputMode="numeric"
+                        autoComplete="off"
+                        value={valorReparacion}
+                        onChange={(e) => {
+                          const raw = e.target.value;
+                          if (raw.trim() === '') {
+                            setValorReparacion('');
+                            return;
+                          }
+                          setValorReparacion(formatMiles(raw));
+                        }}
+                        required={!freezeValor}
+                        disabled={freezeValor}
+                        aria-describedby="exp-valor-help"
+                        aria-label="Valor de reparación en pesos chilenos"
+                      />
+                      <small id="exp-valor-help" style={{ color: '#6b7280' }}>0 si es garantía o no cobró</small>
+                    </div>
+                  </>
+                )}
               </div>
             )}
 
