@@ -2,6 +2,7 @@ import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import './BodegaView.css';
 import './ConsumoInsumoView.css';
 import Pagination from './shared/Pagination';
+import SearchableSelect from './shared/SearchableSelect';
 import { showDeleteConfirm, showSuccess, showError } from '../utils/swal';
 import { exportToExcel } from '../utils/exportUtils';
 import { apiUrl, openAuthenticatedBlob } from '../lib/apiClient';
@@ -117,6 +118,22 @@ const CATEGORIAS_URL = apiUrl('/categorias');
 
 const formatAmount = (value: number) =>
   new Intl.NumberFormat('es-CL', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value);
+
+const insumoOptions = (lista: Insumo[]) =>
+  [...lista]
+    .sort((a, b) => a.descripcion_43.localeCompare(b.descripcion_43, 'es'))
+    .map((i) => ({
+      value: String(i.id_insumo_43),
+      label: `${i.descripcion_43} - $${formatAmount(i.precio_insumo_43)}`,
+    }));
+
+const categoriaOptions = (lista: Categoria[]) =>
+  [...lista]
+    .sort((a, b) => a.categoria_42.localeCompare(b.categoria_42, 'es'))
+    .map((c) => ({
+      value: String(c.id_categoria_42),
+      label: c.categoria_42,
+    }));
 
 const formatCantidad = (value: number) =>
   new Intl.NumberFormat('es-CL', { maximumFractionDigits: 0 }).format(Math.trunc(value));
@@ -1124,7 +1141,7 @@ const ConsumoInsumoView: React.FC = () => {
                   ➕ Agregar línea
                 </button>
               </div>
-              <div className="table-container detalle-insumos-grid">
+              <div className="table-container table-container--combos detalle-insumos-grid">
                 <table className="data-table">
                   <thead>
                     <tr>
@@ -1153,41 +1170,33 @@ const ConsumoInsumoView: React.FC = () => {
                           : [];
                         return (
                           <tr key={idx}>
-                            <td>
-                              <select
-                                className="form-input form-input-sm"
-                                value={linea.id_categoria || ''}
-                                onChange={(e) => updateLinea(idx, 'id_categoria', parseInt(e.target.value, 10) || 0)}
+                            <td className="td-categoria-combo">
+                              <SearchableSelect
+                                id={`linea-categoria-${idx}`}
+                                value={linea.id_categoria ? String(linea.id_categoria) : ''}
+                                onChange={(v) => updateLinea(idx, 'id_categoria', parseInt(v, 10) || 0)}
+                                options={categoriaOptions(categorias)}
+                                placeholder="Buscar categoría..."
                                 required={idx === 0}
-                                aria-label="Seleccionar categoría"
-                              >
-                                <option value="">Seleccione...</option>
-                                {categorias.map((c) => (
-                                  <option key={c.id_categoria_42} value={c.id_categoria_42}>
-                                    {c.categoria_42}
-                                  </option>
-                                ))}
-                              </select>
+                                emptyMessage="No se encontró esa categoría"
+                                aria-label="Buscar y seleccionar categoría"
+                              />
                             </td>
                             <td className="td-readonly" title={linea.codigo || undefined}>
                               {linea.codigo || '-'}
                             </td>
-                            <td>
-                              <select
-                                className="form-input form-input-sm"
-                                value={linea.id_insumo || ''}
-                                onChange={(e) => updateLinea(idx, 'id_insumo', parseInt(e.target.value, 10) || 0)}
+                            <td className="td-insumo-combo">
+                              <SearchableSelect
+                                id={`linea-insumo-${idx}`}
+                                value={linea.id_insumo ? String(linea.id_insumo) : ''}
+                                onChange={(v) => updateLinea(idx, 'id_insumo', parseInt(v, 10) || 0)}
+                                options={insumoOptions(insumosFiltrados)}
+                                placeholder={linea.id_categoria ? 'Buscar insumo...' : 'Elija categoría'}
                                 required={idx === 0}
                                 disabled={!linea.id_categoria}
-                                aria-label="Seleccionar insumo"
-                              >
-                                <option value="">Seleccione...</option>
-                                {insumosFiltrados.map((i) => (
-                                  <option key={i.id_insumo_43} value={i.id_insumo_43}>
-                                    {i.descripcion_43} - ${formatAmount(i.precio_insumo_43)}
-                                  </option>
-                                ))}
-                              </select>
+                                emptyMessage="No hay insumos en esa categoría"
+                                aria-label="Buscar y seleccionar insumo"
+                              />
                             </td>
                             <td className="td-readonly" title={linea.marca || undefined}>
                               {linea.marca || '-'}
@@ -1498,7 +1507,7 @@ const ConsumoInsumoView: React.FC = () => {
                   </button>
                 </div>
               </div>
-              <div className="table-container detalle-insumos-grid">
+              <div className="table-container table-container--combos detalle-insumos-grid">
                 <table className="data-table">
                   <thead>
                     <tr>
@@ -1526,23 +1535,18 @@ const ConsumoInsumoView: React.FC = () => {
                           <td className="td-readonly" title={codigo !== '-' ? codigo : undefined}>
                             {codigo}
                           </td>
-                          <td>
+                          <td className="td-insumo-combo">
                             {linea.editing ? (
-                              <select
-                                className="form-input form-input-sm"
-                                value={linea.id_insumo || ''}
-                                onChange={(e) =>
-                                  updateDetalleLineaField(linea.key, 'id_insumo', parseInt(e.target.value, 10) || 0)
+                              <SearchableSelect
+                                id={`detalle-insumo-${linea.key}`}
+                                value={linea.id_insumo ? String(linea.id_insumo) : ''}
+                                onChange={(v) =>
+                                  updateDetalleLineaField(linea.key, 'id_insumo', parseInt(v, 10) || 0)
                                 }
-                                aria-label="Seleccionar insumo"
-                              >
-                                <option value="">Seleccione...</option>
-                                {insumos.map((i) => (
-                                  <option key={i.id_insumo_43} value={i.id_insumo_43}>
-                                    {i.descripcion_43}
-                                  </option>
-                                ))}
-                              </select>
+                                options={insumoOptions(insumos)}
+                                placeholder="Buscar insumo..."
+                                aria-label="Buscar y seleccionar insumo"
+                              />
                             ) : (
                               getInsumoDescripcion(linea.id_insumo)
                             )}

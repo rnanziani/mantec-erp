@@ -87,7 +87,11 @@
 .detalle-insumos-grid { margin-top: 0; }
 .detalle-insumos-grid .data-table thead th { text-transform: uppercase; font-size: 0.85rem; letter-spacing: 0.5px; }
 .detalle-insumos-grid .data-table td { vertical-align: middle; }
-.detalle-insumos-grid .form-input-sm { min-width: 0; }
+.detalle-insumos-grid .td-categoria-combo,
+.detalle-insumos-grid .td-insumo-combo {
+  min-width: 200px;
+  overflow: visible;
+}
 .detalle-insumos-grid .input-cantidad-centrado { width: 80px !important; text-align: center !important; }
 .detalle-insumos-grid .actions { text-align: center; }
 .detalle-insumos-grid .btn-delete { background: transparent; border: 0; cursor: pointer; padding: 0.25rem; font-size: 1rem; opacity: 0.8; }
