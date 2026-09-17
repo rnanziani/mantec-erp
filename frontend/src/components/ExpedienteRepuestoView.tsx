@@ -79,9 +79,18 @@ const formatCLP = (n?: number | null) =>
   n == null || Number.isNaN(Number(n))
     ? '—'
     : Number(n).toLocaleString('es-CL', { style: 'currency', currency: 'CLP', maximumFractionDigits: 0 });
-const parseMoney = (raw: string) => {
-  const n = Number(String(raw).replace(',', '.'));
+
+/** En pantalla 60.000; en BD / API el entero 60000 (igual que el km). */
+const parsePesos = (raw: string) => {
+  const digits = String(raw).replace(/\D/g, '');
+  if (!digits) return null;
+  const n = Number(digits);
   return Number.isFinite(n) && n >= 0 ? n : null;
+};
+const formatMiles = (value: string | number | null | undefined) => {
+  const n = typeof value === 'number' ? value : parsePesos(String(value ?? ''));
+  if (n == null) return '';
+  return n.toLocaleString('es-CL', { maximumFractionDigits: 0 });
 };
 
 const ExpedienteRepuestoView: React.FC = () => {
@@ -291,7 +300,7 @@ const ExpedienteRepuestoView: React.FC = () => {
     setIdProveedor(e.idproveedor_86 ? String(e.idproveedor_86) : '');
     setFechaEntrega(fechaISO(e.fecha_entrega_proveedor_86));
     setFechaVuelta(fechaISO(e.fecha_vuelta_86));
-    setValorReparacion(e.valor_reparacion_86 == null ? '' : String(e.valor_reparacion_86));
+    setValorReparacion(e.valor_reparacion_86 == null ? '' : formatMiles(e.valor_reparacion_86));
     setFechaInstalacion(fechaISO(e.fecha_instalacion_86));
     setIdTecnicoInst(e.idtecnico_instalacion_86 ? String(e.idtecnico_instalacion_86) : '');
     setIdMaquinaInst(e.idmaquina_instalacion_86 ? String(e.idmaquina_instalacion_86) : String(e.idmaquina_86));
@@ -320,7 +329,7 @@ const ExpedienteRepuestoView: React.FC = () => {
       await showError('Validación', 'Complete máquina, técnico, responsable y tipo de repuesto');
       return;
     }
-    if (ESTADOS.findIndex((e) => e.value === estado) >= 2 && parseMoney(valorReparacion) == null) {
+    if (ESTADOS.findIndex((e) => e.value === estado) >= 2 && parsePesos(valorReparacion) == null) {
       await showError('Validación', 'Indique el valor de reparación (0 si es garantía o no cobró)');
       return;
     }
@@ -336,7 +345,7 @@ const ExpedienteRepuestoView: React.FC = () => {
       idproveedor_86: idProveedor ? Number(idProveedor) : null,
       fecha_entrega_proveedor_86: fechaEntrega || null,
       fecha_vuelta_86: fechaVuelta || null,
-      valor_reparacion_86: parseMoney(valorReparacion),
+      valor_reparacion_86: parsePesos(valorReparacion),
       fecha_instalacion_86: fechaInstalacion || null,
       idtecnico_instalacion_86: idTecnicoInst ? Number(idTecnicoInst) : null,
       idmaquina_instalacion_86: idMaquinaInst ? Number(idMaquinaInst) : null,
@@ -542,15 +551,22 @@ const ExpedienteRepuestoView: React.FC = () => {
                   <input
                     id="exp-valor"
                     className="form-input"
-                    type="number"
-                    min={0}
-                    step={1}
+                    type="text"
                     inputMode="numeric"
+                    autoComplete="off"
                     value={valorReparacion}
-                    onChange={(e) => setValorReparacion(e.target.value)}
+                    onChange={(e) => {
+                      const raw = e.target.value;
+                      if (raw.trim() === '') {
+                        setValorReparacion('');
+                        return;
+                      }
+                      setValorReparacion(formatMiles(raw));
+                    }}
                     required={!freezeValor}
                     disabled={freezeValor}
                     aria-describedby="exp-valor-help"
+                    aria-label="Valor de reparación en pesos chilenos"
                   />
                   <small id="exp-valor-help" style={{ color: '#6b7280' }}>0 si es garantía o no cobró</small>
                 </div>
