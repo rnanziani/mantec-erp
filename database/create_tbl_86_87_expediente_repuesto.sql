@@ -12,6 +12,7 @@ CREATE TABLE IF NOT EXISTS public.tbl_86_expediente_repuesto (
     idtecnico_86 int4 NOT NULL,
     idresponsable_86 int4 NOT NULL,
     idrepuestodanado_86 int4 NOT NULL,
+    cantidad_86 int4 DEFAULT 1 NOT NULL,
     observacion_86 text NULL,
     fecha_recepcion_86 date DEFAULT CURRENT_DATE NOT NULL,
     hora_86 time DEFAULT CURRENT_TIME NOT NULL,
@@ -53,6 +54,7 @@ CREATE TABLE IF NOT EXISTS public.tbl_86_expediente_repuesto (
         estado_86 NOT IN ('PROVEEDOR_A_BODEGA', 'BODEGA_A_MAQUINA')
         OR fecha_vuelta_86 IS NOT NULL
     ),
+    CONSTRAINT chk_tbl_86_cantidad CHECK (cantidad_86 >= 1),
     CONSTRAINT chk_tbl_86_valor_reparacion CHECK (
         valor_reparacion_86 IS NULL OR valor_reparacion_86 >= 0
     ),

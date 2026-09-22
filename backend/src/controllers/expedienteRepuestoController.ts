@@ -27,6 +27,7 @@ const SELECT_ALL = `
     e.idtecnico_86,
     e.idresponsable_86,
     e.idrepuestodanado_86,
+    e.cantidad_86,
     e.observacion_86,
     e.fecha_recepcion_86,
     e.hora_86,
@@ -98,6 +99,18 @@ function toMoney(value: unknown): number | null {
   return Math.round(n * 100) / 100;
 }
 
+function toTotal(unitario: number | null, cantidad: number): number | null {
+  if (unitario == null) return null;
+  return Math.round(unitario * cantidad * 100) / 100;
+}
+
+function toCantidad(value: unknown): number | null {
+  if (value == null || value === '') return null;
+  const n = Number(String(value).replace(',', '.'));
+  if (!Number.isInteger(n) || n < 1) return null;
+  return n;
+}
+
 async function registrarHistorial(
   client: { query: typeof pool.query },
   id: number,
@@ -155,6 +168,7 @@ export const getGarantiasExpediente = async (req: Request, res: Response): Promi
          n.idexpediente_86,
          n.folio_86,
          n.fecha_recepcion_86,
+         n.cantidad_86,
          ma.numinterno_11::text AS maquina_numinterno,
          rd.nombre_57 AS repuesto_nombre,
          ant.folio_86 AS folio_anterior,
@@ -226,8 +240,16 @@ export const createExpediente = async (req: Request, res: Response): Promise<voi
     }
 
     const origen = body.origen_alta_86 === 'STOCK_PREVIO' ? 'STOCK_PREVIO' : 'CICLO';
+    const cantidad = body.cantidad_86 == null ? 1 : toCantidad(body.cantidad_86);
+    if (cantidad == null) {
+      res.status(400).json({
+        success: false,
+        error: 'La cantidad debe ser un entero de 1 o más',
+      });
+      return;
+    }
     const fechaVuelta = toDate(body.fecha_vuelta_86);
-    const valor = toMoney(body.valor_reparacion_86);
+    const valor = toTotal(toMoney(body.valor_reparacion_86), cantidad);
     const fechaInst = toDate(body.fecha_instalacion_86);
     const idTecInst = body.idtecnico_instalacion_86 || null;
     const idMaqInst = body.idmaquina_instalacion_86 || body.idmaquina_86;
@@ -267,14 +289,14 @@ export const createExpediente = async (req: Request, res: Response): Promise<voi
     const ins = await client.query<{ idexpediente_86: number }>(
       `INSERT INTO ${TABLA} (
          estado_86, origen_alta_86, idmaquina_86, idtecnico_86, idresponsable_86, idrepuestodanado_86,
-         observacion_86, fecha_recepcion_86, hora_86,
+         cantidad_86, observacion_86, fecha_recepcion_86, hora_86,
          idproveedor_86, fecha_entrega_proveedor_86, fecha_vuelta_86, valor_reparacion_86,
          fecha_instalacion_86, idtecnico_instalacion_86, idmaquina_instalacion_86,
          motivo_86, observacion_instalacion_86
        ) VALUES (
-         $1, $2, $3, $4, $5, $6, $7,
-         COALESCE($8::date, CURRENT_DATE), COALESCE($9::time, CURRENT_TIME),
-         $10, $11, $12, $13, $14, $15, $16, $17, $18
+         $1, $2, $3, $4, $5, $6, $7, $8,
+         COALESCE($9::date, CURRENT_DATE), COALESCE($10::time, CURRENT_TIME),
+         $11, $12, $13, $14, $15, $16, $17, $18, $19
        )
        RETURNING idexpediente_86`,
       [
@@ -284,6 +306,7 @@ export const createExpediente = async (req: Request, res: Response): Promise<voi
         body.idtecnico_86,
         body.idresponsable_86,
         body.idrepuestodanado_86,
+        cantidad,
         body.observacion_86?.trim() || (origen === 'STOCK_PREVIO' ? 'STOCK PREVIO AL SISTEMA' : null),
         toDate(body.fecha_recepcion_86) || fechaVuelta,
         body.hora_86 || null,
@@ -363,6 +386,21 @@ export const updateExpediente = async (req: Request, res: Response): Promise<voi
     }
 
     const enOrigen = row.estado_86 === 'MAQUINA_A_BODEGA';
+    const esStockPrev = row.origen_alta_86 === 'STOCK_PREVIO';
+    const puedeEditarCantidad = enOrigen || (esStockPrev && row.estado_86 === 'PROVEEDOR_A_BODEGA');
+    let cantidad = Number(row.cantidad_86) || 1;
+    if (puedeEditarCantidad && body.cantidad_86 !== undefined) {
+      const parsed = toCantidad(body.cantidad_86);
+      if (parsed == null) {
+        await client.query('ROLLBACK');
+        res.status(400).json({
+          success: false,
+          error: 'La cantidad debe ser un entero de 1 o más',
+        });
+        return;
+      }
+      cantidad = parsed;
+    }
 
     const idproveedor = row.idproveedor_86
       || (body.idproveedor_86 !== undefined ? body.idproveedor_86 : null);
@@ -379,12 +417,11 @@ export const updateExpediente = async (req: Request, res: Response): Promise<voi
     const valorReparacion = cerrado
       ? Number(row.valor_reparacion_86 ?? 0)
       : body.valor_reparacion_86 !== undefined
-        ? toMoney(body.valor_reparacion_86)
+        ? toTotal(toMoney(body.valor_reparacion_86), cantidad)
         : row.valor_reparacion_86 != null
           ? Number(row.valor_reparacion_86)
           : null;
 
-    const esStockPrev = row.origen_alta_86 === 'STOCK_PREVIO';
     if (nuevoIdx >= 1 && !esStockPrev && (!idproveedor || !fechaEntrega)) {
       await client.query('ROLLBACK');
       res.status(400).json({
@@ -430,18 +467,19 @@ export const updateExpediente = async (req: Request, res: Response): Promise<voi
          idtecnico_86 = $4,
          idresponsable_86 = $5,
          idrepuestodanado_86 = $6,
-         observacion_86 = $7,
-         fecha_recepcion_86 = $8,
-         hora_86 = $9,
-         idproveedor_86 = $10,
-         fecha_entrega_proveedor_86 = $11,
-         fecha_vuelta_86 = $12,
-         valor_reparacion_86 = $13,
-         fecha_instalacion_86 = $14,
-         idtecnico_instalacion_86 = $15,
-         idmaquina_instalacion_86 = $16,
-         motivo_86 = $17,
-         observacion_instalacion_86 = $18
+         cantidad_86 = $7,
+         observacion_86 = $8,
+         fecha_recepcion_86 = $9,
+         hora_86 = $10,
+         idproveedor_86 = $11,
+         fecha_entrega_proveedor_86 = $12,
+         fecha_vuelta_86 = $13,
+         valor_reparacion_86 = $14,
+         fecha_instalacion_86 = $15,
+         idtecnico_instalacion_86 = $16,
+         idmaquina_instalacion_86 = $17,
+         motivo_86 = $18,
+         observacion_instalacion_86 = $19
        WHERE idexpediente_86 = $1`,
       [
         id,
@@ -450,6 +488,7 @@ export const updateExpediente = async (req: Request, res: Response): Promise<voi
         enOrigen && body.idtecnico_86 ? body.idtecnico_86 : row.idtecnico_86,
         enOrigen && body.idresponsable_86 ? body.idresponsable_86 : row.idresponsable_86,
         enOrigen && body.idrepuestodanado_86 ? body.idrepuestodanado_86 : row.idrepuestodanado_86,
+        cantidad,
         body.observacion_86 !== undefined ? body.observacion_86?.trim() || null : row.observacion_86,
         enOrigen && body.fecha_recepcion_86
           ? toDate(body.fecha_recepcion_86)

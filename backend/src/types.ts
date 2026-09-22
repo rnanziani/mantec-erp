@@ -2302,6 +2302,7 @@ export interface ExpedienteRepuesto {
   idtecnico_86: number;
   idresponsable_86: number;
   idrepuestodanado_86: number;
+  cantidad_86?: number;
   observacion_86?: string | null;
   fecha_recepcion_86: string;
   hora_86: string;
@@ -2343,6 +2344,7 @@ export interface CreateExpedienteRepuestoDTO {
   idtecnico_86: number;
   idresponsable_86: number;
   idrepuestodanado_86: number;
+  cantidad_86?: number;
   fecha_recepcion_86?: string;
   hora_86?: string;
   observacion_86?: string | null;
@@ -2364,6 +2366,7 @@ export interface UpdateExpedienteRepuestoDTO {
   idtecnico_86?: number;
   idresponsable_86?: number;
   idrepuestodanado_86?: number;
+  cantidad_86?: number;
   observacion_86?: string | null;
   fecha_recepcion_86?: string;
   hora_86?: string;

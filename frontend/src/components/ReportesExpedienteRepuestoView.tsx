@@ -24,6 +24,7 @@ interface EnProveedor {
   maquina_numinterno?: string;
   repuesto_codigo?: string;
   repuesto_nombre?: string;
+  cantidad_86?: number;
   proveedor_nombre?: string;
   fecha_entrega_proveedor_86?: string | null;
   dias_en_proveedor?: number | null;
@@ -32,6 +33,7 @@ interface EnProveedor {
 interface Garantia {
   folio_86?: string;
   fecha_recepcion_86?: string;
+  cantidad_86?: number;
   maquina_numinterno?: string;
   repuesto_nombre?: string;
   folio_anterior?: string | null;
@@ -110,6 +112,7 @@ const ReportesExpedienteRepuestoView: React.FC = () => {
             Folio: r.folio_86,
             Máquina: r.maquina_numinterno,
             Repuesto: `${r.repuesto_codigo || ''} ${r.repuesto_nombre || ''}`.trim(),
+            Cantidad: r.cantidad_86 ?? 1,
             Proveedor: r.proveedor_nombre,
             Entrega: fechaCorta(r.fecha_entrega_proveedor_86),
             Días: r.dias_en_proveedor ?? '',
@@ -124,6 +127,7 @@ const ReportesExpedienteRepuestoView: React.FC = () => {
           Folio: r.folio_86,
           Máquina: r.maquina_numinterno,
           Repuesto: r.repuesto_nombre,
+          Cantidad: r.cantidad_86 ?? 1,
           Recepción: fechaCorta(r.fecha_recepcion_86),
           'Folio anterior': r.folio_anterior,
           'Instalación anterior': fechaCorta(r.fecha_instalacion_anterior),
@@ -218,6 +222,7 @@ const ReportesExpedienteRepuestoView: React.FC = () => {
                   <th>Folio</th>
                   <th>Máquina</th>
                   <th>Repuesto</th>
+                  <th>Cant.</th>
                   <th>Proveedor</th>
                   <th>Entrega</th>
                   <th>Días</th>
@@ -225,15 +230,16 @@ const ReportesExpedienteRepuestoView: React.FC = () => {
               </thead>
               <tbody>
                 {loading ? (
-                  <tr><td colSpan={6}>Cargando...</td></tr>
+                  <tr><td colSpan={7}>Cargando...</td></tr>
                 ) : enProveedor.length === 0 ? (
-                  <tr><td colSpan={6}>No hay expedientes en Bodega → Proveedor.</td></tr>
+                  <tr><td colSpan={7}>No hay expedientes en Bodega → Proveedor.</td></tr>
                 ) : (
                   enProveedor.map((r) => (
                     <tr key={r.folio_86}>
                       <td>{r.folio_86}</td>
                       <td>{r.maquina_numinterno}</td>
                       <td>{r.repuesto_codigo ? `${r.repuesto_codigo} — ` : ''}{r.repuesto_nombre}</td>
+                      <td>{r.cantidad_86 ?? 1}</td>
                       <td>{r.proveedor_nombre || '—'}</td>
                       <td>{fechaCorta(r.fecha_entrega_proveedor_86)}</td>
                       <td>{r.dias_en_proveedor ?? '—'}</td>
@@ -271,6 +277,7 @@ const ReportesExpedienteRepuestoView: React.FC = () => {
                   <th>Folio nuevo</th>
                   <th>Máquina</th>
                   <th>Repuesto</th>
+                  <th>Cant.</th>
                   <th>Recepción</th>
                   <th>Folio anterior</th>
                   <th>Instalación anterior</th>
@@ -279,15 +286,16 @@ const ReportesExpedienteRepuestoView: React.FC = () => {
               </thead>
               <tbody>
                 {loading ? (
-                  <tr><td colSpan={7}>Cargando...</td></tr>
+                  <tr><td colSpan={8}>Cargando...</td></tr>
                 ) : garantias.length === 0 ? (
-                  <tr><td colSpan={7}>No hay candidatos bajo ese umbral.</td></tr>
+                  <tr><td colSpan={8}>No hay candidatos bajo ese umbral.</td></tr>
                 ) : (
                   garantias.map((r) => (
                     <tr key={`${r.folio_86}-${r.folio_anterior}`}>
                       <td>{r.folio_86}</td>
                       <td>{r.maquina_numinterno}</td>
                       <td>{r.repuesto_nombre}</td>
+                      <td>{r.cantidad_86 ?? 1}</td>
                       <td>{fechaCorta(r.fecha_recepcion_86)}</td>
                       <td>{r.folio_anterior || '—'}</td>
                       <td>{fechaCorta(r.fecha_instalacion_anterior)}</td>

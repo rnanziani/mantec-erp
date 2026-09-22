@@ -15,6 +15,7 @@ const sqlFiles = [
   path.resolve(__dirname, '../../database/create_tbl_86_87_expediente_repuesto.sql'),
   path.resolve(__dirname, '../../database/alter_tbl_86_valor_reparacion.sql'),
   path.resolve(__dirname, '../../database/alter_tbl_86_origen_alta.sql'),
+  path.resolve(__dirname, '../../database/alter_tbl_86_cantidad.sql'),
 ];
 
 function buildPool() {
