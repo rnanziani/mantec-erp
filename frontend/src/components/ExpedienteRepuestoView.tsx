@@ -49,6 +49,7 @@ interface Expediente {
   idmaquina_instalacion_86?: number | null;
   motivo_86?: string | null;
   observacion_instalacion_86?: string | null;
+  origen_alta_86?: 'CICLO' | 'STOCK_PREVIO';
   maquina_numinterno?: string;
   tecnico_nombre?: string;
   responsable_nombre?: string;
@@ -154,6 +155,7 @@ const ExpedienteRepuestoView: React.FC = () => {
   const [idMaquinaInst, setIdMaquinaInst] = useState('');
   const [motivo, setMotivo] = useState('');
   const [obsInst, setObsInst] = useState('');
+  const [origenAlta, setOrigenAlta] = useState<'CICLO' | 'STOCK_PREVIO'>('CICLO');
 
   const origenCongelado = Boolean(editingId && estadoGuardado !== 'MAQUINA_A_BODEGA');
 
@@ -282,6 +284,7 @@ const ExpedienteRepuestoView: React.FC = () => {
     setIdMaquinaInst('');
     setMotivo('');
     setObsInst('');
+    setOrigenAlta('CICLO');
     setShowForm(false);
   };
 
@@ -306,6 +309,7 @@ const ExpedienteRepuestoView: React.FC = () => {
     setIdMaquinaInst(e.idmaquina_instalacion_86 ? String(e.idmaquina_instalacion_86) : String(e.idmaquina_86));
     setMotivo(e.motivo_86 || '');
     setObsInst(e.observacion_instalacion_86 || '');
+    setOrigenAlta(e.origen_alta_86 === 'STOCK_PREVIO' ? 'STOCK_PREVIO' : 'CICLO');
     setShowForm(true);
   };
 
@@ -329,19 +333,34 @@ const ExpedienteRepuestoView: React.FC = () => {
       await showError('Validación', 'Complete máquina, técnico, responsable y tipo de repuesto');
       return;
     }
-    if (ESTADOS.findIndex((e) => e.value === estado) >= 2 && parsePesos(valorReparacion) == null) {
-      await showError('Validación', 'Indique el valor de reparación (0 si es garantía o no cobró)');
+    const esStock = origenAlta === 'STOCK_PREVIO';
+    const idxForm = ESTADOS.findIndex((e) => e.value === estado);
+    if ((idxForm >= 2 || esStock) && parsePesos(valorReparacion) == null) {
+      await showError('Validación', 'Indique el valor de reparación (0 si es garantía, no cobró o no se conoce)');
+      return;
+    }
+    if (esStock && !editingId && !fechaVuelta) {
+      await showError('Validación', 'Indique la fecha en que el juego quedó disponible en bodega');
+      return;
+    }
+    const instalaParcial = Boolean(fechaInstalacion || idTecnicoInst);
+    const instala = Boolean(fechaInstalacion && idTecnicoInst && idMaquinaInst);
+    if (esStock && !editingId && instalaParcial && !instala) {
+      await showError('Validación', 'Si ya se lo pasó al técnico complete fecha, técnico y máquina de instalación');
       return;
     }
     const payload: Record<string, unknown> = {
-      estado_86: estado,
+      estado_86: !editingId && esStock
+        ? (instala ? 'BODEGA_A_MAQUINA' : 'PROVEEDOR_A_BODEGA')
+        : estado,
+      origen_alta_86: origenAlta,
       idmaquina_86: Number(idMaquina),
       idtecnico_86: Number(idTecnico),
       idresponsable_86: Number(idResponsable),
       idrepuestodanado_86: Number(idRepuesto),
       fecha_recepcion_86: fechaRecepcion,
       hora_86: hora,
-      observacion_86: observacion.trim() || null,
+      observacion_86: observacion.trim() || (esStock ? 'STOCK PREVIO AL SISTEMA' : null),
       idproveedor_86: idProveedor ? Number(idProveedor) : null,
       fecha_entrega_proveedor_86: fechaEntrega || null,
       fecha_vuelta_86: fechaVuelta || null,
@@ -349,7 +368,7 @@ const ExpedienteRepuestoView: React.FC = () => {
       fecha_instalacion_86: fechaInstalacion || null,
       idtecnico_instalacion_86: idTecnicoInst ? Number(idTecnicoInst) : null,
       idmaquina_instalacion_86: idMaquinaInst ? Number(idMaquinaInst) : null,
-      motivo_86: motivo.trim() || null,
+      motivo_86: (motivo.trim() || (esStock ? 'STOCK PREVIO AL SISTEMA' : '')) || null,
       observacion_instalacion_86: obsInst.trim() || null,
     };
     try {
@@ -372,7 +391,9 @@ const ExpedienteRepuestoView: React.FC = () => {
   };
 
   const handleDelete = async (id: number) => {
-    const ok = await showDeleteConfirm('este expediente (solo si aún no salió a proveedor)');
+    const ok = await showDeleteConfirm(
+      'este expediente (dañado aún en bodega, o stock previo aún no instalado)'
+    );
     if (!ok) return;
     try {
       const res = await apiFetch(`${API_URL}/${id}`, { method: 'DELETE' });
@@ -391,13 +412,26 @@ const ExpedienteRepuestoView: React.FC = () => {
   const idx = ESTADOS.findIndex((e) => e.value === estado);
   const idxGuardado = ESTADOS.findIndex((e) => e.value === estadoGuardado);
   const opcionesEstado = ESTADOS.filter((_, i) => i <= idxGuardado + (SIGUIENTE[estadoGuardado] ? 1 : 0));
-  const mostrarProveedor = idx >= 1;
-  const mostrarVuelta = idx >= 2;
-  const mostrarInstalacion = idx >= 3;
-  const freezeProv = idxGuardado >= 1;
-  const freezeVuelta = idxGuardado >= 2;
-  const freezeValor = idxGuardado >= 3;
-  const freezeInst = idxGuardado >= 3;
+  const esStock = origenAlta === 'STOCK_PREVIO';
+  const mostrarProveedor = idx >= 1 && !esStock;
+  const mostrarVuelta = idx >= 2 || esStock;
+  const mostrarInstalacion = idx >= 3 || (!editingId && esStock);
+  const freezeProv = Boolean(editingId) && idxGuardado >= 1;
+  const freezeVuelta = Boolean(editingId) && idxGuardado >= 2;
+  const freezeValor = Boolean(editingId) && idxGuardado >= 3;
+  const freezeInst = Boolean(editingId) && idxGuardado >= 3;
+
+  const startStockPrevio = () => {
+    resetForm();
+    setOrigenAlta('STOCK_PREVIO');
+    setEstado('PROVEEDOR_A_BODEGA');
+    setEstadoGuardado('PROVEEDOR_A_BODEGA');
+    setFechaVuelta(hoyISO());
+    setValorReparacion('0');
+    setMotivo('STOCK PREVIO AL SISTEMA');
+    setObservacion('STOCK PREVIO AL SISTEMA');
+    setShowForm(true);
+  };
 
   return (
     <div className="bodega-view">
@@ -405,7 +439,10 @@ const ExpedienteRepuestoView: React.FC = () => {
         <h2>Tablero de expedientes</h2>
         <div style={{ display: 'flex', gap: 8 }}>
           <button type="button" className="btn-primary" onClick={() => { resetForm(); setShowForm(true); }}>
-            + Nuevo
+            + Nuevo dañado
+          </button>
+          <button type="button" className="btn-secondary" onClick={startStockPrevio}>
+            + Stock reparado
           </button>
           <button type="button" className="btn-success" disabled={!showForm} onClick={() => formRef.current?.requestSubmit()}>
             Guardar
@@ -422,9 +459,17 @@ const ExpedienteRepuestoView: React.FC = () => {
 
       {showForm && (
         <div className="form-container">
-          <h3>{editingId ? `Expediente ${registros.find((r) => r.idexpediente_86 === editingId)?.folio_86 || ''}` : 'Nuevo expediente (Máquina → Bodega)'}</h3>
+          <h3>
+            {editingId
+              ? `Expediente ${registros.find((r) => r.idexpediente_86 === editingId)?.folio_86 || ''}`
+              : esStock
+                ? 'Alta stock reparado (antes del sistema)'
+                : 'Nuevo expediente (Máquina → Bodega)'}
+          </h3>
           <p style={{ marginTop: 0, color: '#6b7280', fontSize: 14 }}>
-            Un viaje = una fila. Las fechas ya grabadas no se pisan. Un daño nuevo después de instalar es otro expediente.
+            {esStock
+              ? 'Es otro juego, no el dañado que acaba de entrar. EXP dañado se queda en bodega (irá a proveedor). Este folio es el reparado que ya tenían y se monta en la máquina.'
+              : 'Un viaje = una fila. Las fechas ya grabadas no se pisan. Un daño nuevo después de instalar es otro expediente.'}
           </p>
           <form ref={formRef} onSubmit={handleSubmit}>
             {editingId && (
@@ -449,7 +494,7 @@ const ExpedienteRepuestoView: React.FC = () => {
 
             <div className="form-row form-row-3">
               <div className="form-group">
-                <label htmlFor="exp-maq">Máquina *</label>
+                <label htmlFor="exp-maq">{esStock ? 'Máquina donde se monta *' : 'Máquina *'}</label>
                 <SearchableSelect
                   id="exp-maq"
                   value={idMaquina}
@@ -462,11 +507,14 @@ const ExpedienteRepuestoView: React.FC = () => {
                 />
               </div>
               <div className="form-group">
-                <label htmlFor="exp-tec">Técnico *</label>
+                <label htmlFor="exp-tec">{esStock ? 'Técnico que instala / referencia *' : 'Técnico *'}</label>
                 <SearchableSelect
                   id="exp-tec"
                   value={idTecnico}
-                  onChange={setIdTecnico}
+                  onChange={(v) => {
+                    setIdTecnico(v);
+                    if (esStock && !idTecnicoInst) setIdTecnicoInst(v);
+                  }}
                   options={tecnicoOptions}
                   placeholder="Buscar técnico..."
                   required
@@ -500,11 +548,11 @@ const ExpedienteRepuestoView: React.FC = () => {
                   placeholder="Buscar repuesto..."
                   required
                   disabled={origenCongelado}
-                  aria-label="Tipo de repuesto dañado"
+                  aria-label="Tipo de repuesto"
                 />
               </div>
               <div className="form-group">
-                <label htmlFor="exp-fecha">Fecha recepción *</label>
+                <label htmlFor="exp-fecha">{esStock ? 'Fecha de registro *' : 'Fecha recepción *'}</label>
                 <input id="exp-fecha" className="form-input" type="date" value={fechaRecepcion} onChange={(e) => setFechaRecepcion(e.target.value)} required disabled={origenCongelado} />
               </div>
               <div className="form-group">
@@ -519,7 +567,7 @@ const ExpedienteRepuestoView: React.FC = () => {
             </div>
 
             {mostrarProveedor && (
-              <div className={`form-row ${mostrarVuelta ? 'form-row-4' : ''}`}>
+              <div className="form-row">
                 <div className="form-group">
                   <label htmlFor="exp-prov">Proveedor / taller *</label>
                   <SearchableSelect
@@ -537,38 +585,39 @@ const ExpedienteRepuestoView: React.FC = () => {
                   <label htmlFor="exp-fent">Fecha entrega *</label>
                   <input id="exp-fent" className="form-input" type="date" value={fechaEntrega} onChange={(e) => setFechaEntrega(e.target.value)} required={!freezeProv} disabled={freezeProv} />
                 </div>
-                {mostrarVuelta && (
-                  <>
-                    <div className="form-group">
-                      <label htmlFor="exp-fvu">Fecha de vuelta *</label>
-                      <input id="exp-fvu" className="form-input" type="date" value={fechaVuelta} onChange={(e) => setFechaVuelta(e.target.value)} required={!freezeVuelta} disabled={freezeVuelta} />
-                    </div>
-                    <div className="form-group">
-                      <label htmlFor="exp-valor">Valor reparación (CLP) *</label>
-                      <input
-                        id="exp-valor"
-                        className="form-input"
-                        type="text"
-                        inputMode="numeric"
-                        autoComplete="off"
-                        value={valorReparacion}
-                        onChange={(e) => {
-                          const raw = e.target.value;
-                          if (raw.trim() === '') {
-                            setValorReparacion('');
-                            return;
-                          }
-                          setValorReparacion(formatMiles(raw));
-                        }}
-                        required={!freezeValor}
-                        disabled={freezeValor}
-                        aria-describedby="exp-valor-help"
-                        aria-label="Valor de reparación en pesos chilenos"
-                      />
-                      <small id="exp-valor-help" style={{ color: '#6b7280' }}>0 si es garantía o no cobró</small>
-                    </div>
-                  </>
-                )}
+              </div>
+            )}
+
+            {mostrarVuelta && (
+              <div className="form-row">
+                <div className="form-group">
+                  <label htmlFor="exp-fvu">{esStock ? 'Fecha disponible en bodega *' : 'Fecha de vuelta *'}</label>
+                  <input id="exp-fvu" className="form-input" type="date" value={fechaVuelta} onChange={(e) => setFechaVuelta(e.target.value)} required={!freezeVuelta} disabled={freezeVuelta} />
+                </div>
+                <div className="form-group">
+                  <label htmlFor="exp-valor">Valor reparación (CLP) *</label>
+                  <input
+                    id="exp-valor"
+                    className="form-input"
+                    type="text"
+                    inputMode="numeric"
+                    autoComplete="off"
+                    value={valorReparacion}
+                    onChange={(e) => {
+                      const raw = e.target.value;
+                      if (raw.trim() === '') {
+                        setValorReparacion('');
+                        return;
+                      }
+                      setValorReparacion(formatMiles(raw));
+                    }}
+                    required={!freezeValor}
+                    disabled={freezeValor}
+                    aria-describedby="exp-valor-help"
+                    aria-label="Valor de reparación en pesos chilenos"
+                  />
+                  <small id="exp-valor-help" style={{ color: '#6b7280' }}>0 si es garantía, no cobró o no se conoce</small>
+                </div>
               </div>
             )}
 
@@ -576,16 +625,16 @@ const ExpedienteRepuestoView: React.FC = () => {
               <>
                 <div className="form-row form-row-3">
                   <div className="form-group">
-                    <label htmlFor="exp-finst">Fecha instalación *</label>
-                    <input id="exp-finst" className="form-input" type="date" value={fechaInstalacion} onChange={(e) => setFechaInstalacion(e.target.value)} required={!freezeInst} disabled={freezeInst} />
+                    <label htmlFor="exp-finst">Fecha instalación {idx >= 3 ? '*' : '(si ya se entregó)'}</label>
+                    <input id="exp-finst" className="form-input" type="date" value={fechaInstalacion} onChange={(e) => setFechaInstalacion(e.target.value)} required={idx >= 3 && !freezeInst} disabled={freezeInst} />
                   </div>
                   <div className="form-group">
-                    <label htmlFor="exp-tecinst">Técnico instalación *</label>
-                    <SearchableSelect id="exp-tecinst" value={idTecnicoInst} onChange={setIdTecnicoInst} options={tecnicoOptions} placeholder="Buscar técnico..." required={!freezeInst} disabled={freezeInst} aria-label="Técnico instalación" />
+                    <label htmlFor="exp-tecinst">Técnico instalación {idx >= 3 ? '*' : ''}</label>
+                    <SearchableSelect id="exp-tecinst" value={idTecnicoInst} onChange={setIdTecnicoInst} options={tecnicoOptions} placeholder="Buscar técnico..." required={idx >= 3 && !freezeInst} disabled={freezeInst} aria-label="Técnico instalación" />
                   </div>
                   <div className="form-group">
-                    <label htmlFor="exp-maqinst">Máquina instalación *</label>
-                    <SearchableSelect id="exp-maqinst" value={idMaquinaInst} onChange={setIdMaquinaInst} options={maquinaOptions} placeholder="Buscar máquina..." required={!freezeInst} disabled={freezeInst} aria-label="Máquina instalación" />
+                    <label htmlFor="exp-maqinst">Máquina instalación {idx >= 3 ? '*' : ''}</label>
+                    <SearchableSelect id="exp-maqinst" value={idMaquinaInst} onChange={setIdMaquinaInst} options={maquinaOptions} placeholder="Buscar máquina..." required={idx >= 3 && !freezeInst} disabled={freezeInst} aria-label="Máquina instalación" />
                   </div>
                 </div>
                 <div className="form-row form-row-3">
@@ -670,7 +719,12 @@ const ExpedienteRepuestoView: React.FC = () => {
               pageItems.map((r) => (
                 <tr key={r.idexpediente_86}>
                   <td>{r.folio_86}</td>
-                  <td>{labelEstado(r.estado_86)}</td>
+                  <td>
+                    {labelEstado(r.estado_86)}
+                    {r.origen_alta_86 === 'STOCK_PREVIO' && (
+                      <div style={{ fontSize: 12, color: '#6b7280' }}>Stock previo</div>
+                    )}
+                  </td>
                   <td>{r.maquina_numinterno}</td>
                   <td>{r.repuesto_codigo ? `${r.repuesto_codigo} — ` : ''}{r.repuesto_nombre}</td>
                   <td>{r.responsable_nombre}</td>
@@ -679,7 +733,8 @@ const ExpedienteRepuestoView: React.FC = () => {
                   <td>{fechaISO(r.fecha_recepcion_86)}</td>
                   <td className="actions">
                     <button type="button" className="btn-edit" title="Editar / avanzar" aria-label={`Editar ${r.folio_86}`} onClick={() => startEdit(r.idexpediente_86)}>✏️</button>
-                    {r.estado_86 === 'MAQUINA_A_BODEGA' && (
+                    {(r.estado_86 === 'MAQUINA_A_BODEGA'
+                      || (r.origen_alta_86 === 'STOCK_PREVIO' && r.estado_86 === 'PROVEEDOR_A_BODEGA')) && (
                       <button type="button" className="btn-delete" title="Eliminar" aria-label={`Eliminar ${r.folio_86}`} onClick={() => handleDelete(r.idexpediente_86)}>🗑️</button>
                     )}
                   </td>

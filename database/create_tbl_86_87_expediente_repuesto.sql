@@ -24,6 +24,7 @@ CREATE TABLE IF NOT EXISTS public.tbl_86_expediente_repuesto (
     idmaquina_instalacion_86 int4 NULL,
     motivo_86 text NULL,
     observacion_instalacion_86 text NULL,
+    origen_alta_86 varchar(20) DEFAULT 'CICLO' NOT NULL,
     creado_en timestamptz DEFAULT CURRENT_TIMESTAMP NOT NULL,
     actualizado_en timestamptz DEFAULT CURRENT_TIMESTAMP NOT NULL,
     CONSTRAINT pk_tbl_86_expediente PRIMARY KEY (idexpediente_86),
@@ -36,8 +37,16 @@ CREATE TABLE IF NOT EXISTS public.tbl_86_expediente_repuesto (
             'BODEGA_A_MAQUINA'
         )
     ),
+    CONSTRAINT chk_tbl_86_origen_alta CHECK (
+        origen_alta_86 IN ('CICLO', 'STOCK_PREVIO')
+    ),
+    CONSTRAINT chk_tbl_86_stock_previo_estado CHECK (
+        origen_alta_86 <> 'STOCK_PREVIO'
+        OR estado_86 IN ('PROVEEDOR_A_BODEGA', 'BODEGA_A_MAQUINA')
+    ),
     CONSTRAINT chk_tbl_86_entrega CHECK (
         estado_86 = 'MAQUINA_A_BODEGA'
+        OR origen_alta_86 = 'STOCK_PREVIO'
         OR (idproveedor_86 IS NOT NULL AND fecha_entrega_proveedor_86 IS NOT NULL)
     ),
     CONSTRAINT chk_tbl_86_vuelta CHECK (
@@ -150,6 +159,36 @@ ALTER TABLE public.tbl_86_expediente_repuesto
   ADD CONSTRAINT chk_tbl_86_valor_en_vuelta CHECK (
     estado_86 NOT IN ('PROVEEDOR_A_BODEGA', 'BODEGA_A_MAQUINA')
     OR valor_reparacion_86 IS NOT NULL
+  );
+
+ALTER TABLE public.tbl_86_expediente_repuesto
+  ADD COLUMN IF NOT EXISTS origen_alta_86 varchar(20) DEFAULT 'CICLO' NOT NULL;
+
+ALTER TABLE public.tbl_86_expediente_repuesto
+  DROP CONSTRAINT IF EXISTS chk_tbl_86_origen_alta;
+
+ALTER TABLE public.tbl_86_expediente_repuesto
+  ADD CONSTRAINT chk_tbl_86_origen_alta CHECK (
+    origen_alta_86 IN ('CICLO', 'STOCK_PREVIO')
+  );
+
+ALTER TABLE public.tbl_86_expediente_repuesto
+  DROP CONSTRAINT IF EXISTS chk_tbl_86_stock_previo_estado;
+
+ALTER TABLE public.tbl_86_expediente_repuesto
+  ADD CONSTRAINT chk_tbl_86_stock_previo_estado CHECK (
+    origen_alta_86 <> 'STOCK_PREVIO'
+    OR estado_86 IN ('PROVEEDOR_A_BODEGA', 'BODEGA_A_MAQUINA')
+  );
+
+ALTER TABLE public.tbl_86_expediente_repuesto
+  DROP CONSTRAINT IF EXISTS chk_tbl_86_entrega;
+
+ALTER TABLE public.tbl_86_expediente_repuesto
+  ADD CONSTRAINT chk_tbl_86_entrega CHECK (
+    estado_86 = 'MAQUINA_A_BODEGA'
+    OR origen_alta_86 = 'STOCK_PREVIO'
+    OR (idproveedor_86 IS NOT NULL AND fecha_entrega_proveedor_86 IS NOT NULL)
   );
 
 CREATE OR REPLACE FUNCTION fn_generar_folio_expediente_86()

@@ -39,6 +39,7 @@ const SELECT_ALL = `
     e.idmaquina_instalacion_86,
     e.motivo_86,
     e.observacion_instalacion_86,
+    e.origen_alta_86,
     e.creado_en,
     e.actualizado_en,
     ma.numinterno_11::text AS maquina_numinterno,
@@ -224,25 +225,90 @@ export const createExpediente = async (req: Request, res: Response): Promise<voi
       return;
     }
 
+    const origen = body.origen_alta_86 === 'STOCK_PREVIO' ? 'STOCK_PREVIO' : 'CICLO';
+    const fechaVuelta = toDate(body.fecha_vuelta_86);
+    const valor = toMoney(body.valor_reparacion_86);
+    const fechaInst = toDate(body.fecha_instalacion_86);
+    const idTecInst = body.idtecnico_instalacion_86 || null;
+    const idMaqInst = body.idmaquina_instalacion_86 || body.idmaquina_86;
+    const instala = Boolean(fechaInst && idTecInst && idMaqInst);
+    const instalaParcial = Boolean(fechaInst || idTecInst);
+
+    if (origen === 'STOCK_PREVIO') {
+      if (!fechaVuelta) {
+        res.status(400).json({
+          success: false,
+          error: 'El stock reparado requiere fecha de disponibilidad en bodega',
+        });
+        return;
+      }
+      if (valor == null) {
+        res.status(400).json({
+          success: false,
+          error: 'Indique el valor de reparación (0 si no se conoce o no cobró)',
+        });
+        return;
+      }
+      if (instalaParcial && !instala) {
+        res.status(400).json({
+          success: false,
+          error: 'Si ya se entrega a máquina complete fecha, técnico y máquina de instalación',
+        });
+        return;
+      }
+    }
+
+    const estadoAlta: EstadoExpedienteRepuesto =
+      origen === 'STOCK_PREVIO'
+        ? (instala ? 'BODEGA_A_MAQUINA' : 'PROVEEDOR_A_BODEGA')
+        : 'MAQUINA_A_BODEGA';
+
     await client.query('BEGIN');
     const ins = await client.query<{ idexpediente_86: number }>(
       `INSERT INTO ${TABLA} (
-         estado_86, idmaquina_86, idtecnico_86, idresponsable_86, idrepuestodanado_86,
-         observacion_86, fecha_recepcion_86, hora_86
-       ) VALUES ('MAQUINA_A_BODEGA', $1, $2, $3, $4, $5, COALESCE($6::date, CURRENT_DATE), COALESCE($7::time, CURRENT_TIME))
+         estado_86, origen_alta_86, idmaquina_86, idtecnico_86, idresponsable_86, idrepuestodanado_86,
+         observacion_86, fecha_recepcion_86, hora_86,
+         idproveedor_86, fecha_entrega_proveedor_86, fecha_vuelta_86, valor_reparacion_86,
+         fecha_instalacion_86, idtecnico_instalacion_86, idmaquina_instalacion_86,
+         motivo_86, observacion_instalacion_86
+       ) VALUES (
+         $1, $2, $3, $4, $5, $6, $7,
+         COALESCE($8::date, CURRENT_DATE), COALESCE($9::time, CURRENT_TIME),
+         $10, $11, $12, $13, $14, $15, $16, $17, $18
+       )
        RETURNING idexpediente_86`,
       [
+        estadoAlta,
+        origen,
         body.idmaquina_86,
         body.idtecnico_86,
         body.idresponsable_86,
         body.idrepuestodanado_86,
-        body.observacion_86?.trim() || null,
-        toDate(body.fecha_recepcion_86),
+        body.observacion_86?.trim() || (origen === 'STOCK_PREVIO' ? 'STOCK PREVIO AL SISTEMA' : null),
+        toDate(body.fecha_recepcion_86) || fechaVuelta,
         body.hora_86 || null,
+        origen === 'STOCK_PREVIO' ? (body.idproveedor_86 || null) : null,
+        origen === 'STOCK_PREVIO' ? toDate(body.fecha_entrega_proveedor_86) : null,
+        origen === 'STOCK_PREVIO' ? fechaVuelta : null,
+        origen === 'STOCK_PREVIO' ? valor : null,
+        origen === 'STOCK_PREVIO' && instala ? fechaInst : null,
+        origen === 'STOCK_PREVIO' && instala ? idTecInst : null,
+        origen === 'STOCK_PREVIO' && instala ? idMaqInst : null,
+        origen === 'STOCK_PREVIO'
+          ? (body.motivo_86?.trim() || 'STOCK PREVIO AL SISTEMA')
+          : null,
+        origen === 'STOCK_PREVIO' ? (body.observacion_instalacion_86?.trim() || null) : null,
       ]
     );
     const id = ins.rows[0].idexpediente_86;
-    await registrarHistorial(client, id, null, 'MAQUINA_A_BODEGA', 'Alta en bodega');
+    if (origen === 'STOCK_PREVIO') {
+      await registrarHistorial(client, id, null, 'PROVEEDOR_A_BODEGA', 'Stock reparado previo al sistema');
+      if (instala) {
+        await registrarHistorial(client, id, 'PROVEEDOR_A_BODEGA', 'BODEGA_A_MAQUINA', 'Instalación del stock previo');
+      }
+    } else {
+      await registrarHistorial(client, id, null, 'MAQUINA_A_BODEGA', 'Alta en bodega');
+    }
     await client.query('COMMIT');
 
     const created = await pool.query<ExpedienteRepuesto>(
@@ -318,7 +384,8 @@ export const updateExpediente = async (req: Request, res: Response): Promise<voi
           ? Number(row.valor_reparacion_86)
           : null;
 
-    if (nuevoIdx >= 1 && (!idproveedor || !fechaEntrega)) {
+    const esStockPrev = row.origen_alta_86 === 'STOCK_PREVIO';
+    if (nuevoIdx >= 1 && !esStockPrev && (!idproveedor || !fechaEntrega)) {
       await client.query('ROLLBACK');
       res.status(400).json({
         success: false,
@@ -424,18 +491,24 @@ export const updateExpediente = async (req: Request, res: Response): Promise<voi
 export const deleteExpediente = async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
-    const actual = await pool.query<{ estado_86: string }>(
-      `SELECT estado_86 FROM ${TABLA} WHERE idexpediente_86 = $1`,
+    const actual = await pool.query<{ estado_86: string; origen_alta_86?: string }>(
+      `SELECT estado_86, origen_alta_86 FROM ${TABLA} WHERE idexpediente_86 = $1`,
       [id]
     );
     if (actual.rows.length === 0) {
       res.status(404).json({ success: false, error: 'Expediente no encontrado' });
       return;
     }
-    if (actual.rows[0].estado_86 !== 'MAQUINA_A_BODEGA') {
+    if (
+      actual.rows[0].estado_86 !== 'MAQUINA_A_BODEGA'
+      && !(
+        actual.rows[0].origen_alta_86 === 'STOCK_PREVIO'
+        && actual.rows[0].estado_86 === 'PROVEEDOR_A_BODEGA'
+      )
+    ) {
       res.status(400).json({
         success: false,
-        error: 'Solo se elimina un expediente que aún no salió a proveedor',
+        error: 'Solo se elimina un expediente que aún no salió a proveedor (o stock previo aún no instalado)',
       });
       return;
     }

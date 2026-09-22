@@ -2314,6 +2314,7 @@ export interface ExpedienteRepuesto {
   idmaquina_instalacion_86?: number | null;
   motivo_86?: string | null;
   observacion_instalacion_86?: string | null;
+  origen_alta_86?: 'CICLO' | 'STOCK_PREVIO';
   creado_en: string;
   actualizado_en: string;
   maquina_numinterno?: string;
@@ -2345,6 +2346,16 @@ export interface CreateExpedienteRepuestoDTO {
   fecha_recepcion_86?: string;
   hora_86?: string;
   observacion_86?: string | null;
+  origen_alta_86?: 'CICLO' | 'STOCK_PREVIO';
+  idproveedor_86?: number | null;
+  fecha_entrega_proveedor_86?: string | null;
+  fecha_vuelta_86?: string | null;
+  valor_reparacion_86?: number | null;
+  fecha_instalacion_86?: string | null;
+  idtecnico_instalacion_86?: number | null;
+  idmaquina_instalacion_86?: number | null;
+  motivo_86?: string | null;
+  observacion_instalacion_86?: string | null;
 }
 
 export interface UpdateExpedienteRepuestoDTO {
