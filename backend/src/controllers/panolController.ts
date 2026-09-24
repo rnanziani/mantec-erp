@@ -9,6 +9,29 @@ import {
 
 const TABLA_M = 'tbl_49_m_panol';
 const TABLA_D = 'tbl_50_d_panol';
+const TZ_CHILE = 'America/Santiago';
+const RANGO_MAX_DIAS = 62;
+
+function parseISODate(value: unknown): string | null {
+  const s = String(value ?? '').trim();
+  return /^\d{4}-\d{2}-\d{2}$/.test(s) ? s : null;
+}
+
+function hoySantiago(): string {
+  return new Date().toLocaleDateString('en-CA', { timeZone: TZ_CHILE });
+}
+
+function ordenarRango(desde: string, hasta: string): { inicio: string; fin: string } {
+  return desde <= hasta ? { inicio: desde, fin: hasta } : { inicio: hasta, fin: desde };
+}
+
+/**
+ * fecha_49 es timestamp without time zone (se guarda en UTC desde Node).
+ * Convierte a día calendario Chile. El rango extra usa el índice de fecha.
+ */
+function sqlFechaChile(col = 'm.fecha_49'): string {
+  return `((${col} AT TIME ZONE 'UTC') AT TIME ZONE '${TZ_CHILE}')::date`;
+}
 
 const TIPOS = new Set(['SALIDA', 'DEVOLUCION']);
 const ESTADOS_MOV = new Set(['PENDIENTE', 'COMPLETADA', 'ANULADA']);
@@ -565,10 +588,28 @@ async function validarDevolucion(
   return null;
 }
 
-export const getAllPanol = async (_req: Request, res: Response): Promise<void> => {
+export const getAllPanol = async (req: Request, res: Response): Promise<void> => {
   try {
     await sanearPanolInconsistencias(pool);
     const conOrigen = await hasIdSalidaOrigenColumn(pool);
+    const hoy = hoySantiago();
+    const { inicio, fin } = ordenarRango(
+      parseISODate(req.query.desde) || hoy,
+      parseISODate(req.query.hasta) || parseISODate(req.query.desde) || hoy
+    );
+    const dias =
+      Math.round(
+        (new Date(`${fin}T00:00:00Z`).getTime() - new Date(`${inicio}T00:00:00Z`).getTime()) /
+          86400000
+      );
+    if (dias > RANGO_MAX_DIAS) {
+      res.status(400).json({
+        success: false,
+        error: `Use un rango de hasta ${RANGO_MAX_DIAS} días. El dispositivo de pañol no carga el historial completo.`,
+      });
+      return;
+    }
+
     // DISTINCT ON evita filas duplicadas si algún JOIN multiplica (p. ej. datos sucios en prod)
     const result = await pool.query<MaestroPanol>(
       `SELECT * FROM (
@@ -600,9 +641,14 @@ export const getAllPanol = async (_req: Request, res: Response): Promise<void> =
          INNER JOIN tbl_06_trabajador t ON m.idtrabajador_49 = t.idtrabajador_06
          LEFT JOIN tbl_00_usuario u ON m.idusuario_49 = u.id_usuario_00
          LEFT JOIN tbl_08_responsable_entrega r ON m.idresponsableentrega_49 = r.idresponsableentrega_08
+         WHERE m.fecha_49 >= ($1::date::timestamp - interval '1 day')
+           AND m.fecha_49 < ($2::date::timestamp + interval '2 days')
+           AND ${sqlFechaChile()} >= $1::date
+           AND ${sqlFechaChile()} <= $2::date
          ORDER BY m.idmpanol_49 DESC
        ) panol_uniq
-       ORDER BY fecha_49 DESC, idmpanol_49 DESC`
+       ORDER BY fecha_49 DESC, idmpanol_49 DESC`,
+      [inicio, fin]
     );
     res.json({ success: true, data: result.rows, count: result.rowCount ?? undefined });
   } catch (error) {

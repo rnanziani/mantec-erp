@@ -78,6 +78,23 @@ interface ApiResponse<T = unknown> {
 }
 
 const API_URL = apiUrl('/panol');
+const RANGO_MAX_DIAS = 62;
+
+const pad2 = (n: number) => String(n).padStart(2, '0');
+
+/** Día calendario del dispositivo (Chile), no UTC de toISOString. */
+const hoyLocalISO = (d = new Date()) =>
+  `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+
+/** Valor para input datetime-local en hora del dispositivo. */
+const fechaHoraLocalInput = (d = new Date()) =>
+  `${hoyLocalISO(d)}T${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
+
+const diasEntre = (desde: string, hasta: string) => {
+  const a = new Date(`${desde}T00:00:00`);
+  const b = new Date(`${hasta}T00:00:00`);
+  return Math.round((b.getTime() - a.getTime()) / 86400000);
+};
 const HERRAMIENTAS_URL = apiUrl('/herramientas');
 const TRABAJADORES_URL = apiUrl('/trabajadores');
 const RESPONSABLES_URL = apiUrl('/responsables-entrega');
@@ -126,8 +143,8 @@ const PanolMovimientoView: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filtroTipo, setFiltroTipo] = useState('');
   const [filtroEstado, setFiltroEstado] = useState('');
-  const [filtroFechaDesde, setFiltroFechaDesde] = useState('');
-  const [filtroFechaHasta, setFiltroFechaHasta] = useState('');
+  const [filtroFechaDesde, setFiltroFechaDesde] = useState(hoyLocalISO);
+  const [filtroFechaHasta, setFiltroFechaHasta] = useState(hoyLocalISO);
   const [filtroTrabajador, setFiltroTrabajador] = useState('');
   const [filtroHerramienta, setFiltroHerramienta] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
@@ -141,7 +158,7 @@ const PanolMovimientoView: React.FC = () => {
   const [idTrabajador, setIdTrabajador] = useState('');
   const [buscarTrabajador, setBuscarTrabajador] = useState('');
   const [idResponsable, setIdResponsable] = useState('');
-  const [fecha, setFecha] = useState(() => new Date().toISOString().slice(0, 16));
+  const [fecha, setFecha] = useState(fechaHoraLocalInput);
   const [observacion, setObservacion] = useState('');
   const [estado, setEstado] = useState('PENDIENTE');
   const [detalles, setDetalles] = useState<DetalleLinea[]>([]);
@@ -168,22 +185,43 @@ const PanolMovimientoView: React.FC = () => {
     return unique;
   };
 
+  const fetchMovimientos = async (desdeArg?: string, hastaArg?: string) => {
+    const desde = desdeArg || filtroFechaDesde || hoyLocalISO();
+    const hasta = hastaArg || filtroFechaHasta || desde;
+    const inicio = desde <= hasta ? desde : hasta;
+    const fin = desde <= hasta ? hasta : desde;
+    if (diasEntre(inicio, fin) > RANGO_MAX_DIAS) {
+      await showError(
+        'Rango de fechas',
+        `En este equipo use un rango de hasta ${RANGO_MAX_DIAS} días. El historial se consulta por tramos.`
+      );
+      return;
+    }
+    const qs = new URLSearchParams({ desde: inicio, hasta: fin });
+    const p = await apiFetch(`${API_URL}?${qs.toString()}`);
+    const pData: ApiResponse<MaestroPanol[]> = await p.json();
+    if (pData.success && Array.isArray(pData.data)) {
+      setError('');
+      setRegistros(dedupeMovimientos(pData.data));
+    } else {
+      setRegistros([]);
+      setError(pData.error || 'Error al cargar movimientos');
+    }
+  };
+
   const fetchAll = async () => {
     try {
       setLoading(true);
-      const [p, h, t, r] = await Promise.all([
-        apiFetch(API_URL),
+      setError('');
+      const [h, t, r] = await Promise.all([
         apiFetch(HERRAMIENTAS_URL),
         apiFetch(TRABAJADORES_URL),
         apiFetch(RESPONSABLES_URL),
       ]);
-      const pData: ApiResponse<MaestroPanol[]> = await p.json();
+      await fetchMovimientos();
       const hData: ApiResponse<Herramienta[]> = await h.json();
       const tData: ApiResponse<Trabajador[]> = await t.json();
       const rData: ApiResponse<Responsable[]> = await r.json();
-      if (pData.success && Array.isArray(pData.data)) {
-        setRegistros(dedupeMovimientos(pData.data));
-      } else setError(pData.error || 'Error al cargar movimientos');
       if (hData.success && Array.isArray(hData.data)) setHerramientas(hData.data);
       if (tData.success && Array.isArray(tData.data)) setTrabajadores(tData.data);
       if (rData.success && Array.isArray(rData.data)) setResponsables(rData.data);
@@ -194,9 +232,19 @@ const PanolMovimientoView: React.FC = () => {
     }
   };
 
+  const fechasListas = useRef(false);
   useEffect(() => {
     fetchAll();
   }, []);
+
+  useEffect(() => {
+    if (!fechasListas.current) {
+      fechasListas.current = true;
+      return;
+    }
+    void fetchMovimientos();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filtroFechaDesde, filtroFechaHasta]);
 
   const trabajadoresFiltrados = useMemo(
     () => filtrarTrabajadoresPorApellido(trabajadores, buscarTrabajador).slice(0, 20),
@@ -369,11 +417,12 @@ const PanolMovimientoView: React.FC = () => {
   ]);
 
   const limpiarFiltros = () => {
+    const hoy = hoyLocalISO();
     setSearchTerm('');
     setFiltroTipo('');
     setFiltroEstado('');
-    setFiltroFechaDesde('');
-    setFiltroFechaHasta('');
+    setFiltroFechaDesde(hoy);
+    setFiltroFechaHasta(hoy);
     setFiltroTrabajador('');
     setFiltroHerramienta('');
   };
@@ -409,7 +458,7 @@ const PanolMovimientoView: React.FC = () => {
     setIdTrabajador('');
     setBuscarTrabajador('');
     setIdResponsable('');
-    setFecha(new Date().toISOString().slice(0, 16));
+    setFecha(fechaHoraLocalInput());
     setObservacion('');
     setEstado(estadoPorTipo('SALIDA'));
     setDetalles([]);
@@ -529,7 +578,7 @@ const PanolMovimientoView: React.FC = () => {
       setIdResponsable(
         maestro.idresponsableentrega_49 ? String(maestro.idresponsableentrega_49) : ''
       );
-      setFecha(new Date().toISOString().slice(0, 16));
+      setFecha(fechaHoraLocalInput());
       setEstado('COMPLETADA');
       setOrigenSalidaFolio(folio);
       setOrigenSalidaId(idSalida);
@@ -1055,7 +1104,10 @@ const PanolMovimientoView: React.FC = () => {
       <div className="panol-toolbar">
         <div className="panol-filters" role="search" aria-label="Filtros de movimientos">
           <p className="panol-total">
-            Total: <strong>{filteredAndSorted.length}</strong>
+            {filtroFechaDesde === filtroFechaHasta && filtroFechaDesde === hoyLocalISO()
+              ? 'Hoy'
+              : 'Rango'}
+            : <strong>{filteredAndSorted.length}</strong>
           </p>
           <label className="panol-filter-field">
             <span>Desde</span>
@@ -1063,7 +1115,7 @@ const PanolMovimientoView: React.FC = () => {
               type="date"
               className="form-input panol-filter-date"
               value={filtroFechaDesde}
-              onChange={(e) => setFiltroFechaDesde(e.target.value)}
+              onChange={(e) => setFiltroFechaDesde(e.target.value || hoyLocalISO())}
               aria-label="Fecha desde"
             />
           </label>
@@ -1073,7 +1125,7 @@ const PanolMovimientoView: React.FC = () => {
               type="date"
               className="form-input panol-filter-date"
               value={filtroFechaHasta}
-              onChange={(e) => setFiltroFechaHasta(e.target.value)}
+              onChange={(e) => setFiltroFechaHasta(e.target.value || hoyLocalISO())}
               aria-label="Fecha hasta"
             />
           </label>
@@ -1136,11 +1188,15 @@ const PanolMovimientoView: React.FC = () => {
             type="button"
             className="btn-secondary panol-filter-clear"
             onClick={limpiarFiltros}
-            aria-label="Limpiar filtros"
+            aria-label="Volver a los movimientos de hoy"
           >
-            Limpiar
+            Hoy
           </button>
         </div>
+        <p className="panol-range-hint">
+          La grilla descarga solo el día (o el rango de fechas, máximo {RANGO_MAX_DIAS} días). Use
+          Desde / Hasta para consultar el historial.
+        </p>
       </div>
 
       <div className="table-container">
@@ -1167,7 +1223,9 @@ const PanolMovimientoView: React.FC = () => {
             {pageItems.length === 0 ? (
               <tr>
                 <td colSpan={12} className="panol-empty">
-                  No hay movimientos registrados
+                  {filtroFechaDesde === filtroFechaHasta && filtroFechaDesde === hoyLocalISO()
+                    ? 'No hay movimientos de hoy. Use Desde / Hasta para consultar el historial.'
+                    : 'No hay movimientos en este rango de fechas.'}
                 </td>
               </tr>
             ) : (

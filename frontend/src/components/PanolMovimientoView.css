@@ -154,6 +154,16 @@
   border: 1px solid #e2e8f0;
   border-radius: 8px;
   overflow-x: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.panol-movimiento-view .panol-range-hint {
+  margin: 0;
+  font-size: 0.75rem;
+  color: #64748b;
+  line-height: 1.35;
 }
 
 .panol-movimiento-view .panol-total {
