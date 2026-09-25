@@ -6,6 +6,7 @@ import SearchableSelect from './shared/SearchableSelect';
 import { exportToExcel } from '../utils/exportUtils';
 import { showDeleteConfirm, showError, showSuccess } from '../utils/swal';
 import { apiFetch, apiUrl } from '../lib/apiClient';
+import { changeKeepingCaret } from '../hooks/useCaretTransform';
 
 interface TipoElementoEpp {
   idtipo_elemento_51: number;
@@ -298,7 +299,7 @@ const CategoriaElementoEppView: React.FC = () => {
                   id="categoria_52"
                   className="form-input"
                   value={form.categoria_52}
-                  onChange={(e) => setForm((p) => ({ ...p, categoria_52: e.target.value.toUpperCase() }))}
+                  onChange={(e) => changeKeepingCaret(e, (v) => setForm((p) => ({ ...p, categoria_52: v })))}
                   required
                   maxLength={100}
                 />
@@ -322,7 +323,7 @@ const CategoriaElementoEppView: React.FC = () => {
                 id="descripcion_52"
                 className="form-input"
                 value={form.descripcion_52}
-                onChange={(e) => setForm((p) => ({ ...p, descripcion_52: e.target.value.toUpperCase() }))}
+                onChange={(e) => changeKeepingCaret(e, (v) => setForm((p) => ({ ...p, descripcion_52: v })))}
               />
             </div>
             <div className="form-actions">
@@ -343,7 +344,7 @@ const CategoriaElementoEppView: React.FC = () => {
             className="form-input epp-search"
             placeholder="🔍 BUSCAR CATEGORÍA..."
             value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value.toUpperCase())}
+            onChange={(e) => changeKeepingCaret(e, setSearchTerm)}
             aria-label="Buscar categorías EPP"
           />
           <select

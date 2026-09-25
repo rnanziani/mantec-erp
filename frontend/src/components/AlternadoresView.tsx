@@ -6,6 +6,7 @@ import SearchBar from './shared/SearchBar';
 import Pagination from './shared/Pagination';
 import { exportToExcel } from '../utils/exportUtils';
 import { apiUrl } from '../lib/apiClient';
+import { changeKeepingCaret } from '../hooks/useCaretTransform';
 
 interface Alternador {
   id_alternador_19: number;
@@ -448,7 +449,7 @@ const AlternadoresView: React.FC = () => {
                 id="observacion-alternador"
                 className="form-input"
                 value={observacion}
-                onChange={(e) => setObservacion(e.target.value.toUpperCase())}
+                onChange={(e) => changeKeepingCaret(e, setObservacion)}
                 placeholder="Ej: PRUEBA MARCA BOSCH / COMPONENTE NUEVO EN EVALUACION"
                 maxLength={250}
                 rows={3}

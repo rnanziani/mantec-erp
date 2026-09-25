@@ -3,6 +3,7 @@ import { showSuccess, showError, showDeleteConfirm, showWarning } from '../utils
 import './BodegaView.css'; // Reutilizamos los mismos estilos que TipoTransaccionView
 import { apiUrl, openAuthenticatedBlob } from '../lib/apiClient';
 import SearchableSelect from './shared/SearchableSelect';
+import { changeKeepingCaret } from '../hooks/useCaretTransform';
 
 /** DATE de PostgreSQL llega como YYYY-MM-DD; slice evita el desfase UTC. */
 function toFechaISO(value?: string): string {
@@ -826,7 +827,7 @@ const TransaccionView: React.FC = () => {
                   id="buscar-alternador"
                   type="text"
                   value={buscarAlternador}
-                  onChange={(e) => setBuscarAlternador(e.target.value.toUpperCase())}
+                  onChange={(e) => changeKeepingCaret(e, setBuscarAlternador)}
                   placeholder="INGRESE CÓDIGO O MARCA"
                   style={{ width: '100%', padding: '8px 12px', borderRadius: '4px', border: '1px solid #ced4da', textTransform: 'uppercase', fontSize: '14px' }}
                 />
@@ -1020,7 +1021,7 @@ const TransaccionView: React.FC = () => {
                   id="buscar-maquina"
                   type="text"
                   value={buscarMaquina}
-                  onChange={(e) => setBuscarMaquina(e.target.value.toUpperCase())}
+                  onChange={(e) => changeKeepingCaret(e, setBuscarMaquina)}
                   placeholder="INGRESE PATENTE, NÚMERO INTERNO O DESCRIPCIÓN"
                   style={{ width: '100%', padding: '8px 12px', borderRadius: '4px', border: '1px solid #ced4da', textTransform: 'uppercase', fontSize: '14px' }}
                 />
@@ -1096,7 +1097,7 @@ const TransaccionView: React.FC = () => {
               <textarea
                 id="observacion-movimiento"
                 value={observacion}
-                onChange={(e) => setObservacion(e.target.value.toUpperCase())}
+                onChange={(e) => changeKeepingCaret(e, setObservacion)}
                 placeholder="Ej: PRUEBA MARCA BOSCH / COMPONENTE NUEVO EN EVALUACION"
                 maxLength={250}
                 rows={3}

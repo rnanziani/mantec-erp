@@ -7,6 +7,7 @@ import SearchableSelect from './shared/SearchableSelect';
 import { showDeleteConfirm, showError, showInfo, showSuccess, showTipoMovimientoPanol } from '../utils/swal';
 import { filtrarTrabajadoresPorApellido } from '../utils/trabajadorSearch';
 import { apiFetch, apiUrl } from '../lib/apiClient';
+import { changeKeepingCaret } from '../hooks/useCaretTransform';
 
 interface HerramientaDetalleResumen {
   idherramienta: number;
@@ -878,7 +879,7 @@ const PanolMovimientoView: React.FC = () => {
                   className="form-input"
                   placeholder="Buscar por apellido..."
                   value={buscarTrabajador}
-                  onChange={(e) => setBuscarTrabajador(e.target.value.toUpperCase())}
+                  onChange={(e) => changeKeepingCaret(e, setBuscarTrabajador)}
                 />
                 <div className="panol-trabajador-list" role="listbox" aria-label="Trabajadores">
                   {trabajadoresFiltrados.map((t) => (
@@ -1181,7 +1182,7 @@ const PanolMovimientoView: React.FC = () => {
             className="form-input panol-search"
             placeholder="🔍 BUSCAR..."
             value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value.toUpperCase())}
+            onChange={(e) => changeKeepingCaret(e, setSearchTerm)}
             aria-label="Buscar movimientos"
           />
           <button

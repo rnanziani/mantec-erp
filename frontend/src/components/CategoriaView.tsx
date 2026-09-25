@@ -4,6 +4,7 @@ import './CategoriaView.css';
 import { exportToExcel } from '../utils/exportUtils';
 import { showDeleteConfirm, showSuccess, showError } from '../utils/swal';
 import { apiUrl } from '../lib/apiClient';
+import { changeKeepingCaret } from '../hooks/useCaretTransform';
 
 interface Categoria {
   id_categoria_42: number;
@@ -253,7 +254,7 @@ const CategoriaView: React.FC = () => {
                 id="categoria"
                 className="form-input"
                 value={categoryName}
-                onChange={(e) => setCategoryName(e.target.value.toUpperCase())}
+                onChange={(e) => changeKeepingCaret(e, setCategoryName)}
                 placeholder="Ej: INSUMOS, REPUESTOS..."
                 style={{ textTransform: 'uppercase' }}
                 required
@@ -283,7 +284,7 @@ const CategoriaView: React.FC = () => {
           placeholder="🔍 Buscar categoría..."
           value={searchTerm}
           onChange={(e) => {
-            setSearchTerm(e.target.value.toUpperCase());
+            changeKeepingCaret(e, setSearchTerm);
             setCurrentPage(1);
           }}
           style={{ width: '100%', padding: '10px', fontSize: '14px', borderRadius: '4px', border: '1px solid #ced4da', textTransform: 'uppercase' }}

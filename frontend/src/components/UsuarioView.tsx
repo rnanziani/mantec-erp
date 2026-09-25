@@ -4,6 +4,7 @@ import { useToast } from '../context/ToastContext';
 import Pagination from './shared/Pagination';
 import { showDeleteConfirm } from '../utils/swal';
 import { apiUrl } from '../lib/apiClient';
+import { changeKeepingCaret } from '../hooks/useCaretTransform';
 
 interface Usuario {
   id_usuario_00: number;
@@ -559,7 +560,7 @@ const UsuarioView: React.FC = () => {
                 <input
                   type="text"
                   value={username}
-                  onChange={(e) => setUsername(e.target.value.toUpperCase())}
+                  onChange={(e) => changeKeepingCaret(e, setUsername)}
                   required
                   placeholder="USUARIO123"
                   style={{ textTransform: 'uppercase' }}
@@ -612,7 +613,7 @@ const UsuarioView: React.FC = () => {
                 <input
                   type="text"
                   value={nombreCompleto}
-                  onChange={(e) => setNombreCompleto(e.target.value.toUpperCase())}
+                  onChange={(e) => changeKeepingCaret(e, setNombreCompleto)}
                   placeholder="JUAN PÉREZ"
                   style={{ textTransform: 'uppercase' }}
                   autoCapitalize="characters"

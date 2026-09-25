@@ -3,6 +3,7 @@ import './BodegaView.css';
 import Pagination from './shared/Pagination';
 import { showDeleteConfirm, showError, showSuccess } from '../utils/swal';
 import { apiFetch, apiUrl } from '../lib/apiClient';
+import { changeKeepingCaret } from '../hooks/useCaretTransform';
 
 interface EstadoReparacion {
   idestado_61: number;
@@ -153,7 +154,7 @@ const EstadoReparacionView: React.FC = () => {
                   className="form-input"
                   required
                   value={form.codigo_61}
-                  onChange={(e) => setForm((p) => ({ ...p, codigo_61: e.target.value.toUpperCase() }))}
+                  onChange={(e) => changeKeepingCaret(e, (v) => setForm((p) => ({ ...p, codigo_61: v })))}
                   placeholder="EN_REPARACION"
                 />
               </div>
@@ -194,7 +195,7 @@ const EstadoReparacionView: React.FC = () => {
           className="form-input"
           placeholder="🔍 BUSCAR..."
           value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value.toUpperCase())}
+          onChange={(e) => changeKeepingCaret(e, setSearchTerm)}
           aria-label="Buscar estados"
         />
       </div>

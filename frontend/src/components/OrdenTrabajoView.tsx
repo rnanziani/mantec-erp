@@ -5,6 +5,7 @@ import Pagination from './shared/Pagination';
 import { exportToExcel } from '../utils/exportUtils';
 import { showDeleteConfirm, showSuccess, showError } from '../utils/swal';
 import { apiUrl } from '../lib/apiClient';
+import { changeKeepingCaret } from '../hooks/useCaretTransform';
 
 interface OrdenTrabajo {
     id_orden_24: number;
@@ -517,7 +518,7 @@ const OrdenTrabajoView: React.FC = () => {
                                     id="tecnico"
                                     className="form-input"
                                     value={tecnicoResponsable}
-                                    onChange={(e) => setTecnicoResponsable(e.target.value.toUpperCase())}
+                                    onChange={(e) => changeKeepingCaret(e, setTecnicoResponsable)}
                                     placeholder="Nombre del técnico"
                                     style={{ textTransform: 'uppercase' }}
                                     maxLength={100}

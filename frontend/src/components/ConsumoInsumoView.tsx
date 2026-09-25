@@ -7,6 +7,7 @@ import { showDeleteConfirm, showSuccess, showError } from '../utils/swal';
 import { exportToExcel } from '../utils/exportUtils';
 import { apiUrl, openAuthenticatedBlob } from '../lib/apiClient';
 import { filtrarTrabajadoresPorApellido } from '../utils/trabajadorSearch';
+import { changeKeepingCaret } from '../hooks/useCaretTransform';
 
 interface MaestroConsumo {
   id_m_consumo_insumo_46: number;
@@ -987,7 +988,7 @@ const ConsumoInsumoView: React.FC = () => {
                   id="buscar-trabajador"
                   className="form-input"
                   value={buscarApellido}
-                  onChange={(e) => setBuscarApellido(e.target.value.toUpperCase())}
+                  onChange={(e) => changeKeepingCaret(e, setBuscarApellido)}
                   placeholder="EJ: GONZALEZ O GONZALEZ PEREZ"
                   style={{ textTransform: 'uppercase' }}
                 />
@@ -1043,7 +1044,7 @@ const ConsumoInsumoView: React.FC = () => {
                   id="buscar-ccosto"
                   className="form-input"
                   value={buscarCcosto}
-                  onChange={(e) => setBuscarCcosto(e.target.value.toUpperCase())}
+                  onChange={(e) => changeKeepingCaret(e, setBuscarCcosto)}
                   placeholder="EJ: ADMINISTRACION, BODEGA..."
                   style={{ textTransform: 'uppercase' }}
                   aria-label="Buscar centro de costo por nombre"
@@ -1317,7 +1318,7 @@ const ConsumoInsumoView: React.FC = () => {
               type="text"
               placeholder="🔍 Buscar consumo..."
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value.toUpperCase())}
+              onChange={(e) => changeKeepingCaret(e, setSearchTerm)}
               style={{
                 width: '100%',
                 padding: '10px 12px',

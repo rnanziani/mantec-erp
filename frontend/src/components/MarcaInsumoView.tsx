@@ -4,6 +4,7 @@ import './MarcaInsumoView.css';
 import { exportToExcel } from '../utils/exportUtils';
 import { showDeleteConfirm, showSuccess, showError } from '../utils/swal';
 import { apiUrl } from '../lib/apiClient';
+import { changeKeepingCaret } from '../hooks/useCaretTransform';
 
 interface MarcaInsumo {
   id_marca_insumo_37: number;
@@ -253,7 +254,7 @@ const MarcaInsumoView: React.FC = () => {
                 id="marca"
                 className="form-input"
                 value={marcaName}
-                onChange={(e) => setMarcaName(e.target.value.toUpperCase())}
+                onChange={(e) => changeKeepingCaret(e, setMarcaName)}
                 placeholder="Ej: GENERICA/O, BOSCH..."
                 style={{ textTransform: 'uppercase' }}
                 maxLength={100}
@@ -284,7 +285,7 @@ const MarcaInsumoView: React.FC = () => {
           placeholder="🔍 Buscar marca..."
           value={searchTerm}
           onChange={(e) => {
-            setSearchTerm(e.target.value.toUpperCase());
+            changeKeepingCaret(e, setSearchTerm);
             setCurrentPage(1);
           }}
           style={{ width: '100%', padding: '10px', fontSize: '14px', borderRadius: '4px', border: '1px solid #ced4da', textTransform: 'uppercase' }}

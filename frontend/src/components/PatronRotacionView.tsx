@@ -5,6 +5,7 @@ import Pagination from './shared/Pagination';
 import { exportToExcel } from '../utils/exportUtils';
 import { showDeleteConfirm, showSuccess, showError } from '../utils/swal';
 import { apiUrl } from '../lib/apiClient';
+import { changeKeepingCaret } from '../hooks/useCaretTransform';
 
 interface PatronRotacion {
   id_patron_35: number;
@@ -376,7 +377,7 @@ const PatronRotacionView: React.FC = () => {
                   id="codigo"
                   className="form-input"
                   value={codigo}
-                  onChange={(e) => setCodigo(e.target.value.toUpperCase())}
+                  onChange={(e) => changeKeepingCaret(e, setCodigo)}
                   placeholder="Ej: ROT-01"
                   maxLength={10}
                   required
@@ -393,7 +394,7 @@ const PatronRotacionView: React.FC = () => {
                   id="descripcion"
                   className="form-input"
                   value={descripcion}
-                  onChange={(e) => setDescripcion(e.target.value.toUpperCase())}
+                  onChange={(e) => changeKeepingCaret(e, setDescripcion)}
                   placeholder="Ej: Rotación frontal derecha a trasera izquierda"
                   maxLength={200}
                   required

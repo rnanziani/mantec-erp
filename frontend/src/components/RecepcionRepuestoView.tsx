@@ -11,6 +11,7 @@ import {
   claseFilaCiclo,
   labelCicloResumen,
 } from '../constants/cicloRepuesto';
+import { changeKeepingCaret } from '../hooks/useCaretTransform';
 
 interface Maestro {
   idrecepcion_59: number;
@@ -763,7 +764,7 @@ const RecepcionRepuestoView: React.FC = () => {
               style={{ flex: 1, minWidth: 200 }}
               placeholder="🔍 BUSCAR FOLIO, MÁQUINA, TÉCNICO, REPUESTO..."
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value.toUpperCase())}
+              onChange={(e) => changeKeepingCaret(e, setSearchTerm)}
               aria-label="Buscar recepciones"
             />
             <button type="button" className="btn-secondary" onClick={limpiarFiltros}>

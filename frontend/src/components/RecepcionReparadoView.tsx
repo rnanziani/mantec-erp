@@ -4,6 +4,7 @@ import Pagination from './shared/Pagination';
 import SearchableSelect from './shared/SearchableSelect';
 import { showDeleteConfirm, showError, showSuccess } from '../utils/swal';
 import { apiFetch, apiUrl } from '../lib/apiClient';
+import { changeKeepingCaret } from '../hooks/useCaretTransform';
 
 interface Registro {
   idrecepcion_65: number;
@@ -701,7 +702,7 @@ const RecepcionReparadoView: React.FC = () => {
           style={{ flex: 1, minWidth: 220 }}
           placeholder="Buscar folio, repuesto, máquina..."
           value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value.toUpperCase())}
+          onChange={(e) => changeKeepingCaret(e, setSearchTerm)}
           aria-label="Buscar cierres"
         />
       </div>

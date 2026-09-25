@@ -6,6 +6,7 @@ import { showDeleteConfirm, showError, showSuccess } from '../utils/swal';
 import { exportToExcel } from '../utils/exportUtils';
 import { filtrarTrabajadoresPorApellido } from '../utils/trabajadorSearch';
 import { apiFetch, apiUrl } from '../lib/apiClient';
+import { changeKeepingCaret } from '../hooks/useCaretTransform';
 
 interface MaestroCargoMaquina {
   idmcargomaquina_38: number;
@@ -524,7 +525,7 @@ const CargoMaquinaView: React.FC = () => {
                   id="buscar-patente"
                   className="form-input"
                   value={buscarPatente}
-                  onChange={(e) => setBuscarPatente(e.target.value.toUpperCase())}
+                  onChange={(e) => changeKeepingCaret(e, setBuscarPatente)}
                   placeholder="PATENTE O NÚM. INTERNO"
                   style={{ textTransform: 'uppercase' }}
                 />
@@ -566,7 +567,7 @@ const CargoMaquinaView: React.FC = () => {
                   id="buscar-trabajador"
                   className="form-input"
                   value={buscarApellido}
-                  onChange={(e) => setBuscarApellido(e.target.value.toUpperCase())}
+                  onChange={(e) => changeKeepingCaret(e, setBuscarApellido)}
                   placeholder="EJ: GONZALEZ O GONZALEZ PEREZ"
                   style={{ textTransform: 'uppercase' }}
                 />
@@ -829,7 +830,7 @@ const CargoMaquinaView: React.FC = () => {
               type="text"
               placeholder="🔍 Buscar cargo máquina..."
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value.toUpperCase())}
+              onChange={(e) => changeKeepingCaret(e, setSearchTerm)}
               style={{
                 width: '100%',
                 padding: '10px 12px',

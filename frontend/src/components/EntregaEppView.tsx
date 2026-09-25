@@ -6,6 +6,7 @@ import SearchableSelect from './shared/SearchableSelect';
 import { showDeleteConfirm, showError, showSuccess } from '../utils/swal';
 import { filtrarTrabajadoresPorApellido } from '../utils/trabajadorSearch';
 import { apiFetch, apiUrl, openAuthenticatedBlob } from '../lib/apiClient';
+import { changeKeepingCaret } from '../hooks/useCaretTransform';
 
 interface ActaEntregaEppData {
   folio?: string;
@@ -838,7 +839,7 @@ const EntregaEppView: React.FC = () => {
                   id="lugar"
                   className="form-input"
                   value={lugar}
-                  onChange={(e) => setLugar(e.target.value.toUpperCase())}
+                  onChange={(e) => changeKeepingCaret(e, setLugar)}
                   maxLength={100}
                 />
               </div>
@@ -1114,11 +1115,13 @@ const EntregaEppView: React.FC = () => {
                                 className="form-input"
                                 value={d.observacion_55}
                                 onChange={(e) =>
-                                  setDetalles((prev) =>
-                                    prev.map((x) =>
-                                      claveLineaEpp(x.idelemento_55, x.idtalla_55) === clave
-                                        ? { ...x, observacion_55: e.target.value.toUpperCase() }
-                                        : x
+                                  changeKeepingCaret(e, (v) =>
+                                    setDetalles((prev) =>
+                                      prev.map((x) =>
+                                        claveLineaEpp(x.idelemento_55, x.idtalla_55) === clave
+                                          ? { ...x, observacion_55: v }
+                                          : x
+                                      )
                                     )
                                   )
                                 }
@@ -1166,7 +1169,7 @@ const EntregaEppView: React.FC = () => {
             className="form-input epp-search"
             placeholder="🔍 BUSCAR ENTREGA..."
             value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value.toUpperCase())}
+            onChange={(e) => changeKeepingCaret(e, setSearchTerm)}
             aria-label="Buscar entregas EPP"
           />
           <label className="epp-filter-date" htmlFor="filtro-fecha-desde">

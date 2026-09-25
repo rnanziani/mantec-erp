@@ -3,6 +3,7 @@ import './BodegaView.css'; // Reutilizamos los mismos estilos
 import { showSuccess, showError, showDeleteConfirm } from '../utils/swal';
 import { apiUrl, openAuthenticatedBlob } from '../lib/apiClient';
 import { filtrarTrabajadoresPorApellido } from '../utils/trabajadorSearch';
+import { changeKeepingCaret } from '../hooks/useCaretTransform';
 
 interface Asignacion {
   id_asignacion: number;
@@ -691,7 +692,7 @@ const AsignacionProductosAseoView: React.FC = () => {
               <input
                 type="text"
                 value={buscarPatente}
-                onChange={(e) => setBuscarPatente(e.target.value.toUpperCase())}
+                onChange={(e) => changeKeepingCaret(e, setBuscarPatente)}
                 placeholder="INGRESE PATENTE O NÚMERO INTERNO"
                 style={{
                   width: '100%',
@@ -756,7 +757,7 @@ const AsignacionProductosAseoView: React.FC = () => {
               <input
                 type="text"
                 value={buscarApellido}
-                onChange={(e) => setBuscarApellido(e.target.value.toUpperCase())}
+                onChange={(e) => changeKeepingCaret(e, setBuscarApellido)}
                 placeholder="EJ: GONZALEZ O GONZALEZ PEREZ"
                 style={{
                   width: '100%',
@@ -1041,7 +1042,7 @@ const AsignacionProductosAseoView: React.FC = () => {
                   <input
                     type="text"
                     value={reportBuscarPatente}
-                    onChange={(e) => setReportBuscarPatente(e.target.value.toUpperCase())}
+                    onChange={(e) => changeKeepingCaret(e, setReportBuscarPatente)}
                     placeholder="Ingrese patente o número interno"
                     style={{ width: '100%', padding: '8px 12px', borderRadius: '4px', border: '1px solid #ced4da', textTransform: 'uppercase', fontSize: '14px' }}
                   />
@@ -1052,7 +1053,7 @@ const AsignacionProductosAseoView: React.FC = () => {
                     <input
                       type="text"
                       value={reportBuscarTrabajador}
-                      onChange={(e) => setReportBuscarTrabajador(e.target.value.toUpperCase())}
+                      onChange={(e) => changeKeepingCaret(e, setReportBuscarTrabajador)}
                       placeholder="Ej: GONZALEZ o GONZALEZ PEREZ"
                       style={{ width: '100%', padding: '8px 12px', borderRadius: '4px', border: '1px solid #ced4da', textTransform: 'uppercase', fontSize: '14px' }}
                     />
@@ -1396,7 +1397,7 @@ const AsignacionProductosAseoView: React.FC = () => {
           placeholder="🔍 Buscar asignación..."
           value={filtro}
           onChange={(e) => {
-            setFiltro(e.target.value.toUpperCase());
+            changeKeepingCaret(e, setFiltro);
             setPaginaActual(1); // Resetear a página 1 al buscar
           }}
           style={{ width: '100%', padding: '10px', fontSize: '14px', borderRadius: '4px', border: '1px solid #ced4da', textTransform: 'uppercase' }}

@@ -6,6 +6,7 @@ import { showDeleteConfirm, showSuccess, showError } from '../utils/swal';
 import { validateRut, formatRut } from '../utils/rutValidator';
 import { apiUrl } from '../lib/apiClient';
 import SearchableSelect from './shared/SearchableSelect';
+import { changeKeepingCaret } from '../hooks/useCaretTransform';
 
 interface Tecnico {
   id_tecnico_21: number;
@@ -372,7 +373,7 @@ const TecnicoView: React.FC = () => {
                   id="nombres"
                   className="form-input"
                   value={nombres}
-                  onChange={(e) => setNombres(e.target.value.toUpperCase())}
+                  onChange={(e) => changeKeepingCaret(e, setNombres)}
                   style={{ textTransform: 'uppercase' }}
                   required
                 />
@@ -387,7 +388,7 @@ const TecnicoView: React.FC = () => {
                   id="aPaterno"
                   className="form-input"
                   value={aPaterno}
-                  onChange={(e) => setAPaterno(e.target.value.toUpperCase())}
+                  onChange={(e) => changeKeepingCaret(e, setAPaterno)}
                   style={{ textTransform: 'uppercase' }}
                   required
                 />
@@ -399,7 +400,7 @@ const TecnicoView: React.FC = () => {
                   id="aMaterno"
                   className="form-input"
                   value={aMaterno}
-                  onChange={(e) => setAMaterno(e.target.value.toUpperCase())}
+                  onChange={(e) => changeKeepingCaret(e, setAMaterno)}
                   style={{ textTransform: 'uppercase' }}
                   required
                 />

@@ -4,6 +4,7 @@ import './ResponsableEntregaView.css';
 import { exportToExcel } from '../utils/exportUtils';
 import { showDeleteConfirm, showSuccess, showError } from '../utils/swal';
 import { apiUrl } from '../lib/apiClient';
+import { changeKeepingCaret } from '../hooks/useCaretTransform';
 
 interface ResponsableEntrega {
   idresponsableentrega_08: number;
@@ -309,7 +310,7 @@ const ResponsableEntregaView: React.FC = () => {
                   id="nombre"
                   className="form-input"
                   value={nombre}
-                  onChange={(e) => setNombre(e.target.value.toUpperCase())}
+                  onChange={(e) => changeKeepingCaret(e, setNombre)}
                   placeholder="Ej: Juan"
                   required
                   autoFocus
@@ -324,7 +325,7 @@ const ResponsableEntregaView: React.FC = () => {
                   id="apaterno"
                   className="form-input"
                   value={apaterno}
-                  onChange={(e) => setAPaterno(e.target.value.toUpperCase())}
+                  onChange={(e) => changeKeepingCaret(e, setAPaterno)}
                   placeholder="Ej: González"
                   maxLength={100}
                   style={{ textTransform: 'uppercase' }}
@@ -337,7 +338,7 @@ const ResponsableEntregaView: React.FC = () => {
                   id="amaterno"
                   className="form-input"
                   value={amaterno}
-                  onChange={(e) => setAMaterno(e.target.value.toUpperCase())}
+                  onChange={(e) => changeKeepingCaret(e, setAMaterno)}
                   placeholder="Ej: Pérez"
                   maxLength={100}
                   style={{ textTransform: 'uppercase' }}

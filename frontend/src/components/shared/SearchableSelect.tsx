@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import './SearchableSelect.css';
+import { changeKeepingCaret } from '../../hooks/useCaretTransform';
 
 export interface SearchableSelectOption {
   value: string;
@@ -84,24 +85,6 @@ const SearchableSelect: React.FC<SearchableSelectProps> = ({
     setSearch('');
   };
 
-  const handleInputChange = (raw: string) => {
-    const next = normalizeInput(raw);
-    setSearch(next);
-    setOpen(true);
-
-    // Si borra todo, limpia la selección.
-    if (!next.trim()) {
-      onChange('');
-      return;
-    }
-
-    // Si lo escrito ya no coincide con lo seleccionado, libera el value
-    // para que el filtro no quede “anclado” a la opción anterior.
-    if (selected && !normalizeForSearch(selected.label).includes(normalizeForSearch(next))) {
-      onChange('');
-    }
-  };
-
   // Abierto: muestra lo que el usuario escribe. Cerrado: muestra la opción elegida.
   const displayValue = open ? search : (selected?.label ?? '');
   const inputPlaceholder =
@@ -118,7 +101,23 @@ const SearchableSelect: React.FC<SearchableSelectProps> = ({
         id={id}
         className="form-input searchable-select-input"
         value={displayValue}
-        onChange={(e) => handleInputChange(e.target.value)}
+        onChange={(e) =>
+          changeKeepingCaret(
+            e,
+            (next) => {
+              setSearch(next);
+              setOpen(true);
+              if (!next.trim()) {
+                onChange('');
+                return;
+              }
+              if (selected && !normalizeForSearch(selected.label).includes(normalizeForSearch(next))) {
+                onChange('');
+              }
+            },
+            normalizeInput
+          )
+        }
         onFocus={handleFocus}
         onKeyDown={(e) => {
           if (e.key === 'Escape') {

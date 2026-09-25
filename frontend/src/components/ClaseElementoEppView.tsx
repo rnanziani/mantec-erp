@@ -5,6 +5,7 @@ import Pagination from './shared/Pagination';
 import { exportToExcel } from '../utils/exportUtils';
 import { showDeleteConfirm, showError, showSuccess } from '../utils/swal';
 import { apiFetch, apiUrl } from '../lib/apiClient';
+import { changeKeepingCaret } from '../hooks/useCaretTransform';
 
 interface ClaseElementoEpp {
   idclase_56: number;
@@ -226,7 +227,7 @@ const ClaseElementoEppView: React.FC = () => {
                   id="clase_56"
                   className="form-input"
                   value={form.clase_56}
-                  onChange={(e) => setForm((p) => ({ ...p, clase_56: e.target.value.toUpperCase() }))}
+                  onChange={(e) => changeKeepingCaret(e, (v) => setForm((p) => ({ ...p, clase_56: v })))}
                   required
                   maxLength={50}
                 />
@@ -237,7 +238,7 @@ const ClaseElementoEppView: React.FC = () => {
                   id="descripcion_56"
                   className="form-input"
                   value={form.descripcion_56}
-                  onChange={(e) => setForm((p) => ({ ...p, descripcion_56: e.target.value.toUpperCase() }))}
+                  onChange={(e) => changeKeepingCaret(e, (v) => setForm((p) => ({ ...p, descripcion_56: v })))}
                 />
               </div>
               <div className="form-group">
@@ -270,7 +271,7 @@ const ClaseElementoEppView: React.FC = () => {
           className="form-input epp-search"
           placeholder="🔍 BUSCAR CLASE..."
           value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value.toUpperCase())}
+          onChange={(e) => changeKeepingCaret(e, setSearchTerm)}
           aria-label="Buscar clases de elemento"
         />
       </div>

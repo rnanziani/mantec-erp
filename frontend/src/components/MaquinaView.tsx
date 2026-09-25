@@ -3,6 +3,7 @@ import { showSuccess, showError, showDeleteConfirm } from '../utils/swal';
 import Pagination from './shared/Pagination';
 import './BodegaView.css';
 import { apiUrl } from '../lib/apiClient';
+import { changeKeepingCaret } from '../hooks/useCaretTransform';
 
 interface Maquina {
   idmaquina_11: number;
@@ -253,12 +254,9 @@ const MaquinaView: React.FC = () => {
                 <input
                   type="text"
                   value={numinterno}
-                  onChange={(e) => {
-                    const value = e.target.value.toUpperCase();
-                    if (value.length <= 4) {
-                      setNuminterno(value);
-                    }
-                  }}
+                  onChange={(e) =>
+                    changeKeepingCaret(e, setNuminterno, (raw) => raw.toUpperCase().slice(0, 4))
+                  }
                   onKeyPress={(e) => {
                     const char = String.fromCharCode(e.which);
                     if (!/[A-Z0-9]/.test(char)) {
@@ -276,7 +274,7 @@ const MaquinaView: React.FC = () => {
                 <input
                   type="text"
                   value={ppu}
-                  onChange={(e) => setPpu(e.target.value.toUpperCase())}
+                  onChange={(e) => changeKeepingCaret(e, setPpu)}
                   required
                   placeholder="Ej: ABCD12"
                   style={{ textTransform: 'uppercase' }}
@@ -289,7 +287,7 @@ const MaquinaView: React.FC = () => {
                 <input
                   type="text"
                   value={descripcion}
-                  onChange={(e) => setDescripcion(e.target.value.toUpperCase())}
+                  onChange={(e) => changeKeepingCaret(e, setDescripcion)}
                   required
                   placeholder="Ej: MÁQUINA DE LAVADO INDUSTRIAL"
                   maxLength={120}
@@ -342,7 +340,7 @@ const MaquinaView: React.FC = () => {
           type="text"
           placeholder="🔍 Buscar por número interno, PPU, descripción o empresa..."
           value={filtro}
-          onChange={(e) => setFiltro(e.target.value.toUpperCase())}
+          onChange={(e) => changeKeepingCaret(e, setFiltro)}
           style={{ 
             width: '100%', 
             padding: '10px', 

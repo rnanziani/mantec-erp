@@ -5,6 +5,7 @@ import Pagination from './shared/Pagination';
 import { exportToExcel } from '../utils/exportUtils';
 import { showDeleteConfirm, showSuccess, showError } from '../utils/swal';
 import { apiUrl } from '../lib/apiClient';
+import { changeKeepingCaret } from '../hooks/useCaretTransform';
 
 interface EstadoNeumatico {
   id_estado_33: number;
@@ -319,7 +320,7 @@ const EstadoNeumaticoView: React.FC = () => {
                   id="estado"
                   className="form-input"
                   value={estadoName}
-                  onChange={(e) => setEstadoName(e.target.value.toUpperCase())}
+                  onChange={(e) => changeKeepingCaret(e, setEstadoName)}
                   placeholder="Ej: Nuevo, En Uso, Desgastado..."
                   required
                   autoFocus
@@ -345,7 +346,7 @@ const EstadoNeumaticoView: React.FC = () => {
                   id="color"
                   className="form-input"
                   value={color}
-                  onChange={(e) => setColor(e.target.value.toUpperCase())}
+                  onChange={(e) => changeKeepingCaret(e, setColor)}
                   placeholder="Ej: #28A745, VERDE"
                   maxLength={20}
                   style={{ textTransform: 'uppercase' }}
@@ -371,7 +372,7 @@ const EstadoNeumaticoView: React.FC = () => {
                 id="descripcion"
                 className="form-input"
                 value={descripcion}
-                onChange={(e) => setDescripcion(e.target.value.toUpperCase())}
+                onChange={(e) => changeKeepingCaret(e, setDescripcion)}
                 placeholder="Descripción opcional del estado..."
                 rows={3}
                 style={{ resize: 'vertical', textTransform: 'uppercase' }}

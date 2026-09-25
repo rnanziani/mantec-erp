@@ -3,6 +3,7 @@ import './BodegaView.css';
 import Pagination from './shared/Pagination';
 import { showDeleteConfirm, showError, showSuccess } from '../utils/swal';
 import { apiFetch, apiUrl } from '../lib/apiClient';
+import { changeKeepingCaret } from '../hooks/useCaretTransform';
 
 interface RepuestoDanado {
   idrepuestodanado_57: number;
@@ -173,7 +174,7 @@ const RepuestoDanadoView: React.FC = () => {
                   className="form-input"
                   required
                   value={form.codigo_57}
-                  onChange={(e) => setForm((p) => ({ ...p, codigo_57: e.target.value.toUpperCase() }))}
+                  onChange={(e) => changeKeepingCaret(e, (v) => setForm((p) => ({ ...p, codigo_57: v })))}
                   placeholder="ALT-001"
                   pattern="[A-Z]{2,10}-[0-9]{3,6}"
                   title="Patrón TIPO-### (ej. ALT-001, BOM-002)"
@@ -190,7 +191,7 @@ const RepuestoDanadoView: React.FC = () => {
                   className="form-input"
                   required
                   value={form.nombre_57}
-                  onChange={(e) => setForm((p) => ({ ...p, nombre_57: e.target.value.toUpperCase() }))}
+                  onChange={(e) => changeKeepingCaret(e, (v) => setForm((p) => ({ ...p, nombre_57: v })))}
                 />
               </div>
               <div className="form-group">
@@ -221,7 +222,7 @@ const RepuestoDanadoView: React.FC = () => {
           className="form-input"
           placeholder="🔍 BUSCAR POR CÓDIGO O NOMBRE..."
           value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value.toUpperCase())}
+          onChange={(e) => changeKeepingCaret(e, setSearchTerm)}
           aria-label="Buscar repuestos"
         />
       </div>

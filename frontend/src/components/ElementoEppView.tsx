@@ -6,6 +6,7 @@ import SearchableSelect from './shared/SearchableSelect';
 import { exportToExcel } from '../utils/exportUtils';
 import { showDeleteConfirm, showError, showSuccess } from '../utils/swal';
 import { apiFetch, apiUrl } from '../lib/apiClient';
+import { changeKeepingCaret } from '../hooks/useCaretTransform';
 
 interface TipoElementoEpp {
   idtipo_elemento_51: number;
@@ -535,7 +536,7 @@ const ElementoEppView: React.FC = () => {
                   id="codigo_53"
                   className="form-input"
                   value={form.codigo_53}
-                  onChange={(e) => setForm((p) => ({ ...p, codigo_53: e.target.value.toUpperCase() }))}
+                  onChange={(e) => changeKeepingCaret(e, (v) => setForm((p) => ({ ...p, codigo_53: v })))}
                   required={Boolean(editingId)}
                   maxLength={50}
                   placeholder={editingId ? '' : 'Se genera solo: EPP-0001'}
@@ -553,7 +554,7 @@ const ElementoEppView: React.FC = () => {
                   id="nombre_53"
                   className="form-input"
                   value={form.nombre_53}
-                  onChange={(e) => setForm((p) => ({ ...p, nombre_53: e.target.value.toUpperCase() }))}
+                  onChange={(e) => changeKeepingCaret(e, (v) => setForm((p) => ({ ...p, nombre_53: v })))}
                   required
                   maxLength={150}
                 />
@@ -609,7 +610,7 @@ const ElementoEppView: React.FC = () => {
                   id="unidad_medida_53"
                   className="form-input"
                   value={form.unidad_medida_53}
-                  onChange={(e) => setForm((p) => ({ ...p, unidad_medida_53: e.target.value.toUpperCase() }))}
+                  onChange={(e) => changeKeepingCaret(e, (v) => setForm((p) => ({ ...p, unidad_medida_53: v })))}
                   maxLength={20}
                 />
               </div>
@@ -657,7 +658,7 @@ const ElementoEppView: React.FC = () => {
                   id="descripcion_53"
                   className="form-input"
                   value={form.descripcion_53}
-                  onChange={(e) => setForm((p) => ({ ...p, descripcion_53: e.target.value.toUpperCase() }))}
+                  onChange={(e) => changeKeepingCaret(e, (v) => setForm((p) => ({ ...p, descripcion_53: v })))}
                 />
               </div>
               <div className="form-group">
@@ -691,7 +692,7 @@ const ElementoEppView: React.FC = () => {
             className="form-input epp-filter-nombre"
             placeholder="Filtrar por nombre..."
             value={filtroNombre}
-            onChange={(e) => setFiltroNombre(e.target.value.toUpperCase())}
+            onChange={(e) => changeKeepingCaret(e, setFiltroNombre)}
             aria-label="Filtrar por nombre"
           />
           <div className="epp-filter-select">
@@ -735,7 +736,7 @@ const ElementoEppView: React.FC = () => {
             className="form-input epp-search"
             placeholder="🔍 BUSCAR (código, marca...)"
             value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value.toUpperCase())}
+            onChange={(e) => changeKeepingCaret(e, setSearchTerm)}
             aria-label="Búsqueda general de elementos EPP"
           />
           {hayFiltrosActivos && (

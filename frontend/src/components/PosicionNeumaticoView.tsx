@@ -5,6 +5,7 @@ import Pagination from './shared/Pagination';
 import { exportToExcel } from '../utils/exportUtils';
 import { showDeleteConfirm, showError, showSuccess } from '../utils/swal';
 import { apiFetch, apiUrl } from '../lib/apiClient';
+import { changeKeepingCaret } from '../hooks/useCaretTransform';
 
 interface Posicion {
   idposicion_73: number;
@@ -171,7 +172,7 @@ const PosicionNeumaticoView: React.FC = () => {
                   id="pos-codigo"
                   className="form-input"
                   value={form.codigo_73}
-                  onChange={(e) => setForm({ ...form, codigo_73: e.target.value.toUpperCase() })}
+                  onChange={(e) => changeKeepingCaret(e, (v) => setForm({ ...form, codigo_73: v }))}
                   required
                   autoComplete="off"
                   aria-required="true"
@@ -183,7 +184,7 @@ const PosicionNeumaticoView: React.FC = () => {
                   id="pos-desc"
                   className="form-input"
                   value={form.descripcion_73}
-                  onChange={(e) => setForm({ ...form, descripcion_73: e.target.value.toUpperCase() })}
+                  onChange={(e) => changeKeepingCaret(e, (v) => setForm({ ...form, descripcion_73: v }))}
                   required
                   autoComplete="off"
                   aria-required="true"

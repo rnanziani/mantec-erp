@@ -5,6 +5,7 @@ import { exportToExcel } from '../utils/exportUtils';
 import { filtrarTrabajadoresPorApellido } from '../utils/trabajadorSearch';
 import { showDeleteConfirm, showError, showSuccess } from '../utils/swal';
 import { apiFetch, apiUrl } from '../lib/apiClient';
+import { changeKeepingCaret } from '../hooks/useCaretTransform';
 
 interface Maestro {
   idconsumo_71: number;
@@ -478,7 +479,7 @@ const ConsumoLubricanteView: React.FC = () => {
                   type="search"
                   className="form-input"
                   value={buscarPatente}
-                  onChange={(e) => setBuscarPatente(e.target.value.toUpperCase())}
+                  onChange={(e) => changeKeepingCaret(e, setBuscarPatente)}
                   placeholder="INGRESE PATENTE O NÚMERO INTERNO"
                   style={{ textTransform: 'uppercase' }}
                 />
@@ -545,7 +546,7 @@ const ConsumoLubricanteView: React.FC = () => {
                   type="search"
                   className="form-input"
                   value={buscarApellido}
-                  onChange={(e) => setBuscarApellido(e.target.value.toUpperCase())}
+                  onChange={(e) => changeKeepingCaret(e, setBuscarApellido)}
                   placeholder="EJ: GONZALEZ O GONZALEZ PEREZ"
                   style={{ textTransform: 'uppercase' }}
                 />
@@ -620,7 +621,7 @@ const ConsumoLubricanteView: React.FC = () => {
                   type="search"
                   className="form-input"
                   value={buscarTecnico}
-                  onChange={(e) => setBuscarTecnico(e.target.value.toUpperCase())}
+                  onChange={(e) => changeKeepingCaret(e, setBuscarTecnico)}
                   placeholder="NOMBRE O APELLIDO DEL TÉCNICO"
                   style={{ textTransform: 'uppercase' }}
                 />
@@ -735,7 +736,7 @@ const ConsumoLubricanteView: React.FC = () => {
                 id="observacion_71"
                 className="form-input"
                 value={observacion}
-                onChange={(e) => setObservacion(e.target.value.toUpperCase())}
+                onChange={(e) => changeKeepingCaret(e, setObservacion)}
                 maxLength={500}
               />
             </div>
@@ -850,7 +851,7 @@ const ConsumoLubricanteView: React.FC = () => {
                               type="text"
                               value={d.observacion_72}
                               onChange={(e) =>
-                                setObsLinea(d.idlubricante_72, e.target.value.toUpperCase())
+                                changeKeepingCaret(e, (v) => setObsLinea(d.idlubricante_72, v))
                               }
                               style={{ width: '100%', padding: '4px' }}
                               aria-label={`Observación de ${d.label}`}
@@ -883,7 +884,7 @@ const ConsumoLubricanteView: React.FC = () => {
           className="form-input"
           placeholder="Buscar folio, máquina, trabajador, técnico, lubricante..."
           value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value.toUpperCase())}
+          onChange={(e) => changeKeepingCaret(e, setSearchTerm)}
           aria-label="Buscar consumos"
         />
       </div>

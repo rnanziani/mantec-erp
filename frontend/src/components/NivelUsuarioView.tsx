@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { showSuccess, showError, showDeleteConfirm } from '../utils/swal';
 import './BodegaView.css';
 import { apiUrl } from '../lib/apiClient';
+import { changeKeepingCaret } from '../hooks/useCaretTransform';
 
 interface NivelUsuario {
     id_nivel_04: number;
@@ -187,7 +188,7 @@ const NivelUsuarioView: React.FC = () => {
                             <input
                                 type="text"
                                 value={nombreNivel}
-                                onChange={(e) => setNombreNivel(e.target.value.toUpperCase())}
+                                onChange={(e) => changeKeepingCaret(e, setNombreNivel)}
                                 required
                                 placeholder="Ej: ADMINISTRADOR, USUARIO, SUPERVISOR"
                                 maxLength={50}
@@ -200,7 +201,7 @@ const NivelUsuarioView: React.FC = () => {
                             <label>Descripción</label>
                             <textarea
                                 value={descripcion}
-                                onChange={(e) => setDescripcion(e.target.value.toUpperCase())}
+                                onChange={(e) => changeKeepingCaret(e, setDescripcion)}
                                 placeholder="DESCRIPCIÓN DEL NIVEL DE ACCESO (OPCIONAL)"
                                 rows={4}
                                 style={{ width: '100%', padding: '8px 12px', borderRadius: '4px', border: '1px solid #ced4da', fontFamily: 'inherit', resize: 'vertical', textTransform: 'uppercase' }}
@@ -226,7 +227,7 @@ const NivelUsuarioView: React.FC = () => {
                     type="text"
                     placeholder="🔍 BUSCAR NIVEL DE ACCESO..."
                     value={filtro}
-                    onChange={(e) => setFiltro(e.target.value.toUpperCase())}
+                    onChange={(e) => changeKeepingCaret(e, setFiltro)}
                     style={{ width: '100%', padding: '10px', fontSize: '14px', borderRadius: '4px', border: '1px solid #ced4da', textTransform: 'uppercase' }}
                     autoCapitalize="characters"
                     spellCheck={false}

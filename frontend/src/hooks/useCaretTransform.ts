@@ -1,13 +1,41 @@
 import { useLayoutEffect, useRef, useState, type ChangeEvent } from 'react';
 
+type TextField = HTMLInputElement | HTMLTextAreaElement;
+
 /**
- * Input controlado que transforma el texto (mayúsculas, filtrar caracteres)
- * sin mandar el cursor al final.
+ * Transforma el texto (mayúsculas, filtrar) sin mandar el cursor al final.
+ * Usar en onChange: `changeKeepingCaret(e, setNombre)`
  *
  * Causa del bug: `setX(e.target.value.toUpperCase())` reemplaza el value;
  * Chrome/React ponen el caret al final. Ver:
  * https://github.com/facebook/react/issues/955
  */
+export function changeKeepingCaret(
+  e: ChangeEvent<TextField>,
+  apply: (next: string) => void,
+  transform: (raw: string) => string = (s) => s.toUpperCase()
+) {
+  const el = e.currentTarget;
+  const raw = el.value;
+  const selStart = el.selectionStart ?? raw.length;
+  const selEnd = el.selectionEnd ?? raw.length;
+  const next = transform(raw);
+  const start = transform(raw.slice(0, selStart)).length;
+  const end = transform(raw.slice(0, selEnd)).length;
+  apply(next);
+  const restore = () => {
+    if (document.activeElement !== el) return;
+    const max = el.value.length;
+    try {
+      el.setSelectionRange(Math.min(start, max), Math.min(end, max));
+    } catch {
+      /* type=number no soporta selectionRange */
+    }
+  };
+  queueMicrotask(restore);
+  requestAnimationFrame(restore);
+}
+
 export function useCaretTransform(
   value: string,
   setValue: (next: string) => void,
@@ -30,12 +58,11 @@ export function useCaretTransform(
     const raw = e.target.value;
     const selStart = e.target.selectionStart ?? raw.length;
     const selEnd = e.target.selectionEnd ?? raw.length;
-    const next = transform(raw);
     caretRef.current = {
       start: transform(raw.slice(0, selStart)).length,
       end: transform(raw.slice(0, selEnd)).length
     };
-    setValue(next);
+    setValue(transform(raw));
     setTick((n) => n + 1);
   };
 

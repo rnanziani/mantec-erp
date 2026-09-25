@@ -6,6 +6,7 @@ import SearchableSelect from './shared/SearchableSelect';
 import { exportToExcel } from '../utils/exportUtils';
 import { showDeleteConfirm, showError, showSuccess } from '../utils/swal';
 import { apiFetch, apiUrl, openAuthenticatedBlob } from '../lib/apiClient';
+import { changeKeepingCaret } from '../hooks/useCaretTransform';
 
 interface Herramienta {
   idherramienta_48: number;
@@ -358,7 +359,7 @@ const HerramientaView: React.FC = () => {
   };
 
   const setUpper = (key: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement>) => {
-    setForm((prev) => ({ ...prev, [key]: e.target.value.toUpperCase() }));
+    changeKeepingCaret(e, (v) => setForm((prev) => ({ ...prev, [key]: v })));
   };
 
   if (loading) return <div className="loading">Cargando herramientas...</div>;
@@ -492,7 +493,7 @@ const HerramientaView: React.FC = () => {
             className="form-input herramienta-search"
             placeholder="🔍 BUSCAR HERRAMIENTA..."
             value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value.toUpperCase())}
+            onChange={(e) => changeKeepingCaret(e, setSearchTerm)}
             aria-label="Buscar herramientas"
           />
           <select

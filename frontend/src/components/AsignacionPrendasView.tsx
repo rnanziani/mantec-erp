@@ -9,6 +9,7 @@ import {
 } from '../utils/exportUtils';
 import { filtrarTrabajadoresPorApellido } from '../utils/trabajadorSearch';
 import { apiUrl, openAuthenticatedBlob } from '../lib/apiClient';
+import { changeKeepingCaret } from '../hooks/useCaretTransform';
 
 interface AsignacionPrenda {
   idasignacionmain_09: number;
@@ -2054,7 +2055,7 @@ const AsignacionPrendasView: React.FC = () => {
                 <input
                   type="text"
                   value={buscarApellido}
-                  onChange={(e) => setBuscarApellido(e.target.value.toUpperCase())}
+                  onChange={(e) => changeKeepingCaret(e, setBuscarApellido)}
                   placeholder="Ej: GONZALEZ o GONZALEZ PEREZ"
                   style={{ flex: 1, padding: '8px 12px', borderRadius: '4px', border: '1px solid #ced4da', textTransform: 'uppercase', fontSize: '14px' }}
                   onKeyPress={(e) => {
@@ -2580,7 +2581,7 @@ const AsignacionPrendasView: React.FC = () => {
                 type="text"
                 placeholder="🔍 Buscar asignación..."
                 value={filtro}
-                onChange={(e) => setFiltro(e.target.value.toUpperCase())}
+                onChange={(e) => changeKeepingCaret(e, setFiltro)}
                 style={{ width: '100%', padding: '10px', fontSize: '14px', borderRadius: '4px', border: '1px solid #ced4da', textTransform: 'uppercase' }}
               />
               <div style={{ display: 'flex', gap: '8px' }}>

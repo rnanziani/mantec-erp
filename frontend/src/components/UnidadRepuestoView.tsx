@@ -4,6 +4,7 @@ import Pagination from './shared/Pagination';
 import SearchableSelect from './shared/SearchableSelect';
 import { showDeleteConfirm, showError, showSuccess } from '../utils/swal';
 import { apiFetch, apiUrl } from '../lib/apiClient';
+import { changeKeepingCaret } from '../hooks/useCaretTransform';
 
 interface Unidad {
   idunidad_81: number;
@@ -219,7 +220,7 @@ const UnidadRepuestoView: React.FC = () => {
                 <textarea
                   id="unidad-obs"
                   value={observacion}
-                  onChange={(e) => setObservacion(e.target.value.toUpperCase())}
+                  onChange={(e) => changeKeepingCaret(e, setObservacion)}
                   maxLength={250}
                   rows={3}
                   style={{ width: '100%', padding: '8px 12px', borderRadius: 4, border: '1px solid #ced4da', boxSizing: 'border-box' }}

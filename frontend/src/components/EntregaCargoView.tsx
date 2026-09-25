@@ -7,6 +7,7 @@ import { filtrarTrabajadoresPorApellido } from '../utils/trabajadorSearch';
 import { showDeleteConfirm, showError, showSuccess } from '../utils/swal';
 import { apiFetch, apiUrl } from '../lib/apiClient';
 import ActaEntregaCargoModal from './ActaEntregaCargoModal';
+import { changeKeepingCaret } from '../hooks/useCaretTransform';
 
 interface Maestro {
   identrega_67: number;
@@ -497,7 +498,7 @@ const EntregaCargoView: React.FC = () => {
               </div>
               <div className="form-group">
                 <label htmlFor="obs">Observación</label>
-                <input id="obs" className="form-input" value={observacion} onChange={(e) => setObservacion(e.target.value.toUpperCase())} />
+                <input id="obs" className="form-input" value={observacion} onChange={(e) => changeKeepingCaret(e, setObservacion)} />
               </div>
             </div>
 
@@ -759,7 +760,7 @@ const EntregaCargoView: React.FC = () => {
                 </div>
                 <div className="form-group">
                   <label htmlFor="dev-obs">Obs.</label>
-                  <input id="dev-obs" className="form-input" value={devObs} onChange={(e) => setDevObs(e.target.value.toUpperCase())} />
+                  <input id="dev-obs" className="form-input" value={devObs} onChange={(e) => changeKeepingCaret(e, setDevObs)} />
                 </div>
                 <div className="form-group" style={{ display: 'flex', gap: 8, alignItems: 'end' }}>
                   <button type="button" className="btn-success" onClick={devolverLinea}>Confirmar devolución</button>

@@ -3,6 +3,7 @@ import './BodegaView.css';
 import SearchableSelect from './shared/SearchableSelect';
 import { showDeleteConfirm, showError, showSuccess } from '../utils/swal';
 import { apiFetch, apiUrl } from '../lib/apiClient';
+import { changeKeepingCaret } from '../hooks/useCaretTransform';
 
 interface Movimiento {
   idmovimiento_84: number;
@@ -358,7 +359,7 @@ const MovimientoRepuestoView: React.FC = () => {
                   id="mov-obs"
                   type="text"
                   value={observacion}
-                  onChange={(e) => setObservacion(e.target.value.toUpperCase())}
+                  onChange={(e) => changeKeepingCaret(e, setObservacion)}
                   maxLength={250}
                 />
               </div>

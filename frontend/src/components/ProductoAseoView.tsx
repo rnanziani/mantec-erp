@@ -3,6 +3,7 @@ import './BodegaView.css';
 import { exportToExcel } from '../utils/exportUtils';
 import { showDeleteConfirm, showSuccess, showError } from '../utils/swal';
 import { apiUrl } from '../lib/apiClient';
+import { changeKeepingCaret } from '../hooks/useCaretTransform';
 
 interface ProductoAseo {
   idproductoaseo_10: number;
@@ -365,7 +366,7 @@ const ProductoAseoView: React.FC = () => {
                   id="productoaseo"
                   className="form-input"
                   value={productoaseo}
-                  onChange={(e) => setProductoaseo(e.target.value.toUpperCase())}
+                  onChange={(e) => changeKeepingCaret(e, setProductoaseo)}
                   placeholder="Ej: CLORO, CERA ACRILICA..."
                   required
                   autoFocus
@@ -380,7 +381,7 @@ const ProductoAseoView: React.FC = () => {
                   id="um"
                   className="form-input"
                   value={um}
-                  onChange={(e) => setUm(e.target.value.toUpperCase())}
+                  onChange={(e) => changeKeepingCaret(e, setUm)}
                   placeholder="Ej: LTS, UND, KG..."
                   required
                   maxLength={50}

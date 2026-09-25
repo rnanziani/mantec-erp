@@ -11,6 +11,7 @@ import {
   filtrarTrabajadoresPorApellido,
   normalizeTrabajadorTexto
 } from '../utils/trabajadorSearch';
+import { changeKeepingCaret } from '../hooks/useCaretTransform';
 
 interface Trabajador {
   idtrabajador_06: number;
@@ -491,7 +492,7 @@ const TrabajadorView: React.FC = () => {
                   id="nombre"
                   className="form-input"
                   value={nombre}
-                  onChange={(e) => setNombre(e.target.value.toUpperCase())}
+                  onChange={(e) => changeKeepingCaret(e, setNombre)}
                   style={{ textTransform: 'uppercase' }}
                   required
                 />
@@ -503,7 +504,7 @@ const TrabajadorView: React.FC = () => {
                   id="aPaterno"
                   className="form-input"
                   value={aPaterno}
-                  onChange={(e) => setAPaterno(e.target.value.toUpperCase())}
+                  onChange={(e) => changeKeepingCaret(e, setAPaterno)}
                   style={{ textTransform: 'uppercase' }}
                   required
                 />
@@ -515,7 +516,7 @@ const TrabajadorView: React.FC = () => {
                   id="aMaterno"
                   className="form-input"
                   value={aMaterno}
-                  onChange={(e) => setAMaterno(e.target.value.toUpperCase())}
+                  onChange={(e) => changeKeepingCaret(e, setAMaterno)}
                   style={{ textTransform: 'uppercase' }}
                 />
               </div>
@@ -570,7 +571,7 @@ const TrabajadorView: React.FC = () => {
               id="buscar-apellido"
               type="text"
               value={buscarApellido}
-              onChange={(e) => setBuscarApellido(e.target.value.toUpperCase())}
+              onChange={(e) => changeKeepingCaret(e, setBuscarApellido)}
               placeholder={
                 modoBusquedaNombre === 'apellido'
                   ? 'Ej: GONZALEZ o GONZALEZ PEREZ'

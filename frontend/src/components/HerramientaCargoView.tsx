@@ -5,6 +5,7 @@ import SearchableSelect from './shared/SearchableSelect';
 import { exportToExcel } from '../utils/exportUtils';
 import { showDeleteConfirm, showError, showSuccess } from '../utils/swal';
 import { apiFetch, apiUrl } from '../lib/apiClient';
+import { changeKeepingCaret } from '../hooks/useCaretTransform';
 
 interface HerramientaCargo {
   idherramienta_66: number;
@@ -228,7 +229,7 @@ const HerramientaCargoView: React.FC = () => {
   };
 
   const setUpper = (key: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement>) => {
-    setForm((prev) => ({ ...prev, [key]: e.target.value.toUpperCase() }));
+    changeKeepingCaret(e, (v) => setForm((prev) => ({ ...prev, [key]: v })));
   };
 
   const formatValor = (valor: number) =>

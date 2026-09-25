@@ -3,6 +3,7 @@ import './BodegaView.css';
 import { exportToExcel } from '../utils/exportUtils';
 import { showDeleteConfirm, showError, showSuccess } from '../utils/swal';
 import { apiUrl } from '../lib/apiClient';
+import { changeKeepingCaret } from '../hooks/useCaretTransform';
 
 interface Empresa {
   idempresa_15: number;
@@ -244,7 +245,7 @@ const EmpresaView: React.FC = () => {
                 id="nombreempresa"
                 className="form-input"
                 value={nombre}
-                onChange={(e) => setNombre(e.target.value.toUpperCase())}
+                onChange={(e) => changeKeepingCaret(e, setNombre)}
                 placeholder="Ej: TRANSANTIN S.A."
                 maxLength={100}
                 style={{ textTransform: 'uppercase' }}
@@ -272,7 +273,7 @@ const EmpresaView: React.FC = () => {
           type="text"
           placeholder="🔍 Buscar empresa..."
           value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value.toUpperCase())}
+          onChange={(e) => changeKeepingCaret(e, setSearchTerm)}
           style={{ width: '100%', padding: '10px', fontSize: '14px', borderRadius: '4px', border: '1px solid #ced4da', textTransform: 'uppercase' }}
           aria-label="Buscar empresa"
         />

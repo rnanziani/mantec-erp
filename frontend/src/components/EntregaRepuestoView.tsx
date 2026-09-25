@@ -3,6 +3,7 @@ import './BodegaView.css';
 import Pagination from './shared/Pagination';
 import { showDeleteConfirm, showError, showSuccess } from '../utils/swal';
 import { apiFetch, apiUrl } from '../lib/apiClient';
+import { changeKeepingCaret } from '../hooks/useCaretTransform';
 
 interface LineaGrid {
   iddetalle_64: number;
@@ -674,7 +675,7 @@ const EntregaRepuestoView: React.FC = () => {
           className="form-input"
               placeholder="🔍 BUSCAR POR FOLIO, REPUESTO, MÁQUINA, PROVEEDOR..."
           value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value.toUpperCase())}
+          onChange={(e) => changeKeepingCaret(e, setSearchTerm)}
           aria-label="Buscar entregas"
         />
       </div>

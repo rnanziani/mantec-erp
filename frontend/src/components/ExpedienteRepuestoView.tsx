@@ -4,6 +4,7 @@ import Pagination from './shared/Pagination';
 import SearchableSelect from './shared/SearchableSelect';
 import { showDeleteConfirm, showError, showSuccess } from '../utils/swal';
 import { apiFetch, apiUrl } from '../lib/apiClient';
+import { changeKeepingCaret } from '../hooks/useCaretTransform';
 
 type Estado =
   | 'MAQUINA_A_BODEGA'
@@ -607,7 +608,7 @@ const ExpedienteRepuestoView: React.FC = () => {
 
             <div className="form-group">
               <label htmlFor="exp-obs">Observación</label>
-              <textarea id="exp-obs" className="form-input" rows={2} value={observacion} onChange={(e) => setObservacion(e.target.value.toUpperCase())} />
+              <textarea id="exp-obs" className="form-input" rows={2} value={observacion} onChange={(e) => changeKeepingCaret(e, setObservacion)} />
             </div>
 
             {mostrarProveedor && (
@@ -689,11 +690,11 @@ const ExpedienteRepuestoView: React.FC = () => {
                 <div className="form-row form-row-3">
                   <div className="form-group">
                     <label htmlFor="exp-mot">Motivo</label>
-                    <input id="exp-mot" className="form-input" value={motivo} onChange={(e) => setMotivo(e.target.value.toUpperCase())} />
+                    <input id="exp-mot" className="form-input" value={motivo} onChange={(e) => changeKeepingCaret(e, setMotivo)} />
                   </div>
                   <div className="form-group" style={{ gridColumn: 'span 2' }}>
                     <label htmlFor="exp-obsinst">Observación instalación</label>
-                    <input id="exp-obsinst" className="form-input" value={obsInst} onChange={(e) => setObsInst(e.target.value.toUpperCase())} />
+                    <input id="exp-obsinst" className="form-input" value={obsInst} onChange={(e) => changeKeepingCaret(e, setObsInst)} />
                   </div>
                 </div>
               </>
@@ -739,7 +740,7 @@ const ExpedienteRepuestoView: React.FC = () => {
           style={{ flex: 1, minWidth: 220 }}
           placeholder="Buscar folio, máquina, técnico, repuesto..."
           value={searchTerm}
-          onChange={(e) => { setSearchTerm(e.target.value.toUpperCase()); setCurrentPage(1); }}
+          onChange={(e) => { changeKeepingCaret(e, setSearchTerm); setCurrentPage(1); }}
           aria-label="Buscar expedientes"
         />
       </div>

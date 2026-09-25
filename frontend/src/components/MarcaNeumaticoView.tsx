@@ -5,6 +5,7 @@ import Pagination from './shared/Pagination';
 import { exportToExcel } from '../utils/exportUtils';
 import { showDeleteConfirm, showSuccess, showError } from '../utils/swal';
 import { apiUrl } from '../lib/apiClient';
+import { changeKeepingCaret } from '../hooks/useCaretTransform';
 
 interface MarcaNeumatico {
   id_marca_32: number;
@@ -282,7 +283,7 @@ const MarcaNeumaticoView: React.FC = () => {
                   id="marca"
                   className="form-input"
                   value={marca}
-                  onChange={(e) => setMarca(e.target.value.toUpperCase())}
+                  onChange={(e) => changeKeepingCaret(e, setMarca)}
                   placeholder="Ej: MICHELIN, BRIDGESTONE..."
                   style={{ textTransform: 'uppercase' }}
                   required

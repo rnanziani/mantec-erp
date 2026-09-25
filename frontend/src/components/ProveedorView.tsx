@@ -4,6 +4,7 @@ import Pagination from './shared/Pagination';
 import { showDeleteConfirm, showError, showSuccess } from '../utils/swal';
 import { apiFetch, apiUrl } from '../lib/apiClient';
 import { formatRut, validateRut } from '../utils/rutValidator';
+import { changeKeepingCaret } from '../hooks/useCaretTransform';
 
 interface Proveedor {
   idproveedor_58: number;
@@ -88,11 +89,6 @@ const ProveedorView: React.FC = () => {
     setRutError('');
     setEditingId(null);
     setShowForm(false);
-  };
-
-  const handleRutChange = (value: string) => {
-    setForm((p) => ({ ...p, rut_58: value.toUpperCase() }));
-    setRutError('');
   };
 
   const handleRutBlur = () => {
@@ -209,7 +205,12 @@ const ProveedorView: React.FC = () => {
                   id="rut_58"
                   className={`form-input ${rutError ? 'input-error' : ''}`}
                   value={form.rut_58}
-                  onChange={(e) => handleRutChange(e.target.value)}
+                  onChange={(e) =>
+                    changeKeepingCaret(e, (v) => {
+                      setForm((p) => ({ ...p, rut_58: v }));
+                      setRutError('');
+                    })
+                  }
                   onBlur={handleRutBlur}
                   placeholder="12.345.678-9"
                   aria-invalid={!!rutError}
@@ -225,7 +226,7 @@ const ProveedorView: React.FC = () => {
               </div>
               <div className="form-group">
                 <label htmlFor="nombre_58">Nombre *</label>
-                <input id="nombre_58" className="form-input" required value={form.nombre_58} onChange={(e) => setForm((p) => ({ ...p, nombre_58: e.target.value.toUpperCase() }))} />
+                <input id="nombre_58" className="form-input" required value={form.nombre_58} onChange={(e) => changeKeepingCaret(e, (v) => setForm((p) => ({ ...p, nombre_58: v })))} />
               </div>
               <div className="form-group">
                 <label htmlFor="activo_58">Activo</label>
@@ -238,7 +239,7 @@ const ProveedorView: React.FC = () => {
             <div className="form-row form-row-3">
               <div className="form-group">
                 <label htmlFor="contacto_58">Contacto</label>
-                <input id="contacto_58" className="form-input" value={form.contacto_58} onChange={(e) => setForm((p) => ({ ...p, contacto_58: e.target.value.toUpperCase() }))} />
+                <input id="contacto_58" className="form-input" value={form.contacto_58} onChange={(e) => changeKeepingCaret(e, (v) => setForm((p) => ({ ...p, contacto_58: v })))} />
               </div>
               <div className="form-group">
                 <label htmlFor="telefono_58">Teléfono</label>
@@ -258,7 +259,7 @@ const ProveedorView: React.FC = () => {
       )}
 
       <div style={{ marginBottom: 12 }}>
-        <input type="search" className="form-input" placeholder="🔍 BUSCAR..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value.toUpperCase())} aria-label="Buscar proveedores" />
+        <input type="search" className="form-input" placeholder="🔍 BUSCAR..." value={searchTerm} onChange={(e) => changeKeepingCaret(e, setSearchTerm)} aria-label="Buscar proveedores" />
       </div>
 
       <div className="table-container">

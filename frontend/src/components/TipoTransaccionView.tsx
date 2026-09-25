@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { showSuccess, showError } from '../utils/swal';
 import './BodegaView.css'; // Reutilizamos los mismos estilos
 import { apiUrl } from '../lib/apiClient';
+import { changeKeepingCaret } from '../hooks/useCaretTransform';
 
 interface TipoTransaccion {
     id_tipo_transaccion_25: number;
@@ -185,7 +186,7 @@ const TipoTransaccionView: React.FC = () => {
                             <input
                                 type="text"
                                 value={formData.cod_accion_25}
-                                onChange={(e) => setFormData({ ...formData, cod_accion_25: e.target.value.toUpperCase() })}
+                                onChange={(e) => changeKeepingCaret(e, (v) => setFormData({ ...formData, cod_accion_25: v }))}
                                 required
                                 maxLength={3}
                                 placeholder="ENT"

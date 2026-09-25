@@ -4,6 +4,7 @@ import './CargoView.css';
 import { exportToExcel } from '../utils/exportUtils';
 import { showDeleteConfirm, showSuccess, showError } from '../utils/swal';
 import { apiUrl } from '../lib/apiClient';
+import { changeKeepingCaret } from '../hooks/useCaretTransform';
 
 interface Cargo {
   idcargo_14: number;
@@ -304,7 +305,7 @@ const CargoView: React.FC = () => {
                 id="cargo"
                 className="form-input"
                 value={cargoName}
-                onChange={(e) => setCargoName(e.target.value.toUpperCase())}
+                onChange={(e) => changeKeepingCaret(e, setCargoName)}
                 placeholder="Ej: Mecánico, Supervisor, Jefe de Taller..."
                 required
                 autoFocus
@@ -334,7 +335,7 @@ const CargoView: React.FC = () => {
           placeholder="🔍 Buscar cargo..."
           value={searchTerm}
           onChange={(e) => {
-            setSearchTerm(e.target.value.toUpperCase());
+            changeKeepingCaret(e, setSearchTerm);
             setCurrentPage(1);
           }}
           style={{ width: '100%', padding: '10px', fontSize: '14px', borderRadius: '4px', border: '1px solid #ced4da' }}

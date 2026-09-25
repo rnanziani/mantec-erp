@@ -4,6 +4,7 @@ import './CategoriaView.css';
 import { exportToExcel } from '../utils/exportUtils';
 import { showDeleteConfirm, showError, showSuccess } from '../utils/swal';
 import { apiUrl } from '../lib/apiClient';
+import { changeKeepingCaret } from '../hooks/useCaretTransform';
 
 interface Prenda {
   idprenda_07: number;
@@ -262,7 +263,7 @@ const PrendaView: React.FC = () => {
                   id="prenda-nombre"
                   className="form-input"
                   value={prendaNombre}
-                  onChange={(e) => setPrendaNombre(e.target.value.toUpperCase())}
+                  onChange={(e) => changeKeepingCaret(e, setPrendaNombre)}
                   placeholder="Ej: CAMISA, PANTALÓN..."
                   maxLength={100}
                   required
@@ -295,7 +296,7 @@ const PrendaView: React.FC = () => {
           type="search"
           placeholder="🔍 Buscar prenda..."
           value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value.toUpperCase())}
+          onChange={(e) => changeKeepingCaret(e, setSearchTerm)}
           style={{ width: '100%', padding: '10px', fontSize: '14px', borderRadius: '4px', border: '1px solid #ced4da' }}
           aria-label="Buscar prenda"
         />

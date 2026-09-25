@@ -4,6 +4,7 @@ import './CcostoView.css';
 import { exportToExcel } from '../utils/exportUtils';
 import { showDeleteConfirm, showSuccess, showError } from '../utils/swal';
 import { apiUrl } from '../lib/apiClient';
+import { changeKeepingCaret } from '../hooks/useCaretTransform';
 
 interface Ccosto {
   id_ccosto_45: number;
@@ -261,7 +262,7 @@ const CcostoView: React.FC = () => {
                 id="ccosto"
                 className="form-input"
                 value={name}
-                onChange={(e) => setName(e.target.value.toUpperCase())}
+                onChange={(e) => changeKeepingCaret(e, setName)}
                 placeholder="Ej: MANTENCIÓN, OPERACIONES..."
                 style={{ textTransform: 'uppercase' }}
                 required
@@ -302,7 +303,7 @@ const CcostoView: React.FC = () => {
           placeholder="🔍 Buscar centro de costo..."
           value={searchTerm}
           onChange={(e) => {
-            setSearchTerm(e.target.value.toUpperCase());
+            changeKeepingCaret(e, setSearchTerm);
             setCurrentPage(1);
           }}
           style={{ width: '100%', padding: '10px', fontSize: '14px', borderRadius: '4px', border: '1px solid #ced4da', textTransform: 'uppercase' }}

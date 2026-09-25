@@ -4,6 +4,7 @@ import Pagination from './shared/Pagination';
 import { exportToExcel } from '../utils/exportUtils';
 import { showDeleteConfirm, showError, showSuccess } from '../utils/swal';
 import { apiFetch, apiUrl } from '../lib/apiClient';
+import { changeKeepingCaret } from '../hooks/useCaretTransform';
 
 type Kind = 'neumatico' | 'llanta';
 
@@ -177,7 +178,7 @@ const TipoDanoCatalogoView: React.FC<{ kind: Kind }> = ({ kind }) => {
                 id={`dano-cod-${kind}`}
                 className="form-input"
                 value={codigo}
-                onChange={(e) => setCodigo(e.target.value.toUpperCase())}
+                onChange={(e) => changeKeepingCaret(e, setCodigo)}
                 required
                 autoComplete="off"
                 style={{ textTransform: 'uppercase' }}
@@ -189,7 +190,7 @@ const TipoDanoCatalogoView: React.FC<{ kind: Kind }> = ({ kind }) => {
                 id={`dano-desc-${kind}`}
                 className="form-input"
                 value={descripcion}
-                onChange={(e) => setDescripcion(e.target.value.toUpperCase())}
+                onChange={(e) => changeKeepingCaret(e, setDescripcion)}
                 required
                 autoComplete="off"
                 style={{ textTransform: 'uppercase' }}

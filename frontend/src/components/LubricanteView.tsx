@@ -5,6 +5,7 @@ import SearchableSelect from './shared/SearchableSelect';
 import { exportToExcel } from '../utils/exportUtils';
 import { showDeleteConfirm, showError, showSuccess } from '../utils/swal';
 import { apiFetch, apiUrl } from '../lib/apiClient';
+import { changeKeepingCaret } from '../hooks/useCaretTransform';
 
 interface Lubricante {
   idlubricante_70: number;
@@ -200,7 +201,7 @@ const LubricanteView: React.FC = () => {
 
   const setUpper = (key: 'cob_lubricante_70' | 'descripcion_70') =>
     (e: React.ChangeEvent<HTMLInputElement>) => {
-      setForm((prev) => ({ ...prev, [key]: e.target.value.toUpperCase() }));
+      changeKeepingCaret(e, (v) => setForm((prev) => ({ ...prev, [key]: v })));
     };
 
   if (loading) return <div className="loading">Cargando catálogo de lubricantes...</div>;
@@ -323,7 +324,7 @@ const LubricanteView: React.FC = () => {
           style={{ flex: 1, minWidth: 220 }}
           placeholder="Buscar código, descripción o marca..."
           value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value.toUpperCase())}
+          onChange={(e) => changeKeepingCaret(e, setSearchTerm)}
           aria-label="Buscar lubricantes"
         />
         <select

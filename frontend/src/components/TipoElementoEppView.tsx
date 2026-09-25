@@ -6,6 +6,7 @@ import SearchableSelect from './shared/SearchableSelect';
 import { exportToExcel } from '../utils/exportUtils';
 import { showDeleteConfirm, showError, showSuccess } from '../utils/swal';
 import { apiFetch, apiUrl } from '../lib/apiClient';
+import { changeKeepingCaret } from '../hooks/useCaretTransform';
 
 interface ClaseElemento {
   idclase_56: number;
@@ -295,7 +296,7 @@ const TipoElementoEppView: React.FC = () => {
                   id="tipo_elemento_51"
                   className="form-input"
                   value={form.tipo_elemento_51}
-                  onChange={(e) => setForm((p) => ({ ...p, tipo_elemento_51: e.target.value.toUpperCase() }))}
+                  onChange={(e) => changeKeepingCaret(e, (v) => setForm((p) => ({ ...p, tipo_elemento_51: v })))}
                   required
                   maxLength={100}
                 />
@@ -306,7 +307,7 @@ const TipoElementoEppView: React.FC = () => {
                   id="descripcion_51"
                   className="form-input"
                   value={form.descripcion_51}
-                  onChange={(e) => setForm((p) => ({ ...p, descripcion_51: e.target.value.toUpperCase() }))}
+                  onChange={(e) => changeKeepingCaret(e, (v) => setForm((p) => ({ ...p, descripcion_51: v })))}
                 />
               </div>
               <div className="form-group">
@@ -339,7 +340,7 @@ const TipoElementoEppView: React.FC = () => {
           className="form-input epp-search"
           placeholder="🔍 BUSCAR TIPO O CLASE..."
           value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value.toUpperCase())}
+          onChange={(e) => changeKeepingCaret(e, setSearchTerm)}
           aria-label="Buscar tipos"
         />
       </div>
