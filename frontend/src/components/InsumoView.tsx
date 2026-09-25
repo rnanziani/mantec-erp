@@ -5,6 +5,7 @@ import { exportToExcel } from '../utils/exportUtils';
 import { showDeleteConfirm, showSuccess, showError } from '../utils/swal';
 import { apiUrl } from '../lib/apiClient';
 import { normalizeCodigoInsumoInput, padCodigoInsumo } from '../utils/codigoInsumo';
+import { useCaretTransform } from '../hooks/useCaretTransform';
 import SearchableSelect from './shared/SearchableSelect';
 
 interface Insumo {
@@ -65,6 +66,12 @@ const InsumoView: React.FC = () => {
   const API_URL = apiUrl('/insumos');
   const CATEG_URL = apiUrl('/categorias');
   const MARCAS_URL = apiUrl('/marcas-insumo');
+
+  const descripcionInput = useCaretTransform(descripcion, setDescripcion, (raw) =>
+    raw.toUpperCase()
+  );
+  const codigoInput = useCaretTransform(codigo, setCodigo, normalizeCodigoInsumoInput);
+  const searchInput = useCaretTransform(searchTerm, setSearchTerm, (raw) => raw.toUpperCase());
 
   const applyCodigoPadding = () => {
     const padded = padCodigoInsumo(codigo);
@@ -401,11 +408,12 @@ const InsumoView: React.FC = () => {
               <div className="form-group">
                 <label htmlFor="descripcion">Descripción: *</label>
                 <input
+                  ref={descripcionInput.ref}
                   type="text"
                   id="descripcion"
                   className="form-input"
                   value={descripcion}
-                  onChange={(e) => setDescripcion(e.target.value.toUpperCase())}
+                  onChange={descripcionInput.onChange}
                   placeholder="Ej: MANGUERA REFRIGERACION..."
                   style={{ textTransform: 'uppercase' }}
                   maxLength={255}
@@ -431,11 +439,12 @@ const InsumoView: React.FC = () => {
               <div className="form-group">
                 <label htmlFor="codigo">Código:</label>
                 <input
+                  ref={codigoInput.ref}
                   type="text"
                   id="codigo"
                   className="form-input"
                   value={codigo}
-                  onChange={(e) => setCodigo(normalizeCodigoInsumoInput(e.target.value))}
+                  onChange={codigoInput.onChange}
                   onBlur={() => { if (codigo.trim()) applyCodigoPadding(); }}
                   placeholder="Ej: JBM54144 (se completa con ceros)"
                   maxLength={20}
@@ -499,14 +508,12 @@ const InsumoView: React.FC = () => {
           <div className="form-group insumo-filter-buscar">
             <label htmlFor="buscar-insumo">Buscar</label>
             <input
+              ref={searchInput.ref}
               id="buscar-insumo"
               type="text"
               placeholder="🔍 Descripción, código, marca, categoría o precio..."
               value={searchTerm}
-              onChange={(e) => {
-                setSearchTerm(e.target.value.toUpperCase());
-                setCurrentPage(1);
-              }}
+              onChange={searchInput.onChange}
               className="form-input"
               style={{ textTransform: 'uppercase' }}
               aria-label="Buscar insumo"
