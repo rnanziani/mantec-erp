@@ -44,7 +44,7 @@ interface Garantia {
 const ESTADOS: Record<string, string> = {
   MAQUINA_A_BODEGA: 'Máquina → Bodega',
   BODEGA_A_PROVEEDOR: 'Bodega → Proveedor',
-  PROVEEDOR_A_BODEGA: 'Proveedor → Bodega',
+  PROVEEDOR_A_BODEGA: 'Proveedor → Bodega (disponible)',
   BODEGA_A_MAQUINA: 'Bodega → Máquina',
 };
 

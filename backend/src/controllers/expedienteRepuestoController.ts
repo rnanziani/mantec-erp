@@ -252,9 +252,10 @@ export const createExpediente = async (req: Request, res: Response): Promise<voi
     const valor = toTotal(toMoney(body.valor_reparacion_86), cantidad);
     const fechaInst = toDate(body.fecha_instalacion_86);
     const idTecInst = body.idtecnico_instalacion_86 || null;
-    const idMaqInst = body.idmaquina_instalacion_86 || body.idmaquina_86;
+    const idMaqInstExplicit = body.idmaquina_instalacion_86 || null;
+    const idMaqInst = idMaqInstExplicit || body.idmaquina_86;
     const instala = Boolean(fechaInst && idTecInst && idMaqInst);
-    const instalaParcial = Boolean(fechaInst || idTecInst);
+    const instalaParcial = Boolean(fechaInst || idTecInst || idMaqInstExplicit);
 
     if (origen === 'STOCK_PREVIO') {
       if (!fechaVuelta) {
@@ -274,7 +275,7 @@ export const createExpediente = async (req: Request, res: Response): Promise<voi
       if (instalaParcial && !instala) {
         res.status(400).json({
           success: false,
-          error: 'Si ya se entrega a máquina complete fecha, técnico y máquina de instalación',
+          error: 'Si ya se instaló complete fecha, técnico y máquina de instalación',
         });
         return;
       }
@@ -410,9 +411,10 @@ export const updateExpediente = async (req: Request, res: Response): Promise<voi
     const fechaInst = toDate(row.fecha_instalacion_86) || toDate(body.fecha_instalacion_86);
     const idTecInst = row.idtecnico_instalacion_86
       || (body.idtecnico_instalacion_86 !== undefined ? body.idtecnico_instalacion_86 : null);
-    const idMaqInst = row.idmaquina_instalacion_86
-      || body.idmaquina_instalacion_86
-      || row.idmaquina_86;
+    const idMaqInstGuardado = row.idmaquina_instalacion_86 || body.idmaquina_instalacion_86 || null;
+    const idMaqInst = nuevoIdx >= 3
+      ? (idMaqInstGuardado || row.idmaquina_86)
+      : idMaqInstGuardado;
     const cerrado = row.estado_86 === 'BODEGA_A_MAQUINA';
     const valorReparacion = cerrado
       ? Number(row.valor_reparacion_86 ?? 0)

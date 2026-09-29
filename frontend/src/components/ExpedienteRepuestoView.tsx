@@ -15,7 +15,7 @@ type Estado =
 const ESTADOS: { value: Estado; label: string }[] = [
   { value: 'MAQUINA_A_BODEGA', label: 'Máquina → Bodega' },
   { value: 'BODEGA_A_PROVEEDOR', label: 'Bodega → Proveedor' },
-  { value: 'PROVEEDOR_A_BODEGA', label: 'Proveedor → Bodega' },
+  { value: 'PROVEEDOR_A_BODEGA', label: 'Proveedor → Bodega (disponible)' },
   { value: 'BODEGA_A_MAQUINA', label: 'Bodega → Máquina' },
 ];
 
@@ -159,6 +159,7 @@ const ExpedienteRepuestoView: React.FC = () => {
   const [motivo, setMotivo] = useState('');
   const [obsInst, setObsInst] = useState('');
   const [origenAlta, setOrigenAlta] = useState<'CICLO' | 'STOCK_PREVIO'>('CICLO');
+  const [instalarAhora, setInstalarAhora] = useState(false);
 
   const origenCongelado = Boolean(editingId && estadoGuardado !== 'MAQUINA_A_BODEGA');
 
@@ -289,6 +290,7 @@ const ExpedienteRepuestoView: React.FC = () => {
     setMotivo('');
     setObsInst('');
     setOrigenAlta('CICLO');
+    setInstalarAhora(false);
     setShowForm(false);
   };
 
@@ -315,7 +317,7 @@ const ExpedienteRepuestoView: React.FC = () => {
     );
     setFechaInstalacion(fechaISO(e.fecha_instalacion_86));
     setIdTecnicoInst(e.idtecnico_instalacion_86 ? String(e.idtecnico_instalacion_86) : '');
-    setIdMaquinaInst(e.idmaquina_instalacion_86 ? String(e.idmaquina_instalacion_86) : String(e.idmaquina_86));
+    setIdMaquinaInst(e.idmaquina_instalacion_86 ? String(e.idmaquina_instalacion_86) : '');
     setMotivo(e.motivo_86 || '');
     setObsInst(e.observacion_instalacion_86 || '');
     setOrigenAlta(e.origen_alta_86 === 'STOCK_PREVIO' ? 'STOCK_PREVIO' : 'CICLO');
@@ -357,15 +359,15 @@ const ExpedienteRepuestoView: React.FC = () => {
       await showError('Validación', 'Indique la fecha en que el juego quedó disponible en bodega');
       return;
     }
-    const instalaParcial = Boolean(fechaInstalacion || idTecnicoInst);
+    const guardarEnBodega = esStock && !editingId && !instalarAhora;
     const instala = Boolean(fechaInstalacion && idTecnicoInst && idMaquinaInst);
-    if (esStock && !editingId && instalaParcial && !instala) {
-      await showError('Validación', 'Si ya se lo pasó al técnico complete fecha, técnico y máquina de instalación');
+    if (esStock && !editingId && instalarAhora && !instala) {
+      await showError('Validación', 'Si ya se instaló complete fecha, técnico y máquina de instalación');
       return;
     }
     const payload: Record<string, unknown> = {
       estado_86: !editingId && esStock
-        ? (instala ? 'BODEGA_A_MAQUINA' : 'PROVEEDOR_A_BODEGA')
+        ? (instala && !guardarEnBodega ? 'BODEGA_A_MAQUINA' : 'PROVEEDOR_A_BODEGA')
         : estado,
       origen_alta_86: origenAlta,
       idmaquina_86: Number(idMaquina),
@@ -380,11 +382,11 @@ const ExpedienteRepuestoView: React.FC = () => {
       fecha_entrega_proveedor_86: fechaEntrega || null,
       fecha_vuelta_86: fechaVuelta || null,
       valor_reparacion_86: parsePesos(valorReparacion),
-      fecha_instalacion_86: fechaInstalacion || null,
-      idtecnico_instalacion_86: idTecnicoInst ? Number(idTecnicoInst) : null,
-      idmaquina_instalacion_86: idMaquinaInst ? Number(idMaquinaInst) : null,
+      fecha_instalacion_86: guardarEnBodega ? null : (fechaInstalacion || null),
+      idtecnico_instalacion_86: guardarEnBodega ? null : (idTecnicoInst ? Number(idTecnicoInst) : null),
+      idmaquina_instalacion_86: guardarEnBodega ? null : (idMaquinaInst ? Number(idMaquinaInst) : null),
       motivo_86: (motivo.trim() || (esStock ? 'STOCK PREVIO AL SISTEMA' : '')) || null,
-      observacion_instalacion_86: obsInst.trim() || null,
+      observacion_instalacion_86: guardarEnBodega ? null : (obsInst.trim() || null),
     };
     try {
       const res = await apiFetch(editingId ? `${API_URL}/${editingId}` : API_URL, {
@@ -430,11 +432,12 @@ const ExpedienteRepuestoView: React.FC = () => {
   const esStock = origenAlta === 'STOCK_PREVIO';
   const mostrarProveedor = idx >= 1 && !esStock;
   const mostrarVuelta = idx >= 2 || esStock;
-  const mostrarInstalacion = idx >= 3 || (!editingId && esStock);
+  const mostrarInstalacion = idx >= 3 || (!editingId && esStock && instalarAhora);
   const freezeProv = Boolean(editingId) && idxGuardado >= 1;
   const freezeVuelta = Boolean(editingId) && idxGuardado >= 2;
   const freezeValor = Boolean(editingId) && idxGuardado >= 3;
   const freezeInst = Boolean(editingId) && idxGuardado >= 3;
+  const instalaRequerida = (idx >= 3 || instalarAhora) && !freezeInst;
   const freezeCantidad = Boolean(editingId) && !(
     estadoGuardado === 'MAQUINA_A_BODEGA'
     || (esStock && estadoGuardado === 'PROVEEDOR_A_BODEGA')
@@ -493,7 +496,7 @@ const ExpedienteRepuestoView: React.FC = () => {
           </h3>
           <p style={{ marginTop: 0, color: '#6b7280', fontSize: 14 }}>
             {esStock
-              ? 'Es otro juego, no el dañado que acaba de entrar. EXP dañado se queda en bodega (irá a proveedor). Este folio es el reparado que ya tenían y se monta en la máquina.'
+              ? 'Es otro juego, no el dañado que acaba de entrar. Queda disponible en bodega hasta que lo instalen. Si ya se montó, marque la casilla de instalación.'
               : 'Un viaje = una fila. Las fechas ya grabadas no se pisan. Un daño nuevo después de instalar es otro expediente.'}
           </p>
           <form ref={formRef} onSubmit={handleSubmit}>
@@ -519,32 +522,40 @@ const ExpedienteRepuestoView: React.FC = () => {
 
             <div className="form-row form-row-3">
               <div className="form-group">
-                <label htmlFor="exp-maq">{esStock ? 'Máquina donde se monta *' : 'Máquina *'}</label>
+                <label htmlFor="exp-maq">{esStock ? 'Máquina de referencia *' : 'Máquina *'}</label>
                 <SearchableSelect
                   id="exp-maq"
                   value={idMaquina}
-                  onChange={(v) => { setIdMaquina(v); if (!idMaquinaInst) setIdMaquinaInst(v); }}
+                  onChange={(v) => {
+                    setIdMaquina(v);
+                    if ((!esStock || instalarAhora) && !idMaquinaInst) setIdMaquinaInst(v);
+                  }}
                   options={maquinaOptions}
                   placeholder="Buscar máquina..."
                   required
                   disabled={origenCongelado}
-                  aria-label="Máquina de origen"
+                  aria-label={esStock ? 'Máquina de referencia en bodega' : 'Máquina de origen'}
                 />
+                {esStock && (
+                  <small className="form-help-text">
+                    Taller o máquina a la que se asocia el juego. No significa que ya se montó.
+                  </small>
+                )}
               </div>
               <div className="form-group">
-                <label htmlFor="exp-tec">{esStock ? 'Técnico que instala / referencia *' : 'Técnico *'}</label>
+                <label htmlFor="exp-tec">{esStock ? 'Técnico de referencia *' : 'Técnico *'}</label>
                 <SearchableSelect
                   id="exp-tec"
                   value={idTecnico}
                   onChange={(v) => {
                     setIdTecnico(v);
-                    if (esStock && !idTecnicoInst) setIdTecnicoInst(v);
+                    if (esStock && instalarAhora && !idTecnicoInst) setIdTecnicoInst(v);
                   }}
                   options={tecnicoOptions}
                   placeholder="Buscar técnico..."
                   required
                   disabled={origenCongelado}
-                  aria-label="Técnico de origen"
+                  aria-label={esStock ? 'Técnico de referencia' : 'Técnico de origen'}
                 />
               </div>
               <div className="form-group">
@@ -671,20 +682,50 @@ const ExpedienteRepuestoView: React.FC = () => {
               </div>
             )}
 
+            {!editingId && esStock && (
+              <div className="checkbox-group" style={{ margin: '12px 0 4px' }}>
+                <label htmlFor="exp-instalar-ahora">
+                  <input
+                    id="exp-instalar-ahora"
+                    type="checkbox"
+                    checked={instalarAhora}
+                    onChange={(e) => {
+                      const on = e.target.checked;
+                      setInstalarAhora(on);
+                      if (on) {
+                        if (!idTecnicoInst) setIdTecnicoInst(idTecnico);
+                        if (!idMaquinaInst) setIdMaquinaInst(idMaquina);
+                      } else {
+                        setFechaInstalacion('');
+                        setIdTecnicoInst('');
+                        setIdMaquinaInst('');
+                        setObsInst('');
+                      }
+                    }}
+                    aria-describedby="exp-instalar-ahora-help"
+                  />
+                  Ya se instaló en una máquina
+                </label>
+                <small className="form-help-text" id="exp-instalar-ahora-help">
+                  Si no, el juego queda disponible en bodega. La instalación se registra después, avanzando a Bodega → Máquina.
+                </small>
+              </div>
+            )}
+
             {mostrarInstalacion && (
               <>
                 <div className="form-row form-row-3">
                   <div className="form-group">
-                    <label htmlFor="exp-finst">Fecha instalación {idx >= 3 ? '*' : '(si ya se entregó)'}</label>
-                    <input id="exp-finst" className="form-input" type="date" value={fechaInstalacion} onChange={(e) => setFechaInstalacion(e.target.value)} required={idx >= 3 && !freezeInst} disabled={freezeInst} />
+                    <label htmlFor="exp-finst">Fecha instalación {instalaRequerida ? '*' : ''}</label>
+                    <input id="exp-finst" className="form-input" type="date" value={fechaInstalacion} onChange={(e) => setFechaInstalacion(e.target.value)} required={instalaRequerida} disabled={freezeInst} />
                   </div>
                   <div className="form-group">
-                    <label htmlFor="exp-tecinst">Técnico instalación {idx >= 3 ? '*' : ''}</label>
-                    <SearchableSelect id="exp-tecinst" value={idTecnicoInst} onChange={setIdTecnicoInst} options={tecnicoOptions} placeholder="Buscar técnico..." required={idx >= 3 && !freezeInst} disabled={freezeInst} aria-label="Técnico instalación" />
+                    <label htmlFor="exp-tecinst">Técnico instalación {instalaRequerida ? '*' : ''}</label>
+                    <SearchableSelect id="exp-tecinst" value={idTecnicoInst} onChange={setIdTecnicoInst} options={tecnicoOptions} placeholder="Buscar técnico..." required={instalaRequerida} disabled={freezeInst} aria-label="Técnico instalación" />
                   </div>
                   <div className="form-group">
-                    <label htmlFor="exp-maqinst">Máquina instalación {idx >= 3 ? '*' : ''}</label>
-                    <SearchableSelect id="exp-maqinst" value={idMaquinaInst} onChange={setIdMaquinaInst} options={maquinaOptions} placeholder="Buscar máquina..." required={idx >= 3 && !freezeInst} disabled={freezeInst} aria-label="Máquina instalación" />
+                    <label htmlFor="exp-maqinst">Máquina instalación {instalaRequerida ? '*' : ''}</label>
+                    <SearchableSelect id="exp-maqinst" value={idMaquinaInst} onChange={setIdMaquinaInst} options={maquinaOptions} placeholder="Buscar máquina..." required={instalaRequerida} disabled={freezeInst} aria-label="Máquina instalación" />
                   </div>
                 </div>
                 <div className="form-row form-row-3">
@@ -772,6 +813,9 @@ const ExpedienteRepuestoView: React.FC = () => {
                   <td>{r.folio_86}</td>
                   <td>
                     {labelEstado(r.estado_86)}
+                    {r.estado_86 === 'PROVEEDOR_A_BODEGA' && (
+                      <div style={{ fontSize: 12, color: '#6b7280' }}>Disponible en bodega</div>
+                    )}
                     {r.origen_alta_86 === 'STOCK_PREVIO' && (
                       <div style={{ fontSize: 12, color: '#6b7280' }}>Stock previo</div>
                     )}
