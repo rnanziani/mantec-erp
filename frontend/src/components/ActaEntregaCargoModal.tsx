@@ -11,6 +11,7 @@ interface ActaHerramienta {
   serie: string;
   cantidad: number;
   valorFmt: string;
+  estado: string;
 }
 
 interface ActaEntregaCargo {
@@ -195,13 +196,14 @@ const ActaEntregaCargoModal: React.FC<ActaEntregaCargoModalProps> = ({ entregaId
                     <th scope="col" style={{ width: '90px' }}>Marca</th>
                     <th scope="col" style={{ width: '60px' }}>Cant.</th>
                     <th scope="col" style={{ width: '90px' }}>Valor</th>
+                    <th scope="col" style={{ width: '80px' }}>Estado</th>
                     <th scope="col" style={{ width: '110px' }}>Fecha de Entrega (DD/MM/AA)</th>
                   </tr>
                 </thead>
                 <tbody>
                   {acta.herramientas.length === 0 ? (
                     <tr>
-                      <td colSpan={6}>Sin herramientas</td>
+                      <td colSpan={7}>Sin herramientas</td>
                     </tr>
                   ) : (
                     acta.herramientas.map((h, i) => (
@@ -214,6 +216,7 @@ const ActaEntregaCargoModal: React.FC<ActaEntregaCargoModalProps> = ({ entregaId
                         <td>{h.marca || '—'}</td>
                         <td>{h.cantidad}</td>
                         <td>{h.valorFmt}</td>
+                        <td>{h.estado || '—'}</td>
                         <td>{acta.fechaEntrega}</td>
                       </tr>
                     ))

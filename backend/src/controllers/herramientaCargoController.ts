@@ -7,7 +7,7 @@ import {
 } from '../types.js';
 
 const TABLA = 'tbl_66_herramienta_cargo';
-const ESTADOS = new Set(['DISPONIBLE', 'A_CARGO', 'EN_MANTENCION', 'PERDIDA', 'DANADA', 'DE_BAJA']);
+const ESTADOS = new Set(['NUEVO', 'DISPONIBLE', 'A_CARGO', 'EN_MANTENCION', 'PERDIDA', 'DANADA', 'DE_BAJA']);
 
 function normalizeText(value: unknown): string | null {
   if (value == null) return null;
@@ -73,7 +73,7 @@ export const createHerramientaCargo = async (req: Request, res: Response): Promi
       res.status(400).json({ success: false, error: 'Stock inválido' });
       return;
     }
-    const estado = String(body.estado_66 || 'DISPONIBLE').toUpperCase();
+    const estado = String(body.estado_66 || 'NUEVO').toUpperCase();
     if (!ESTADOS.has(estado)) {
       res.status(400).json({ success: false, error: 'Estado inválido' });
       return;

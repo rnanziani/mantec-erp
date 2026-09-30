@@ -42,6 +42,7 @@ const TABLA_D = 'tbl_68_d_entrega_cargo';
 const TABLA_H = 'tbl_66_herramienta_cargo';
 const TABLA_DEV = 'tbl_69_devolucion_cargo';
 const ESTADOS_DEV = new Set(['BUENA', 'REGULAR', 'DANADA', 'PERDIDA']);
+const ESTADOS_ENTREGA = new Set(['NUEVO', 'BUENA', 'REGULAR', 'DANADA']);
 
 const MAESTRO_SELECT = `
   SELECT
@@ -283,7 +284,13 @@ export const createEntregaCargo = async (req: Request, res: Response): Promise<v
           idMaestro,
           d.idherramienta_68,
           d.cantidad_68,
-          String(d.estado_entrega_68 || 'BUENA').toUpperCase(),
+          (() => {
+            const estadoEnt = String(d.estado_entrega_68 || 'BUENA').toUpperCase();
+            if (!ESTADOS_ENTREGA.has(estadoEnt)) {
+              throw new Error(`Estado de entrega inválido: ${estadoEnt}`);
+            }
+            return estadoEnt;
+          })(),
           d.observacion_68?.trim() || null,
         ]
       );
@@ -666,6 +673,7 @@ type ActaHerramientaCargo = {
     cantidad: number;
     valor: number;
     valorFmt: string;
+    estado: string;
   }>;
   observacion: string | null;
   declaraciones: {
@@ -720,6 +728,7 @@ async function cargarDatosActaCargo(id: string): Promise<ActaHerramientaCargo | 
       cantidad: Number(d.cantidad_68 || 0),
       valor: Number(d.herramienta_valor || 0),
       valorFmt: formatClp(d.herramienta_valor),
+      estado: d.estado_entrega_68 || '—',
     })),
     observacion: m.observacion_67 || null,
     declaraciones: {
@@ -802,6 +811,7 @@ export const getActaPdfEntregaCargo = async (req: Request, res: Response): Promi
       { text: 'Marca', style: 'gridHeader', alignment: 'center' },
       { text: 'Cant.', style: 'gridHeader', alignment: 'center' },
       { text: 'Valor', style: 'gridHeader', alignment: 'center' },
+      { text: 'Estado', style: 'gridHeader', alignment: 'center' },
       { text: 'Fecha de Entrega\n(DD/MM/AA)', style: 'gridHeader', alignment: 'center' },
     ];
     const itemsBody: unknown[] = [itemsHeader];
@@ -815,11 +825,13 @@ export const getActaPdfEntregaCargo = async (req: Request, res: Response): Promi
         { text: h.marca || '—', style: 'gridCell', alignment: 'center' },
         { text: String(h.cantidad), style: 'gridCell', alignment: 'center' },
         { text: h.valorFmt, style: 'gridCell', alignment: 'right' },
+        { text: h.estado || '—', style: 'gridCell', alignment: 'center' },
         { text: acta.fechaEntrega, style: 'gridCell', alignment: 'center' },
       ]);
     });
     if (itemsBody.length === 1) {
       itemsBody.push([
+        { text: '', style: 'gridCell' },
         { text: '', style: 'gridCell' },
         { text: '', style: 'gridCell' },
         { text: '', style: 'gridCell' },
@@ -931,7 +943,7 @@ export const getActaPdfEntregaCargo = async (req: Request, res: Response): Promi
         {
           table: {
             headerRows: 1,
-            widths: [28, '*', 70, 40, 70, 80],
+            widths: [24, '*', 62, 34, 58, 58, 72],
             body: itemsBody,
           },
           layout: {

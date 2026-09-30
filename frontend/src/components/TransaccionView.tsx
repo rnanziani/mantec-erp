@@ -4,6 +4,7 @@ import './BodegaView.css'; // Reutilizamos los mismos estilos que TipoTransaccio
 import { apiUrl, openAuthenticatedBlob } from '../lib/apiClient';
 import SearchableSelect from './shared/SearchableSelect';
 import { changeKeepingCaret } from '../hooks/useCaretTransform';
+import { exportToExcel } from '../utils/exportUtils';
 
 /** DATE de PostgreSQL llega como YYYY-MM-DD; slice evita el desfase UTC. */
 function toFechaISO(value?: string): string {
@@ -35,6 +36,7 @@ interface Transaccion {
   maquina_numinterno?: string;
   maquina_ppu?: string;
   tipo_comp_descripcion?: string;
+  precio_insumo?: number | null;
 }
 
 interface Alternador {
@@ -678,6 +680,15 @@ const TransaccionView: React.FC = () => {
     return '➖ 0';
   };
 
+  const formatValorInsumo = (n?: number | null) => {
+    if (n == null || Number.isNaN(Number(n))) return '—';
+    return Number(n).toLocaleString('es-CL', {
+      style: 'currency',
+      currency: 'CLP',
+      maximumFractionDigits: 0,
+    });
+  };
+
   const handleVistaPrevia = async () => {
     // Validar fechas requeridas
     if (!reportFechaDesde || !reportFechaHasta) {
@@ -778,6 +789,42 @@ const TransaccionView: React.FC = () => {
     setReportIdDestino('');
     setReportIdMaquina('');
     setReportIdAlternador('');
+  };
+
+  const handleExportExcel = () => {
+    if (previewData.length === 0) {
+      void showWarning('Excel', 'No hay transacciones para exportar');
+      return;
+    }
+    const fechaExcel = (v?: string) => {
+      const iso = toFechaISO(v);
+      if (!iso) return '';
+      const [y, m, d] = iso.split('-');
+      return `${d}/${m}/${y}`;
+    };
+    exportToExcel(
+      previewData.map((t) => ({
+        ID: t.id_transaccion_28,
+        Fecha: fechaExcel(t.fecha_28),
+        Hora: t.hora_28 || '',
+        Alternador: t.cod_alternador_19 || '',
+        Marca: t.marca_18 || '',
+        Origen: t.ubicacion_origen_descripcion || '',
+        Destino: t.ubicacion_destino_descripcion || '',
+        Tipo: [t.tipo_codigo, t.tipo_descripcion].filter(Boolean).join(' - '),
+        Técnico: t.tecnico_nombre || '',
+        Máquina: [t.maquina_numinterno, t.maquina_ppu ? `(${t.maquina_ppu})` : '']
+          .filter(Boolean)
+          .join(' '),
+        'Tipo Componente': t.tipo_comp_descripcion || '',
+        Valor: t.precio_insumo == null || Number.isNaN(Number(t.precio_insumo))
+          ? ''
+          : Number(t.precio_insumo),
+        Observación: t.observacion_28 || '',
+      })),
+      `transacciones-${reportFechaDesde || 'reporte'}-${reportFechaHasta || ''}`.replace(/-+$/, ''),
+      'Transacciones'
+    );
   };
 
   return (
@@ -1339,6 +1386,15 @@ const TransaccionView: React.FC = () => {
                   📥 Generar PDF
                 </button>
                 <button
+                  type="button"
+                  className="btn-primary"
+                  onClick={handleExportExcel}
+                  disabled={previewData.length === 0}
+                  style={{ backgroundColor: '#17a2b8' }}
+                >
+                  Excel
+                </button>
+                <button
                   className="btn-secondary"
                   onClick={() => {
                     setShowPreview(false);
@@ -1380,13 +1436,14 @@ const TransaccionView: React.FC = () => {
                     <th style={{ padding: '10px', textAlign: 'left', border: '1px solid #ddd', width: '140px', minWidth: '140px' }}>Técnico</th>
                     <th style={{ padding: '10px', textAlign: 'left', border: '1px solid #ddd', width: '120px', minWidth: '120px' }}>Máquina</th>
                     <th style={{ padding: '10px', textAlign: 'left', border: '1px solid #ddd', width: '150px', minWidth: '150px' }}>Tipo Componente</th>
+                    <th style={{ padding: '10px', textAlign: 'right', border: '1px solid #ddd', width: '90px', minWidth: '90px' }}>Valor</th>
                     <th style={{ padding: '10px', textAlign: 'left', border: '1px solid #ddd', width: '160px', minWidth: '160px' }}>Observación</th>
                   </tr>
                 </thead>
                 <tbody>
                   {previewData.length === 0 ? (
                     <tr>
-                      <td colSpan={12} style={{ padding: '20px', textAlign: 'center', color: '#999' }}>
+                      <td colSpan={13} style={{ padding: '20px', textAlign: 'center', color: '#999' }}>
                         No hay transacciones para mostrar
                       </td>
                     </tr>
@@ -1420,6 +1477,7 @@ const TransaccionView: React.FC = () => {
                             {t.maquina_ppu && ` (${t.maquina_ppu})`}
                           </td>
                           <td style={{ padding: '8px', textAlign: 'left', border: '1px solid #ddd', width: '150px' }}>{t.tipo_comp_descripcion || 'N/A'}</td>
+                          <td style={{ padding: '8px', textAlign: 'right', border: '1px solid #ddd', width: '90px' }}>{formatValorInsumo(t.precio_insumo)}</td>
                           <td style={{ padding: '8px', textAlign: 'left', border: '1px solid #ddd', width: '160px' }}>{t.observacion_28 || '—'}</td>
                         </tr>
                       );

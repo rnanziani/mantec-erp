@@ -10,6 +10,13 @@ function normalizarObservacionMovimiento(value: unknown): string | null {
   return t ? t.slice(0, 250) : null;
 }
 
+function formatClp(n?: number | string | null): string {
+  if (n == null || n === '') return '—';
+  const v = Number(n);
+  if (!Number.isFinite(v)) return '—';
+  return v.toLocaleString('es-CL', { style: 'currency', currency: 'CLP', maximumFractionDigits: 0 });
+}
+
 function normalizarUbicacion(nombre: string): string {
   return String(nombre || '')
     .normalize('NFD')
@@ -666,7 +673,9 @@ export const getTransaccionesFiltradas = async (req: Request, res: Response): Pr
         tt.valor_accion_25 AS valor_accion,
         CONCAT(tec.nombres_21, ' ', tec.a_paterno_21, ' ', tec.a_materno_21) AS tecnico_nombre,
         maq.numinterno_11 AS maquina_numinterno,
-        maq.ppu_11 AS maquina_ppu
+        maq.ppu_11 AS maquina_ppu,
+        tc.tipo_comp_alternador_30 AS tipo_comp_descripcion,
+        ins.precio_insumo
       FROM tbl_28_transaccion t
       INNER JOIN tbl_19_alternador a ON t.id_alternador_28 = a.id_alternador_19
       LEFT JOIN tbl_18_marca_alternador m ON a.id_marca_19 = m.id_marca_18
@@ -675,6 +684,24 @@ export const getTransaccionesFiltradas = async (req: Request, res: Response): Pr
       INNER JOIN tbl_25_tipo_transaccion tt ON t.id_tipo_transaccion_28 = tt.id_tipo_transaccion_25
       LEFT JOIN tbl_21_tecnico tec ON t.id_tecnico_28 = tec.id_tecnico_21
       LEFT JOIN tbl_11_maquina maq ON t.id_maquina_28 = maq.idmaquina_11
+      LEFT JOIN tbl_30_tipo_comp_alternador tc ON a.id_tipo_comp_alternador_19 = tc.id_tipo_comp_alternador_30
+      LEFT JOIN LATERAL (
+        SELECT i.precio_insumo_43 AS precio_insumo
+        FROM tbl_43_insumo i
+        LEFT JOIN tbl_37_marca_insumo mi ON mi.id_marca_insumo_37 = i.id_marca_insumo_43
+        WHERE TRIM(COALESCE(m.marca_18, '')) <> ''
+          AND (
+            UPPER(TRIM(COALESCE(mi.marca_insumo_37, ''))) = UPPER(TRIM(m.marca_18))
+            OR UPPER(TRIM(i.descripcion_43)) LIKE '%' || UPPER(TRIM(m.marca_18)) || '%'
+          )
+        ORDER BY
+          CASE
+            WHEN UPPER(TRIM(COALESCE(mi.marca_insumo_37, ''))) = UPPER(TRIM(m.marca_18)) THEN 0
+            ELSE 1
+          END,
+          i.id_insumo_43
+        LIMIT 1
+      ) ins ON TRUE
       WHERE t.fecha_28 >= $1 AND t.fecha_28 <= $2
     `;
 
@@ -768,7 +795,8 @@ export const generarReportePDF = async (req: Request, res: Response): Promise<vo
         CONCAT(tec.nombres_21, ' ', tec.a_paterno_21, ' ', tec.a_materno_21) AS tecnico_nombre,
         maq.numinterno_11 AS maquina_numinterno,
         maq.ppu_11 AS maquina_ppu,
-        tc.tipo_comp_alternador_30 AS tipo_comp_descripcion
+        tc.tipo_comp_alternador_30 AS tipo_comp_descripcion,
+        ins.precio_insumo
       FROM tbl_28_transaccion t
       INNER JOIN tbl_19_alternador a ON t.id_alternador_28 = a.id_alternador_19
       LEFT JOIN tbl_18_marca_alternador m ON a.id_marca_19 = m.id_marca_18
@@ -778,6 +806,23 @@ export const generarReportePDF = async (req: Request, res: Response): Promise<vo
       LEFT JOIN tbl_21_tecnico tec ON t.id_tecnico_28 = tec.id_tecnico_21
       LEFT JOIN tbl_11_maquina maq ON t.id_maquina_28 = maq.idmaquina_11
       LEFT JOIN tbl_30_tipo_comp_alternador tc ON a.id_tipo_comp_alternador_19 = tc.id_tipo_comp_alternador_30
+      LEFT JOIN LATERAL (
+        SELECT i.precio_insumo_43 AS precio_insumo
+        FROM tbl_43_insumo i
+        LEFT JOIN tbl_37_marca_insumo mi ON mi.id_marca_insumo_37 = i.id_marca_insumo_43
+        WHERE TRIM(COALESCE(m.marca_18, '')) <> ''
+          AND (
+            UPPER(TRIM(COALESCE(mi.marca_insumo_37, ''))) = UPPER(TRIM(m.marca_18))
+            OR UPPER(TRIM(i.descripcion_43)) LIKE '%' || UPPER(TRIM(m.marca_18)) || '%'
+          )
+        ORDER BY
+          CASE
+            WHEN UPPER(TRIM(COALESCE(mi.marca_insumo_37, ''))) = UPPER(TRIM(m.marca_18)) THEN 0
+            ELSE 1
+          END,
+          i.id_insumo_43
+        LIMIT 1
+      ) ins ON TRUE
       WHERE t.fecha_28 >= $1 AND t.fecha_28 <= $2
     `;
 
@@ -881,6 +926,7 @@ export const generarReportePDF = async (req: Request, res: Response): Promise<vo
         { text: 'Tipo', style: 'tableHeader', alignment: 'left' },
         { text: 'Técnico', style: 'tableHeader', alignment: 'left' },
         { text: 'Máquina', style: 'tableHeader', alignment: 'left' },
+        { text: 'Valor', style: 'tableHeader', alignment: 'right' },
         { text: 'Observación', style: 'tableHeader', alignment: 'left' }
       ]
     ];
@@ -897,6 +943,7 @@ export const generarReportePDF = async (req: Request, res: Response): Promise<vo
         { text: t.tipo_descripcion || 'N/A', style: 'tableCell', alignment: 'left' },
         { text: t.tecnico_nombre || 'N/A', style: 'tableCell', alignment: 'left' },
         { text: t.maquina_numinterno ? `${t.maquina_numinterno}${t.maquina_ppu ? ` (${t.maquina_ppu})` : ''}` : 'N/A', style: 'tableCell', alignment: 'left' },
+        { text: formatClp(t.precio_insumo), style: 'tableCell', alignment: 'right' },
         { text: t.observacion_28 || '—', style: 'tableCell', alignment: 'left' }
       ]);
     });
@@ -1001,7 +1048,7 @@ export const generarReportePDF = async (req: Request, res: Response): Promise<vo
             // Máquina: 50% menos (130 -> 65), luego 30% menos adicional (65 -> 45), luego 10% más (45 -> 50), luego 10% más adicional (50 -> 55)
             // Técnico: 20% menos (150 -> 120), luego 10% más (120 -> 132)
             // Columna Impacto eliminada
-            widths: [42, 44, 32, 44, 52, 36, 36, 110, 100, 50, 95],
+            widths: [38, 42, 30, 42, 50, 34, 34, 100, 90, 48, 52, 80],
             body: tableBody
           },
           layout: {

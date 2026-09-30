@@ -854,6 +854,7 @@ export interface Transaccion {
   maquina_numinterno?: string; // Número interno de la máquina
   maquina_ppu?: string; // Patente de la máquina
   tipo_comp_descripcion?: string; // Descripción del tipo de componente del alternador
+  precio_insumo?: number | null;
 }
 
 /**

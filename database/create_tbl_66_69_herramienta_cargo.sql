@@ -32,7 +32,7 @@ CREATE TABLE IF NOT EXISTS public.tbl_66_herramienta_cargo (
     ),
     CONSTRAINT chk_tbl_66_valor_no_negativo CHECK (valor_66 >= 0),
     CONSTRAINT chk_tbl_66_estado_valido CHECK (
-        estado_66 IN ('DISPONIBLE', 'A_CARGO', 'EN_MANTENCION', 'PERDIDA', 'DANADA', 'DE_BAJA')
+        estado_66 IN ('NUEVO', 'DISPONIBLE', 'A_CARGO', 'EN_MANTENCION', 'PERDIDA', 'DANADA', 'DE_BAJA')
     )
 );
 
@@ -83,7 +83,7 @@ CREATE TABLE IF NOT EXISTS public.tbl_68_d_entrega_cargo (
         cantidad_devuelta_68 >= 0 AND cantidad_devuelta_68 <= cantidad_68
     ),
     CONSTRAINT chk_tbl_68_estado_entrega CHECK (
-        estado_entrega_68 IN ('BUENA', 'REGULAR', 'DANADA')
+        estado_entrega_68 IN ('NUEVO', 'BUENA', 'REGULAR', 'DANADA')
     )
 );
 

@@ -82,7 +82,7 @@ interface ApiResponse<T = unknown> {
   error?: string;
 }
 
-const ESTADOS_ENTREGA = ['BUENA', 'REGULAR', 'DANADA'] as const;
+const ESTADOS_ENTREGA = ['NUEVO', 'BUENA', 'REGULAR', 'DANADA'] as const;
 const ESTADOS_DEV = ['BUENA', 'REGULAR', 'DANADA', 'PERDIDA'] as const;
 
 const EntregaCargoView: React.FC = () => {
@@ -512,6 +512,8 @@ const EntregaCargoView: React.FC = () => {
                     setHerrSel(v);
                     const h = herramientas.find((x) => String(x.idherramienta_66) === v);
                     if (h?.serie_66) setCantSel('1');
+                    if (h?.estado_66 === 'NUEVO') setEstadoSel('NUEVO');
+                    else if (h) setEstadoSel('BUENA');
                   }}
                   options={herramientaOptions}
                   placeholder="Buscar herramienta disponible..."

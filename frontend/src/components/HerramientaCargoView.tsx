@@ -35,7 +35,7 @@ interface ApiResponse<T = unknown> {
   error?: string;
 }
 
-const ESTADOS = ['DISPONIBLE', 'A_CARGO', 'EN_MANTENCION', 'PERDIDA', 'DANADA', 'DE_BAJA'] as const;
+const ESTADOS = ['NUEVO', 'DISPONIBLE', 'A_CARGO', 'EN_MANTENCION', 'PERDIDA', 'DANADA', 'DE_BAJA'] as const;
 
 const emptyForm = {
   codigo_66: '',
@@ -47,7 +47,7 @@ const emptyForm = {
   valor_66: '0',
   stock_66: '1',
   stock_disponible_66: '1',
-  estado_66: 'DISPONIBLE',
+  estado_66: 'NUEVO',
   activo_66: true,
 };
 
@@ -64,6 +64,10 @@ const HerramientaCargoView: React.FC = () => {
   const [filtroEstado, setFiltroEstado] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
+  const [sortConfig, setSortConfig] = useState<{
+    key: keyof HerramientaCargo;
+    direction: 'asc' | 'desc';
+  }>({ key: 'idherramienta_66', direction: 'desc' });
 
   const API_URL = apiUrl('/herramientas-cargo');
   const MARCAS_URL = apiUrl('/marcas-insumo');
@@ -100,24 +104,58 @@ const HerramientaCargoView: React.FC = () => {
 
   const filtered = useMemo(() => {
     const q = searchTerm.trim().toLowerCase();
-    return items.filter((h) => {
+    const list = items.filter((h) => {
       if (filtroEstado && h.estado_66 !== filtroEstado) return false;
       if (!q) return true;
       return (
+        String(h.idherramienta_66).includes(q) ||
         h.codigo_66.toLowerCase().includes(q) ||
         h.nombre_66.toLowerCase().includes(q) ||
         (h.serie_66 || '').toLowerCase().includes(q) ||
         (h.marca_insumo_nombre || '').toLowerCase().includes(q)
       );
     });
-  }, [items, searchTerm, filtroEstado]);
+
+    list.sort((a, b) => {
+      const aValue = a[sortConfig.key];
+      const bValue = b[sortConfig.key];
+      if (aValue == null && bValue == null) return 0;
+      if (aValue == null) return 1;
+      if (bValue == null) return -1;
+      if (typeof aValue === 'number' && typeof bValue === 'number') {
+        return sortConfig.direction === 'asc' ? aValue - bValue : bValue - aValue;
+      }
+      if (typeof aValue === 'boolean' && typeof bValue === 'boolean') {
+        return sortConfig.direction === 'asc'
+          ? Number(aValue) - Number(bValue)
+          : Number(bValue) - Number(aValue);
+      }
+      const cmp = String(aValue).localeCompare(String(bValue), 'es', {
+        sensitivity: 'base',
+        numeric: true,
+      });
+      return sortConfig.direction === 'asc' ? cmp : -cmp;
+    });
+
+    return list;
+  }, [items, searchTerm, filtroEstado, sortConfig]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / itemsPerPage));
   const pageItems = filtered.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, filtroEstado]);
+  }, [searchTerm, filtroEstado, sortConfig]);
+
+  const handleSort = (key: keyof HerramientaCargo) => {
+    setSortConfig((prev) => ({
+      key,
+      direction: prev.key === key && prev.direction === 'asc' ? 'desc' : 'asc',
+    }));
+  };
+
+  const sortClass = (key: keyof HerramientaCargo) =>
+    `sortable ${sortConfig.key === key ? (sortConfig.direction === 'asc' ? 'sort-asc' : 'sort-desc') : ''}`;
 
   const resetForm = () => {
     setForm(emptyForm);
@@ -361,6 +399,17 @@ const HerramientaCargoView: React.FC = () => {
         <table className="data-table">
           <thead>
             <tr>
+              <th
+                className={sortClass('idherramienta_66')}
+                onClick={() => handleSort('idherramienta_66')}
+                aria-sort={
+                  sortConfig.key === 'idherramienta_66'
+                    ? sortConfig.direction === 'asc' ? 'ascending' : 'descending'
+                    : 'none'
+                }
+              >
+                ID
+              </th>
               <th>Código</th>
               <th>Nombre</th>
               <th>Serie</th>
@@ -374,10 +423,11 @@ const HerramientaCargoView: React.FC = () => {
           </thead>
           <tbody>
             {pageItems.length === 0 ? (
-              <tr><td colSpan={9}>Sin registros</td></tr>
+              <tr><td colSpan={10}>Sin registros</td></tr>
             ) : (
               pageItems.map((h) => (
                 <tr key={h.idherramienta_66}>
+                  <td>{h.idherramienta_66}</td>
                   <td>{h.codigo_66}</td>
                   <td>{h.nombre_66}</td>
                   <td>{h.serie_66 || '—'}</td>
