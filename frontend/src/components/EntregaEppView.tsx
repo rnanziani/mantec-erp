@@ -957,17 +957,7 @@ const EntregaEppView: React.FC = () => {
                     id="clase_detalle"
                     value={idClase}
                     onChange={(value) => {
-                      if (value === idClase) return;
-                      if (!value) {
-                        return;
-                      }
-                      if (detalles.length > 0) {
-                        void showError(
-                          'Validación',
-                          'Ya hay líneas en el detalle. Quítelas si necesita cambiar de EPP a Ropa de Trabajo (o al revés).'
-                        );
-                        return;
-                      }
+                      if (!value || value === idClase) return;
                       setIdClase(value);
                       setElementoSel('');
                       setMarcaSel('');
@@ -975,8 +965,7 @@ const EntregaEppView: React.FC = () => {
                     options={claseOptions}
                     placeholder="EPP / Ropa de Trabajo..."
                     required
-                    disabled={detalles.length > 0}
-                    aria-label="Seleccionar clase para filtrar elementos"
+                    aria-label="Seleccionar clase para filtrar el siguiente elemento"
                     emptyMessage="No se encontraron clases"
                   />
                 </div>

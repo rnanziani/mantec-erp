@@ -344,6 +344,17 @@ const TransaccionView: React.FC = () => {
     [tecnicosOrdenados]
   );
 
+  const tecnicoFormOptions = useMemo(
+    () =>
+      tecnicosOrdenados.map((t) => ({
+        value: String(t.id_tecnico_21),
+        label: t.nombre_cargo
+          ? `${nombreCompletoTecnico(t)} - ${t.nombre_cargo}`
+          : nombreCompletoTecnico(t)
+      })),
+    [tecnicosOrdenados]
+  );
+
   const filtroMaquinaOptions = useMemo(
     () =>
       [...maquinas]
@@ -1023,19 +1034,19 @@ const TransaccionView: React.FC = () => {
 
               <div className="form-group">
                 <label htmlFor="tecnico-transaccion">Técnico</label>
-                <select
+                <SearchableSelect
                   id="tecnico-transaccion"
                   value={idTecnico}
-                  onChange={(e) => setIdTecnico(e.target.value)}
-                  style={{ width: '100%', padding: '8px 12px', borderRadius: '4px', border: '1px solid #ced4da', fontSize: '14px' }}
-                >
-                  <option value="">Seleccione un técnico (opcional)</option>
-                  {tecnicosOrdenados.map(tec => (
-                    <option key={tec.id_tecnico_21} value={tec.id_tecnico_21}>
-                      {tec.nombres_21} {tec.a_paterno_21} {tec.a_materno_21} {tec.nombre_cargo ? `- ${tec.nombre_cargo}` : ''}
-                    </option>
-                  ))}
-                </select>
+                  onChange={setIdTecnico}
+                  options={[{ value: '', label: 'Sin técnico (opcional)' }, ...tecnicoFormOptions]}
+                  placeholder="Buscar por nombre o apellido..."
+                  uppercase={false}
+                  aria-label="Buscar o seleccionar técnico"
+                  emptyMessage="No se encontraron técnicos"
+                />
+                <small style={{ color: '#007bff', fontSize: '0.85em', display: 'block', marginTop: '5px' }}>
+                  Tip: escriba apellido o nombre; el técnico es opcional
+                </small>
               </div>
 
               <div className="form-group">
