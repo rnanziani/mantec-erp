@@ -850,25 +850,36 @@ const EntregaEppView: React.FC = () => {
                   id="buscar-trab"
                   className="form-input"
                   value={buscarTrabajador}
-                  onChange={(e) => setBuscarTrabajador(e.target.value)}
+                  onChange={(e) => {
+                    setBuscarTrabajador(e.target.value);
+                    if (idTrabajador) setIdTrabajador('');
+                  }}
                   placeholder="Buscar por apellido..."
                   aria-label="Buscar trabajador por apellido"
+                  autoComplete="off"
                 />
-                <div className="epp-trabajador-list" role="listbox" aria-label="Resultados de trabajadores">
-                  {trabajadoresFiltrados.map((trab) => (
-                    <button
-                      key={trab.idtrabajador_06}
-                      type="button"
-                      className={`epp-trabajador-item ${idTrabajador === String(trab.idtrabajador_06) ? 'selected' : ''}`}
-                      onClick={() => seleccionarTrabajador(trab)}
-                    >
-                      <span>
-                        {trab.apaterno_06 || ''} {trab.amaterno_06 || ''} {trab.nombre_06}
-                      </span>
-                      <small>{trab.ruttrabajador_06 || ''}</small>
-                    </button>
-                  ))}
-                </div>
+                {idTrabajador ? (
+                  <small className="epp-trabajador-rut">
+                    {trabajadores.find((t) => String(t.idtrabajador_06) === idTrabajador)
+                      ?.ruttrabajador_06 || 'Trabajador seleccionado'}
+                  </small>
+                ) : (
+                  <div className="epp-trabajador-list" role="listbox" aria-label="Resultados de trabajadores">
+                    {trabajadoresFiltrados.map((trab) => (
+                      <button
+                        key={trab.idtrabajador_06}
+                        type="button"
+                        className="epp-trabajador-item"
+                        onClick={() => seleccionarTrabajador(trab)}
+                      >
+                        <span>
+                          {trab.apaterno_06 || ''} {trab.amaterno_06 || ''} {trab.nombre_06}
+                        </span>
+                        <small>{trab.ruttrabajador_06 || ''}</small>
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
 
               <div className="form-group">

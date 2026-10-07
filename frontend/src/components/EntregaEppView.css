@@ -42,9 +42,15 @@
   opacity: 0.7;
 }
 
-.entrega-epp-view .epp-trabajador-item.selected,
 .entrega-epp-view .epp-trabajador-item:hover {
   background: #e3f2fd;
+}
+
+.entrega-epp-view .epp-trabajador-rut {
+  display: block;
+  margin-top: 6px;
+  color: #334155;
+  font-size: 0.85rem;
 }
 
 .entrega-epp-view .epp-detalle-box {
