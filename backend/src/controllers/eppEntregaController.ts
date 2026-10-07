@@ -323,6 +323,77 @@ function mensajePg(error: unknown): string {
   return e.detail || e.message || 'Error desconocido';
 }
 
+/**
+ * Si producción quedó con el CHECK viejo (sin NUEVO/A), una línea NUEVO/A
+ * revienta el INSERT. Idempotente: solo altera cuando falta el estado.
+ */
+async function asegurarChkEstadosDetalleEpp(client: {
+  query: typeof pool.query;
+}): Promise<void> {
+  const chk = await client.query<{ def: string | null }>(
+    `SELECT pg_get_constraintdef(oid) AS def
+     FROM pg_constraint
+     WHERE conname = 'chk_tbl_55_estado_entrega_valido'`
+  );
+  const def = String(chk.rows[0]?.def || '');
+  if (def.includes('NUEVO/A') && def.includes('BUENO/A')) return;
+
+  await client.query('BEGIN');
+  try {
+    await client.query(
+      `ALTER TABLE public.tbl_55_d_entrega_epp
+       DROP CONSTRAINT IF EXISTS chk_tbl_55_estado_entrega_valido`
+    );
+    await client.query(
+      `UPDATE public.tbl_55_d_entrega_epp
+       SET estadoentrega_55 = CASE upper(estadoentrega_55)
+         WHEN 'BUENA' THEN 'BUENO/A'
+         WHEN 'REGULAR' THEN 'USADO/A'
+         WHEN 'DANADA' THEN 'DAÑADO/A'
+         WHEN 'DAÑADA' THEN 'DAÑADO/A'
+         WHEN 'NUEVO' THEN 'NUEVO/A'
+         ELSE estadoentrega_55
+       END`
+    );
+    await client.query(
+      `ALTER TABLE public.tbl_55_d_entrega_epp
+       ADD CONSTRAINT chk_tbl_55_estado_entrega_valido
+       CHECK (estadoentrega_55 IN ('NUEVO/A', 'BUENO/A', 'USADO/A', 'DAÑADO/A'))`
+    );
+    await client.query('COMMIT');
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  }
+}
+
+async function validarCatalogoDetalles(
+  client: { query: typeof pool.query },
+  detalles: CreateMaestroEntregaEppDTO['detalles']
+): Promise<string | null> {
+  for (const d of detalles) {
+    if (d.idtalla_55) {
+      const t = await client.query(
+        'SELECT 1 FROM tbl_16_tallas WHERE id_16 = $1',
+        [d.idtalla_55]
+      );
+      if (!t.rowCount) {
+        return `La talla de la línea no existe en el catálogo (id ${d.idtalla_55})`;
+      }
+    }
+    if (d.idmarca_55) {
+      const m = await client.query(
+        'SELECT 1 FROM tbl_37_marca_insumo WHERE id_marca_insumo_37 = $1',
+        [d.idmarca_55]
+      );
+      if (!m.rowCount) {
+        return `La marca de la línea no existe en el catálogo (id ${d.idmarca_55})`;
+      }
+    }
+  }
+  return null;
+}
+
 function validarDetalles(
   detalles: CreateMaestroEntregaEppDTO['detalles']
 ): string | null {
@@ -506,6 +577,24 @@ export const createEntregaEpp = async (req: Request, res: Response): Promise<voi
       return;
     }
 
+    try {
+      await asegurarChkEstadosDetalleEpp(client);
+    } catch (error) {
+      console.error('[asegurarChkEstadosDetalleEpp]', error);
+      res.status(500).json({
+        success: false,
+        error: mensajePg(error),
+        message: error instanceof Error ? error.message : 'Error desconocido',
+      });
+      return;
+    }
+
+    const catalogoError = await validarCatalogoDetalles(client, body.detalles);
+    if (catalogoError) {
+      res.status(400).json({ success: false, error: catalogoError });
+      return;
+    }
+
     await client.query('BEGIN');
 
     const stockError = await validarStock(client, body.detalles);
@@ -611,6 +700,22 @@ export const updateEntregaEpp = async (req: Request, res: Response): Promise<voi
       const detalleError = validarDetalles(body.detalles);
       if (detalleError) {
         res.status(400).json({ success: false, error: detalleError });
+        return;
+      }
+      try {
+        await asegurarChkEstadosDetalleEpp(client);
+      } catch (error) {
+        console.error('[asegurarChkEstadosDetalleEpp]', error);
+        res.status(500).json({
+          success: false,
+          error: mensajePg(error),
+          message: error instanceof Error ? error.message : 'Error desconocido',
+        });
+        return;
+      }
+      const catalogoError = await validarCatalogoDetalles(client, body.detalles);
+      if (catalogoError) {
+        res.status(400).json({ success: false, error: catalogoError });
         return;
       }
     }
