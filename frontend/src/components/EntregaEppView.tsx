@@ -656,10 +656,6 @@ const EntregaEppView: React.FC = () => {
       await showError('Validación', 'Seleccione un cargo');
       return;
     }
-    if (!idClase) {
-      await showError('Validación', 'Seleccione la clase en el detalle (EPP o Ropa de Trabajo)');
-      return;
-    }
     if (!fecha) {
       await showError('Validación', 'Indique la fecha de entrega');
       return;
@@ -692,11 +688,19 @@ const EntregaEppView: React.FC = () => {
       }
     }
 
+    const clasesEnDetalle = [
+      ...new Set(
+        detalles
+          .map((d) => elementos.find((x) => x.idelemento_53 === d.idelemento_55)?.idclase_51)
+          .filter((id): id is number => id != null && Number.isFinite(Number(id)))
+      ),
+    ];
+
     const payload = {
       idtrabajador_54: Number(idTrabajador),
       idempresa_54: Number(idEmpresa),
       idcargo_54: Number(idCargo),
-      idclase_54: Number(idClase),
+      idclase_54: clasesEnDetalle.length === 1 ? Number(clasesEnDetalle[0]) : null,
       idccosto_54: idCcosto ? Number(idCcosto) : null,
       idresponsableentrega_54: idResponsable ? Number(idResponsable) : null,
       fecha_entrega_54: fecha,

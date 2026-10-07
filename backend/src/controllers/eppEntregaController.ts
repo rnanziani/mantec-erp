@@ -320,6 +320,9 @@ function mensajePg(error: unknown): string {
   if (e.code === '22P02') {
     return 'Un identificador numérico llegó con formato inválido (clase, talla o marca).';
   }
+  if (e.code === 'P0001' && /no pertenece a la clase/i.test(e.message || '')) {
+    return 'La entrega puede mezclar EPP y Ropa de Trabajo. Se quitará la regla que exigía una sola clase; vuelva a crear.';
+  }
   return e.detail || e.message || 'Error desconocido';
 }
 
@@ -422,6 +425,35 @@ async function asegurarFolioEntregaEpp(client: {
       RETURN NEW;
     END;
     $$ LANGUAGE plpgsql;
+  `);
+}
+
+/** Una acta puede llevar EPP y Ropa juntos. En producción quedó un trigger que lo prohibía. */
+async function asegurarClasesMixtasEntregaEpp(client: {
+  query: typeof pool.query;
+}): Promise<void> {
+  await client.query(`
+    DO $$
+    DECLARE r record;
+    BEGIN
+      FOR r IN
+        SELECT t.tgname
+        FROM pg_trigger t
+        JOIN pg_class c ON c.oid = t.tgrelid
+        JOIN pg_proc p ON p.oid = t.tgfoid
+        WHERE c.relname = 'tbl_55_d_entrega_epp'
+          AND NOT t.tgisinternal
+          AND (
+            pg_get_functiondef(p.oid) ILIKE '%no pertenece a la clase%'
+            OR (
+              pg_get_functiondef(p.oid) ILIKE '%idclase_54%'
+              AND pg_get_functiondef(p.oid) ILIKE '%RAISE%'
+            )
+          )
+      LOOP
+        EXECUTE format('DROP TRIGGER IF EXISTS %I ON public.tbl_55_d_entrega_epp', r.tgname);
+      END LOOP;
+    END $$;
   `);
 }
 
@@ -612,10 +644,6 @@ export const createEntregaEpp = async (req: Request, res: Response): Promise<voi
       res.status(400).json({ success: false, error: 'Cargo es requerido' });
       return;
     }
-    if (!body.idclase_54) {
-      res.status(400).json({ success: false, error: 'Clase (EPP / Ropa de Trabajo) es requerida' });
-      return;
-    }
     if (!body.fecha_entrega_54) {
       res.status(400).json({ success: false, error: 'Fecha de entrega es requerida' });
       return;
@@ -638,6 +666,7 @@ export const createEntregaEpp = async (req: Request, res: Response): Promise<voi
     try {
       await asegurarChkEstadosDetalleEpp(client);
       await asegurarFolioEntregaEpp(client);
+      await asegurarClasesMixtasEntregaEpp(client);
     } catch (error) {
       console.error('[asegurarEsquemaEntregaEpp]', error);
       res.status(500).json({
@@ -767,8 +796,9 @@ export const updateEntregaEpp = async (req: Request, res: Response): Promise<voi
       }
       try {
         await asegurarChkEstadosDetalleEpp(client);
+        await asegurarClasesMixtasEntregaEpp(client);
       } catch (error) {
-        console.error('[asegurarChkEstadosDetalleEpp]', error);
+        console.error('[asegurarEsquemaEntregaEpp]', error);
         res.status(500).json({
           success: false,
           error: mensajePg(error),

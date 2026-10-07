@@ -1515,7 +1515,7 @@ export interface DetalleEntregaEpp {
 export interface CreateMaestroEntregaEppDTO {
   folio_54?: string | null;
   idtrabajador_54: number;
-  idclase_54: number;
+  idclase_54?: number | null;
   idccosto_54?: number | null;
   idempresa_54: number;
   idcargo_54: number;
