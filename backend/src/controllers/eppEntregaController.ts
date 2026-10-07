@@ -336,14 +336,41 @@ async function asegurarChkEstadosDetalleEpp(client: {
      WHERE conname = 'chk_tbl_55_estado_entrega_valido'`
   );
   const def = String(chk.rows[0]?.def || '');
-  if (def.includes('NUEVO/A') && def.includes('BUENO/A')) return;
+  if (def.includes('NUEVO/A') && def.includes('BUENO/A')) {
+    // Aun así puede quedar un CHECK viejo con otro nombre que rechaza NUEVO/A.
+    const otros = await client.query<{ conname: string; def: string }>(
+      `SELECT conname, pg_get_constraintdef(oid) AS def
+       FROM pg_constraint
+       WHERE conrelid = 'public.tbl_55_d_entrega_epp'::regclass
+         AND contype = 'c'
+         AND pg_get_constraintdef(oid) ILIKE '%estadoentrega_55%'`
+    );
+    const hayViejo = otros.rows.some(
+      (r) => r.conname !== 'chk_tbl_55_estado_entrega_valido' && !r.def.includes('NUEVO/A')
+    );
+    if (!hayViejo) return;
+  }
 
   await client.query('BEGIN');
   try {
-    await client.query(
-      `ALTER TABLE public.tbl_55_d_entrega_epp
-       DROP CONSTRAINT IF EXISTS chk_tbl_55_estado_entrega_valido`
-    );
+    await client.query(`
+      DO $$
+      DECLARE r record;
+      BEGIN
+        FOR r IN
+          SELECT conname
+          FROM pg_constraint
+          WHERE conrelid = 'public.tbl_55_d_entrega_epp'::regclass
+            AND contype = 'c'
+            AND pg_get_constraintdef(oid) ILIKE '%estadoentrega_55%'
+        LOOP
+          EXECUTE format(
+            'ALTER TABLE public.tbl_55_d_entrega_epp DROP CONSTRAINT IF EXISTS %I',
+            r.conname
+          );
+        END LOOP;
+      END $$;
+    `);
     await client.query(
       `UPDATE public.tbl_55_d_entrega_epp
        SET estadoentrega_55 = CASE upper(estadoentrega_55)
@@ -365,6 +392,37 @@ async function asegurarChkEstadosDetalleEpp(client: {
     await client.query('ROLLBACK');
     throw error;
   }
+}
+
+async function asegurarFolioEntregaEpp(client: {
+  query: typeof pool.query;
+}): Promise<void> {
+  await client.query(`
+    CREATE OR REPLACE FUNCTION fn_generar_folio_epp_54() RETURNS TRIGGER AS $$
+    DECLARE
+      v_anio varchar(4);
+      v_consecutivo int4;
+      v_folio varchar(30);
+    BEGIN
+      IF NEW.folio_54 IS NULL OR TRIM(NEW.folio_54) = '' THEN
+        v_anio := EXTRACT(YEAR FROM NEW.fecha_entrega_54)::varchar;
+        SELECT COALESCE(MAX(
+          CASE
+            WHEN SPLIT_PART(folio_54, '-', 3) ~ '^[0-9]+$'
+            THEN CAST(SPLIT_PART(folio_54, '-', 3) AS int4)
+            ELSE 0
+          END
+        ), 0) + 1
+        INTO v_consecutivo
+        FROM tbl_54_m_entrega_epp
+        WHERE folio_54 LIKE 'EPP-' || v_anio || '-%';
+        v_folio := 'EPP-' || v_anio || '-' || LPAD(v_consecutivo::varchar, 4, '0');
+        NEW.folio_54 := v_folio;
+      END IF;
+      RETURN NEW;
+    END;
+    $$ LANGUAGE plpgsql;
+  `);
 }
 
 async function validarCatalogoDetalles(
@@ -579,8 +637,9 @@ export const createEntregaEpp = async (req: Request, res: Response): Promise<voi
 
     try {
       await asegurarChkEstadosDetalleEpp(client);
+      await asegurarFolioEntregaEpp(client);
     } catch (error) {
-      console.error('[asegurarChkEstadosDetalleEpp]', error);
+      console.error('[asegurarEsquemaEntregaEpp]', error);
       res.status(500).json({
         success: false,
         error: mensajePg(error),
@@ -650,7 +709,11 @@ export const createEntregaEpp = async (req: Request, res: Response): Promise<voi
       message: 'Entrega EPP creada exitosamente',
     });
   } catch (error) {
-    await client.query('ROLLBACK');
+    try {
+      await client.query('ROLLBACK');
+    } catch {
+      /* no había transacción */
+    }
     console.error('[createEntregaEpp]', error);
     res.status(500).json({
       success: false,
