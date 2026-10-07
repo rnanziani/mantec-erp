@@ -293,6 +293,36 @@ function normalizeText(value: unknown): string | null {
   return t ? t.toUpperCase() : null;
 }
 
+/** Traduce errores de PostgreSQL a un texto usable en pantalla. */
+function mensajePg(error: unknown): string {
+  if (!error || typeof error !== 'object') return 'Error desconocido';
+  const e = error as {
+    code?: string;
+    constraint?: string;
+    detail?: string;
+    message?: string;
+  };
+  if (e.code === '23514' && e.constraint === 'chk_tbl_55_estado_entrega_valido') {
+    return 'El estado de la línea no está permitido en la base. Si usó NUEVO/A, ejecute en DBeaver el script database/alter_tbl_55_estado_nuevo.sql';
+  }
+  if (e.code === '23514' && e.constraint === 'chk_tbl_53_stock_valido') {
+    return 'El stock del elemento no puede quedar negativo. Revise existencias e intente de nuevo.';
+  }
+  if (e.code === '23503') {
+    return 'Hay un dato que no existe en el catálogo (talla, marca, clase, cargo o centro de costo).';
+  }
+  if (e.code === '23505') {
+    if (e.constraint?.includes('folio')) {
+      return 'El folio de entrega quedó duplicado. Vuelva a guardar.';
+    }
+    return 'Línea duplicada: el mismo elemento con la misma talla ya está en la entrega.';
+  }
+  if (e.code === '22P02') {
+    return 'Un identificador numérico llegó con formato inválido (clase, talla o marca).';
+  }
+  return e.detail || e.message || 'Error desconocido';
+}
+
 function validarDetalles(
   detalles: CreateMaestroEntregaEppDTO['detalles']
 ): string | null {
@@ -532,9 +562,10 @@ export const createEntregaEpp = async (req: Request, res: Response): Promise<voi
     });
   } catch (error) {
     await client.query('ROLLBACK');
+    console.error('[createEntregaEpp]', error);
     res.status(500).json({
       success: false,
-      error: 'Error al crear entrega EPP',
+      error: mensajePg(error),
       message: error instanceof Error ? error.message : 'Error desconocido',
     });
   } finally {
@@ -655,9 +686,10 @@ export const updateEntregaEpp = async (req: Request, res: Response): Promise<voi
     });
   } catch (error) {
     await client.query('ROLLBACK');
+    console.error('[updateEntregaEpp]', error);
     res.status(500).json({
       success: false,
-      error: 'Error al actualizar entrega EPP',
+      error: mensajePg(error),
       message: error instanceof Error ? error.message : 'Error desconocido',
     });
   } finally {

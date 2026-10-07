@@ -726,7 +726,11 @@ const EntregaEppView: React.FC = () => {
         resetForm();
         await showSuccess(editingId ? 'Actualizada' : 'Creada', data.message || 'OK');
       } else {
-        await showError('Error', data.error || data.message || 'No se pudo guardar');
+        await showError(
+          'Error',
+          [data.error, data.message].filter((x, i, arr) => x && arr.indexOf(x) === i).join('\n') ||
+            'No se pudo guardar'
+        );
       }
     } catch {
       await showError('Error', 'Error de conexión');
