@@ -19,10 +19,35 @@ function normalizeText(value: unknown): string | null {
   return t ? t.toUpperCase() : null;
 }
 
-function validarCodigo(codigo: string | null): string | null {
-  if (!codigo) return 'El código es requerido (ej. ALT-001, BOM-002)';
-  if (!CODIGO_PATTERN.test(codigo)) return CODIGO_HINT;
-  return null;
+/** Primeras 3 letras A-Z del nombre (sin tildes). CALIPER SCANIA → CAL. */
+function prefijoDesdeNombre(nombre: string): string {
+  return nombre
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/ñ/gi, 'n')
+    .toUpperCase()
+    .replace(/[^A-Z]/g, '')
+    .slice(0, 3);
+}
+
+async function generarCodigoUnico(nombre: string): Promise<string | { error: string }> {
+  const prefijo = prefijoDesdeNombre(nombre);
+  if (prefijo.length < 3) {
+    return { error: 'El nombre debe tener al menos 3 letras para armar el código (ej. CALIPER → CAL-001)' };
+  }
+  const existentes = await pool.query<{ codigo_57: string }>(
+    `SELECT codigo_57 FROM ${TABLA} WHERE codigo_57 ~ ('^' || $1 || '-[0-9]+$')`,
+    [prefijo]
+  );
+  let max = 0;
+  const re = new RegExp(`^${prefijo}-(\\d+)$`);
+  for (const row of existentes.rows) {
+    const m = re.exec(String(row.codigo_57 || '').toUpperCase());
+    if (m) max = Math.max(max, parseInt(m[1], 10));
+  }
+  const codigo = `${prefijo}-${String(max + 1).padStart(3, '0')}`;
+  if (!CODIGO_PATTERN.test(codigo)) return { error: CODIGO_HINT };
+  return codigo;
 }
 
 export const getAllRepuestosDanados = async (_req: Request, res: Response): Promise<void> => {
@@ -67,21 +92,16 @@ export const createRepuestoDanado = async (req: Request, res: Response): Promise
   try {
     const body: CreateRepuestoDanadoDTO = req.body;
     const nombre = normalizeText(body.nombre_57);
-    const codigo = normalizeText(body.codigo_57);
     if (!nombre) {
       res.status(400).json({ success: false, error: 'El nombre es requerido' });
       return;
     }
-    const codigoError = validarCodigo(codigo);
-    if (codigoError) {
-      res.status(400).json({ success: false, error: codigoError });
+    const generado = await generarCodigoUnico(nombre);
+    if (typeof generado !== 'string') {
+      res.status(400).json({ success: false, error: generado.error });
       return;
     }
-    const dup = await pool.query(`SELECT idrepuestodanado_57 FROM ${TABLA} WHERE codigo_57 = $1`, [codigo]);
-    if ((dup.rowCount ?? 0) > 0) {
-      res.status(400).json({ success: false, error: 'Ya existe un repuesto con ese código' });
-      return;
-    }
+    const codigo = generado;
     const result = await pool.query<RepuestoDanado>(
       `INSERT INTO ${TABLA} (codigo_57, nombre_57, descripcion_57, activo_57)
        VALUES ($1, $2, $3, $4) RETURNING *`,
@@ -98,6 +118,14 @@ export const createRepuestoDanado = async (req: Request, res: Response): Promise
       message: 'Repuesto dañado creado exitosamente',
     });
   } catch (error) {
+    const pg = error as { code?: string };
+    if (pg.code === '23505') {
+      res.status(400).json({
+        success: false,
+        error: 'Ese código se ocupó al mismo tiempo. Vuelva a guardar.',
+      });
+      return;
+    }
     res.status(500).json({
       success: false,
       error: 'Error al crear el repuesto dañado',
@@ -129,24 +157,7 @@ export const updateRepuestoDanado = async (req: Request, res: Response): Promise
       updates.push(`nombre_57 = $${i++}`);
       values.push(nombre);
     }
-    if (body.codigo_57 !== undefined) {
-      const codigo = normalizeText(body.codigo_57);
-      const codigoError = validarCodigo(codigo);
-      if (codigoError) {
-        res.status(400).json({ success: false, error: codigoError });
-        return;
-      }
-      const dup = await pool.query(
-        `SELECT idrepuestodanado_57 FROM ${TABLA} WHERE codigo_57 = $1 AND idrepuestodanado_57 <> $2`,
-        [codigo, id]
-      );
-      if ((dup.rowCount ?? 0) > 0) {
-        res.status(400).json({ success: false, error: 'Ya existe un repuesto con ese código' });
-        return;
-      }
-      updates.push(`codigo_57 = $${i++}`);
-      values.push(codigo);
-    }
+    // El código es identidad: no se cambia al editar (evita romper expedientes).
     if (body.descripcion_57 !== undefined) {
       updates.push(`descripcion_57 = $${i++}`);
       values.push(normalizeText(body.descripcion_57));

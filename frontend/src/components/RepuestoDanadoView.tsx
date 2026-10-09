@@ -21,6 +21,29 @@ interface ApiResponse<T = unknown> {
 
 const emptyForm = { codigo_57: '', nombre_57: '', activo_57: true };
 
+/** Primeras 3 letras A-Z. CALIPER SCANIA → CAL. */
+function prefijoDesdeNombre(nombre: string): string {
+  return nombre
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/ñ/gi, 'n')
+    .toUpperCase()
+    .replace(/[^A-Z]/g, '')
+    .slice(0, 3);
+}
+
+function sugerirCodigo(nombre: string, existentes: RepuestoDanado[]): string {
+  const prefijo = prefijoDesdeNombre(nombre);
+  if (prefijo.length < 3) return '';
+  const re = new RegExp(`^${prefijo}-(\\d+)$`);
+  let max = 0;
+  for (const row of existentes) {
+    const m = re.exec((row.codigo_57 || '').toUpperCase());
+    if (m) max = Math.max(max, parseInt(m[1], 10));
+  }
+  return `${prefijo}-${String(max + 1).padStart(3, '0')}`;
+}
+
 const RepuestoDanadoView: React.FC = () => {
   const formRef = React.useRef<HTMLFormElement>(null);
   const [items, setItems] = useState<RepuestoDanado[]>([]);
@@ -89,24 +112,19 @@ const RepuestoDanadoView: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const codigo = form.codigo_57.trim().toUpperCase();
-    if (!codigo) {
-      await showError('Validación', 'El código es requerido (ej. ALT-001, BOM-002)');
-      return;
-    }
-    if (!/^[A-Z]{2,10}-\d{3,6}$/.test(codigo)) {
-      await showError(
-        'Validación',
-        'El código debe seguir el patrón TIPO-### (ej. ALT-001, BOM-002): 2 a 10 letras, guion y 3 a 6 dígitos'
-      );
-      return;
-    }
     if (!form.nombre_57.trim()) {
       await showError('Validación', 'El nombre es requerido');
       return;
     }
+    if (!editingId && prefijoDesdeNombre(form.nombre_57).length < 3) {
+      await showError(
+        'Validación',
+        'El nombre debe tener al menos 3 letras para armar el código (ej. CALIPER → CAL-001)'
+      );
+      return;
+    }
     const payload = {
-      codigo_57: codigo,
+      codigo_57: editingId ? form.codigo_57.trim().toUpperCase() : sugerirCodigo(form.nombre_57, items),
       nombre_57: form.nombre_57.trim().toUpperCase(),
       descripcion_57: null,
       activo_57: form.activo_57,
@@ -168,31 +186,44 @@ const RepuestoDanadoView: React.FC = () => {
           <form ref={formRef} onSubmit={handleSubmit}>
             <div className="form-row form-row-3">
               <div className="form-group">
-                <label htmlFor="codigo_57">Código *</label>
-                <input
-                  id="codigo_57"
-                  className="form-input"
-                  required
-                  value={form.codigo_57}
-                  onChange={(e) => changeKeepingCaret(e, (v) => setForm((p) => ({ ...p, codigo_57: v })))}
-                  placeholder="ALT-001"
-                  pattern="[A-Z]{2,10}-[0-9]{3,6}"
-                  title="Patrón TIPO-### (ej. ALT-001, BOM-002)"
-                  aria-describedby="codigo-57-help"
-                />
-                <small id="codigo-57-help" style={{ display: 'block', marginTop: 4, color: '#6b7280' }}>
-                  Formato: TIPO-### (ej. ALT-001, BOM-002)
-                </small>
-              </div>
-              <div className="form-group">
                 <label htmlFor="nombre_57">Nombre *</label>
                 <input
                   id="nombre_57"
                   className="form-input"
                   required
                   value={form.nombre_57}
-                  onChange={(e) => changeKeepingCaret(e, (v) => setForm((p) => ({ ...p, nombre_57: v })))}
+                  onChange={(e) =>
+                    changeKeepingCaret(e, (v) => {
+                      setForm((p) => ({
+                        ...p,
+                        nombre_57: v,
+                        codigo_57: editingId ? p.codigo_57 : sugerirCodigo(v, items),
+                      }));
+                    })
+                  }
+                  aria-describedby="nombre-57-help"
                 />
+                <small id="nombre-57-help" style={{ display: 'block', marginTop: 4, color: '#6b7280' }}>
+                  Escriba el nombre; el código se arma solo (3 letras + correlativo)
+                </small>
+              </div>
+              <div className="form-group">
+                <label htmlFor="codigo_57">Código</label>
+                <input
+                  id="codigo_57"
+                  className="form-input"
+                  value={form.codigo_57}
+                  readOnly
+                  aria-readonly="true"
+                  placeholder="CAL-001"
+                  title="Se genera con las 3 primeras letras del nombre"
+                  aria-describedby="codigo-57-help"
+                />
+                <small id="codigo-57-help" style={{ display: 'block', marginTop: 4, color: '#6b7280' }}>
+                  {editingId
+                    ? 'El código no se cambia al editar (ya está en expedientes)'
+                    : 'Automático y único. CALIPER → CAL-001, el siguiente CAL-002'}
+                </small>
               </div>
               <div className="form-group">
                 <label htmlFor="estado_57">Estado *</label>
