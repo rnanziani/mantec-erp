@@ -6,7 +6,7 @@ import { showError, showSuccess } from '../utils/swal';
 import { apiFetch, apiUrl } from '../lib/apiClient';
 import { changeKeepingCaret } from '../hooks/useCaretTransform';
 import { imprimirEtiqueta } from '../utils/printEtiqueta';
-import { tamanoEtiquetaMm } from '../utils/code128';
+import { TAMANOS_ETIQUETA, tamanoEtiquetaMm, type TamanoEtiquetaId } from '../utils/code128';
 
 interface CodigoEtiqueta {
   idcodigo_89: number;
@@ -34,6 +34,7 @@ const CodigoEtiquetaView: React.FC = () => {
   const [jsonText, setJsonText] = useState('');
   const [showJson, setShowJson] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [filtroTamano, setFiltroTamano] = useState<TamanoEtiquetaId | ''>('');
   const [currentPage, setCurrentPage] = useState(1);
   const [copias, setCopias] = useState(1);
   const itemsPerPage = 10;
@@ -60,13 +61,33 @@ const CodigoEtiquetaView: React.FC = () => {
 
   const filtered = useMemo(() => {
     const q = searchTerm.trim().toUpperCase();
-    if (!q) return items;
-    return items.filter(
-      (r) =>
+    return items.filter((r) => {
+      const matchTexto =
+        !q ||
         r.codigo_89.includes(q) ||
         r.descripcion_89.includes(q) ||
-        r.proveedor_89.includes(q)
-    );
+        r.proveedor_89.includes(q);
+      if (!matchTexto) return false;
+      if (!filtroTamano) return true;
+      return tamanoEtiquetaMm(r.codigo_89).id === filtroTamano;
+    });
+  }, [items, searchTerm, filtroTamano]);
+
+  const conteoPorTamano = useMemo(() => {
+    const q = searchTerm.trim().toUpperCase();
+    const counts: Record<TamanoEtiquetaId, number> = { '32x22': 0, '50x30': 0, '100x30': 0 };
+    for (const r of items) {
+      if (
+        q &&
+        !r.codigo_89.includes(q) &&
+        !r.descripcion_89.includes(q) &&
+        !r.proveedor_89.includes(q)
+      ) {
+        continue;
+      }
+      counts[tamanoEtiquetaMm(r.codigo_89).id] += 1;
+    }
+    return counts;
   }, [items, searchTerm]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / itemsPerPage));
@@ -74,7 +95,7 @@ const CodigoEtiquetaView: React.FC = () => {
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm]);
+  }, [searchTerm, filtroTamano]);
 
   const setUpper =
     (key: keyof typeof emptyForm) => (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -269,13 +290,31 @@ const CodigoEtiquetaView: React.FC = () => {
 
       <div className="search-section etiqueta-search">
         <input
-          className="form-input"
+          className="form-input etiqueta-search-q"
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value.toUpperCase())}
           onKeyDown={onScanSearch}
           placeholder="Buscar o pistola: Enter imprime si el código existe"
           aria-label="Buscar código"
         />
+        <label className="etiqueta-filtro" htmlFor="filtro-tamano">
+          Tipo de etiqueta
+          <select
+            id="filtro-tamano"
+            className="form-input"
+            value={filtroTamano}
+            onChange={(e) => setFiltroTamano(e.target.value as TamanoEtiquetaId | '')}
+          >
+            <option value="">
+              Todas ({conteoPorTamano['32x22'] + conteoPorTamano['50x30'] + conteoPorTamano['100x30']})
+            </option>
+            {TAMANOS_ETIQUETA.map((t) => (
+              <option key={t.id} value={t.id}>
+                {t.nombre} ({conteoPorTamano[t.id]})
+              </option>
+            ))}
+          </select>
+        </label>
         <label className="etiqueta-copias">
           Copias
           <input

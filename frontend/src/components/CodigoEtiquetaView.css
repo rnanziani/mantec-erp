@@ -20,16 +20,21 @@
   margin-bottom: 16px;
 }
 
-.etiqueta-search .form-input {
+.etiqueta-search-q {
   flex: 1 1 240px;
 }
 
+.etiqueta-filtro,
 .etiqueta-copias {
   display: flex;
   flex-direction: column;
   gap: 4px;
   font-size: 0.85rem;
   color: #37474f;
+}
+
+.etiqueta-filtro .form-input {
+  width: 200px;
 }
 
 .etiqueta-copias .form-input {

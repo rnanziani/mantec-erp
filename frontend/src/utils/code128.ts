@@ -51,9 +51,25 @@ export function code128Svg(text: string, widthMm: number, heightMm: number): str
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} 100" width="${widthMm}mm" height="${h}mm" preserveAspectRatio="none" role="img" aria-label="${text}"><path fill="#000" d="${d}"/></svg>`;
 }
 
-export function tamanoEtiquetaMm(codigo: string): { w: number; h: number; nombre: string } {
+export type TamanoEtiquetaId = '32x22' | '50x30' | '100x30';
+
+export interface TamanoEtiqueta {
+  id: TamanoEtiquetaId;
+  w: number;
+  h: number;
+  nombre: string;
+}
+
+/** Un solo catálogo: impresión, columna y filtro. No se guarda en tbl_89. */
+export const TAMANOS_ETIQUETA: TamanoEtiqueta[] = [
+  { id: '32x22', w: 32, h: 22, nombre: '32 × 22 mm' },
+  { id: '50x30', w: 50, h: 30, nombre: '50 × 30 mm' },
+  { id: '100x30', w: 100, h: 30, nombre: '100 × 30 mm' },
+];
+
+export function tamanoEtiquetaMm(codigo: string): TamanoEtiqueta {
   const n = codigo.trim().length;
-  if (n <= 8) return { w: 32, h: 22, nombre: '32 × 22 mm' };
-  if (n <= 14) return { w: 50, h: 30, nombre: '50 × 30 mm' };
-  return { w: 100, h: 30, nombre: '100 × 30 mm' };
+  if (n <= 8) return TAMANOS_ETIQUETA[0];
+  if (n <= 14) return TAMANOS_ETIQUETA[1];
+  return TAMANOS_ETIQUETA[2];
 }
