@@ -35,9 +35,14 @@
 
 .etiqueta-search {
   display: grid;
-  grid-template-columns: minmax(220px, 1fr) minmax(180px, 220px) 88px;
+  grid-template-columns: minmax(200px, 1.4fr) minmax(200px, 1.2fr) minmax(170px, 220px) 88px;
   gap: 10px;
   align-items: end;
+}
+
+.etiqueta-filtro-proveedor .form-input {
+  min-width: 0;
+  max-width: 100%;
 }
 
 .etiqueta-search-q {

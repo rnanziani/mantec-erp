@@ -26,6 +26,15 @@ interface ApiResponse<T = unknown> {
 const emptyForm = { codigo_89: '', descripcion_89: '', proveedor_89: '' };
 const API_URL = apiUrl('/codigos-etiqueta');
 
+function matchTexto(r: CodigoEtiqueta, q: string): boolean {
+  return (
+    !q ||
+    r.codigo_89.includes(q) ||
+    r.descripcion_89.includes(q) ||
+    r.proveedor_89.includes(q)
+  );
+}
+
 const CodigoEtiquetaView: React.FC = () => {
   const formRef = useRef<HTMLFormElement>(null);
   const codigoRef = useRef<HTMLInputElement>(null);
@@ -38,6 +47,7 @@ const CodigoEtiquetaView: React.FC = () => {
   const [showJson, setShowJson] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [filtroProveedor, setFiltroProveedor] = useState('');
   const [filtroTamano, setFiltroTamano] = useState<TamanoEtiquetaId | ''>('');
   const [currentPage, setCurrentPage] = useState(1);
   const [copias, setCopias] = useState(1);
@@ -62,43 +72,49 @@ const CodigoEtiquetaView: React.FC = () => {
     void fetchData();
   }, [fetchData]);
 
+  const proveedores = useMemo(() => {
+    const set = new Set(items.map((r) => r.proveedor_89).filter(Boolean));
+    return [...set].sort((a, b) => a.localeCompare(b, 'es'));
+  }, [items]);
+
   const filtered = useMemo(() => {
     const q = searchTerm.trim().toUpperCase();
     return items.filter((r) => {
-      const matchTexto =
-        !q ||
-        r.codigo_89.includes(q) ||
-        r.descripcion_89.includes(q) ||
-        r.proveedor_89.includes(q);
-      if (!matchTexto) return false;
-      if (!filtroTamano) return true;
-      return tamanoEtiquetaMm(r.codigo_89).id === filtroTamano;
+      if (!matchTexto(r, q)) return false;
+      if (filtroProveedor && r.proveedor_89 !== filtroProveedor) return false;
+      if (filtroTamano && tamanoEtiquetaMm(r.codigo_89).id !== filtroTamano) return false;
+      return true;
     });
-  }, [items, searchTerm, filtroTamano]);
+  }, [items, searchTerm, filtroProveedor, filtroTamano]);
 
   const conteoPorTamano = useMemo(() => {
     const q = searchTerm.trim().toUpperCase();
     const counts: Record<TamanoEtiquetaId, number> = { '32x22': 0, '50x30': 0, '100x30': 0 };
     for (const r of items) {
-      if (
-        q &&
-        !r.codigo_89.includes(q) &&
-        !r.descripcion_89.includes(q) &&
-        !r.proveedor_89.includes(q)
-      ) {
-        continue;
-      }
+      if (!matchTexto(r, q)) continue;
+      if (filtroProveedor && r.proveedor_89 !== filtroProveedor) continue;
       counts[tamanoEtiquetaMm(r.codigo_89).id] += 1;
     }
     return counts;
-  }, [items, searchTerm]);
+  }, [items, searchTerm, filtroProveedor]);
+
+  const conteoPorProveedor = useMemo(() => {
+    const q = searchTerm.trim().toUpperCase();
+    const counts: Record<string, number> = {};
+    for (const r of items) {
+      if (!matchTexto(r, q)) continue;
+      if (filtroTamano && tamanoEtiquetaMm(r.codigo_89).id !== filtroTamano) continue;
+      counts[r.proveedor_89] = (counts[r.proveedor_89] || 0) + 1;
+    }
+    return counts;
+  }, [items, searchTerm, filtroTamano]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / itemsPerPage));
   const pageItems = filtered.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, filtroTamano]);
+  }, [searchTerm, filtroProveedor, filtroTamano]);
 
   const setUpper =
     (key: keyof typeof emptyForm) => (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -421,6 +437,24 @@ const CodigoEtiquetaView: React.FC = () => {
                 placeholder="🔍 Buscar o pistola: Enter imprime si el código existe"
                 aria-label="Buscar código"
               />
+              <label className="etiqueta-filtro etiqueta-filtro-proveedor" htmlFor="filtro-proveedor">
+                Proveedor
+                <select
+                  id="filtro-proveedor"
+                  className="form-input"
+                  value={filtroProveedor}
+                  onChange={(e) => setFiltroProveedor(e.target.value)}
+                >
+                  <option value="">
+                    Todos ({proveedores.reduce((n, p) => n + (conteoPorProveedor[p] || 0), 0)})
+                  </option>
+                  {proveedores.map((p) => (
+                    <option key={p} value={p}>
+                      {p} ({conteoPorProveedor[p] || 0})
+                    </option>
+                  ))}
+                </select>
+              </label>
               <label className="etiqueta-filtro" htmlFor="filtro-tamano">
                 Tipo de etiqueta
                 <select
@@ -474,7 +508,7 @@ const CodigoEtiquetaView: React.FC = () => {
                   {pageItems.length === 0 ? (
                     <tr>
                       <td colSpan={6} className="no-data">
-                        {searchTerm || filtroTamano
+                        {searchTerm || filtroTamano || filtroProveedor
                           ? `📋 No se encontraron códigos con ese filtro`
                           : '📋 No hay códigos. Nuevo, pistola o Cargar JSON.'}
                       </td>
