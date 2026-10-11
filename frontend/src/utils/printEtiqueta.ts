@@ -45,16 +45,41 @@ export function imprimirEtiqueta(row: EtiquetaPrint, copias = 1): void {
 <body>
 <p class="hint">Impresora: ZDesigner LP 2844 · papel ${nombre} · tamaño real (no ajustar a la página).</p>
 ${pages}
-<script>window.onload=function(){window.focus();window.print();}</script>
 </body></html>`;
 
-  const win = window.open('', '_blank', 'noopener,noreferrer,width=720,height=420');
-  if (!win) {
-    throw new Error('El navegador bloqueó la ventana de impresión. Permite ventanas emergentes.');
+  document.getElementById('etiqueta-print-frame')?.remove();
+  const iframe = document.createElement('iframe');
+  iframe.id = 'etiqueta-print-frame';
+  iframe.setAttribute('aria-hidden', 'true');
+  iframe.title = 'Impresión de etiqueta';
+  iframe.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0;visibility:hidden;';
+  document.body.appendChild(iframe);
+
+  const win = iframe.contentWindow;
+  const doc = iframe.contentDocument;
+  if (!win || !doc) {
+    iframe.remove();
+    throw new Error('No se pudo preparar la impresión en esta pestaña.');
   }
-  win.document.open();
-  win.document.write(html);
-  win.document.close();
+
+  doc.open();
+  doc.write(html);
+  doc.close();
+
+  const limpiar = () => {
+    iframe.remove();
+  };
+  win.addEventListener('afterprint', limpiar);
+  const imprimir = () => {
+    win.focus();
+    win.print();
+    window.setTimeout(limpiar, 60_000);
+  };
+  if (doc.readyState === 'complete') {
+    imprimir();
+  } else {
+    iframe.onload = imprimir;
+  }
 }
 
 function esc(s: string): string {
