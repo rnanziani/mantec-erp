@@ -19,17 +19,27 @@ function Write-Log([string]$msg) {
   try { Add-Content -Path $LogFile -Value $line -Encoding UTF8 } catch {}
 }
 
+function Decode-Base64Url([string]$s) {
+  $t = $s.Replace('-', '+').Replace('_', '/')
+  switch ($t.Length % 4) {
+    2 { $t += '==' }
+    3 { $t += '=' }
+  }
+  $bytes = [Convert]::FromBase64String($t)
+  return [Text.Encoding]::UTF8.GetString($bytes)
+}
+
 function Register-Protocol {
-  $ps1 = $PSCommandPath
-  $cmd = "powershell.exe -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$ps1`" `"%1`""
+  $vbs = Join-Path $PSScriptRoot 'imprimir-etiqueta.vbs'
+  $cmd = "wscript.exe //B `"$vbs`" `"%1`""
   $root = "HKCU:\Software\Classes\$Protocol"
   New-Item -Path $root -Force | Out-Null
   Set-ItemProperty -Path $root -Name '(default)' -Value 'URL:Mantec Etiqueta TLP'
   New-ItemProperty -Path $root -Name 'URL Protocol' -Value '' -PropertyType String -Force | Out-Null
   New-Item -Path "$root\shell\open\command" -Force | Out-Null
   Set-ItemProperty -Path "$root\shell\open\command" -Name '(default)' -Value $cmd
-  Write-Log "Protocolo $Protocol registrado -> $ps1"
-  Write-Host "Listo. El clic Imprimir del ERP abre este script, manda RAW y se cierra solo."
+  Write-Log "Protocolo $Protocol registrado -> $vbs"
+  Write-Host "Listo. El clic Imprimir del ERP manda RAW y el proceso se cierra solo."
   Write-Host "No hace falta dejar ninguna ventana abierta."
 }
 
@@ -183,17 +193,30 @@ if ($Registrar) {
   exit 0
 }
 
-$uriArg = $null
-if ($Rest -and $Rest.Count -gt 0) { $uriArg = $Rest[0] }
-if (-not $uriArg -and $args.Count -ge 1 -and "$($args[0])" -like "$Protocol`:*") { $uriArg = [string]$args[0] }
+$uriArg = $env:MANTEC_ETIQUETA_URI
+if (-not $uriArg) {
+  $piezas = @()
+  if ($Rest) { $piezas += $Rest }
+  if ($args) { $piezas += $args }
+  if ($piezas.Count -gt 0) { $uriArg = ($piezas -join '&') }
+}
 
 try {
-  if ($uriArg -and "$uriArg" -like "$Protocol`:*") {
+  Write-Log "IN $uriArg"
+  if ($uriArg) {
     $m = Get-QueryMap $uriArg
-    $Codigo = [string]$m['codigo_89']
-    $Descripcion = [string]$m['descripcion_89']
-    $Proveedor = [string]$m['proveedor_89']
-    if ($m['copias']) { $Copias = [int]$m['copias'] }
+    if ($m['d']) {
+      $obj = (Decode-Base64Url $m['d']) | ConvertFrom-Json
+      $Codigo = [string]$obj.codigo_89
+      $Descripcion = [string]$obj.descripcion_89
+      $Proveedor = [string]$obj.proveedor_89
+      if ($obj.copias) { $Copias = [int]$obj.copias }
+    } else {
+      if ($m['codigo_89']) { $Codigo = [string]$m['codigo_89'] }
+      if ($m['descripcion_89']) { $Descripcion = [string]$m['descripcion_89'] }
+      if ($m['proveedor_89']) { $Proveedor = [string]$m['proveedor_89'] }
+      if ($m['copias']) { $Copias = [int]$m['copias'] }
+    }
   }
   Send-Etiqueta $Codigo $Descripcion $Proveedor $Copias
   exit 0

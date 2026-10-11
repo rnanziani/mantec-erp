@@ -4,18 +4,25 @@ export interface EtiquetaPrint {
   proveedor_89: string;
 }
 
-/** Protocolo Windows: un disparo RAW y el proceso termina. Hay que registrar una vez (iniciar-agente-etiqueta.bat). */
+/** Protocolo Windows: un disparo RAW y el proceso termina. Registrar una vez con iniciar-agente-etiqueta.bat. */
 export const PROTOCOLO_ETIQUETA = 'mantec-etiqueta';
+
+function toBase64Url(json: string): string {
+  const b64 = btoa(unescape(encodeURIComponent(json)));
+  return b64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
+}
 
 export function imprimirEtiqueta(row: EtiquetaPrint, copias = 1): void {
   const n = Math.max(1, Math.min(20, copias));
-  const q = new URLSearchParams({
-    codigo_89: row.codigo_89,
-    descripcion_89: row.descripcion_89,
-    proveedor_89: row.proveedor_89,
-    copias: String(n),
-  });
-  const url = `${PROTOCOLO_ETIQUETA}://imprimir?${q.toString()}`;
+  const d = toBase64Url(
+    JSON.stringify({
+      codigo_89: row.codigo_89,
+      descripcion_89: row.descripcion_89,
+      proveedor_89: row.proveedor_89,
+      copias: n,
+    })
+  );
+  const url = `${PROTOCOLO_ETIQUETA}://imprimir?d=${d}`;
   const a = document.createElement('a');
   a.href = url;
   a.style.display = 'none';
