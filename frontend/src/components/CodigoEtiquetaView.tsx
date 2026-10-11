@@ -247,7 +247,7 @@ const CodigoEtiquetaView: React.FC = () => {
     try {
       imprimirEtiqueta(row, copias);
     } catch (err) {
-      void showError('Imprimir', err instanceof Error ? err.message : 'No se pudo abrir la impresión');
+      void showError('Imprimir', err instanceof Error ? err.message : 'No se pudo enviar RAW a la TLP');
     }
   };
 
@@ -427,6 +427,7 @@ const CodigoEtiquetaView: React.FC = () => {
           <div className="form-container etiqueta-toolbar">
             <div className="etiqueta-periodo">
               🏷️ Catálogo: {filtered.length} de {items.length} códigos
+              <span className="etiqueta-agente is-ok">TLP RAW al puerto (se abre y cierra solo)</span>
             </div>
             <div className="etiqueta-search">
               <input
