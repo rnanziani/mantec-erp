@@ -1,0 +1,48 @@
+.etiqueta-hint {
+  margin: 0 0 12px;
+  color: #455a64;
+  font-size: 0.92rem;
+}
+
+.etiqueta-json {
+  width: 100%;
+  min-height: 140px;
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 0.85rem;
+  margin-bottom: 10px;
+}
+
+.etiqueta-search {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: flex-end;
+  margin-bottom: 16px;
+}
+
+.etiqueta-search .form-input {
+  flex: 1 1 240px;
+}
+
+.etiqueta-copias {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.85rem;
+  color: #37474f;
+}
+
+.etiqueta-copias .form-input {
+  width: 80px;
+}
+
+.etiqueta-view code {
+  font-size: 0.92rem;
+}
+
+@media (max-width: 700px) {
+  .etiqueta-search {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}

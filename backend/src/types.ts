@@ -2392,3 +2392,20 @@ export interface GarantiaExpedienteRepuesto {
   fecha_instalacion_anterior?: string | null;
   dias_vida?: number | null;
 }
+
+export interface CodigoEtiqueta {
+  idcodigo_89: number;
+  codigo_89: string;
+  descripcion_89: string;
+  proveedor_89: string;
+  activo_89: boolean;
+  creado_en?: string | Date;
+  actualizado_en?: string | Date;
+}
+
+export interface CreateCodigoEtiquetaDTO {
+  codigo_89?: string;
+  descripcion_89?: string;
+  proveedor_89?: string;
+  activo_89?: boolean;
+}

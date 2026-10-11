@@ -77,6 +77,7 @@ import ReportesRepuestoDanadoView from './components/ReportesRepuestoDanadoView'
 import UnidadRepuestoView from './components/UnidadRepuestoView';
 import MovimientoRepuestoView from './components/MovimientoRepuestoView';
 import ExistenciaRepuestoView from './components/ExistenciaRepuestoView';
+import CodigoEtiquetaView from './components/CodigoEtiquetaView';
 import { useUserPermissions } from './hooks/useUserPermissions';
 import SessionInactivityModal from './components/SessionInactivityModal';
 import SessionExpiredModal from './components/SessionExpiredModal';
@@ -165,6 +166,7 @@ function App() {
     'asignacion-productos-aseo': 'MENU_OPERACIONES_ASIGNACION_ASEO',
     'asignacion-prendas': 'MENU_OPERACIONES_ASIGNACION_PRENDAS',
     'cargo-maquina': 'MENU_OPERACIONES_CARGO_MAQUINA',
+    'etiquetas': 'MENU_OPERACIONES_ETIQUETAS',
     'bodegas': 'MENU_GESTION_ALTERNADORES_BODEGAS',
     'tipos-transaccion': 'MENU_GESTION_ALTERNADORES_TIPOS_TRANSACCION',
     'transacciones': 'MENU_GESTION_ALTERNADORES_MOVIMIENTOS',
@@ -532,6 +534,7 @@ function App() {
 
           {currentView === 'consumo-insumos' && hasRouteAccess('consumo-insumos') && <ConsumoInsumoView />}
           {currentView === 'cargo-maquina' && hasRouteAccess('cargo-maquina') && <CargoMaquinaView />}
+          {currentView === 'etiquetas' && hasRouteAccess('etiquetas') && <CodigoEtiquetaView />}
           {currentView === 'herramientas' && hasRouteAccess('herramientas') && <HerramientaView />}
           {currentView === 'movimientos-panol' && hasRouteAccess('movimientos-panol') && <PanolMovimientoView />}
           {currentView === 'clases-epp' && hasRouteAccess('clases-epp') && <ClaseElementoEppView />}

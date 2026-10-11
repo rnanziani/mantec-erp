@@ -1,0 +1,232 @@
+import { Request, Response } from 'express';
+import { pool } from '../db.js';
+import {
+  CodigoEtiqueta,
+  CreateCodigoEtiquetaDTO,
+} from '../types.js';
+
+const TABLA = 'tbl_89_codigo_etiqueta';
+
+function normCodigo(raw: unknown): string | null {
+  if (raw == null) return null;
+  const t = String(raw).trim().toUpperCase().replace(/\s+/g, '');
+  if (!t) return null;
+  if (t.length > 25) return null;
+  return t;
+}
+
+function normTexto(raw: unknown, max: number): string | null {
+  if (raw == null) return null;
+  const t = String(raw).trim().replace(/\s+/g, ' ').toUpperCase();
+  if (!t) return null;
+  return t.slice(0, max);
+}
+
+async function insertarSiNoExiste(
+  codigo: string,
+  descripcion: string,
+  proveedor: string
+): Promise<'inserted' | 'skipped'> {
+  const result = await pool.query<CodigoEtiqueta>(
+    `INSERT INTO ${TABLA} (codigo_89, descripcion_89, proveedor_89)
+     VALUES ($1, $2, $3)
+     ON CONFLICT DO NOTHING
+     RETURNING *`,
+    [codigo, descripcion, proveedor]
+  );
+  return (result.rowCount ?? 0) > 0 ? 'inserted' : 'skipped';
+}
+
+function extraerFilasJson(payload: unknown): Array<{
+  codigo: string;
+  descripcion: string;
+  proveedor: string;
+}> {
+  const filas: Array<{ codigo: string; descripcion: string; proveedor: string }> = [];
+
+  const pushItem = (item: unknown, proveedorDefault: string) => {
+    if (!item || typeof item !== 'object') return;
+    const o = item as Record<string, unknown>;
+    const codigo = normCodigo(o.codigo ?? o.codigo_89);
+    const descripcion = normTexto(o.descripcion ?? o.descripcion_89, 200);
+    const proveedor =
+      normTexto(o.proveedor ?? o.proveedor_89 ?? o.cliente, 80) || proveedorDefault;
+    if (codigo && descripcion && proveedor) {
+      filas.push({ codigo, descripcion, proveedor });
+    }
+  };
+
+  if (Array.isArray(payload)) {
+    payload.forEach((it) => pushItem(it, ''));
+    return filas;
+  }
+  if (!payload || typeof payload !== 'object') return filas;
+  const root = payload as Record<string, unknown>;
+  let proveedorDefault = '';
+  if (typeof root.proveedor === 'string') {
+    proveedorDefault = normTexto(root.proveedor, 80) || '';
+  } else if (root.proveedor && typeof root.proveedor === 'object') {
+    const p = root.proveedor as Record<string, unknown>;
+    proveedorDefault = normTexto(p.nombre ?? p.id, 80) || '';
+  }
+  if (!proveedorDefault) {
+    proveedorDefault = normTexto(root.cliente, 80) || '';
+  }
+  const items = Array.isArray(root.items) ? root.items : [];
+  if (items.length) {
+    items.forEach((it) => pushItem(it, proveedorDefault));
+    return filas;
+  }
+  pushItem(root, proveedorDefault);
+  return filas;
+}
+
+export const getAllCodigosEtiqueta = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const soloActivos = String(req.query.activos || '') === '1';
+    const q = String(req.query.q || '').trim();
+    const params: unknown[] = [];
+    const where: string[] = [];
+    if (soloActivos) where.push('activo_89 = true');
+    if (q) {
+      params.push(`%${q.toUpperCase()}%`);
+      where.push(
+        `(UPPER(codigo_89) LIKE $${params.length} OR UPPER(descripcion_89) LIKE $${params.length} OR UPPER(proveedor_89) LIKE $${params.length})`
+      );
+    }
+    const sql = `SELECT * FROM ${TABLA}
+      ${where.length ? `WHERE ${where.join(' AND ')}` : ''}
+      ORDER BY idcodigo_89 DESC`;
+    const result = await pool.query<CodigoEtiqueta>(sql, params);
+    res.json({ success: true, data: result.rows, count: result.rowCount ?? 0 });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: 'Error al obtener códigos de etiqueta',
+      message: error instanceof Error ? error.message : 'Error desconocido',
+    });
+  }
+};
+
+export const createCodigoEtiqueta = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const body: CreateCodigoEtiquetaDTO = req.body;
+    const codigo = normCodigo(body.codigo_89);
+    const descripcion = normTexto(body.descripcion_89, 200);
+    const proveedor = normTexto(body.proveedor_89, 80);
+    if (!codigo || !descripcion || !proveedor) {
+      res.status(400).json({
+        success: false,
+        error: 'Código (máx. 25), descripción y proveedor son requeridos',
+      });
+      return;
+    }
+    const estado = await insertarSiNoExiste(codigo, descripcion, proveedor);
+    if (estado === 'skipped') {
+      res.status(409).json({
+        success: false,
+        error: `El código ${codigo} ya existe`,
+      });
+      return;
+    }
+    const row = await pool.query<CodigoEtiqueta>(
+      `SELECT * FROM ${TABLA} WHERE UPPER(TRIM(codigo_89)) = $1`,
+      [codigo]
+    );
+    res.status(201).json({ success: true, data: row.rows[0], message: 'Código creado' });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: 'Error al crear el código',
+      message: error instanceof Error ? error.message : 'Error desconocido',
+    });
+  }
+};
+
+export const importarCodigosEtiqueta = async (req: Request, res: Response): Promise<void> => {
+  try {
+    let payload: unknown = req.body;
+    if (payload && typeof payload === 'object' && 'json' in payload) {
+      const raw = (payload as { json?: unknown }).json;
+      if (typeof raw === 'string') {
+        try {
+          payload = JSON.parse(raw);
+        } catch {
+          res.status(400).json({ success: false, error: 'El JSON no es válido' });
+          return;
+        }
+      } else {
+        payload = raw;
+      }
+    }
+    const filas = extraerFilasJson(payload);
+    if (!filas.length) {
+      res.status(400).json({
+        success: false,
+        error: 'No encontré items con codigo, descripcion y proveedor',
+      });
+      return;
+    }
+    let inserted = 0;
+    let skipped = 0;
+    for (const f of filas) {
+      const estado = await insertarSiNoExiste(f.codigo, f.descripcion, f.proveedor);
+      if (estado === 'inserted') inserted += 1;
+      else skipped += 1;
+    }
+    res.json({
+      success: true,
+      data: { inserted, skipped, total: filas.length },
+      message: `Cargados ${inserted}, omitidos ${skipped} (ya existían)`,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: 'Error al importar JSON',
+      message: error instanceof Error ? error.message : 'Error desconocido',
+    });
+  }
+};
+
+export const updateCodigoEtiqueta = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params;
+    const body: CreateCodigoEtiquetaDTO = req.body;
+    const descripcion = body.descripcion_89 !== undefined ? normTexto(body.descripcion_89, 200) : undefined;
+    const proveedor = body.proveedor_89 !== undefined ? normTexto(body.proveedor_89, 80) : undefined;
+    if (descripcion !== undefined && !descripcion) {
+      res.status(400).json({ success: false, error: 'Descripción no puede quedar vacía' });
+      return;
+    }
+    if (proveedor !== undefined && !proveedor) {
+      res.status(400).json({ success: false, error: 'Proveedor no puede quedar vacío' });
+      return;
+    }
+    const result = await pool.query<CodigoEtiqueta>(
+      `UPDATE ${TABLA} SET
+         descripcion_89 = COALESCE($1, descripcion_89),
+         proveedor_89 = COALESCE($2, proveedor_89),
+         activo_89 = COALESCE($3, activo_89),
+         actualizado_en = CURRENT_TIMESTAMP
+       WHERE idcodigo_89 = $4
+       RETURNING *`,
+      [
+        descripcion ?? null,
+        proveedor ?? null,
+        body.activo_89 !== undefined ? body.activo_89 : null,
+        id,
+      ]
+    );
+    if ((result.rowCount ?? 0) === 0) {
+      res.status(404).json({ success: false, error: 'Código no encontrado' });
+      return;
+    }
+    res.json({ success: true, data: result.rows[0], message: 'Actualizado' });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: 'Error al actualizar',
+      message: error instanceof Error ? error.message : 'Error desconocido',
+    });
+  }
+};
