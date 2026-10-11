@@ -188,12 +188,24 @@ export const importarCodigosEtiqueta = async (req: Request, res: Response): Prom
   }
 };
 
+function pgCode(error: unknown): string {
+  if (error && typeof error === 'object' && 'code' in error) {
+    return String((error as { code: unknown }).code);
+  }
+  return '';
+}
+
 export const updateCodigoEtiqueta = async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
     const body: CreateCodigoEtiquetaDTO = req.body;
+    const codigo = body.codigo_89 !== undefined ? normCodigo(body.codigo_89) : undefined;
     const descripcion = body.descripcion_89 !== undefined ? normTexto(body.descripcion_89, 200) : undefined;
     const proveedor = body.proveedor_89 !== undefined ? normTexto(body.proveedor_89, 80) : undefined;
+    if (codigo !== undefined && !codigo) {
+      res.status(400).json({ success: false, error: 'Código no puede quedar vacío (máx. 25)' });
+      return;
+    }
     if (descripcion !== undefined && !descripcion) {
       res.status(400).json({ success: false, error: 'Descripción no puede quedar vacía' });
       return;
@@ -204,13 +216,15 @@ export const updateCodigoEtiqueta = async (req: Request, res: Response): Promise
     }
     const result = await pool.query<CodigoEtiqueta>(
       `UPDATE ${TABLA} SET
-         descripcion_89 = COALESCE($1, descripcion_89),
-         proveedor_89 = COALESCE($2, proveedor_89),
-         activo_89 = COALESCE($3, activo_89),
+         codigo_89 = COALESCE($1, codigo_89),
+         descripcion_89 = COALESCE($2, descripcion_89),
+         proveedor_89 = COALESCE($3, proveedor_89),
+         activo_89 = COALESCE($4, activo_89),
          actualizado_en = CURRENT_TIMESTAMP
-       WHERE idcodigo_89 = $4
+       WHERE idcodigo_89 = $5
        RETURNING *`,
       [
+        codigo ?? null,
         descripcion ?? null,
         proveedor ?? null,
         body.activo_89 !== undefined ? body.activo_89 : null,
@@ -223,9 +237,34 @@ export const updateCodigoEtiqueta = async (req: Request, res: Response): Promise
     }
     res.json({ success: true, data: result.rows[0], message: 'Actualizado' });
   } catch (error) {
+    if (pgCode(error) === '23505') {
+      res.status(409).json({ success: false, error: 'Ese código ya existe en otro registro' });
+      return;
+    }
     res.status(500).json({
       success: false,
       error: 'Error al actualizar',
+      message: error instanceof Error ? error.message : 'Error desconocido',
+    });
+  }
+};
+
+export const deleteCodigoEtiqueta = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params;
+    const result = await pool.query(
+      `DELETE FROM ${TABLA} WHERE idcodigo_89 = $1 RETURNING idcodigo_89, codigo_89`,
+      [id]
+    );
+    if ((result.rowCount ?? 0) === 0) {
+      res.status(404).json({ success: false, error: 'Código no encontrado' });
+      return;
+    }
+    res.json({ success: true, message: 'Código eliminado' });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: 'Error al eliminar',
       message: error instanceof Error ? error.message : 'Error desconocido',
     });
   }

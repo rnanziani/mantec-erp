@@ -1,7 +1,18 @@
+.etiqueta-view .header-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.etiqueta-view .header-actions .btn-primary:disabled {
+  background: #6c757d !important;
+  cursor: not-allowed;
+}
+
 .etiqueta-hint {
   margin: 0 0 12px;
-  color: #455a64;
-  font-size: 0.92rem;
+  color: #6c757d;
+  font-size: 0.9rem;
 }
 
 .etiqueta-json {
@@ -12,16 +23,25 @@
   margin-bottom: 10px;
 }
 
+.etiqueta-toolbar {
+  margin-bottom: 20px;
+}
+
+.etiqueta-periodo {
+  color: #6c757d;
+  font-size: 14px;
+  margin-bottom: 10px;
+}
+
 .etiqueta-search {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
-  align-items: flex-end;
-  margin-bottom: 16px;
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) minmax(180px, 220px) 88px;
+  gap: 10px;
+  align-items: end;
 }
 
 .etiqueta-search-q {
-  flex: 1 1 240px;
+  width: 100%;
 }
 
 .etiqueta-filtro,
@@ -30,24 +50,56 @@
   flex-direction: column;
   gap: 4px;
   font-size: 0.85rem;
-  color: #37474f;
-}
-
-.etiqueta-filtro .form-input {
-  width: 200px;
-}
-
-.etiqueta-copias .form-input {
-  width: 80px;
+  color: #495057;
+  font-weight: 500;
 }
 
 .etiqueta-view code {
   font-size: 0.92rem;
+  background: #f1f3f5;
+  padding: 2px 6px;
+  border-radius: 4px;
 }
 
-@media (max-width: 700px) {
+.etiqueta-form-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.etiqueta-view .error-banner {
+  padding: 1rem;
+  margin-bottom: 1rem;
+  background: #fee2e2;
+  color: #991b1b;
+  border-radius: 8px;
+}
+
+.etiqueta-view .data-table .no-data {
+  text-align: center;
+  color: #6c757d;
+  padding: 2rem 12px;
+}
+
+.etiqueta-view .actions .btn-edit,
+.etiqueta-view .actions .btn-delete {
+  min-width: 36px;
+  min-height: 36px;
+}
+
+@media (max-width: 800px) {
   .etiqueta-search {
-    flex-direction: column;
-    align-items: stretch;
+    grid-template-columns: 1fr;
+  }
+
+  .etiqueta-view .header-actions {
+    width: 100%;
+  }
+
+  .etiqueta-view .header-actions button {
+    flex: 1 1 auto;
   }
 }

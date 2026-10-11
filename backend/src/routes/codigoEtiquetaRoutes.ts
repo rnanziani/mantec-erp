@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import {
   createCodigoEtiqueta,
+  deleteCodigoEtiqueta,
   getAllCodigosEtiqueta,
   importarCodigosEtiqueta,
   updateCodigoEtiqueta,
@@ -12,5 +13,6 @@ router.get('/', getAllCodigosEtiqueta);
 router.post('/importar', importarCodigosEtiqueta);
 router.post('/', createCodigoEtiqueta);
 router.put('/:id', updateCodigoEtiqueta);
+router.delete('/:id', deleteCodigoEtiqueta);
 
 export default router;
