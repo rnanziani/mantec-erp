@@ -554,16 +554,45 @@ const CodigoEtiquetaView: React.FC = () => {
                   ))}
                 </select>
               </label>
-              <label className="etiqueta-copias">
-                Copias
-                <input
-                  type="number"
-                  min={1}
-                  max={20}
-                  className="form-input"
-                  value={copias}
-                  onChange={(e) => setCopias(Number(e.target.value) || 1)}
-                />
+              <label className="etiqueta-copias" htmlFor="etiqueta-copias">
+                Impresiones
+                <div className="etiqueta-stepper">
+                  <button
+                    type="button"
+                    className="etiqueta-stepper-btn"
+                    onClick={() => setCopias((n) => Math.max(1, n - 1))}
+                    disabled={copias <= 1}
+                    aria-label="Menos impresiones"
+                  >
+                    −
+                  </button>
+                  <input
+                    id="etiqueta-copias"
+                    type="number"
+                    min={1}
+                    max={20}
+                    className="form-input etiqueta-stepper-value"
+                    value={copias}
+                    onChange={(e) => {
+                      const n = Number(e.target.value);
+                      if (!Number.isFinite(n)) {
+                        setCopias(1);
+                        return;
+                      }
+                      setCopias(Math.max(1, Math.min(20, Math.trunc(n))));
+                    }}
+                    aria-label="Cantidad de impresiones"
+                  />
+                  <button
+                    type="button"
+                    className="etiqueta-stepper-btn"
+                    onClick={() => setCopias((n) => Math.min(20, n + 1))}
+                    disabled={copias >= 20}
+                    aria-label="Más impresiones"
+                  >
+                    +
+                  </button>
+                </div>
               </label>
             </div>
           </div>
