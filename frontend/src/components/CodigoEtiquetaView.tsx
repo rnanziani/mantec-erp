@@ -27,6 +27,9 @@ interface ApiResponse<T = unknown> {
 const emptyForm = { codigo_89: '', descripcion_89: '', proveedor_89: '' };
 const API_URL = apiUrl('/codigos-etiqueta');
 
+type SortKey = 'idcodigo_89' | 'codigo_89' | 'descripcion_89';
+type SortConfig = { key: SortKey; direction: 'asc' | 'desc' };
+
 function matchTexto(r: CodigoEtiqueta, q: string): boolean {
   return (
     !q ||
@@ -50,6 +53,7 @@ const CodigoEtiquetaView: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filtroProveedor, setFiltroProveedor] = useState('');
   const [filtroTamano, setFiltroTamano] = useState<TamanoEtiquetaId | ''>('');
+  const [sortConfig, setSortConfig] = useState<SortConfig>({ key: 'idcodigo_89', direction: 'desc' });
   const [currentPage, setCurrentPage] = useState(1);
   const [copias, setCopias] = useState(1);
   const itemsPerPage = 10;
@@ -80,13 +84,25 @@ const CodigoEtiquetaView: React.FC = () => {
 
   const filtered = useMemo(() => {
     const q = searchTerm.trim().toUpperCase();
-    return items.filter((r) => {
+    const list = items.filter((r) => {
       if (!matchTexto(r, q)) return false;
       if (filtroProveedor && r.proveedor_89 !== filtroProveedor) return false;
       if (filtroTamano && tamanoEtiquetaMm(r.codigo_89).id !== filtroTamano) return false;
       return true;
     });
-  }, [items, searchTerm, filtroProveedor, filtroTamano]);
+    const dir = sortConfig.direction === 'asc' ? 1 : -1;
+    list.sort((a, b) => {
+      if (sortConfig.key === 'idcodigo_89') {
+        return (a.idcodigo_89 - b.idcodigo_89) * dir;
+      }
+      const cmp = a[sortConfig.key].localeCompare(b[sortConfig.key], 'es', {
+        numeric: true,
+        sensitivity: 'base',
+      });
+      return cmp * dir;
+    });
+    return list;
+  }, [items, searchTerm, filtroProveedor, filtroTamano, sortConfig]);
 
   const conteoPorTamano = useMemo(() => {
     const q = searchTerm.trim().toUpperCase();
@@ -118,7 +134,24 @@ const CodigoEtiquetaView: React.FC = () => {
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, filtroProveedor, filtroTamano]);
+  }, [searchTerm, filtroProveedor, filtroTamano, sortConfig]);
+
+  const handleSort = (key: SortKey) => {
+    setSortConfig((prev) => ({
+      key,
+      direction: prev.key === key && prev.direction === 'asc' ? 'desc' : 'asc',
+    }));
+  };
+
+  const sortClass = (key: SortKey) =>
+    `sortable ${sortConfig.key === key ? (sortConfig.direction === 'asc' ? 'sort-asc' : 'sort-desc') : ''}`;
+
+  const onSortKey = (key: SortKey) => (e: React.KeyboardEvent<HTMLTableCellElement>) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      handleSort(key);
+    }
+  };
 
   const setUpper =
     (key: keyof typeof emptyForm) => (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -544,9 +577,54 @@ const CodigoEtiquetaView: React.FC = () => {
               <table className="data-table">
                 <thead>
                   <tr>
-                    <th>ID</th>
-                    <th>Código</th>
-                    <th>Descripción</th>
+                    <th
+                      className={sortClass('idcodigo_89')}
+                      onClick={() => handleSort('idcodigo_89')}
+                      onKeyDown={onSortKey('idcodigo_89')}
+                      tabIndex={0}
+                      role="columnheader"
+                      aria-sort={
+                        sortConfig.key === 'idcodigo_89'
+                          ? sortConfig.direction === 'asc'
+                            ? 'ascending'
+                            : 'descending'
+                          : 'none'
+                      }
+                    >
+                      ID
+                    </th>
+                    <th
+                      className={sortClass('codigo_89')}
+                      onClick={() => handleSort('codigo_89')}
+                      onKeyDown={onSortKey('codigo_89')}
+                      tabIndex={0}
+                      role="columnheader"
+                      aria-sort={
+                        sortConfig.key === 'codigo_89'
+                          ? sortConfig.direction === 'asc'
+                            ? 'ascending'
+                            : 'descending'
+                          : 'none'
+                      }
+                    >
+                      Código
+                    </th>
+                    <th
+                      className={sortClass('descripcion_89')}
+                      onClick={() => handleSort('descripcion_89')}
+                      onKeyDown={onSortKey('descripcion_89')}
+                      tabIndex={0}
+                      role="columnheader"
+                      aria-sort={
+                        sortConfig.key === 'descripcion_89'
+                          ? sortConfig.direction === 'asc'
+                            ? 'ascending'
+                            : 'descending'
+                          : 'none'
+                      }
+                    >
+                      Descripción
+                    </th>
                     <th>Proveedor</th>
                     <th>Etiqueta</th>
                     <th>Acciones</th>
