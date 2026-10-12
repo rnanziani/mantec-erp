@@ -89,7 +89,10 @@ const CodigoEtiquetaView: React.FC = () => {
 
   const conteoPorTamano = useMemo(() => {
     const q = searchTerm.trim().toUpperCase();
-    const counts: Record<TamanoEtiquetaId, number> = { '32x22': 0, '50x30': 0, '100x30': 0 };
+    const counts = Object.fromEntries(TAMANOS_ETIQUETA.map((t) => [t.id, 0])) as Record<
+      TamanoEtiquetaId,
+      number
+    >;
     for (const r of items) {
       if (!matchTexto(r, q)) continue;
       if (filtroProveedor && r.proveedor_89 !== filtroProveedor) continue;
@@ -465,7 +468,7 @@ const CodigoEtiquetaView: React.FC = () => {
                   onChange={(e) => setFiltroTamano(e.target.value as TamanoEtiquetaId | '')}
                 >
                   <option value="">
-                    Todas ({conteoPorTamano['32x22'] + conteoPorTamano['50x30'] + conteoPorTamano['100x30']})
+                    Todas ({TAMANOS_ETIQUETA.reduce((n, t) => n + conteoPorTamano[t.id], 0)})
                   </option>
                   {TAMANOS_ETIQUETA.map((t) => (
                     <option key={t.id} value={t.id}>

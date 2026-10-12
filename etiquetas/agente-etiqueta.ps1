@@ -95,6 +95,20 @@ function Get-EplText([string]$s, [int]$max) {
   return $t
 }
 
+function Split-EplDesc([string]$s, [int]$maxLine) {
+  $t = Get-EplText $s ($maxLine * 2)
+  if ($t.Length -le $maxLine) {
+    return @{ L1 = $t; L2 = '' }
+  }
+  $cut = $maxLine
+  $space = $t.LastIndexOf(' ', [Math]::Min($maxLine, $t.Length - 1))
+  if ($space -ge 6) { $cut = $space }
+  return @{
+    L1 = $t.Substring(0, $cut).Trim()
+    L2 = Get-EplText $t.Substring($cut).Trim() $maxLine
+  }
+}
+
 function Get-EplCommand([string]$codigo, [string]$desc, [string]$prov, [int]$copias) {
   $n = $codigo.Trim().Length
   if ($copias -lt 1) { $copias = 1 }
@@ -105,24 +119,46 @@ function Get-EplCommand([string]$codigo, [string]$desc, [string]$prov, [int]$cop
   $desc = Get-EplText $desc 42
   $prov = Get-EplText $prov 12
   if ($n -le 8) {
-    $codigo = Get-EplText $codigo 12
-    $desc = Get-EplText $desc 22
+    # LAYOUT APROBADO 32x20: 3 columnas. X 4 / 284 / 556. Código+proveedor en una
+    # línea; descripción en 2 filas si no cabe. Copias = filas. No mover.
+    $codigo = Get-EplText $codigo 8
+    $prov = Get-EplText $prov 10
+    $partes = Split-EplDesc $desc 22
+    $d1 = $partes.L1
+    $d2 = $partes.L2
+    $x0 = 4
+    $x1 = 284
+    $x2 = 556
+    $xp0 = $x0 + ($codigo.Length * 12) + 8
+    $xp1 = $x1 + ($codigo.Length * 12) + 8
+    $xp2 = $x2 + ($codigo.Length * 12) + 8
     $epl = @"
 N
-q256
-Q176,16
+q812
+Q160,24
 ZT
 I8,A,001
-A8,6,0,2,1,1,N,"$codigo"
-A8,28,0,1,1,1,N,"$prov"
-B8,44,0,1,2,4,70,N,"$codigo"
-A8,128,0,1,1,1,N,"$desc"
+A$x0,6,0,2,1,1,N,"$codigo"
+A$xp0,8,0,1,1,1,N,"$prov"
+B$x0,28,0,1,2,4,58,N,"$codigo"
+A$x0,92,0,1,1,1,N,"$d1"
+A$x0,108,0,1,1,1,N,"$d2"
+A$x1,6,0,2,1,1,N,"$codigo"
+A$xp1,8,0,1,1,1,N,"$prov"
+B$x1,28,0,1,2,4,58,N,"$codigo"
+A$x1,92,0,1,1,1,N,"$d1"
+A$x1,108,0,1,1,1,N,"$d2"
+A$x2,6,0,2,1,1,N,"$codigo"
+A$xp2,8,0,1,1,1,N,"$prov"
+B$x2,28,0,1,2,4,58,N,"$codigo"
+A$x2,92,0,1,1,1,N,"$d1"
+A$x2,108,0,1,1,1,N,"$d2"
 P$copias
 
 "@
   } elseif ($n -le 14) {
     # LAYOUT APROBADO 50x30: 2 columnas en el rollo 100 mm. Columna der +5 mm (X+40).
-    # No mover. El 100x30 (rama else) tampoco.
+    # No mover. El 32x20 y el 100x30 tampoco.
     $codigo = Get-EplText $codigo 14
     $desc = Get-EplText $desc 28
     $epl = @"
