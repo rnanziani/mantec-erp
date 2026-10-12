@@ -2,10 +2,11 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import './BodegaView.css';
 import './CodigoEtiquetaView.css';
 import Pagination from './shared/Pagination';
-import { showDeleteConfirm, showError, showSuccess } from '../utils/swal';
+import { showDeleteConfirm, showError, showSuccess, showWarning } from '../utils/swal';
 import { apiFetch, apiUrl } from '../lib/apiClient';
 import { changeKeepingCaret } from '../hooks/useCaretTransform';
 import { imprimirEtiqueta } from '../utils/printEtiqueta';
+import { exportToExcel } from '../utils/exportUtils';
 import { TAMANOS_ETIQUETA, tamanoEtiquetaMm, type TamanoEtiquetaId } from '../utils/code128';
 
 interface CodigoEtiqueta {
@@ -246,6 +247,32 @@ const CodigoEtiquetaView: React.FC = () => {
     }
   };
 
+  const hayFiltrosActivos = Boolean(searchTerm.trim() || filtroProveedor || filtroTamano);
+
+  const limpiarFiltros = () => {
+    setSearchTerm('');
+    setFiltroProveedor('');
+    setFiltroTamano('');
+  };
+
+  const handleExportExcel = () => {
+    if (filtered.length === 0) {
+      void showWarning('Excel', 'No hay códigos para exportar con el filtro actual');
+      return;
+    }
+    exportToExcel(
+      filtered.map((r) => ({
+        ID: r.idcodigo_89,
+        Codigo: r.codigo_89,
+        Descripcion: r.descripcion_89,
+        Proveedor: r.proveedor_89,
+        Etiqueta: tamanoEtiquetaMm(r.codigo_89).nombre,
+      })),
+      'etiquetas',
+      'Etiquetas'
+    );
+  };
+
   const handlePrint = (row: CodigoEtiqueta) => {
     try {
       imprimirEtiqueta(row, copias);
@@ -318,6 +345,23 @@ const CodigoEtiquetaView: React.FC = () => {
             style={{ backgroundColor: '#6f42c1' }}
           >
             📄 Cargar JSON
+          </button>
+          <button
+            type="button"
+            className="btn-primary"
+            onClick={handleExportExcel}
+            style={{ backgroundColor: '#dc3545' }}
+          >
+            📊 Excel
+          </button>
+          <button
+            type="button"
+            className="btn-secondary"
+            onClick={limpiarFiltros}
+            disabled={!hayFiltrosActivos}
+            aria-label="Limpiar búsqueda, proveedor y tipo de etiqueta"
+          >
+            🧹 Limpiar filtros
           </button>
           <button type="button" className="btn-secondary" onClick={handleSalir}>
             🚪 Salir
