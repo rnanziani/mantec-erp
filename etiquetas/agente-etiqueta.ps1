@@ -121,18 +121,24 @@ P$copias
 
 "@
   } elseif ($n -le 14) {
-    $codigo = Get-EplText $codigo 16
+    # LAYOUT APROBADO 50x30: 2 columnas en el rollo 100 mm. Columna der +5 mm (X+40).
+    # No mover. El 100x30 (rama else) tampoco.
+    $codigo = Get-EplText $codigo 14
     $desc = Get-EplText $desc 28
     $epl = @"
 N
-q400
+q812
 Q240,24
 ZT
 I8,A,001
 A12,8,0,3,1,1,N,"$codigo"
-A12,36,0,1,1,1,N,"$prov"
-B12,50,0,1,2,4,90,N,"$codigo"
+A268,10,0,1,1,1,N,"$prov"
+B12,42,0,1,2,4,100,N,"$codigo"
 A12,158,0,2,1,1,N,"$desc"
+A458,8,0,3,1,1,N,"$codigo"
+A714,10,0,1,1,1,N,"$prov"
+B458,42,0,1,2,4,100,N,"$codigo"
+A458,158,0,2,1,1,N,"$desc"
 P$copias
 
 "@
