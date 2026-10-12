@@ -97,52 +97,63 @@ function Get-EplText([string]$s, [int]$max) {
 
 function Get-EplCommand([string]$codigo, [string]$desc, [string]$prov, [int]$copias) {
   $n = $codigo.Trim().Length
+  if ($copias -lt 1) { $copias = 1 }
+  if ($copias -gt 20) { $copias = 20 }
+  # Layout 100 x 30 mm identico a etiquetas/../formularios/_gen/etiqueta-kaufmann.ps1
+  # (la foto 2 que si se leia). No recortar a 15 mm ni S2/D10.
+  $codigo = Get-EplText $codigo 25
+  $desc = Get-EplText $desc 42
+  $prov = Get-EplText $prov 12
   if ($n -le 8) {
-    $q = 256; $Q = 176; $gap = 16
     $codigo = Get-EplText $codigo 12
-    $prov = Get-EplText $prov 10
-    $desc = Get-EplText $desc 18
-    $body = @"
-A8,6,0,1,1,1,N,"$codigo"
-A8,22,0,1,1,1,N,"$prov"
-B8,38,0,1,2,2,70,N,"$codigo"
-A8,118,0,1,1,1,N,"$desc"
+    $desc = Get-EplText $desc 22
+    $epl = @"
+N
+q256
+Q176,16
+ZT
+I8,A,001
+A8,6,0,2,1,1,N,"$codigo"
+A8,28,0,1,1,1,N,"$prov"
+B8,44,0,1,2,4,70,N,"$codigo"
+A8,128,0,1,1,1,N,"$desc"
+P$copias
+
 "@
   } elseif ($n -le 14) {
-    $q = 400; $Q = 240; $gap = 24
     $codigo = Get-EplText $codigo 16
-    $prov = Get-EplText $prov 14
     $desc = Get-EplText $desc 28
-    $body = @"
-A12,8,0,2,1,1,N,"$codigo"
+    $epl = @"
+N
+q400
+Q240,24
+ZT
+I8,A,001
+A12,8,0,3,1,1,N,"$codigo"
 A12,36,0,1,1,1,N,"$prov"
-B12,54,0,1,2,3,90,N,"$codigo"
-A12,160,0,2,1,1,N,"$desc"
+B12,50,0,1,2,4,90,N,"$codigo"
+A12,158,0,2,1,1,N,"$desc"
+P$copias
+
 "@
   } else {
-    $q = 812; $Q = 240; $gap = 24
-    $codigo = Get-EplText $codigo 25
-    $prov = Get-EplText $prov 18
-    $desc = Get-EplText $desc 40
-    $body = @"
+    # LAYOUT APROBADO (foto 100x30 legible). No mover X/Y ni bajar Q.
+    # Igual a formularios/_gen/etiqueta-kaufmann.ps1 (sin Fact. de factura).
+    $epl = @"
+N
+q812
+Q240,24
+ZT
+I8,A,001
 A16,8,0,3,1,1,N,"$codigo"
 A640,10,0,1,1,1,N,"$prov"
 B16,42,0,1,2,4,100,N,"$codigo"
 A16,158,0,2,1,1,N,"$desc"
-"@
-  }
-  if ($copias -lt 1) { $copias = 1 }
-  if ($copias -gt 20) { $copias = 20 }
-  return @"
-N
-q$q
-Q$Q,$gap
-ZT
-I8,A,001
-$body
 P$copias
 
 "@
+  }
+  return $epl
 }
 
 function Get-QueryMap([string]$uriRaw) {
@@ -179,7 +190,7 @@ function Send-Etiqueta([string]$codigo, [string]$desc, [string]$prov, [int]$copi
   }
   Clear-ColaTlp
   $epl = Get-EplCommand $codigo $desc $prov $copias
-  $bytes = [Text.Encoding]::GetEncoding(1252).GetBytes($epl.Replace("`n", "`r`n"))
+  $bytes = [Text.Encoding]::ASCII.GetBytes($epl.Replace("`n", "`r`n"))
   $ok = [RawPrinterEtiqueta]::SendBytes($PrinterName, $bytes, "Etiqueta $codigo")
   if (-not $ok) {
     $err = [Runtime.InteropServices.Marshal]::GetLastWin32Error()
