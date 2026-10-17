@@ -22,17 +22,46 @@ function normTexto(raw: unknown, max: number): string | null {
   return t.slice(0, max);
 }
 
+const TAMANOS = ['32x20', '50x30', '100x30'] as const;
+type TamanoId = (typeof TAMANOS)[number];
+
+function tamanoPorLargo(codigo: string): TamanoId {
+  const n = codigo.trim().length;
+  if (n <= 8) return '32x20';
+  if (n <= 14) return '50x30';
+  return '100x30';
+}
+
+function cabeEnTamano(codigo: string, tamano: TamanoId): boolean {
+  const n = codigo.trim().length;
+  if (tamano === '32x20') return n <= 8;
+  if (tamano === '50x30') return n <= 14;
+  return n <= 25;
+}
+
+function normTamano(raw: unknown, codigo: string): TamanoId | null {
+  const auto = tamanoPorLargo(codigo);
+  if (raw == null || String(raw).trim() === '') return auto;
+  let t = String(raw).trim().toLowerCase().replace(/×/g, 'x').replace(/\s+/g, '');
+  if (t === '32x22') t = '32x20';
+  if (!TAMANOS.includes(t as TamanoId)) return null;
+  if (!cabeEnTamano(codigo, t as TamanoId)) return null;
+  return t as TamanoId;
+}
+
 async function insertarSiNoExiste(
   codigo: string,
   descripcion: string,
-  proveedor: string
+  proveedor: string,
+  tamano?: string | null
 ): Promise<'inserted' | 'skipped'> {
+  const formato = normTamano(tamano, codigo) ?? tamanoPorLargo(codigo);
   const result = await pool.query<CodigoEtiqueta>(
-    `INSERT INTO ${TABLA} (codigo_89, descripcion_89, proveedor_89)
-     VALUES ($1, $2, $3)
+    `INSERT INTO ${TABLA} (codigo_89, descripcion_89, proveedor_89, tamano_89)
+     VALUES ($1, $2, $3, $4)
      ON CONFLICT DO NOTHING
      RETURNING *`,
-    [codigo, descripcion, proveedor]
+    [codigo, descripcion, proveedor, formato]
   );
   return (result.rowCount ?? 0) > 0 ? 'inserted' : 'skipped';
 }
@@ -121,7 +150,15 @@ export const createCodigoEtiqueta = async (req: Request, res: Response): Promise
       });
       return;
     }
-    const estado = await insertarSiNoExiste(codigo, descripcion, proveedor);
+    const tamano = normTamano(body.tamano_89, codigo);
+    if (!tamano) {
+      res.status(400).json({
+        success: false,
+        error: 'Ese código no cabe en el formato elegido. Usá el sugerido o uno más grande.',
+      });
+      return;
+    }
+    const estado = await insertarSiNoExiste(codigo, descripcion, proveedor, tamano);
     if (estado === 'skipped') {
       res.status(409).json({
         success: false,
@@ -214,19 +251,42 @@ export const updateCodigoEtiqueta = async (req: Request, res: Response): Promise
       res.status(400).json({ success: false, error: 'Proveedor no puede quedar vacío' });
       return;
     }
+    let tamano: TamanoId | null | undefined;
+    if (body.tamano_89 !== undefined || codigo !== undefined) {
+      const actual = await pool.query<{ codigo_89: string }>(
+        `SELECT codigo_89 FROM ${TABLA} WHERE idcodigo_89 = $1`,
+        [id]
+      );
+      if ((actual.rowCount ?? 0) === 0) {
+        res.status(404).json({ success: false, error: 'Código no encontrado' });
+        return;
+      }
+      const codigoFinal = codigo ?? actual.rows[0].codigo_89;
+      tamano = normTamano(body.tamano_89, codigoFinal);
+      if (body.tamano_89 !== undefined && !tamano) {
+        res.status(400).json({
+          success: false,
+          error: 'Ese código no cabe en el formato elegido. Usá el sugerido o uno más grande.',
+        });
+        return;
+      }
+      if (!tamano) tamano = tamanoPorLargo(codigoFinal);
+    }
     const result = await pool.query<CodigoEtiqueta>(
       `UPDATE ${TABLA} SET
          codigo_89 = COALESCE($1, codigo_89),
          descripcion_89 = COALESCE($2, descripcion_89),
          proveedor_89 = COALESCE($3, proveedor_89),
-         activo_89 = COALESCE($4, activo_89),
+         tamano_89 = COALESCE($4, tamano_89),
+         activo_89 = COALESCE($5, activo_89),
          actualizado_en = CURRENT_TIMESTAMP
-       WHERE idcodigo_89 = $5
+       WHERE idcodigo_89 = $6
        RETURNING *`,
       [
         codigo ?? null,
         descripcion ?? null,
         proveedor ?? null,
+        tamano ?? null,
         body.activo_89 !== undefined ? body.activo_89 : null,
         id,
       ]

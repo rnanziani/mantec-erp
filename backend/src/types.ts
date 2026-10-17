@@ -2398,6 +2398,7 @@ export interface CodigoEtiqueta {
   codigo_89: string;
   descripcion_89: string;
   proveedor_89: string;
+  tamano_89: string;
   activo_89: boolean;
   creado_en?: string | Date;
   actualizado_en?: string | Date;
@@ -2407,5 +2408,6 @@ export interface CreateCodigoEtiquetaDTO {
   codigo_89?: string;
   descripcion_89?: string;
   proveedor_89?: string;
+  tamano_89?: string;
   activo_89?: boolean;
 }

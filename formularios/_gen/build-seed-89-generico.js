@@ -11,7 +11,6 @@ const path = require('path');
 
 const fuentes = [
   'C:\\AutomatizacionDefontana\\data\\salida\\codigos-numericos-1-500.json',
-  path.join(__dirname, '..', '..', 'database', 'codigos_defontana_numericos.json'),
 ];
 const dest = path.join(__dirname, '..', '..', 'database', 'seed_tbl_89_generico.sql');
 const PROVEEDOR = 'GENERICO';

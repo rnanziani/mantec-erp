@@ -7,13 +7,20 @@ import { apiFetch, apiUrl } from '../lib/apiClient';
 import { changeKeepingCaret } from '../hooks/useCaretTransform';
 import { imprimirEtiqueta } from '../utils/printEtiqueta';
 import { exportToExcel } from '../utils/exportUtils';
-import { TAMANOS_ETIQUETA, tamanoEtiquetaMm, type TamanoEtiquetaId } from '../utils/code128';
+import {
+  TAMANOS_ETIQUETA,
+  formatosQueCaben,
+  tamanoDeFila,
+  tamanoEtiquetaMm,
+  type TamanoEtiquetaId,
+} from '../utils/code128';
 
 interface CodigoEtiqueta {
   idcodigo_89: number;
   codigo_89: string;
   descripcion_89: string;
   proveedor_89: string;
+  tamano_89?: string;
   activo_89: boolean;
 }
 
@@ -24,7 +31,12 @@ interface ApiResponse<T = unknown> {
   error?: string;
 }
 
-const emptyForm = { codigo_89: '', descripcion_89: '', proveedor_89: '' };
+const emptyForm = {
+  codigo_89: '',
+  descripcion_89: '',
+  proveedor_89: '',
+  tamano_89: '32x20' as TamanoEtiquetaId,
+};
 const API_URL = apiUrl('/codigos-etiqueta');
 
 type SortKey = 'idcodigo_89' | 'codigo_89' | 'descripcion_89';
@@ -87,7 +99,7 @@ const CodigoEtiquetaView: React.FC = () => {
     const list = items.filter((r) => {
       if (!matchTexto(r, q)) return false;
       if (filtroProveedor && r.proveedor_89 !== filtroProveedor) return false;
-      if (filtroTamano && tamanoEtiquetaMm(r.codigo_89).id !== filtroTamano) return false;
+      if (filtroTamano && tamanoDeFila(r.codigo_89, r.tamano_89).id !== filtroTamano) return false;
       return true;
     });
     const dir = sortConfig.direction === 'asc' ? 1 : -1;
@@ -113,7 +125,7 @@ const CodigoEtiquetaView: React.FC = () => {
     for (const r of items) {
       if (!matchTexto(r, q)) continue;
       if (filtroProveedor && r.proveedor_89 !== filtroProveedor) continue;
-      counts[tamanoEtiquetaMm(r.codigo_89).id] += 1;
+      counts[tamanoDeFila(r.codigo_89, r.tamano_89).id] += 1;
     }
     return counts;
   }, [items, searchTerm, filtroProveedor]);
@@ -123,7 +135,7 @@ const CodigoEtiquetaView: React.FC = () => {
     const counts: Record<string, number> = {};
     for (const r of items) {
       if (!matchTexto(r, q)) continue;
-      if (filtroTamano && tamanoEtiquetaMm(r.codigo_89).id !== filtroTamano) continue;
+      if (filtroTamano && tamanoDeFila(r.codigo_89, r.tamano_89).id !== filtroTamano) continue;
       counts[r.proveedor_89] = (counts[r.proveedor_89] || 0) + 1;
     }
     return counts;
@@ -155,7 +167,17 @@ const CodigoEtiquetaView: React.FC = () => {
 
   const setUpper =
     (key: keyof typeof emptyForm) => (e: React.ChangeEvent<HTMLInputElement>) => {
-      changeKeepingCaret(e, (v) => setForm((p) => ({ ...p, [key]: v.toUpperCase() })));
+      changeKeepingCaret(e, (v) => {
+        const val = v.toUpperCase();
+        setForm((p) => {
+          if (key !== 'codigo_89') return { ...p, [key]: val };
+          const permitidos = formatosQueCaben(val).map((t) => t.id);
+          const tamano = permitidos.includes(p.tamano_89)
+            ? p.tamano_89
+            : tamanoEtiquetaMm(val).id;
+          return { ...p, codigo_89: val, tamano_89: tamano };
+        });
+      });
     };
 
   const resetForm = () => {
@@ -168,7 +190,11 @@ const CodigoEtiquetaView: React.FC = () => {
   const handleNuevo = (codigoInicial = '') => {
     setShowJson(false);
     setEditingId(null);
-    setForm({ ...emptyForm, codigo_89: codigoInicial });
+    setForm({
+      ...emptyForm,
+      codigo_89: codigoInicial,
+      tamano_89: tamanoEtiquetaMm(codigoInicial).id,
+    });
     setShowForm(true);
     setTimeout(() => codigoRef.current?.focus(), 0);
   };
@@ -180,6 +206,7 @@ const CodigoEtiquetaView: React.FC = () => {
       codigo_89: row.codigo_89,
       descripcion_89: row.descripcion_89,
       proveedor_89: row.proveedor_89,
+      tamano_89: tamanoDeFila(row.codigo_89, row.tamano_89).id,
     });
     setShowForm(true);
     setTimeout(() => codigoRef.current?.focus(), 0);
@@ -194,6 +221,13 @@ const CodigoEtiquetaView: React.FC = () => {
       await showError('Validación', 'El código no puede superar 25 caracteres');
       return false;
     }
+    if (!formatosQueCaben(form.codigo_89.trim()).some((t) => t.id === form.tamano_89)) {
+      await showError(
+        'Formato',
+        'Ese código no cabe en el formato elegido. Usá el sugerido o uno más grande.'
+      );
+      return false;
+    }
     return true;
   };
 
@@ -204,6 +238,7 @@ const CodigoEtiquetaView: React.FC = () => {
       codigo_89: form.codigo_89.trim(),
       descripcion_89: form.descripcion_89.trim(),
       proveedor_89: form.proveedor_89.trim(),
+      tamano_89: form.tamano_89,
     };
     try {
       const res = await apiFetch(editingId ? `${API_URL}/${editingId}` : API_URL, {
@@ -222,7 +257,12 @@ const CodigoEtiquetaView: React.FC = () => {
         resetForm();
       } else {
         await showSuccess('Creado', data.message || 'Código guardado');
-        setForm((p) => ({ ...p, codigo_89: '', descripcion_89: '' }));
+        setForm((p) => ({
+          ...p,
+          codigo_89: '',
+          descripcion_89: '',
+          tamano_89: tamanoEtiquetaMm('').id,
+        }));
         codigoRef.current?.focus();
       }
     } catch {
@@ -299,16 +339,22 @@ const CodigoEtiquetaView: React.FC = () => {
         Codigo: r.codigo_89,
         Descripcion: r.descripcion_89,
         Proveedor: r.proveedor_89,
-        Etiqueta: tamanoEtiquetaMm(r.codigo_89).nombre,
+        Etiqueta: tamanoDeFila(r.codigo_89, r.tamano_89).nombre,
       })),
       'etiquetas',
       'Etiquetas'
     );
   };
 
-  const handlePrint = (row: CodigoEtiqueta) => {
+  const handlePrint = (row: CodigoEtiqueta & { tamano_89?: string }) => {
     try {
-      imprimirEtiqueta(row, copias);
+      imprimirEtiqueta(
+        {
+          ...row,
+          tamano_89: tamanoDeFila(row.codigo_89, row.tamano_89).id,
+        },
+        copias
+      );
     } catch (err) {
       void showError('Imprimir', err instanceof Error ? err.message : 'No se pudo enviar RAW a la TLP');
     }
@@ -344,7 +390,7 @@ const CodigoEtiquetaView: React.FC = () => {
     window.location.hash = 'dashboard';
   };
 
-  const tamanoForm = tamanoEtiquetaMm(form.codigo_89 || 'XXXXXXXXXXXXXXXXXXXX');
+  const formatosForm = formatosQueCaben(form.codigo_89);
 
   return (
     <div className="bodega-view etiqueta-view">
@@ -413,12 +459,12 @@ const CodigoEtiquetaView: React.FC = () => {
           <h3>{editingId ? '✏️ Corregir etiqueta' : '➕ Nueva etiqueta'}</h3>
           <p className="etiqueta-hint">
             {editingId
-              ? 'Corregí código, descripción o proveedor. El código no puede repetirse.'
-              : 'Pistola o teclado. Si el código ya existe, no se duplica. Tamaño según largo:'}{' '}
-            <strong>{tamanoForm.nombre}</strong>
+              ? 'Corregí código, descripción, proveedor o formato. El código no puede repetirse.'
+              : 'Pistola o teclado. Si el código ya existe, no se duplica.'}{' '}
+            El formato sugerido sigue el largo; podés subir de rollo, no bajar.
           </p>
           <form ref={formRef} onSubmit={handleGuardar}>
-            <div className="form-row form-row-3">
+            <div className="form-row form-row-4">
               <div className="form-group">
                 <label htmlFor="codigo_89">Código * (máx. 25)</label>
                 <input
@@ -453,6 +499,24 @@ const CodigoEtiquetaView: React.FC = () => {
                   placeholder="KAUFMANN"
                 />
               </div>
+              <div className="form-group">
+                <label htmlFor="tamano_89">Formato *</label>
+                <select
+                  id="tamano_89"
+                  className="form-input"
+                  value={form.tamano_89}
+                  onChange={(e) =>
+                    setForm((p) => ({ ...p, tamano_89: e.target.value as TamanoEtiquetaId }))
+                  }
+                >
+                  {formatosForm.map((t) => (
+                    <option key={t.id} value={t.id}>
+                      {t.nombre}
+                      {t.id === tamanoEtiquetaMm(form.codigo_89).id ? ' (sugerido)' : ''}
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
             <div className="form-actions etiqueta-form-actions">
               {editingId ? (
@@ -461,7 +525,7 @@ const CodigoEtiquetaView: React.FC = () => {
                   className="btn-primary"
                   onClick={() => {
                     const row = items.find((r) => r.idcodigo_89 === editingId);
-                    if (row) handlePrint({ ...row, ...form });
+                    if (row) handlePrint({ ...row, ...form, tamano_89: form.tamano_89 });
                   }}
                 >
                   🖨️ Imprimir
@@ -677,7 +741,7 @@ const CodigoEtiquetaView: React.FC = () => {
                         </td>
                         <td>{r.descripcion_89}</td>
                         <td>{r.proveedor_89}</td>
-                        <td>{tamanoEtiquetaMm(r.codigo_89).nombre}</td>
+                        <td>{tamanoDeFila(r.codigo_89, r.tamano_89).nombre}</td>
                         <td className="actions">
                           <button
                             type="button"

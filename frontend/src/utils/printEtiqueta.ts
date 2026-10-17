@@ -2,6 +2,7 @@ export interface EtiquetaPrint {
   codigo_89: string;
   descripcion_89: string;
   proveedor_89: string;
+  tamano_89?: string;
 }
 
 /** Protocolo Windows: un disparo RAW y el proceso termina. Registrar una vez con iniciar-agente-etiqueta.bat. */
@@ -19,6 +20,7 @@ export function imprimirEtiqueta(row: EtiquetaPrint, copias = 1): void {
       codigo_89: row.codigo_89,
       descripcion_89: row.descripcion_89,
       proveedor_89: row.proveedor_89,
+      tamano_89: row.tamano_89 || undefined,
       copias: n,
     })
   );

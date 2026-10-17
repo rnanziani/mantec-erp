@@ -5,12 +5,14 @@ param(
   [string]$Descripcion,
   [string]$Proveedor,
   [int]$Copias = 1,
+  [string]$Tamano = '',
   [Parameter(ValueFromRemainingArguments = $true)]
   [string[]]$Rest
 )
 
 $ErrorActionPreference = 'Stop'
-$PrinterName = 'ZDesigner LP 2844'
+# Windows a veces instala "ZDesigner LP 2844" y otras "ZDesigner TLP 2844".
+$PrinterNames = @('ZDesigner TLP 2844', 'ZDesigner LP 2844')
 $Protocol = 'mantec-etiqueta'
 $LogFile = Join-Path $PSScriptRoot 'agente-etiqueta.log'
 
@@ -109,16 +111,28 @@ function Split-EplDesc([string]$s, [int]$maxLine) {
   }
 }
 
-function Get-EplCommand([string]$codigo, [string]$desc, [string]$prov, [int]$copias) {
+function Get-EplCommand([string]$codigo, [string]$desc, [string]$prov, [int]$copias, [string]$tamano = '') {
   $n = $codigo.Trim().Length
   if ($copias -lt 1) { $copias = 1 }
   if ($copias -gt 20) { $copias = 20 }
+  $tNorm = ([string]$tamano).Trim().ToLower() -replace '×', 'x' -replace '\s', ''
+  if ($tNorm -eq '32x22') { $tNorm = '32x20' }
+  $layout = ''
+  if ($tNorm -eq '32x20' -or $tNorm -eq '50x30' -or $tNorm -eq '100x30') {
+    $layout = $tNorm
+  } elseif ($n -le 8) {
+    $layout = '32x20'
+  } elseif ($n -le 14) {
+    $layout = '50x30'
+  } else {
+    $layout = '100x30'
+  }
   # Layout 100 x 30 mm identico a etiquetas/../formularios/_gen/etiqueta-kaufmann.ps1
   # (la foto 2 que si se leia). No recortar a 15 mm ni S2/D10.
   $codigo = Get-EplText $codigo 25
   $desc = Get-EplText $desc 42
   $prov = Get-EplText $prov 12
-  if ($n -le 8) {
+  if ($layout -eq '32x20') {
     # LAYOUT APROBADO 32x20: 3 columnas. X 4 / 284 / 556. Código+proveedor en una
     # línea; descripción en 2 filas si no cabe. Copias = filas. No mover.
     $codigo = Get-EplText $codigo 8
@@ -156,7 +170,7 @@ A$x2,108,0,1,1,1,N,"$d2"
 P$copias
 
 "@
-  } elseif ($n -le 14) {
+  } elseif ($layout -eq '50x30') {
     # LAYOUT APROBADO 50x30: 2 columnas en el rollo 100 mm. Columna der +5 mm (X+40).
     # No mover. El 32x20 y el 100x30 tampoco.
     $codigo = Get-EplText $codigo 14
@@ -215,30 +229,40 @@ function Get-QueryMap([string]$uriRaw) {
   return $map
 }
 
-function Clear-ColaTlp {
-  try {
-    Get-PrintJob -PrinterName $PrinterName -ErrorAction SilentlyContinue |
-      Remove-PrintJob -ErrorAction SilentlyContinue
-  } catch {}
-  try { Resume-Printer -Name $PrinterName -ErrorAction SilentlyContinue } catch {}
+function Get-NombreImpresoraTlp {
+  foreach ($nombre in $PrinterNames) {
+    if (Get-Printer -Name $nombre -ErrorAction SilentlyContinue) {
+      return $nombre
+    }
+  }
+  return $null
 }
 
-function Send-Etiqueta([string]$codigo, [string]$desc, [string]$prov, [int]$copias) {
+function Clear-ColaTlp([string]$impresora) {
+  try {
+    Get-PrintJob -PrinterName $impresora -ErrorAction SilentlyContinue |
+      Remove-PrintJob -ErrorAction SilentlyContinue
+  } catch {}
+  try { Resume-Printer -Name $impresora -ErrorAction SilentlyContinue } catch {}
+}
+
+function Send-Etiqueta([string]$codigo, [string]$desc, [string]$prov, [int]$copias, [string]$tamano = '') {
   if (-not $codigo -or -not $desc -or -not $prov) {
     throw 'codigo, descripcion y proveedor son requeridos'
   }
-  if (-not (Get-Printer -Name $PrinterName -ErrorAction SilentlyContinue)) {
-    throw "No encuentro la impresora $PrinterName"
+  $impresora = Get-NombreImpresoraTlp
+  if (-not $impresora) {
+    throw "No encuentro la impresora ZDesigner TLP/LP 2844"
   }
-  Clear-ColaTlp
-  $epl = Get-EplCommand $codigo $desc $prov $copias
+  Clear-ColaTlp $impresora
+  $epl = Get-EplCommand $codigo $desc $prov $copias $tamano
   $bytes = [Text.Encoding]::ASCII.GetBytes($epl.Replace("`n", "`r`n"))
-  $ok = [RawPrinterEtiqueta]::SendBytes($PrinterName, $bytes, "Etiqueta $codigo")
+  $ok = [RawPrinterEtiqueta]::SendBytes($impresora, $bytes, "Etiqueta $codigo")
   if (-not $ok) {
     $err = [Runtime.InteropServices.Marshal]::GetLastWin32Error()
     throw "Fallo RAW Win32=$err"
   }
-  Write-Log "OK $codigo x$copias ($($bytes.Length) bytes)"
+  Write-Log "OK $codigo x$copias ($($bytes.Length) bytes) -> $impresora"
 }
 
 if ($Registrar) {
@@ -263,15 +287,17 @@ try {
       $Codigo = [string]$obj.codigo_89
       $Descripcion = [string]$obj.descripcion_89
       $Proveedor = [string]$obj.proveedor_89
+      if ($obj.tamano_89) { $Tamano = [string]$obj.tamano_89 }
       if ($obj.copias) { $Copias = [int]$obj.copias }
     } else {
       if ($m['codigo_89']) { $Codigo = [string]$m['codigo_89'] }
       if ($m['descripcion_89']) { $Descripcion = [string]$m['descripcion_89'] }
       if ($m['proveedor_89']) { $Proveedor = [string]$m['proveedor_89'] }
+      if ($m['tamano_89']) { $Tamano = [string]$m['tamano_89'] }
       if ($m['copias']) { $Copias = [int]$m['copias'] }
     }
   }
-  Send-Etiqueta $Codigo $Descripcion $Proveedor $Copias
+  Send-Etiqueta $Codigo $Descripcion $Proveedor $Copias $Tamano
   exit 0
 } catch {
   Write-Log "ERROR $($_.Exception.Message)"

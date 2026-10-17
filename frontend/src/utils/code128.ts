@@ -60,7 +60,7 @@ export interface TamanoEtiqueta {
   nombre: string;
 }
 
-/** Un solo catálogo: impresión, columna y filtro. No se guarda en tbl_89. */
+/** Tres rollos TLP. El sugerido sigue el largo; se puede guardar uno más grande. */
 export const TAMANOS_ETIQUETA: TamanoEtiqueta[] = [
   { id: '32x20', w: 32, h: 20, nombre: '32 × 20 mm' },
   { id: '50x30', w: 50, h: 30, nombre: '50 × 30 mm' },
@@ -72,4 +72,25 @@ export function tamanoEtiquetaMm(codigo: string): TamanoEtiqueta {
   if (n <= 8) return TAMANOS_ETIQUETA[0];
   if (n <= 14) return TAMANOS_ETIQUETA[1];
   return TAMANOS_ETIQUETA[2];
+}
+
+export function esTamanoEtiquetaId(v: string | null | undefined): v is TamanoEtiquetaId {
+  return TAMANOS_ETIQUETA.some((t) => t.id === v);
+}
+
+/** Formatos donde el código cabe. Se puede subir de rollo, no bajar. */
+export function formatosQueCaben(codigo: string): TamanoEtiqueta[] {
+  const n = codigo.trim().length;
+  return TAMANOS_ETIQUETA.filter((t) => {
+    if (t.id === '32x20') return n <= 8;
+    if (t.id === '50x30') return n <= 14;
+    return n <= 25;
+  });
+}
+
+export function tamanoDeFila(codigo: string, guardado?: string | null): TamanoEtiqueta {
+  if (esTamanoEtiquetaId(guardado) && formatosQueCaben(codigo).some((t) => t.id === guardado)) {
+    return TAMANOS_ETIQUETA.find((t) => t.id === guardado) ?? tamanoEtiquetaMm(codigo);
+  }
+  return tamanoEtiquetaMm(codigo);
 }
