@@ -68,6 +68,7 @@ const CodigoEtiquetaView: React.FC = () => {
   const [sortConfig, setSortConfig] = useState<SortConfig>({ key: 'idcodigo_89', direction: 'desc' });
   const [currentPage, setCurrentPage] = useState(1);
   const [copias, setCopias] = useState(1);
+  const [formatoImpresion, setFormatoImpresion] = useState<TamanoEtiquetaId | ''>('');
   const itemsPerPage = 10;
 
   const fetchData = useCallback(async (silent = false) => {
@@ -347,14 +348,19 @@ const CodigoEtiquetaView: React.FC = () => {
   };
 
   const handlePrint = (row: CodigoEtiqueta & { tamano_89?: string }) => {
-    try {
-      imprimirEtiqueta(
-        {
-          ...row,
-          tamano_89: tamanoDeFila(row.codigo_89, row.tamano_89).id,
-        },
-        copias
+    const delCatalogo = tamanoDeFila(row.codigo_89, row.tamano_89).id;
+    const elegido = formatoImpresion || delCatalogo;
+    const cabe = formatosQueCaben(row.codigo_89).some((t) => t.id === elegido);
+    if (!cabe) {
+      const nombre = TAMANOS_ETIQUETA.find((t) => t.id === elegido)?.nombre ?? elegido;
+      void showError(
+        'Formato',
+        `El código ${row.codigo_89} no cabe en ${nombre}. Elegí un rollo más grande o Según catálogo.`
       );
+      return;
+    }
+    try {
+      imprimirEtiqueta({ ...row, tamano_89: elegido }, copias);
     } catch (err) {
       void showError('Imprimir', err instanceof Error ? err.message : 'No se pudo enviar RAW a la TLP');
     }
@@ -614,6 +620,23 @@ const CodigoEtiquetaView: React.FC = () => {
                   {TAMANOS_ETIQUETA.map((t) => (
                     <option key={t.id} value={t.id}>
                       {t.nombre} ({conteoPorTamano[t.id]})
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="etiqueta-filtro" htmlFor="formato-impresion">
+                Imprimir en
+                <select
+                  id="formato-impresion"
+                  className="form-input"
+                  value={formatoImpresion}
+                  onChange={(e) => setFormatoImpresion(e.target.value as TamanoEtiquetaId | '')}
+                  aria-label="Formato de impresión"
+                >
+                  <option value="">Según catálogo</option>
+                  {TAMANOS_ETIQUETA.map((t) => (
+                    <option key={t.id} value={t.id}>
+                      {t.nombre}
                     </option>
                   ))}
                 </select>
