@@ -58,11 +58,25 @@ const SearchableSelect: React.FC<SearchableSelectProps> = ({
     );
   }, [options, search]);
 
+  const commitSearch = () => {
+    const query = normalizeForSearch(search);
+    if (query) {
+      const exact = filteredOptions.find((option) => normalizeForSearch(option.label) === query);
+      const unique = filteredOptions.length === 1 ? filteredOptions[0] : null;
+      const pick = exact || unique;
+      if (pick) onChange(pick.value);
+    }
+    setOpen(false);
+    setSearch('');
+  };
+
+  const commitSearchRef = useRef(commitSearch);
+  commitSearchRef.current = commitSearch;
+
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
-        setOpen(false);
-        setSearch('');
+        commitSearchRef.current();
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -124,6 +138,10 @@ const SearchableSelect: React.FC<SearchableSelectProps> = ({
             setOpen(false);
             setSearch('');
             inputRef.current?.blur();
+          }
+          if (e.key === 'Enter') {
+            e.preventDefault();
+            commitSearch();
           }
         }}
         placeholder={inputPlaceholder}

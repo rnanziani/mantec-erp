@@ -219,6 +219,7 @@ const ProveedorPedidoView: React.FC = () => {
                   required
                   maxLength={150}
                   value={form.razon_social_90}
+                  style={{ textTransform: 'uppercase' }}
                   onChange={(e) => changeKeepingCaret(e, (v) => setForm((p) => ({ ...p, razon_social_90: v })))}
                 />
               </div>
@@ -229,7 +230,8 @@ const ProveedorPedidoView: React.FC = () => {
                   className="form-input"
                   maxLength={20}
                   value={form.ruc_90}
-                  onChange={(e) => setForm((p) => ({ ...p, ruc_90: e.target.value }))}
+                  style={{ textTransform: 'uppercase' }}
+                  onChange={(e) => changeKeepingCaret(e, (v) => setForm((p) => ({ ...p, ruc_90: v })))}
                 />
               </div>
               <div className="form-group">
@@ -252,7 +254,8 @@ const ProveedorPedidoView: React.FC = () => {
                   className="form-input"
                   maxLength={100}
                   value={form.contacto_90}
-                  onChange={(e) => setForm((p) => ({ ...p, contacto_90: e.target.value }))}
+                  style={{ textTransform: 'uppercase' }}
+                  onChange={(e) => changeKeepingCaret(e, (v) => setForm((p) => ({ ...p, contacto_90: v })))}
                 />
               </div>
               <div className="form-group">
@@ -262,7 +265,8 @@ const ProveedorPedidoView: React.FC = () => {
                   className="form-input"
                   maxLength={20}
                   value={form.telefono_90}
-                  onChange={(e) => setForm((p) => ({ ...p, telefono_90: e.target.value }))}
+                  style={{ textTransform: 'uppercase' }}
+                  onChange={(e) => changeKeepingCaret(e, (v) => setForm((p) => ({ ...p, telefono_90: v })))}
                 />
               </div>
               <div className="form-group">
@@ -285,7 +289,7 @@ const ProveedorPedidoView: React.FC = () => {
         <input
           type="search"
           className="form-input"
-          style={{ flex: 1, minWidth: 220 }}
+          style={{ flex: 1, minWidth: 220, textTransform: 'uppercase' }}
           placeholder="Buscar razón social, RUC o contacto..."
           value={searchTerm}
           onChange={(e) => changeKeepingCaret(e, setSearchTerm)}

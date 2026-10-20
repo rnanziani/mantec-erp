@@ -6,7 +6,7 @@ const TIPOS = new Set(['Despacha', 'No despacha', 'Mixto']);
 
 function norm(value: unknown, max: number): string | null {
   if (value == null) return null;
-  const t = String(value).trim();
+  const t = String(value).trim().toUpperCase();
   if (!t) return null;
   return t.slice(0, max);
 }

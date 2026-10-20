@@ -16,6 +16,12 @@ function num(value: unknown): number {
   return Number.isFinite(n) ? n : 0;
 }
 
+function upper(value: unknown): string | null {
+  if (value == null) return null;
+  const t = String(value).trim().toUpperCase();
+  return t || null;
+}
+
 function usuario(req: Request): string {
   return req.authUser?.username || 'sistema';
 }
@@ -113,7 +119,7 @@ function parseLineas(raw: unknown): LineaIn[] | null {
       cod_insumo_91: sku,
       cantidad_solicitada_91: qty,
       precio_unitario_91: row.precio_unitario_91 == null || row.precio_unitario_91 === '' ? null : num(row.precio_unitario_91),
-      observaciones_det_91: row.observaciones_det_91 ? String(row.observaciones_det_91).trim() : null,
+      observaciones_det_91: upper(row.observaciones_det_91),
     });
   }
   return lineas;
@@ -221,16 +227,14 @@ export const createPedido = async (req: Request, res: Response): Promise<void> =
       [
         idProveedor,
         idResponsable,
-        req.body.numero_orden_92 ? String(req.body.numero_orden_92).trim() : null,
+        upper(req.body.numero_orden_92),
         req.body.fecha_pedido_92 || new Date().toISOString().slice(0, 10),
-        req.body.observaciones_cab_92 ? String(req.body.observaciones_cab_92).trim() : null,
+        upper(req.body.observaciones_cab_92),
         usuario(req),
       ]
     );
     const idPedido = cab.rows[0].id_pedido_92 as number;
-    const numero = req.body.numero_orden_92
-      ? String(req.body.numero_orden_92).trim()
-      : `PED-${String(idPedido).padStart(6, '0')}`;
+    const numero = upper(req.body.numero_orden_92) || `PED-${String(idPedido).padStart(6, '0')}`;
     await client.query(
       `UPDATE tbl_92_pedido_cabecera SET numero_orden_92 = $2 WHERE id_pedido_92 = $1`,
       [idPedido, numero]
@@ -301,8 +305,8 @@ export const updatePedido = async (req: Request, res: Response): Promise<void> =
         idProveedor,
         idResponsable,
         req.body.fecha_pedido_92 || actual.fecha_pedido_92,
-        req.body.observaciones_cab_92 ? String(req.body.observaciones_cab_92).trim() : null,
-        req.body.numero_orden_92 ? String(req.body.numero_orden_92).trim() : null,
+        upper(req.body.observaciones_cab_92),
+        upper(req.body.numero_orden_92),
       ]
     );
     await client.query('DELETE FROM tbl_91_pedido_detalle WHERE id_pedido_91 = $1', [id]);
@@ -398,7 +402,7 @@ export const registrarRecepcion = async (req: Request, res: Response): Promise<v
       `INSERT INTO tbl_93_recepcion_parcial (
          id_detalle_93, cantidad_recibida_93, id_responsable_recibe_93, observaciones_rec_93
        ) VALUES ($1, $2, $3, $4)`,
-      [idDetalle, cantidad, idResp, req.body.observaciones_rec_93 ? String(req.body.observaciones_rec_93).trim() : null]
+      [idDetalle, cantidad, idResp, upper(req.body.observaciones_rec_93)]
     );
     await client.query(
       `UPDATE tbl_91_pedido_detalle

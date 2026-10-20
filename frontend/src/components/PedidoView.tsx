@@ -355,8 +355,27 @@ const PedidoView: React.FC = () => {
                   onChange={setIdProveedor}
                   options={proveedorOptions}
                   placeholder="Buscar proveedor..."
+                  emptyMessage={
+                    proveedorOptions.length === 0
+                      ? 'No hay proveedores. Créelo en Pedidos → Proveedores'
+                      : 'No coincide. El proveedor se elige del catálogo, no se escribe aquí'
+                  }
                   aria-label="Proveedor"
                 />
+                <small style={{ color: '#6c757d', display: 'block', marginTop: 4 }}>
+                  Primero se da de alta en{' '}
+                  <button
+                    type="button"
+                    className="btn-link"
+                    style={{ background: 'none', border: 'none', color: '#0d6efd', cursor: 'pointer', padding: 0, textDecoration: 'underline' }}
+                    onClick={() => {
+                      window.location.hash = 'proveedores-pedido';
+                    }}
+                  >
+                    Pedidos → Proveedores
+                  </button>
+                  . Aquí solo se busca y se elige.
+                </small>
               </div>
               <div className="form-group">
                 <label htmlFor="id_responsable_92">Responsable *</label>
@@ -379,7 +398,8 @@ const PedidoView: React.FC = () => {
                   id="numero_orden_92"
                   className="form-input"
                   value={numero}
-                  onChange={(e) => setNumero(e.target.value)}
+                  style={{ textTransform: 'uppercase' }}
+                  onChange={(e) => changeKeepingCaret(e, setNumero)}
                   placeholder="Se genera PED-000001"
                 />
               </div>
@@ -389,6 +409,7 @@ const PedidoView: React.FC = () => {
                   id="observaciones_cab_92"
                   className="form-input"
                   value={obs}
+                  style={{ textTransform: 'uppercase' }}
                   onChange={(e) => changeKeepingCaret(e, setObs)}
                 />
               </div>
@@ -576,7 +597,7 @@ const PedidoView: React.FC = () => {
         <input
           type="search"
           className="form-input"
-          style={{ flex: 1 }}
+          style={{ flex: 1, textTransform: 'uppercase' }}
           placeholder="Buscar orden, proveedor, estado..."
           value={searchTerm}
           onChange={(e) => changeKeepingCaret(e, setSearchTerm)}

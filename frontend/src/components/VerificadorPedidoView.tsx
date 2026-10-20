@@ -120,7 +120,7 @@ const VerificadorPedidoView: React.FC = () => {
         <input
           type="search"
           className="form-input"
-          style={{ flex: 1, minWidth: 220 }}
+          style={{ flex: 1, minWidth: 220, textTransform: 'uppercase' }}
           placeholder="Buscar orden, proveedor o estado..."
           value={searchTerm}
           onChange={(e) => changeKeepingCaret(e, setSearchTerm)}
