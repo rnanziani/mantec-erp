@@ -3,6 +3,7 @@ import './BodegaView.css';
 import Pagination from './shared/Pagination';
 import { showDeleteConfirm, showError, showSuccess } from '../utils/swal';
 import { apiFetch, apiUrl } from '../lib/apiClient';
+import { filtrarResponsablesActivos } from '../utils/responsablesEntrega';
 import { changeKeepingCaret } from '../hooks/useCaretTransform';
 
 interface LineaGrid {
@@ -165,7 +166,7 @@ const EntregaRepuestoView: React.FC = () => {
       else setError(dLin.error || 'Error al cargar entregas');
       if (dPend.success && Array.isArray(dPend.data)) setPendientes(dPend.data);
       if (dEst.success && Array.isArray(dEst.data)) setEstados(dEst.data);
-      if (dResp.success && Array.isArray(dResp.data)) setResponsables(dResp.data);
+      if (dResp.success && Array.isArray(dResp.data)) setResponsables(filtrarResponsablesActivos(dResp.data));
       if (dProv.success && Array.isArray(dProv.data)) setProveedores(dProv.data);
     } catch {
       setError('Error de conexión con el servidor');

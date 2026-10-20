@@ -4,6 +4,7 @@ import Pagination from './shared/Pagination';
 import SearchableSelect from './shared/SearchableSelect';
 import { showDeleteConfirm, showError, showSuccess } from '../utils/swal';
 import { apiFetch, apiUrl } from '../lib/apiClient';
+import { filtrarResponsablesActivos } from '../utils/responsablesEntrega';
 import { changeKeepingCaret } from '../hooks/useCaretTransform';
 
 interface Registro {
@@ -188,7 +189,7 @@ const RecepcionReparadoView: React.FC = () => {
       if (dReg.success && Array.isArray(dReg.data)) setRegistros(dReg.data);
       else setError(dReg.error || 'Error al cargar');
       if (dDisp.success && Array.isArray(dDisp.data)) setDisponibles(dDisp.data);
-      if (dResp.success && Array.isArray(dResp.data)) setResponsables(dResp.data);
+      if (dResp.success && Array.isArray(dResp.data)) setResponsables(filtrarResponsablesActivos(dResp.data));
       if (dTec.success && Array.isArray(dTec.data)) setTecnicos(dTec.data);
       if (dMaq.success && Array.isArray(dMaq.data)) setMaquinas(dMaq.data);
     } catch {

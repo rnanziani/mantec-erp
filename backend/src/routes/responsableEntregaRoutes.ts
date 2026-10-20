@@ -11,7 +11,7 @@ const router = Router();
 
 /**
  * @route   GET /api/responsables-entrega
- * @desc    Obtener todos los responsables de entrega
+ * @desc    Combos: solo vigentes. Mantenedor: ?todos=1
  */
 router.get('/', getAllResponsables);
 

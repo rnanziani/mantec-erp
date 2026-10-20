@@ -6,6 +6,7 @@ import { exportToExcel } from '../utils/exportUtils';
 import { filtrarTrabajadoresPorApellido } from '../utils/trabajadorSearch';
 import { showDeleteConfirm, showError, showSuccess } from '../utils/swal';
 import { apiFetch, apiUrl } from '../lib/apiClient';
+import { filtrarResponsablesActivos } from '../utils/responsablesEntrega';
 import ActaEntregaCargoModal from './ActaEntregaCargoModal';
 import { changeKeepingCaret } from '../hooks/useCaretTransform';
 
@@ -149,7 +150,7 @@ const EntregaCargoView: React.FC = () => {
       else setError(eData.error || 'Error al cargar entregas');
       if (hData.success && Array.isArray(hData.data)) setHerramientas(hData.data);
       if (tData.success && Array.isArray(tData.data)) setTrabajadores(tData.data);
-      if (rData.success && Array.isArray(rData.data)) setResponsables(rData.data);
+      if (rData.success && Array.isArray(rData.data)) setResponsables(filtrarResponsablesActivos(rData.data));
       if (cData.success && Array.isArray(cData.data)) setCcostos(cData.data);
     } catch {
       setError('Error de conexión con el servidor');

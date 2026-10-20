@@ -7,6 +7,7 @@ import SearchableSelect from './shared/SearchableSelect';
 import { showDeleteConfirm, showError, showInfo, showSuccess, showTipoMovimientoPanol } from '../utils/swal';
 import { filtrarTrabajadoresPorApellido } from '../utils/trabajadorSearch';
 import { apiFetch, apiUrl } from '../lib/apiClient';
+import { filtrarResponsablesActivos } from '../utils/responsablesEntrega';
 import { changeKeepingCaret } from '../hooks/useCaretTransform';
 
 interface HerramientaDetalleResumen {
@@ -225,7 +226,7 @@ const PanolMovimientoView: React.FC = () => {
       const rData: ApiResponse<Responsable[]> = await r.json();
       if (hData.success && Array.isArray(hData.data)) setHerramientas(hData.data);
       if (tData.success && Array.isArray(tData.data)) setTrabajadores(tData.data);
-      if (rData.success && Array.isArray(rData.data)) setResponsables(rData.data);
+      if (rData.success && Array.isArray(rData.data)) setResponsables(filtrarResponsablesActivos(rData.data));
     } catch {
       setError('Error de conexión con el servidor');
     } finally {

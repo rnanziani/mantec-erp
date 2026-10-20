@@ -4,6 +4,7 @@ import Pagination from './shared/Pagination';
 import SearchableSelect from './shared/SearchableSelect';
 import { showDeleteConfirm, showError, showSuccess } from '../utils/swal';
 import { apiFetch, apiUrl } from '../lib/apiClient';
+import { filtrarResponsablesActivos } from '../utils/responsablesEntrega';
 import { changeKeepingCaret } from '../hooks/useCaretTransform';
 
 type Estado =
@@ -234,7 +235,7 @@ const ExpedienteRepuestoView: React.FC = () => {
       else setError(dExp.error || 'Error al cargar expedientes');
       if (dMaq.success && Array.isArray(dMaq.data)) setMaquinas(dMaq.data);
       if (dTec.success && Array.isArray(dTec.data)) setTecnicos(dTec.data);
-      if (dResp.success && Array.isArray(dResp.data)) setResponsables(dResp.data);
+      if (dResp.success && Array.isArray(dResp.data)) setResponsables(filtrarResponsablesActivos(dResp.data));
       if (dProv.success && Array.isArray(dProv.data)) setProveedores(dProv.data);
       if (dRep.success && Array.isArray(dRep.data)) setRepuestos(dRep.data);
     } catch {

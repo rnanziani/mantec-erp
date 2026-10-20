@@ -20,7 +20,10 @@ interface ResponsableEntrega {
   nombre_completo?: string;
 }
 
-/** En BD estado_08 guarda {v} (vigente) o vacío/NULL. El API lo expone como boolean. */
+/**
+ * En BD estado_08 guarda {v} (vigente) o vacío/NULL.
+ * No usar includes('v'): la palabra "inactivo" también contiene v.
+ */
 function esVigente(estado: unknown): boolean {
   if (estado == null || estado === false) return false;
   if (estado === true) return true;
@@ -28,10 +31,23 @@ function esVigente(estado: unknown): boolean {
     return estado.some((x) => String(x).trim().toLowerCase() === 'v');
   }
   const s = String(estado).trim().toLowerCase();
-  if (s === '' || s === '{}' || s === 'null' || s === 'false' || s === '0' || s === 'f') {
+  if (
+    s === '' ||
+    s === '{}' ||
+    s === '{""}' ||
+    s === 'null' ||
+    s === 'false' ||
+    s === '0' ||
+    s === 'f' ||
+    s === 'inactivo' ||
+    s === 'inactive'
+  ) {
     return false;
   }
-  return s === 'v' || s.includes('v');
+  if (s === 'v' || s === '{v}' || s === '{"v"}' || s === 'true' || s === 'activo' || s === 'vigente') {
+    return true;
+  }
+  return /\{v\}/.test(s) || /(^|[,{\s])v([,}\s]|$)/.test(s);
 }
 
 function parseActivoQuery(raw: unknown): boolean | undefined {
@@ -92,34 +108,37 @@ const mapRowToResponsable = (row: any): ResponsableEntrega => {
 };
 
 /**
- * Obtener todos los responsables de entrega
+ * Listado de responsables.
+ * Combos (GET sin query o ?activo=1): solo vigentes.
+ * Mantenedor (?todos=1): activos e inactivos.
+ * ?activo=0: solo inactivos.
+ * ?incluir=id: conserva ese id aunque esté inactivo (edición de un documento).
  */
 export const getAllResponsables = async (req: Request, res: Response): Promise<void> => {
   try {
+    const todos =
+      String(req.query.todos || '').trim() === '1' ||
+      String(req.query.todos || '').trim().toLowerCase() === 'true';
     const soloActivo = parseActivoQuery(req.query.activo);
-    const params: boolean[] = [];
-    let where = '';
-    if (soloActivo !== undefined) {
-      params.push(soloActivo);
-      where = `
-        WHERE (
-          CASE WHEN $1 THEN
-            estado_08 IS NOT NULL AND CAST(estado_08 AS TEXT) ILIKE '%v%'
-          ELSE
-            estado_08 IS NULL OR CAST(estado_08 AS TEXT) NOT ILIKE '%v%'
-          END
-        )`;
+    const incluirRaw = Number(req.query.incluir);
+    const incluirId = Number.isFinite(incluirRaw) && incluirRaw > 0 ? incluirRaw : 0;
+
+    const result = await pool.query(
+      `SELECT ${SELECT_RESPONSABLE}
+       FROM ${TABLA_RESPONSABLE}
+       ORDER BY nombreresponsableentrega_08 ASC`
+    );
+    let responsables = result.rows.map(mapRowToResponsable);
+
+    if (!todos) {
+      if (soloActivo === false) {
+        responsables = responsables.filter((r) => !r.estado_08);
+      } else {
+        responsables = responsables.filter(
+          (r) => r.estado_08 || (incluirId > 0 && r.idresponsableentrega_08 === incluirId)
+        );
+      }
     }
-
-    const query = `
-      SELECT ${SELECT_RESPONSABLE}
-      FROM ${TABLA_RESPONSABLE}
-      ${where}
-      ORDER BY nombreresponsableentrega_08 ASC
-    `;
-
-    const result = await pool.query(query, params);
-    const responsables = result.rows.map(mapRowToResponsable);
 
     const response: ApiResponse<ResponsableEntrega[]> = {
       success: true,

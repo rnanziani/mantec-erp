@@ -3,6 +3,7 @@ import './BodegaView.css'; // Reutilizamos los mismos estilos
 import { showSuccess, showError, showDeleteConfirm } from '../utils/swal';
 import { apiUrl, openAuthenticatedBlob } from '../lib/apiClient';
 import { filtrarTrabajadoresPorApellido } from '../utils/trabajadorSearch';
+import { filtrarResponsablesActivos } from '../utils/responsablesEntrega';
 import { changeKeepingCaret } from '../hooks/useCaretTransform';
 
 interface Asignacion {
@@ -227,7 +228,7 @@ const AsignacionProductosAseoView: React.FC = () => {
       const data: ApiResponse = await response.json();
       console.log('Responsables response:', data); // Debug
       if (data.success && Array.isArray(data.data)) {
-        setResponsables(data.data);
+        setResponsables(filtrarResponsablesActivos(data.data));
       } else {
         console.error('Error en respuesta de responsables:', data);
         setError('Error al cargar responsables');

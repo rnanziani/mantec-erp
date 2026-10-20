@@ -7,6 +7,7 @@ import { showDeleteConfirm, showSuccess, showError } from '../utils/swal';
 import { exportToExcel } from '../utils/exportUtils';
 import { apiUrl, openAuthenticatedBlob } from '../lib/apiClient';
 import { filtrarTrabajadoresPorApellido } from '../utils/trabajadorSearch';
+import { filtrarResponsablesActivos } from '../utils/responsablesEntrega';
 import { changeKeepingCaret } from '../hooks/useCaretTransform';
 
 interface MaestroConsumo {
@@ -264,7 +265,7 @@ const ConsumoInsumoView: React.FC = () => {
       const res = await fetch(RESPONSABLES_URL);
       const data: ApiResponse<Responsable[]> = await res.json();
       if (data.success && Array.isArray(data.data)) {
-        setResponsables(data.data);
+        setResponsables(filtrarResponsablesActivos(data.data));
       }
     } catch {}
   };

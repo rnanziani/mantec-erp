@@ -46,7 +46,7 @@ const ResponsableEntregaView: React.FC = () => {
   const [sortConfig, setSortConfig] = useState<SortConfig>({ key: 'idresponsableentrega_08', direction: 'asc' });
   const [filterEstado, setFilterEstado] = useState<string>('all');
 
-  const API_URL = apiUrl('/responsables-entrega');
+  const API_URL = apiUrl('/responsables-entrega?todos=1');
 
   useEffect(() => {
     fetchResponsables();

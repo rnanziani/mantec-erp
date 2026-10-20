@@ -10,6 +10,7 @@ import {
 import { filtrarTrabajadoresPorApellido } from '../utils/trabajadorSearch';
 import { apiUrl, openAuthenticatedBlob } from '../lib/apiClient';
 import { changeKeepingCaret } from '../hooks/useCaretTransform';
+import { filtrarResponsablesActivos } from '../utils/responsablesEntrega';
 
 interface AsignacionPrenda {
   idasignacionmain_09: number;
@@ -368,7 +369,7 @@ const AsignacionPrendasView: React.FC = () => {
       const response = await fetch(RESPONSABLES_URL);
       const data: ApiResponse = await response.json();
       if (data.success && Array.isArray(data.data)) {
-        setResponsables(data.data);
+        setResponsables(filtrarResponsablesActivos(data.data));
       }
     } catch (err) {
       console.error('Error al cargar responsables:', err);

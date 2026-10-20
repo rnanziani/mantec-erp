@@ -6,6 +6,7 @@ import SearchableSelect from './shared/SearchableSelect';
 import { showDeleteConfirm, showError, showSuccess } from '../utils/swal';
 import { filtrarTrabajadoresPorApellido } from '../utils/trabajadorSearch';
 import { apiFetch, apiUrl, openAuthenticatedBlob } from '../lib/apiClient';
+import { filtrarResponsablesActivos } from '../utils/responsablesEntrega';
 import { changeKeepingCaret } from '../hooks/useCaretTransform';
 
 interface ActaEntregaEppData {
@@ -241,7 +242,7 @@ const EntregaEppView: React.FC = () => {
       if (carData.success && Array.isArray(carData.data)) setCargos(carData.data);
       if (ccData.success && Array.isArray(ccData.data)) setCcostos(ccData.data);
       if (clData.success && Array.isArray(clData.data)) setClases(clData.data);
-      if (rData.success && Array.isArray(rData.data)) setResponsables(rData.data);
+      if (rData.success && Array.isArray(rData.data)) setResponsables(filtrarResponsablesActivos(rData.data));
       if (taData.success && Array.isArray(taData.data)) setTallas(taData.data);
       if (mData.success && Array.isArray(mData.data)) setMarcas(mData.data);
     } catch {
