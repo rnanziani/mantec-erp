@@ -64,7 +64,10 @@ export const API_PREFIX_RULES: Array<{
   { prefix: '/api/asignaciones-productos-aseo', permission: 'MENU_OPERACIONES_ASIGNACION_ASEO' },
   { prefix: '/api/asignaciones-prendas', permission: 'MENU_OPERACIONES_ASIGNACION_PRENDAS' },
   { prefix: '/api/cargo-maquinas', permission: 'MENU_OPERACIONES_CARGO_MAQUINA' },
-  { prefix: '/api/codigos-etiqueta', permission: 'MENU_OPERACIONES_ETIQUETAS' },
+  { prefix: '/api/codigos-etiqueta', permission: 'MENU_OPERACIONES_ETIQUETAS', readAuthOnly: true },
+  { prefix: '/api/proveedores-pedido', permission: 'MENU_PEDIDOS_PROVEEDORES', readAuthOnly: true },
+  { prefix: '/api/pedidos/verificador', permission: 'MENU_PEDIDOS_VERIFICADOR' },
+  { prefix: '/api/pedidos', permission: 'MENU_PEDIDOS_GESTION' },
 
   // Pañol
   { prefix: '/api/herramientas', permission: 'MENU_PANOL_HERRAMIENTAS', readAuthOnly: true },

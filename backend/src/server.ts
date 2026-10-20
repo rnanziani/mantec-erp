@@ -77,6 +77,8 @@ import unidadRepuestoRoutes from './routes/unidadRepuestoRoutes.js';
 import movimientoRepuestoRoutes from './routes/movimientoRepuestoRoutes.js';
 import existenciaRepuestoRoutes from './routes/existenciaRepuestoRoutes.js';
 import codigoEtiquetaRoutes from './routes/codigoEtiquetaRoutes.js';
+import proveedorPedidoRoutes from './routes/proveedorPedidoRoutes.js';
+import pedidoRoutes from './routes/pedidoRoutes.js';
 
 console.log('🔄 Servidor iniciando - Cargando rutas...');
 
@@ -262,6 +264,8 @@ app.use('/api/unidades-repuesto', unidadRepuestoRoutes);
 app.use('/api/movimientos-repuesto', movimientoRepuestoRoutes);
 app.use('/api/existencias-repuesto', existenciaRepuestoRoutes);
 app.use('/api/codigos-etiqueta', codigoEtiquetaRoutes);
+app.use('/api/proveedores-pedido', proveedorPedidoRoutes);
+app.use('/api/pedidos', pedidoRoutes);
 
 console.log('✅ Todas las rutas cargadas');
 
