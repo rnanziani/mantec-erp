@@ -66,69 +66,18 @@ const Sidebar: React.FC<SidebarProps> = ({ onNavigate, currentView }) => {
             ]
         },
         {
-            id: 'neumaticos',
-            label: 'Neumáticos',
-            icon: '🛞',
-            permissionRequired: 'MENU_NEUMATICOS',
+            id: 'inventario',
+            label: 'Gestion Alternadores',
+            icon: '📦',
+            permissionRequired: 'MENU_GESTION_ALTERNADORES',
             children: [
-                { id: 'nt-sec-operacion', label: 'Operación', icon: '', isSection: true },
-                { id: 'trazabilidad-neumatico', label: 'Trazabilidad', icon: '📝', path: 'trazabilidad-neumatico', permissionRequired: 'MENU_NEUMATICOS_TRAZABILIDAD' },
-                { id: 'historial-neumatico', label: 'Historial', icon: '📋', path: 'historial-neumatico', permissionRequired: 'MENU_NEUMATICOS_HISTORIAL' },
-                { id: 'duracion-neumatico', label: 'Duración neumáticos', icon: '⏱️', path: 'duracion-neumatico', permissionRequired: 'MENU_NEUMATICOS_REPORTES' },
-                { id: 'danos-conductor-neumatico', label: 'Daños por conductor', icon: '📉', path: 'danos-conductor-neumatico', permissionRequired: 'MENU_NEUMATICOS_REPORTES' },
-                { id: 'nt-sec-mantenedores', label: 'Mantenedores', icon: '', isSection: true },
-                { id: 'neumaticos', label: 'Cod Trazabilidad', icon: '🛞', path: 'neumaticos', permissionRequired: 'MENU_NEUMATICOS_COD_TRAZABILIDAD' },
-                { id: 'marcas-neumatico', label: 'Marcas', icon: '🏷️', path: 'marcas-neumatico', permissionRequired: 'MENU_NEUMATICOS_MARCAS' },
-                { id: 'estados-neumatico', label: 'Estados', icon: '📊', path: 'estados-neumatico', permissionRequired: 'MENU_NEUMATICOS_ESTADOS' },
-                { id: 'posiciones-neumatico', label: 'Posiciones', icon: '📍', path: 'posiciones-neumatico', permissionRequired: 'MENU_NEUMATICOS_POSICIONES' },
-                { id: 'patrones-rotacion', label: 'Patrones de Rotación', icon: '🔄', path: 'patrones-rotacion', permissionRequired: 'MENU_NEUMATICOS_PATRONES_ROTACION' },
-                { id: 'llantas', label: 'Tipo Llanta', icon: '⭕', path: 'llantas', permissionRequired: 'MENU_NEUMATICOS_TIPO_LLANTA' },
-                { id: 'dano-neumatico', label: 'Daño neumático', icon: '⚠️', path: 'dano-neumatico', permissionRequired: 'MENU_NEUMATICOS_DANO_NEUMATICO' },
-                { id: 'dano-llanta', label: 'Daño llanta', icon: '🔧', path: 'dano-llanta', permissionRequired: 'MENU_NEUMATICOS_DANO_LLANTA' }
-            ]
-        },
-        {
-            id: 'panol',
-            label: 'Pañol',
-            icon: '🧰',
-            permissionRequired: 'MENU_PANOL',
-            children: [
-                { id: 'herramientas', label: 'Herramientas', icon: '🔧', path: 'herramientas', permissionRequired: 'MENU_PANOL_HERRAMIENTAS' },
-                { id: 'movimientos-panol', label: 'Movimientos', icon: '📋', path: 'movimientos-panol', permissionRequired: 'MENU_PANOL_MOVIMIENTOS' }
-            ]
-        },
-        {
-            id: 'epp',
-            label: 'Entrega de EPP / Ropa de Trabajo',
-            icon: '🦺',
-            permissionRequired: 'MENU_EPP',
-            children: [
-                { id: 'entregas-epp', label: 'Entregas', icon: '📋', path: 'entregas-epp', permissionRequired: 'MENU_EPP_ENTREGAS' },
-                { id: 'clases-epp', label: 'Clases', icon: '📑', path: 'clases-epp', permissionRequired: 'MENU_EPP_CLASES' },
-                { id: 'tipos-epp', label: 'Tipos', icon: '📂', path: 'tipos-epp', permissionRequired: 'MENU_EPP_TIPOS' },
-                { id: 'categorias-epp', label: 'Categorías', icon: '🏷️', path: 'categorias-epp', permissionRequired: 'MENU_EPP_CATEGORIAS' },
-                { id: 'elementos-epp', label: 'Elementos', icon: '🧤', path: 'elementos-epp', permissionRequired: 'MENU_EPP_ELEMENTOS' },
-            ]
-        },
-        {
-            id: 'herramientas-cargo-menu',
-            label: 'Herramientas a cargo',
-            icon: '🛠️',
-            permissionRequired: 'MENU_HERRAMIENTAS_CARGO',
-            children: [
-                { id: 'entregas-cargo', label: 'Entregas / Devoluciones', icon: '📋', path: 'entregas-cargo', permissionRequired: 'MENU_HERRAMIENTAS_CARGO_ENTREGAS' },
-                { id: 'herramientas-cargo', label: 'Catálogo', icon: '🔧', path: 'herramientas-cargo', permissionRequired: 'MENU_HERRAMIENTAS_CARGO_CATALOGO' },
-                { id: 'inventario-cargo', label: 'Inventario vigente', icon: '📊', path: 'inventario-cargo', permissionRequired: 'MENU_HERRAMIENTAS_CARGO_INVENTARIO' },
-            ]
-        },
-        {
-            id: 'lubricantes-menu',
-            label: 'Lubricantes',
-            icon: '🛢️',
-            permissionRequired: 'MENU_LUBRICANTES',
-            children: [
-                { id: 'consumos-lubricante', label: 'Consumos', icon: '📋', path: 'consumos-lubricante', permissionRequired: 'MENU_LUBRICANTES_CONSUMO' },
-                { id: 'lubricantes', label: 'Catálogo', icon: '📦', path: 'lubricantes', permissionRequired: 'MENU_LUBRICANTES_CATALOGO' },
+                { id: 'alternadores', label: 'Alternadores', icon: '⚡', path: 'lista-alternadores', permissionRequired: 'MENU_GESTION_ALTERNADORES_ALTERNADORES' },
+                { id: 'transacciones', label: 'Movimientos', icon: '📝', path: 'transacciones', permissionRequired: 'MENU_GESTION_ALTERNADORES_MOVIMIENTOS' },
+                { id: 'existencias', label: 'Stock Actual', icon: '📊', path: 'existencias', permissionRequired: 'MENU_GESTION_ALTERNADORES_STOCK' },
+                { id: 'marcas-alternador', label: 'Marca Alternadores', icon: '🏷️', path: 'alternadores', permissionRequired: 'MENU_GESTION_ALTERNADORES_MARCAS' },
+                { id: 'estados', label: 'Estado Alternador', icon: '📊', path: 'estados', permissionRequired: 'MENU_GESTION_ALTERNADORES_ESTADO' },
+                { id: 'bodegas', label: 'Bodegas', icon: '🏢', path: 'bodegas', permissionRequired: 'MENU_GESTION_ALTERNADORES_BODEGAS' },
+                { id: 'tipos-transaccion', label: 'Tipos de Transacción', icon: '🔄', path: 'tipos-transaccion', permissionRequired: 'MENU_GESTION_ALTERNADORES_TIPOS_TRANSACCION' },
             ]
         },
         {
@@ -157,18 +106,69 @@ const Sidebar: React.FC<SidebarProps> = ({ onNavigate, currentView }) => {
             ]
         },
         {
-            id: 'inventario',
-            label: 'Gestion Alternadores',
-            icon: '📦',
-            permissionRequired: 'MENU_GESTION_ALTERNADORES',
+            id: 'epp',
+            label: 'Entrega de EPP / Ropa de Trabajo',
+            icon: '🦺',
+            permissionRequired: 'MENU_EPP',
             children: [
-                { id: 'alternadores', label: 'Alternadores', icon: '⚡', path: 'lista-alternadores', permissionRequired: 'MENU_GESTION_ALTERNADORES_ALTERNADORES' },
-                { id: 'transacciones', label: 'Movimientos', icon: '📝', path: 'transacciones', permissionRequired: 'MENU_GESTION_ALTERNADORES_MOVIMIENTOS' },
-                { id: 'existencias', label: 'Stock Actual', icon: '📊', path: 'existencias', permissionRequired: 'MENU_GESTION_ALTERNADORES_STOCK' },
-                { id: 'marcas-alternador', label: 'Marca Alternadores', icon: '🏷️', path: 'alternadores', permissionRequired: 'MENU_GESTION_ALTERNADORES_MARCAS' },
-                { id: 'estados', label: 'Estado Alternador', icon: '📊', path: 'estados', permissionRequired: 'MENU_GESTION_ALTERNADORES_ESTADO' },
-                { id: 'bodegas', label: 'Bodegas', icon: '🏢', path: 'bodegas', permissionRequired: 'MENU_GESTION_ALTERNADORES_BODEGAS' },
-                { id: 'tipos-transaccion', label: 'Tipos de Transacción', icon: '🔄', path: 'tipos-transaccion', permissionRequired: 'MENU_GESTION_ALTERNADORES_TIPOS_TRANSACCION' },
+                { id: 'entregas-epp', label: 'Entregas', icon: '📋', path: 'entregas-epp', permissionRequired: 'MENU_EPP_ENTREGAS' },
+                { id: 'clases-epp', label: 'Clases', icon: '📑', path: 'clases-epp', permissionRequired: 'MENU_EPP_CLASES' },
+                { id: 'tipos-epp', label: 'Tipos', icon: '📂', path: 'tipos-epp', permissionRequired: 'MENU_EPP_TIPOS' },
+                { id: 'categorias-epp', label: 'Categorías', icon: '🏷️', path: 'categorias-epp', permissionRequired: 'MENU_EPP_CATEGORIAS' },
+                { id: 'elementos-epp', label: 'Elementos', icon: '🧤', path: 'elementos-epp', permissionRequired: 'MENU_EPP_ELEMENTOS' },
+            ]
+        },
+        {
+            id: 'panol',
+            label: 'Pañol',
+            icon: '🧰',
+            permissionRequired: 'MENU_PANOL',
+            children: [
+                { id: 'herramientas', label: 'Herramientas', icon: '🔧', path: 'herramientas', permissionRequired: 'MENU_PANOL_HERRAMIENTAS' },
+                { id: 'movimientos-panol', label: 'Movimientos', icon: '📋', path: 'movimientos-panol', permissionRequired: 'MENU_PANOL_MOVIMIENTOS' }
+            ]
+        },
+        {
+            id: 'herramientas-cargo-menu',
+            label: 'Herramientas a cargo',
+            icon: '🛠️',
+            permissionRequired: 'MENU_HERRAMIENTAS_CARGO',
+            children: [
+                { id: 'entregas-cargo', label: 'Entregas / Devoluciones', icon: '📋', path: 'entregas-cargo', permissionRequired: 'MENU_HERRAMIENTAS_CARGO_ENTREGAS' },
+                { id: 'herramientas-cargo', label: 'Catálogo', icon: '🔧', path: 'herramientas-cargo', permissionRequired: 'MENU_HERRAMIENTAS_CARGO_CATALOGO' },
+                { id: 'inventario-cargo', label: 'Inventario vigente', icon: '📊', path: 'inventario-cargo', permissionRequired: 'MENU_HERRAMIENTAS_CARGO_INVENTARIO' },
+            ]
+        },
+        {
+            id: 'neumaticos',
+            label: 'Neumáticos',
+            icon: '🛞',
+            permissionRequired: 'MENU_NEUMATICOS',
+            children: [
+                { id: 'nt-sec-operacion', label: 'Operación', icon: '', isSection: true },
+                { id: 'trazabilidad-neumatico', label: 'Trazabilidad', icon: '📝', path: 'trazabilidad-neumatico', permissionRequired: 'MENU_NEUMATICOS_TRAZABILIDAD' },
+                { id: 'historial-neumatico', label: 'Historial', icon: '📋', path: 'historial-neumatico', permissionRequired: 'MENU_NEUMATICOS_HISTORIAL' },
+                { id: 'duracion-neumatico', label: 'Duración neumáticos', icon: '⏱️', path: 'duracion-neumatico', permissionRequired: 'MENU_NEUMATICOS_REPORTES' },
+                { id: 'danos-conductor-neumatico', label: 'Daños por conductor', icon: '📉', path: 'danos-conductor-neumatico', permissionRequired: 'MENU_NEUMATICOS_REPORTES' },
+                { id: 'nt-sec-mantenedores', label: 'Mantenedores', icon: '', isSection: true },
+                { id: 'neumaticos', label: 'Cod Trazabilidad', icon: '🛞', path: 'neumaticos', permissionRequired: 'MENU_NEUMATICOS_COD_TRAZABILIDAD' },
+                { id: 'marcas-neumatico', label: 'Marcas', icon: '🏷️', path: 'marcas-neumatico', permissionRequired: 'MENU_NEUMATICOS_MARCAS' },
+                { id: 'estados-neumatico', label: 'Estados', icon: '📊', path: 'estados-neumatico', permissionRequired: 'MENU_NEUMATICOS_ESTADOS' },
+                { id: 'posiciones-neumatico', label: 'Posiciones', icon: '📍', path: 'posiciones-neumatico', permissionRequired: 'MENU_NEUMATICOS_POSICIONES' },
+                { id: 'patrones-rotacion', label: 'Patrones de Rotación', icon: '🔄', path: 'patrones-rotacion', permissionRequired: 'MENU_NEUMATICOS_PATRONES_ROTACION' },
+                { id: 'llantas', label: 'Tipo Llanta', icon: '⭕', path: 'llantas', permissionRequired: 'MENU_NEUMATICOS_TIPO_LLANTA' },
+                { id: 'dano-neumatico', label: 'Daño neumático', icon: '⚠️', path: 'dano-neumatico', permissionRequired: 'MENU_NEUMATICOS_DANO_NEUMATICO' },
+                { id: 'dano-llanta', label: 'Daño llanta', icon: '🔧', path: 'dano-llanta', permissionRequired: 'MENU_NEUMATICOS_DANO_LLANTA' }
+            ]
+        },
+        {
+            id: 'lubricantes-menu',
+            label: 'Lubricantes',
+            icon: '🛢️',
+            permissionRequired: 'MENU_LUBRICANTES',
+            children: [
+                { id: 'consumos-lubricante', label: 'Consumos', icon: '📋', path: 'consumos-lubricante', permissionRequired: 'MENU_LUBRICANTES_CONSUMO' },
+                { id: 'lubricantes', label: 'Catálogo', icon: '📦', path: 'lubricantes', permissionRequired: 'MENU_LUBRICANTES_CATALOGO' },
             ]
         },
         {
