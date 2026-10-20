@@ -223,7 +223,7 @@ const ExpedienteRepuestoView: React.FC = () => {
         apiFetch(API_URL),
         apiFetch(apiUrl('/maquinas')),
         apiFetch(apiUrl('/tecnicos')),
-        apiFetch(apiUrl('/responsables-entrega')),
+        apiFetch(apiUrl('/responsables-entrega?activo=1')),
         apiFetch(apiUrl('/proveedores')),
         apiFetch(apiUrl('/repuestos-danados')),
       ]);

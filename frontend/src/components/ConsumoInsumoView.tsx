@@ -112,7 +112,7 @@ interface ActaInsumoPreviewData {
 
 const API_URL = apiUrl('/consumo-insumos');
 const TRABAJADORES_URL = apiUrl('/trabajadores');
-const RESPONSABLES_URL = apiUrl('/responsables-entrega');
+const RESPONSABLES_URL = apiUrl('/responsables-entrega?activo=1');
 const CCOSTOS_URL = apiUrl('/ccostos');
 const INSUMOS_URL = apiUrl('/insumos');
 const CATEGORIAS_URL = apiUrl('/categorias');

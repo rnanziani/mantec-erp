@@ -98,7 +98,7 @@ const diasEntre = (desde: string, hasta: string) => {
 };
 const HERRAMIENTAS_URL = apiUrl('/herramientas');
 const TRABAJADORES_URL = apiUrl('/trabajadores');
-const RESPONSABLES_URL = apiUrl('/responsables-entrega');
+const RESPONSABLES_URL = apiUrl('/responsables-entrega?activo=1');
 
 /** Badge CSS según estado de herramienta del catálogo */
 function badgeEstadoHerramienta(estado: string): string {

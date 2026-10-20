@@ -126,7 +126,7 @@ const AsignacionProductosAseoView: React.FC = () => {
   const PRODUCTOS_URL = apiUrl('/productos-aseo');
   const MAQUINAS_URL = apiUrl('/maquinas');
   const TRABAJADORES_URL = apiUrl('/trabajadores');
-  const RESPONSABLES_URL = apiUrl('/responsables-entrega');
+  const RESPONSABLES_URL = apiUrl('/responsables-entrega?activo=1');
 
   useEffect(() => {
     fetchAsignaciones();

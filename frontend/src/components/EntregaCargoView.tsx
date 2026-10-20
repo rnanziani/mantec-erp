@@ -137,7 +137,7 @@ const EntregaCargoView: React.FC = () => {
         apiFetch(API_URL),
         apiFetch(apiUrl('/herramientas-cargo')),
         apiFetch(apiUrl('/trabajadores')),
-        apiFetch(apiUrl('/responsables-entrega')),
+        apiFetch(apiUrl('/responsables-entrega?activo=1')),
         apiFetch(apiUrl('/ccostos')),
       ]);
       const eData: ApiResponse<Maestro[]> = await eRes.json();

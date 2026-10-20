@@ -174,7 +174,7 @@ const RecepcionReparadoView: React.FC = () => {
       const [rReg, rDisp, rResp, rTec, rMaq] = await Promise.all([
         apiFetch(API_URL),
         apiFetch(`${API_URL}/lineas-entrega-disponibles`),
-        apiFetch(apiUrl('/responsables-entrega')),
+        apiFetch(apiUrl('/responsables-entrega?activo=1')),
         apiFetch(apiUrl('/tecnicos')),
         apiFetch(apiUrl('/maquinas')),
       ]);

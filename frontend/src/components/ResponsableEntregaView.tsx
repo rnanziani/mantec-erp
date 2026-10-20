@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import './BodegaView.css';
+import './TecnicoView.css';
 import './ResponsableEntregaView.css';
 import { exportToExcel } from '../utils/exportUtils';
 import { showDeleteConfirm, showSuccess, showError } from '../utils/swal';
@@ -11,6 +12,7 @@ interface ResponsableEntrega {
   nombreresponsableentrega_08: string;
   apaternoresponsableentrega_08?: string;
   amaternoresponsableentrega_08?: string;
+  estado_08: boolean;
   nombre_completo?: string;
 }
 
@@ -34,6 +36,7 @@ const ResponsableEntregaView: React.FC = () => {
   const [nombre, setNombre] = useState<string>('');
   const [apaterno, setAPaterno] = useState<string>('');
   const [amaterno, setAMaterno] = useState<string>('');
+  const [estado, setEstado] = useState<boolean>(true);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [showForm, setShowForm] = useState<boolean>(false);
 
@@ -41,6 +44,7 @@ const ResponsableEntregaView: React.FC = () => {
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [itemsPerPage] = useState<number>(10);
   const [sortConfig, setSortConfig] = useState<SortConfig>({ key: 'idresponsableentrega_08', direction: 'asc' });
+  const [filterEstado, setFilterEstado] = useState<string>('all');
 
   const API_URL = apiUrl('/responsables-entrega');
 
@@ -80,7 +84,12 @@ const ResponsableEntregaView: React.FC = () => {
   const filteredAndSorted = useMemo(() => {
     let filtered = responsables.filter(r => {
       const fullName = getNombreCompleto(r).toLowerCase();
-      return fullName.includes(searchTerm.toLowerCase());
+      const matchTexto = fullName.includes(searchTerm.toLowerCase());
+      const matchEstado =
+        filterEstado === 'all' ||
+        (filterEstado === 'active' && r.estado_08 !== false) ||
+        (filterEstado === 'inactive' && r.estado_08 === false);
+      return matchTexto && matchEstado;
     });
 
     filtered.sort((a, b) => {
@@ -93,7 +102,7 @@ const ResponsableEntregaView: React.FC = () => {
       return 0;
     });
     return filtered;
-  }, [responsables, searchTerm, sortConfig, getNombreCompleto]);
+  }, [responsables, searchTerm, filterEstado, sortConfig, getNombreCompleto]);
 
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
@@ -102,7 +111,7 @@ const ResponsableEntregaView: React.FC = () => {
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm]);
+  }, [searchTerm, filterEstado]);
 
   const handleSort = (key: keyof ResponsableEntrega) => {
     setSortConfig(prev => ({
@@ -131,7 +140,8 @@ const ResponsableEntregaView: React.FC = () => {
         body: JSON.stringify({
           nombreresponsableentrega_08: nombre.trim(),
           apaternoresponsableentrega_08: apaterno.trim() || undefined,
-          amaternoresponsableentrega_08: amaterno.trim() || undefined
+          amaternoresponsableentrega_08: amaterno.trim() || undefined,
+          estado_08: estado
         })
       });
 
@@ -172,7 +182,8 @@ const ResponsableEntregaView: React.FC = () => {
         body: JSON.stringify({
           nombreresponsableentrega_08: nombre.trim(),
           apaternoresponsableentrega_08: apaterno.trim() || undefined,
-          amaternoresponsableentrega_08: amaterno.trim() || undefined
+          amaternoresponsableentrega_08: amaterno.trim() || undefined,
+          estado_08: estado
         })
       });
 
@@ -223,6 +234,7 @@ const ResponsableEntregaView: React.FC = () => {
     setNombre('');
     setAPaterno('');
     setAMaterno('');
+    setEstado(true);
     setEditingId(null);
     setShowForm(false);
     setError('');
@@ -242,6 +254,7 @@ const ResponsableEntregaView: React.FC = () => {
     setNombre(r.nombreresponsableentrega_08 || '');
     setAPaterno(r.apaternoresponsableentrega_08 || '');
     setAMaterno(r.amaternoresponsableentrega_08 || '');
+    setEstado(r.estado_08 !== false);
     setShowForm(true);
     setError('');
   };
@@ -252,7 +265,8 @@ const ResponsableEntregaView: React.FC = () => {
       Nombre: r.nombreresponsableentrega_08,
       'Apellido Paterno': r.apaternoresponsableentrega_08 || '',
       'Apellido Materno': r.amaternoresponsableentrega_08 || '',
-      'Nombre Completo': getNombreCompleto(r)
+      'Nombre Completo': getNombreCompleto(r),
+      Estado: r.estado_08 !== false ? 'Activo' : 'Inactivo'
     }));
     exportToExcel(dataToExport, 'responsables-entrega', 'Responsables de Entrega');
     await showSuccess('¡Exportación exitosa!', 'Los datos han sido exportados correctamente.');
@@ -345,6 +359,21 @@ const ResponsableEntregaView: React.FC = () => {
                 />
               </div>
             </div>
+            <div className="form-row">
+              <div className="form-group">
+                <label htmlFor="estado_08">Estado:</label>
+                <select
+                  id="estado_08"
+                  className="form-input"
+                  value={estado ? 'true' : 'false'}
+                  onChange={(e) => setEstado(e.target.value === 'true')}
+                  aria-label="Estado del responsable"
+                >
+                  <option value="true">Activo</option>
+                  <option value="false">Inactivo</option>
+                </select>
+              </div>
+            </div>
             <div className="form-actions">
               <button type="submit" className="btn-success">
                 {editingId ? '💾 Actualizar' : '➕ Crear'}
@@ -363,17 +392,33 @@ const ResponsableEntregaView: React.FC = () => {
             Mostrando {currentItems.length} de {filteredAndSorted.length} registros
           </div>
         </div>
-        <input
-          type="text"
-          placeholder="🔍 Buscar por nombre o apellidos..."
-          value={searchTerm}
-          onChange={(e) => {
-            setSearchTerm(e.target.value);
-            setCurrentPage(1);
-          }}
-          style={{ width: '100%', padding: '10px', fontSize: '14px', borderRadius: '4px', border: '1px solid #ced4da' }}
-          aria-label="Buscar responsable"
-        />
+        <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
+          <input
+            type="text"
+            placeholder="🔍 Buscar por nombre o apellidos..."
+            value={searchTerm}
+            onChange={(e) => {
+              setSearchTerm(e.target.value);
+              setCurrentPage(1);
+            }}
+            style={{ flex: '1', minWidth: '200px', padding: '10px', fontSize: '14px', borderRadius: '4px', border: '1px solid #ced4da' }}
+            aria-label="Buscar responsable"
+          />
+          <label htmlFor="filter-estado" style={{ fontWeight: 500, color: '#495057', whiteSpace: 'nowrap' }}>
+            Estado
+            <select
+              id="filter-estado"
+              value={filterEstado}
+              onChange={(e) => setFilterEstado(e.target.value)}
+              style={{ marginLeft: '8px', padding: '10px', fontSize: '14px', borderRadius: '4px', border: '1px solid #ced4da', minWidth: '120px' }}
+              aria-label="Filtrar por estado"
+            >
+              <option value="all">Todos</option>
+              <option value="active">Activos</option>
+              <option value="inactive">Inactivos</option>
+            </select>
+          </label>
+        </div>
       </div>
 
       <div className="table-container">
@@ -392,17 +437,20 @@ const ResponsableEntregaView: React.FC = () => {
               <th onClick={() => handleSort('amaternoresponsableentrega_08')} className="sortable" style={{ cursor: 'pointer' }}>
                 APELLIDO MATERNO {getSortIndicator('amaternoresponsableentrega_08')}
               </th>
+              <th onClick={() => handleSort('estado_08')} className="sortable" style={{ cursor: 'pointer' }}>
+                ESTADO {getSortIndicator('estado_08')}
+              </th>
               <th>ACCIONES</th>
             </tr>
           </thead>
           <tbody>
             {loading && responsables.length === 0 ? (
-              <tr><td colSpan={5}>Cargando...</td></tr>
+              <tr><td colSpan={6}>Cargando...</td></tr>
             ) : currentItems.length === 0 ? (
               <tr>
-                <td colSpan={5} className="no-data">
-                  {searchTerm
-                    ? `📋 No se encontraron responsables con "${searchTerm}"`
+                <td colSpan={6} className="no-data">
+                  {searchTerm || filterEstado !== 'all'
+                    ? '📋 No se encontraron responsables con el filtro actual'
                     : '📋 No hay responsables registrados'}
                 </td>
               </tr>
@@ -413,6 +461,11 @@ const ResponsableEntregaView: React.FC = () => {
                   <td className="responsable-nombre">{r.nombreresponsableentrega_08}</td>
                   <td>{r.apaternoresponsableentrega_08 || '-'}</td>
                   <td>{r.amaternoresponsableentrega_08 || '-'}</td>
+                  <td>
+                    <span className={`badge ${r.estado_08 !== false ? 'badge-activo' : 'badge-inactivo'}`}>
+                      {r.estado_08 !== false ? 'ACTIVO' : 'INACTIVO'}
+                    </span>
+                  </td>
                   <td className="actions">
                     <button className="btn-edit" onClick={() => startEdit(r)} title="Editar" aria-label="Editar responsable">
                       ✏️

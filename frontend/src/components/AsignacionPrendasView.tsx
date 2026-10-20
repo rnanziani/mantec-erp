@@ -269,7 +269,7 @@ const AsignacionPrendasView: React.FC = () => {
   const TALLAS_API_URL = apiUrl('/tallas');
   const TRABAJADORES_URL = apiUrl('/trabajadores');
   const CARGOS_URL = apiUrl('/cargos');
-  const RESPONSABLES_URL = apiUrl('/responsables-entrega');
+  const RESPONSABLES_URL = apiUrl('/responsables-entrega?activo=1');
   const EMPRESAS_URL = apiUrl('/empresas');
 
   const [filtroFechaDesde, setFiltroFechaDesde] = useState<string>(() => {

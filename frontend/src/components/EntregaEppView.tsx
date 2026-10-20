@@ -150,7 +150,7 @@ const EMPRESAS_URL = apiUrl('/empresas');
 const CARGOS_URL = apiUrl('/cargos');
 const CCOSTOS_URL = apiUrl('/ccostos');
 const CLASES_URL = apiUrl('/epp-clases');
-const RESPONSABLES_URL = apiUrl('/responsables-entrega');
+const RESPONSABLES_URL = apiUrl('/responsables-entrega?activo=1');
 const TALLAS_URL = apiUrl('/tallas');
 const MARCAS_URL = apiUrl('/marcas-insumo');
 

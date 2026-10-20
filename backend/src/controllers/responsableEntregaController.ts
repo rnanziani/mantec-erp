@@ -3,13 +3,43 @@ import { pool } from '../db.js';
 import { ApiResponse } from '../types.js';
 
 const TABLA_RESPONSABLE = 'tbl_08_responsable_entrega';
+const SELECT_RESPONSABLE = `
+  idresponsableentrega_08,
+  nombreresponsableentrega_08,
+  apaternoresponsableentrega_08,
+  amaternoresponsableentrega_08,
+  estado_08
+`;
 
 interface ResponsableEntrega {
   idresponsableentrega_08: number;
   nombreresponsableentrega_08: string;
   apaternoresponsableentrega_08?: string;
   amaternoresponsableentrega_08?: string;
+  estado_08: boolean;
   nombre_completo?: string;
+}
+
+/** En BD estado_08 guarda {v} (vigente) o vacío/NULL. El API lo expone como boolean. */
+function esVigente(estado: unknown): boolean {
+  if (estado == null || estado === false) return false;
+  if (estado === true) return true;
+  if (Array.isArray(estado)) {
+    return estado.some((x) => String(x).trim().toLowerCase() === 'v');
+  }
+  const s = String(estado).trim().toLowerCase();
+  if (s === '' || s === '{}' || s === 'null' || s === 'false' || s === '0' || s === 'f') {
+    return false;
+  }
+  return s === 'v' || s.includes('v');
+}
+
+function parseActivoQuery(raw: unknown): boolean | undefined {
+  if (raw === undefined || raw === null || raw === '') return undefined;
+  const s = String(raw).trim().toLowerCase();
+  if (s === '1' || s === 'true' || s === 'si' || s === 'sí') return true;
+  if (s === '0' || s === 'false' || s === 'no') return false;
+  return undefined;
 }
 
 const mapRowToResponsable = (row: any): ResponsableEntrega => {
@@ -25,6 +55,7 @@ const mapRowToResponsable = (row: any): ResponsableEntrega => {
     nombreresponsableentrega_08: nombre,
     apaternoresponsableentrega_08: apaterno,
     amaternoresponsableentrega_08: amaterno,
+    estado_08: esVigente(row.estado_08),
     nombre_completo: nombreCompleto || nombre
   };
 };
@@ -34,18 +65,29 @@ const mapRowToResponsable = (row: any): ResponsableEntrega => {
  */
 export const getAllResponsables = async (req: Request, res: Response): Promise<void> => {
   try {
-    // Consulta SQL con los campos correctos de la tabla
+    const soloActivo = parseActivoQuery(req.query.activo);
+    const params: boolean[] = [];
+    let where = '';
+    if (soloActivo !== undefined) {
+      params.push(soloActivo);
+      where = `
+        WHERE (
+          CASE WHEN $1 THEN
+            estado_08 IS NOT NULL AND CAST(estado_08 AS TEXT) ILIKE '%v%'
+          ELSE
+            estado_08 IS NULL OR CAST(estado_08 AS TEXT) NOT ILIKE '%v%'
+          END
+        )`;
+    }
+
     const query = `
-      SELECT 
-        idresponsableentrega_08,
-        nombreresponsableentrega_08,
-        apaternoresponsableentrega_08,
-        amaternoresponsableentrega_08
+      SELECT ${SELECT_RESPONSABLE}
       FROM ${TABLA_RESPONSABLE}
+      ${where}
       ORDER BY nombreresponsableentrega_08 ASC
     `;
 
-    const result = await pool.query(query);
+    const result = await pool.query(query, params);
     const responsables = result.rows.map(mapRowToResponsable);
 
     const response: ApiResponse<ResponsableEntrega[]> = {
@@ -72,7 +114,7 @@ export const getResponsableById = async (req: Request, res: Response): Promise<v
   try {
     const { id } = req.params;
     const result = await pool.query(
-      `SELECT idresponsableentrega_08, nombreresponsableentrega_08, apaternoresponsableentrega_08, amaternoresponsableentrega_08
+      `SELECT ${SELECT_RESPONSABLE}
        FROM ${TABLA_RESPONSABLE} WHERE idresponsableentrega_08 = $1`,
       [id]
     );
@@ -100,7 +142,7 @@ export const getResponsableById = async (req: Request, res: Response): Promise<v
  */
 export const createResponsable = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { nombreresponsableentrega_08, apaternoresponsableentrega_08, amaternoresponsableentrega_08 } = req.body;
+    const { nombreresponsableentrega_08, apaternoresponsableentrega_08, amaternoresponsableentrega_08, estado_08 } = req.body;
 
     if (!nombreresponsableentrega_08 || !nombreresponsableentrega_08.trim()) {
       res.status(400).json({
@@ -110,14 +152,16 @@ export const createResponsable = async (req: Request, res: Response): Promise<vo
       return;
     }
 
+    const activo = estado_08 !== false && estado_08 !== 'false';
     const result = await pool.query(
-      `INSERT INTO ${TABLA_RESPONSABLE} (nombreresponsableentrega_08, apaternoresponsableentrega_08, amaternoresponsableentrega_08)
-       VALUES ($1, $2, $3)
-       RETURNING idresponsableentrega_08, nombreresponsableentrega_08, apaternoresponsableentrega_08, amaternoresponsableentrega_08`,
+      `INSERT INTO ${TABLA_RESPONSABLE} (nombreresponsableentrega_08, apaternoresponsableentrega_08, amaternoresponsableentrega_08, estado_08)
+       VALUES ($1, $2, $3, CASE WHEN $4::boolean THEN '{v}' ELSE NULL END)
+       RETURNING ${SELECT_RESPONSABLE}`,
       [
         nombreresponsableentrega_08.trim(),
         apaternoresponsableentrega_08?.trim() || null,
-        amaternoresponsableentrega_08?.trim() || null
+        amaternoresponsableentrega_08?.trim() || null,
+        activo
       ]
     );
 
@@ -143,7 +187,7 @@ export const createResponsable = async (req: Request, res: Response): Promise<vo
 export const updateResponsable = async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
-    const { nombreresponsableentrega_08, apaternoresponsableentrega_08, amaternoresponsableentrega_08 } = req.body;
+    const { nombreresponsableentrega_08, apaternoresponsableentrega_08, amaternoresponsableentrega_08, estado_08 } = req.body;
 
     if (!nombreresponsableentrega_08 || !nombreresponsableentrega_08.trim()) {
       res.status(400).json({
@@ -153,15 +197,20 @@ export const updateResponsable = async (req: Request, res: Response): Promise<vo
       return;
     }
 
+    const activo = estado_08 !== false && estado_08 !== 'false';
     const result = await pool.query(
       `UPDATE ${TABLA_RESPONSABLE}
-       SET nombreresponsableentrega_08 = $1, apaternoresponsableentrega_08 = $2, amaternoresponsableentrega_08 = $3
-       WHERE idresponsableentrega_08 = $4
-       RETURNING idresponsableentrega_08, nombreresponsableentrega_08, apaternoresponsableentrega_08, amaternoresponsableentrega_08`,
+       SET nombreresponsableentrega_08 = $1,
+           apaternoresponsableentrega_08 = $2,
+           amaternoresponsableentrega_08 = $3,
+           estado_08 = CASE WHEN $4::boolean THEN '{v}' ELSE NULL END
+       WHERE idresponsableentrega_08 = $5
+       RETURNING ${SELECT_RESPONSABLE}`,
       [
         nombreresponsableentrega_08.trim(),
         apaternoresponsableentrega_08?.trim() || null,
         amaternoresponsableentrega_08?.trim() || null,
+        activo,
         id
       ]
     );
