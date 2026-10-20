@@ -42,6 +42,37 @@ function parseActivoQuery(raw: unknown): boolean | undefined {
   return undefined;
 }
 
+type TipoEstado08 = 'array' | 'text' | 'bool';
+let tipoEstado08Cache: TipoEstado08 | null = null;
+
+async function tipoEstado08(): Promise<TipoEstado08> {
+  if (tipoEstado08Cache) return tipoEstado08Cache;
+  const r = await pool.query<{ data_type: string; udt_name: string }>(
+    `SELECT data_type, udt_name
+     FROM information_schema.columns
+     WHERE table_schema = 'public'
+       AND table_name = $1
+       AND column_name = 'estado_08'`,
+    [TABLA_RESPONSABLE]
+  );
+  const row = r.rows[0];
+  const udt = String(row?.udt_name || '');
+  const dataType = String(row?.data_type || '');
+  if (dataType === 'ARRAY' || udt.startsWith('_')) tipoEstado08Cache = 'array';
+  else if (dataType === 'boolean' || udt === 'bool') tipoEstado08Cache = 'bool';
+  else tipoEstado08Cache = 'text';
+  return tipoEstado08Cache;
+}
+
+/** NULL (no CASE) para que Postgres acepte el tipo de estado_08: arreglo {v}, texto o boolean. */
+async function valorEstado08(activo: boolean): Promise<unknown> {
+  const tipo = await tipoEstado08();
+  if (tipo === 'bool') return activo;
+  if (!activo) return null;
+  if (tipo === 'array') return ['v'];
+  return '{v}';
+}
+
 const mapRowToResponsable = (row: any): ResponsableEntrega => {
   const nombre = row.nombreresponsableentrega_08 || '';
   const apaterno = row.apaternoresponsableentrega_08 || '';
@@ -155,13 +186,13 @@ export const createResponsable = async (req: Request, res: Response): Promise<vo
     const activo = estado_08 !== false && estado_08 !== 'false';
     const result = await pool.query(
       `INSERT INTO ${TABLA_RESPONSABLE} (nombreresponsableentrega_08, apaternoresponsableentrega_08, amaternoresponsableentrega_08, estado_08)
-       VALUES ($1, $2, $3, CASE WHEN $4::boolean THEN '{v}' ELSE NULL END)
+       VALUES ($1, $2, $3, $4)
        RETURNING ${SELECT_RESPONSABLE}`,
       [
         nombreresponsableentrega_08.trim(),
         apaternoresponsableentrega_08?.trim() || null,
         amaternoresponsableentrega_08?.trim() || null,
-        activo
+        await valorEstado08(activo)
       ]
     );
 
@@ -203,14 +234,14 @@ export const updateResponsable = async (req: Request, res: Response): Promise<vo
        SET nombreresponsableentrega_08 = $1,
            apaternoresponsableentrega_08 = $2,
            amaternoresponsableentrega_08 = $3,
-           estado_08 = CASE WHEN $4::boolean THEN '{v}' ELSE NULL END
+           estado_08 = $4
        WHERE idresponsableentrega_08 = $5
        RETURNING ${SELECT_RESPONSABLE}`,
       [
         nombreresponsableentrega_08.trim(),
         apaternoresponsableentrega_08?.trim() || null,
         amaternoresponsableentrega_08?.trim() || null,
-        activo,
+        await valorEstado08(activo),
         id
       ]
     );

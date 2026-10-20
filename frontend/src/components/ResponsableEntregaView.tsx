@@ -189,8 +189,8 @@ const ResponsableEntregaView: React.FC = () => {
 
       const data: ApiResponse = await response.json();
       if (!response.ok) {
-        await showError('Error al actualizar', data.error || 'Error al actualizar');
-        setError(data.error || '');
+        await showError('Error al actualizar', data.message || data.error || 'Error al actualizar');
+        setError(data.message || data.error || '');
         return;
       }
 
@@ -199,8 +199,8 @@ const ResponsableEntregaView: React.FC = () => {
         resetForm();
         await showSuccess('¡Responsable actualizado!', 'El responsable ha sido actualizado correctamente.');
       } else {
-        await showError('Error al actualizar', data.error || 'Error al actualizar');
-        setError(data.error || '');
+        await showError('Error al actualizar', data.message || data.error || 'Error al actualizar');
+        setError(data.message || data.error || '');
       }
     } catch (err) {
       await showError('Error', 'Error de conexión al actualizar');
