@@ -140,6 +140,17 @@ const Sidebar: React.FC<SidebarProps> = ({ onNavigate, currentView }) => {
             ]
         },
         {
+            id: 'flota-menu',
+            label: 'Flota / Vehículos',
+            icon: '🚗',
+            permissionRequired: 'MENU_FLOTA',
+            children: [
+                { id: 'bitacoras-viaje', label: 'Bitácora de viajes', icon: '📋', path: 'bitacoras-viaje', permissionRequired: 'MENU_FLOTA_BITACORA' },
+                { id: 'vehiculos', label: 'Vehículos', icon: '🚗', path: 'vehiculos', permissionRequired: 'MENU_FLOTA_VEHICULOS' },
+                { id: 'verificador-flota', label: 'Verificador', icon: '✅', path: 'verificador-flota', permissionRequired: 'MENU_FLOTA_VERIFICADOR' },
+            ]
+        },
+        {
             id: 'herramientas-cargo-menu',
             label: 'Herramientas a cargo',
             icon: '🛠️',

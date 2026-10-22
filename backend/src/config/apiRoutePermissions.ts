@@ -69,6 +69,11 @@ export const API_PREFIX_RULES: Array<{
   { prefix: '/api/pedidos/verificador', permission: 'MENU_PEDIDOS_VERIFICADOR' },
   { prefix: '/api/pedidos', permission: 'MENU_PEDIDOS_GESTION' },
 
+  // Flota / vehículos
+  { prefix: '/api/vehiculos', permission: 'MENU_FLOTA_VEHICULOS', readAuthOnly: true },
+  { prefix: '/api/bitacoras-viaje/verificador', permission: 'MENU_FLOTA_VERIFICADOR' },
+  { prefix: '/api/bitacoras-viaje', permission: 'MENU_FLOTA_BITACORA' },
+
   // Pañol
   { prefix: '/api/herramientas', permission: 'MENU_PANOL_HERRAMIENTAS', readAuthOnly: true },
   { prefix: '/api/panol', permission: 'MENU_PANOL_MOVIMIENTOS' },

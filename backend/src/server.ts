@@ -79,6 +79,8 @@ import existenciaRepuestoRoutes from './routes/existenciaRepuestoRoutes.js';
 import codigoEtiquetaRoutes from './routes/codigoEtiquetaRoutes.js';
 import proveedorPedidoRoutes from './routes/proveedorPedidoRoutes.js';
 import pedidoRoutes from './routes/pedidoRoutes.js';
+import vehiculoRoutes from './routes/vehiculoRoutes.js';
+import bitacoraViajeRoutes from './routes/bitacoraViajeRoutes.js';
 
 console.log('🔄 Servidor iniciando - Cargando rutas...');
 
@@ -266,6 +268,8 @@ app.use('/api/existencias-repuesto', existenciaRepuestoRoutes);
 app.use('/api/codigos-etiqueta', codigoEtiquetaRoutes);
 app.use('/api/proveedores-pedido', proveedorPedidoRoutes);
 app.use('/api/pedidos', pedidoRoutes);
+app.use('/api/vehiculos', vehiculoRoutes);
+app.use('/api/bitacoras-viaje', bitacoraViajeRoutes);
 
 console.log('✅ Todas las rutas cargadas');
 

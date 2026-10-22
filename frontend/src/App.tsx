@@ -81,6 +81,9 @@ import CodigoEtiquetaView from './components/CodigoEtiquetaView';
 import PedidoView from './components/PedidoView';
 import ProveedorPedidoView from './components/ProveedorPedidoView';
 import VerificadorPedidoView from './components/VerificadorPedidoView';
+import VehiculoView from './components/VehiculoView';
+import BitacoraViajeView from './components/BitacoraViajeView';
+import VerificadorFlotaView from './components/VerificadorFlotaView';
 import { useUserPermissions } from './hooks/useUserPermissions';
 import SessionInactivityModal from './components/SessionInactivityModal';
 import SessionExpiredModal from './components/SessionExpiredModal';
@@ -173,6 +176,9 @@ function App() {
     'pedidos': 'MENU_PEDIDOS_GESTION',
     'proveedores-pedido': 'MENU_PEDIDOS_PROVEEDORES',
     'verificador-pedidos': 'MENU_PEDIDOS_VERIFICADOR',
+    'bitacoras-viaje': 'MENU_FLOTA_BITACORA',
+    'vehiculos': 'MENU_FLOTA_VEHICULOS',
+    'verificador-flota': 'MENU_FLOTA_VERIFICADOR',
     'bodegas': 'MENU_GESTION_ALTERNADORES_BODEGAS',
     'tipos-transaccion': 'MENU_GESTION_ALTERNADORES_TIPOS_TRANSACCION',
     'transacciones': 'MENU_GESTION_ALTERNADORES_MOVIMIENTOS',
@@ -548,6 +554,9 @@ function App() {
           )}
           {currentView === 'herramientas' && hasRouteAccess('herramientas') && <HerramientaView />}
           {currentView === 'movimientos-panol' && hasRouteAccess('movimientos-panol') && <PanolMovimientoView />}
+          {currentView === 'bitacoras-viaje' && hasRouteAccess('bitacoras-viaje') && <BitacoraViajeView />}
+          {currentView === 'vehiculos' && hasRouteAccess('vehiculos') && <VehiculoView />}
+          {currentView === 'verificador-flota' && hasRouteAccess('verificador-flota') && <VerificadorFlotaView />}
           {currentView === 'clases-epp' && hasRouteAccess('clases-epp') && <ClaseElementoEppView />}
           {currentView === 'tipos-epp' && hasRouteAccess('tipos-epp') && <TipoElementoEppView />}
           {currentView === 'categorias-epp' && hasRouteAccess('categorias-epp') && <CategoriaElementoEppView />}
