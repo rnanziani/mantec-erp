@@ -284,6 +284,48 @@ export const registrarRegreso = async (req: Request, res: Response): Promise<voi
   }
 };
 
+export const updateBitacora = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const actual = await cargarBitacora(req.params.id);
+    if (!actual) {
+      res.status(404).json({ success: false, error: 'Bitácora no encontrada' });
+      return;
+    }
+    const idConductor = num(req.body.id_conductor_96);
+    const idAutoriza = num(req.body.id_responsable_autoriza_96);
+    if (!idConductor || !idAutoriza) {
+      res.status(400).json({ success: false, error: 'Conductor y quien autoriza son requeridos' });
+      return;
+    }
+    await pool.query(
+      `UPDATE tbl_96_bitacora_viaje
+       SET id_conductor_96 = $1,
+           id_responsable_autoriza_96 = $2,
+           destino_96 = $3,
+           motivo_salida_96 = $4
+       WHERE id_bitacora_96 = $5`,
+      [
+        idConductor,
+        idAutoriza,
+        upper(req.body.destino_96, 150),
+        upper(req.body.motivo_salida_96),
+        req.params.id,
+      ]
+    );
+    res.json({
+      success: true,
+      data: await cargarBitacora(req.params.id),
+      message: 'Datos del viaje actualizados',
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: 'Error al actualizar la bitácora',
+      message: error instanceof Error ? error.message : 'Error desconocido',
+    });
+  }
+};
+
 export const anularBitacora = async (req: Request, res: Response): Promise<void> => {
   try {
     const actual = await cargarBitacora(req.params.id);

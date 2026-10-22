@@ -99,6 +99,10 @@ const BitacoraViajeView: React.FC = () => {
   const [salida, setSalida] = useState(emptyCtrl);
 
   const [detalle, setDetalle] = useState<Bitacora | null>(null);
+  const [editConductor, setEditConductor] = useState('');
+  const [editAutoriza, setEditAutoriza] = useState('');
+  const [editDestino, setEditDestino] = useState('');
+  const [editMotivo, setEditMotivo] = useState('');
   const [regreso, setRegreso] = useState(emptyCtrl);
 
   const API = apiUrl('/bitacoras-viaje');
@@ -159,6 +163,26 @@ const BitacoraViajeView: React.FC = () => {
     () => responsables.map((r) => ({ value: String(r.idresponsableentrega_08), label: nombreResp(r) })),
     [responsables]
   );
+  const conductorOptionsEdit = useMemo(() => {
+    const opts = [...conductorOptions];
+    if (detalle && !opts.some((o) => o.value === String(detalle.id_conductor_96))) {
+      opts.unshift({
+        value: String(detalle.id_conductor_96),
+        label: detalle.conductor_nombre || `Conductor #${detalle.id_conductor_96}`,
+      });
+    }
+    return opts;
+  }, [conductorOptions, detalle]);
+  const responsableOptionsEdit = useMemo(() => {
+    const opts = [...responsableOptions];
+    if (detalle && !opts.some((o) => o.value === String(detalle.id_responsable_autoriza_96))) {
+      opts.unshift({
+        value: String(detalle.id_responsable_autoriza_96),
+        label: detalle.autoriza_nombre || `Responsable #${detalle.id_responsable_autoriza_96}`,
+      });
+    }
+    return opts;
+  }, [responsableOptions, detalle]);
 
   const filtered = useMemo(() => {
     const q = searchTerm.trim().toLowerCase();
@@ -198,8 +222,48 @@ const BitacoraViajeView: React.FC = () => {
       return;
     }
     setDetalle(data.data);
+    setEditConductor(String(data.data.id_conductor_96));
+    setEditAutoriza(String(data.data.id_responsable_autoriza_96));
+    setEditDestino(data.data.destino_96 || '');
+    setEditMotivo(data.data.motivo_salida_96 || '');
     setShowForm(false);
     setRegreso(emptyCtrl);
+  };
+
+  const handleGuardarDatos = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!detalle) return;
+    if (!editConductor || !editAutoriza) {
+      await showError('Validación', 'Conductor y quien autoriza son requeridos');
+      return;
+    }
+    try {
+      const res = await apiFetch(`${API}/${detalle.id_bitacora_96}`, {
+        method: 'PUT',
+        body: JSON.stringify({
+          id_conductor_96: Number(editConductor),
+          id_responsable_autoriza_96: Number(editAutoriza),
+          destino_96: editDestino.trim() || null,
+          motivo_salida_96: editMotivo.trim() || null,
+        }),
+      });
+      const data: ApiResponse<Bitacora> = await res.json();
+      if (data.success) {
+        await fetchAll();
+        if (data.data) {
+          setDetalle(data.data);
+          setEditConductor(String(data.data.id_conductor_96));
+          setEditAutoriza(String(data.data.id_responsable_autoriza_96));
+          setEditDestino(data.data.destino_96 || '');
+          setEditMotivo(data.data.motivo_salida_96 || '');
+        }
+        await showSuccess('Actualizado', data.message || 'OK');
+      } else {
+        await showError('Error', data.error || 'No se pudo guardar');
+      }
+    } catch {
+      await showError('Error', 'Error de conexión');
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -492,10 +556,58 @@ const BitacoraViajeView: React.FC = () => {
             {detalle.patente_95} — {detalle.conductor_nombre}{' '}
             <span className="badge">{detalle.estado_bitacora_96}</span>
           </h3>
-          <p>
-            Destino: {detalle.destino_96 || '—'} · Autoriza: {detalle.autoriza_nombre} · Salida:{' '}
-            {String(detalle.fecha_hora_salida_96).replace('T', ' ').slice(0, 16)}
+          <p style={{ color: '#6c757d' }}>
+            Patente {detalle.patente_95} (no se cambia). Salida:{' '}
+            {String(detalle.fecha_hora_salida_96).replace('T', ' ').slice(0, 16)}. Destino, motivo, conductor y quien autoriza se pueden corregir aunque el viaje esté Finalizado.
           </p>
+          <form onSubmit={handleGuardarDatos}>
+            <div className="form-row form-row-3">
+              <div className="form-group">
+                <label htmlFor="edit_conductor_96">Conductor *</label>
+                <SearchableSelect
+                  id="edit_conductor_96"
+                  value={editConductor}
+                  onChange={setEditConductor}
+                  options={conductorOptionsEdit}
+                  placeholder="Buscar trabajador..."
+                  aria-label="Conductor"
+                />
+              </div>
+              <div className="form-group">
+                <label htmlFor="edit_autoriza_96">Autoriza salida *</label>
+                <SearchableSelect
+                  id="edit_autoriza_96"
+                  value={editAutoriza}
+                  onChange={setEditAutoriza}
+                  options={responsableOptionsEdit}
+                  placeholder="Responsable vigente..."
+                  aria-label="Autoriza"
+                />
+              </div>
+              <div className="form-group">
+                <label htmlFor="edit_destino_96">Destino</label>
+                <input
+                  id="edit_destino_96"
+                  className="form-input"
+                  maxLength={150}
+                  style={{ textTransform: 'uppercase' }}
+                  value={editDestino}
+                  onChange={(e) => changeKeepingCaret(e, setEditDestino)}
+                />
+              </div>
+              <div className="form-group" style={{ gridColumn: '1 / -1' }}>
+                <label htmlFor="edit_motivo_96">Motivo</label>
+                <input
+                  id="edit_motivo_96"
+                  className="form-input"
+                  style={{ textTransform: 'uppercase' }}
+                  value={editMotivo}
+                  onChange={(e) => changeKeepingCaret(e, setEditMotivo)}
+                />
+              </div>
+            </div>
+            <button type="submit" className="btn-success">Guardar datos</button>
+          </form>
           <div className="table-container">
             <table className="data-table">
               <thead>
@@ -579,7 +691,7 @@ const BitacoraViajeView: React.FC = () => {
                   <td>{String(b.fecha_hora_salida_96).replace('T', ' ').slice(0, 16)}</td>
                   <td>{b.estado_bitacora_96}</td>
                   <td>
-                    <button type="button" className="btn-edit" onClick={() => abrirDetalle(b.id_bitacora_96)} title="Ver / regreso">📋</button>
+                    <button type="button" className="btn-edit" onClick={() => abrirDetalle(b.id_bitacora_96)} title="Ver / editar / regreso">✏️</button>
                     {b.estado_bitacora_96 !== 'Finalizado' && (
                       <button type="button" className="btn-delete" onClick={() => handleDelete(b.id_bitacora_96)} title="Eliminar">🗑️</button>
                     )}
