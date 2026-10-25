@@ -24,7 +24,10 @@ FROM (VALUES
   ('FYM'),
   ('CABAL'),
   ('ARPFRIO'),
-  ('EPYSA')
+  ('EPYSA'),
+  ('FERRUCONSTRU'),
+  ('LA HERRAMIENTA'),
+  ('IRENESA')
 ) AS v(razon)
 WHERE NOT EXISTS (
     SELECT 1

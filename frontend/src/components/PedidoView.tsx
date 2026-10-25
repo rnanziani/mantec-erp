@@ -38,6 +38,7 @@ interface Detalle {
   codigo_89?: string | null;
   descripcion_89?: string;
   proveedor_89?: string;
+  id_proveedor_91?: number | null;
 }
 interface Pedido {
   id_pedido_92: number;
@@ -258,7 +259,7 @@ const PedidoView: React.FC = () => {
       (p.detalles || []).map((d) => ({
         cod_insumo_91: d.cod_insumo_91 ? String(d.cod_insumo_91) : '',
         descripcion: d.cod_insumo_91 ? d.descripcion_89 || '' : d.descripcion_libre_91 || d.descripcion_89 || '',
-        idProveedorLinea: matchProveedorId(d.proveedor_89),
+        idProveedorLinea: d.id_proveedor_91 ? String(d.id_proveedor_91) : matchProveedorId(d.proveedor_89),
         cantidad: cantidadEntera(d.cantidad_solicitada_91) || '1',
         precio: d.precio_unitario_91 != null ? String(d.precio_unitario_91) : '',
         obs: d.observaciones_det_91 || '',
@@ -290,6 +291,7 @@ const PedidoView: React.FC = () => {
         return {
           cod_insumo_91: sku,
           descripcion_libre_91: sku ? null : l.descripcion.trim().toUpperCase(),
+          id_proveedor_91: l.idProveedorLinea ? Number(l.idProveedorLinea) : null,
           cantidad_solicitada_91: Math.round(Number(l.cantidad)),
           precio_unitario_91: l.precio === '' ? null : Number(l.precio),
           observaciones_det_91: l.obs || null,
@@ -297,6 +299,14 @@ const PedidoView: React.FC = () => {
       });
     if (!idProveedor || !idResponsable || detalles.length === 0) {
       await showError('Validación', 'Proveedor, responsable y al menos una línea (SKU o descripción) con cantidad');
+      return;
+    }
+    const libreSinProveedor = detalles.find((d) => !d.cod_insumo_91 && !d.id_proveedor_91);
+    if (libreSinProveedor) {
+      await showError(
+        'Validación',
+        `La línea "${libreSinProveedor.descripcion_libre_91}" no tiene código: elija el proveedor del catálogo (no lo escriba)`
+      );
       return;
     }
     const payload = {
@@ -532,6 +542,7 @@ const PedidoView: React.FC = () => {
                             onChange={(v) => setLinea(idx, { idProveedorLinea: v })}
                             options={proveedorOptions}
                             placeholder="PROVEEDOR..."
+                            emptyMessage="No coincide. Elíjalo del catálogo o créelo en Pedidos → Proveedores"
                             aria-label={`Proveedor línea ${idx + 1}`}
                           />
                         </td>
