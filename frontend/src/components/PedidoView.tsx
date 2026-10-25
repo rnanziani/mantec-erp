@@ -65,7 +65,7 @@ interface ApiResponse<T = unknown> {
   error?: string;
 }
 
-const emptyLinea = { cod_insumo_91: '', cantidad: '1', precio: '', obs: '' };
+const emptyLinea = { cod_insumo_91: '', idProveedorLinea: '', cantidad: '1', precio: '', obs: '' };
 
 const PedidoView: React.FC = () => {
   const formRef = React.useRef<HTMLFormElement>(null);
@@ -150,10 +150,27 @@ const PedidoView: React.FC = () => {
     return m;
   }, [skus]);
 
+  const matchProveedorId = (nombre?: string | null) => {
+    const q = String(nombre || '').trim().toUpperCase();
+    if (!q) return '';
+    const exact = proveedores.find((p) => p.razon_social_90.trim().toUpperCase() === q);
+    if (exact) return String(exact.id_proveedor_90);
+    const hits = proveedores.filter((p) => {
+      const n = p.razon_social_90.trim().toUpperCase();
+      return n.includes(q) || q.includes(n);
+    });
+    return hits.length === 1 ? String(hits[0].id_proveedor_90) : '';
+  };
+
   const setLinea = (idx: number, patch: Partial<typeof emptyLinea>) => {
     setLineas((rows) => {
-      const next = rows.map((r, i) => (i === idx ? { ...r, ...patch } : r));
-      const eligioSku = Boolean(patch.cod_insumo_91) && idx === rows.length - 1;
+      let extra = patch;
+      if (Object.prototype.hasOwnProperty.call(patch, 'cod_insumo_91')) {
+        const sku = skuPorId.get(String(patch.cod_insumo_91 || ''));
+        extra = { ...patch, idProveedorLinea: matchProveedorId(sku?.proveedor_89) };
+      }
+      const next = rows.map((r, i) => (i === idx ? { ...r, ...extra } : r));
+      const eligioSku = Boolean(extra.cod_insumo_91) && idx === rows.length - 1;
       if (eligioSku) next.push({ ...emptyLinea });
       return next;
     });
@@ -210,6 +227,7 @@ const PedidoView: React.FC = () => {
     setLineas(
       (p.detalles || []).map((d) => ({
         cod_insumo_91: String(d.cod_insumo_91),
+        idProveedorLinea: matchProveedorId(d.proveedor_89),
         cantidad: String(d.cantidad_solicitada_91),
         precio: d.precio_unitario_91 != null ? String(d.precio_unitario_91) : '',
         obs: d.observaciones_det_91 || '',
@@ -443,11 +461,9 @@ const PedidoView: React.FC = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {lineas.map((ln, idx) => {
-                    const sku = skuPorId.get(ln.cod_insumo_91);
-                    return (
+                  {lineas.map((ln, idx) => (
                       <tr key={idx}>
-                        <td style={{ minWidth: 280 }}>
+                        <td style={{ minWidth: 260 }}>
                           <SearchableSelect
                             id={`sku_linea_${idx}`}
                             value={ln.cod_insumo_91}
@@ -457,7 +473,16 @@ const PedidoView: React.FC = () => {
                             aria-label={`SKU línea ${idx + 1}`}
                           />
                         </td>
-                        <td>{sku?.proveedor_89 || '—'}</td>
+                        <td style={{ minWidth: 160 }}>
+                          <SearchableSelect
+                            id={`prov_linea_${idx}`}
+                            value={ln.idProveedorLinea}
+                            onChange={(v) => setLinea(idx, { idProveedorLinea: v })}
+                            options={proveedorOptions}
+                            placeholder="PROVEEDOR..."
+                            aria-label={`Proveedor línea ${idx + 1}`}
+                          />
+                        </td>
                         <td style={{ width: 110 }}>
                           <input
                             type="number"
@@ -496,8 +521,7 @@ const PedidoView: React.FC = () => {
                           </button>
                         </td>
                       </tr>
-                    );
-                  })}
+                  ))}
                 </tbody>
               </table>
             </div>
