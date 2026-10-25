@@ -16,6 +16,11 @@ function num(value: unknown): number {
   return Number.isFinite(n) ? n : 0;
 }
 
+function cantidadEntera(value: unknown): number {
+  const n = Math.round(num(value));
+  return n > 0 ? n : 0;
+}
+
 function upper(value: unknown): string | null {
   if (value == null) return null;
   const t = String(value).trim().toUpperCase();
@@ -114,7 +119,7 @@ function parseLineas(raw: unknown): LineaIn[] | null {
   const lineas: LineaIn[] = [];
   for (const row of raw) {
     const sku = num(row.cod_insumo_91);
-    const qty = num(row.cantidad_solicitada_91);
+    const qty = cantidadEntera(row.cantidad_solicitada_91);
     if (!sku || qty <= 0) return null;
     lineas.push({
       cod_insumo_91: sku,
@@ -363,9 +368,9 @@ export const registrarRecepcion = async (req: Request, res: Response): Promise<v
   try {
     const idPedido = num(req.params.id);
     const idDetalle = num(req.body.id_detalle_91);
-    const cantidad = num(req.body.cantidad_recibida_93);
+    const cantidad = cantidadEntera(req.body.cantidad_recibida_93);
     const idResp = num(req.body.id_responsable_recibe_93);
-    if (!idDetalle || cantidad <= 0 || !idResp) {
+    if (!idDetalle || cantidad < 1 || !idResp) {
       res.status(400).json({ success: false, error: 'Detalle, cantidad y responsable que recibe son requeridos' });
       return;
     }

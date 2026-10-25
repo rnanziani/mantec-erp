@@ -67,6 +67,21 @@ interface ApiResponse<T = unknown> {
 
 const emptyLinea = { cod_insumo_91: '', idProveedorLinea: '', cantidad: '1', precio: '', obs: '' };
 
+/** Pedido: cantidad siempre entera (1, 2, 10). Evita 1,000 / 1.000. */
+function cantidadEntera(value: unknown): string {
+  const t = String(value ?? '').trim().replace(',', '.');
+  if (t === '') return '';
+  const n = parseInt(t, 10);
+  if (!Number.isFinite(n) || n < 1) return '';
+  return String(n);
+}
+
+function mostrarEntero(value: unknown): string {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return '0';
+  return String(Math.round(n));
+}
+
 const PedidoView: React.FC = () => {
   const formRef = React.useRef<HTMLFormElement>(null);
   const [pedidos, setPedidos] = useState<Pedido[]>([]);
@@ -228,7 +243,7 @@ const PedidoView: React.FC = () => {
       (p.detalles || []).map((d) => ({
         cod_insumo_91: String(d.cod_insumo_91),
         idProveedorLinea: matchProveedorId(d.proveedor_89),
-        cantidad: String(d.cantidad_solicitada_91),
+        cantidad: cantidadEntera(d.cantidad_solicitada_91) || '1',
         precio: d.precio_unitario_91 != null ? String(d.precio_unitario_91) : '',
         obs: d.observaciones_det_91 || '',
       }))
@@ -256,7 +271,7 @@ const PedidoView: React.FC = () => {
       .filter((l) => l.cod_insumo_91 && Number(l.cantidad) > 0)
       .map((l) => ({
         cod_insumo_91: Number(l.cod_insumo_91),
-        cantidad_solicitada_91: Number(l.cantidad),
+        cantidad_solicitada_91: Math.round(Number(l.cantidad)),
         precio_unitario_91: l.precio === '' ? null : Number(l.precio),
         observaciones_det_91: l.obs || null,
       }));
@@ -303,8 +318,8 @@ const PedidoView: React.FC = () => {
   };
 
   const handleRecepcion = async (idDetalle: number) => {
-    const qty = Number(qtyRecibe[idDetalle]);
-    if (!idRecibe || !(qty > 0)) {
+    const qty = Math.round(Number(qtyRecibe[idDetalle]));
+    if (!idRecibe || !(qty >= 1)) {
       await showError('Validación', 'Indique cantidad y quién recibe');
       return;
     }
@@ -486,11 +501,12 @@ const PedidoView: React.FC = () => {
                         <td style={{ width: 110 }}>
                           <input
                             type="number"
-                            min="0.0001"
-                            step="0.0001"
+                            min={1}
+                            step={1}
+                            inputMode="numeric"
                             className="form-input"
                             value={ln.cantidad}
-                            onChange={(e) => setLinea(idx, { cantidad: e.target.value })}
+                            onChange={(e) => setLinea(idx, { cantidad: cantidadEntera(e.target.value) })}
                             aria-label={`Cantidad línea ${idx + 1}`}
                           />
                         </td>
@@ -603,28 +619,32 @@ const PedidoView: React.FC = () => {
               </thead>
               <tbody>
                 {(detalleAbierto.detalles || []).map((d) => {
-                  const pend = Number(d.cantidad_solicitada_91) - Number(d.cantidad_recibida_91 || 0);
+                  const pend = Math.round(Number(d.cantidad_solicitada_91) - Number(d.cantidad_recibida_91 || 0));
                   return (
                     <tr key={d.id_detalle_91}>
                       <td>{d.codigo_89}</td>
                       <td>{d.descripcion_89}</td>
                       <td>{d.proveedor_89 || '—'}</td>
-                      <td>{d.cantidad_solicitada_91}</td>
-                      <td>{d.cantidad_recibida_91 || 0}</td>
-                      <td>{pend}</td>
+                      <td>{mostrarEntero(d.cantidad_solicitada_91)}</td>
+                      <td>{mostrarEntero(d.cantidad_recibida_91 || 0)}</td>
+                      <td>{mostrarEntero(pend)}</td>
                       <td>
                         {pend > 0 && !anulado ? (
                           <>
                             <input
                               type="number"
-                              min="0.0001"
+                              min={1}
                               max={pend}
-                              step="0.0001"
+                              step={1}
+                              inputMode="numeric"
                               className="form-input"
                               style={{ width: 90, display: 'inline-block' }}
                               value={qtyRecibe[d.id_detalle_91 || 0] || ''}
                               onChange={(e) =>
-                                setQtyRecibe((p) => ({ ...p, [d.id_detalle_91 || 0]: e.target.value }))
+                                setQtyRecibe((p) => ({
+                                  ...p,
+                                  [d.id_detalle_91 || 0]: cantidadEntera(e.target.value),
+                                }))
                               }
                               aria-label={`Cantidad a recibir ${d.codigo_89}`}
                             />
