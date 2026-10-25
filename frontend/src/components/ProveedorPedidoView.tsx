@@ -23,6 +23,9 @@ interface ApiResponse<T = unknown> {
   error?: string;
 }
 
+type SortKey = keyof ProveedorPedido;
+type SortConfig = { key: SortKey; direction: 'asc' | 'desc' };
+
 const emptyForm = {
   razon_social_90: '',
   ruc_90: '',
@@ -31,6 +34,17 @@ const emptyForm = {
   telefono_90: '',
   activo_90: true,
 };
+
+function compararCelda(a: ProveedorPedido, b: ProveedorPedido, key: SortKey): number {
+  const av = a[key];
+  const bv = b[key];
+  if (typeof av === 'number' && typeof bv === 'number') return av - bv;
+  if (typeof av === 'boolean' && typeof bv === 'boolean') return Number(av) - Number(bv);
+  return String(av ?? '').localeCompare(String(bv ?? ''), 'es', {
+    numeric: true,
+    sensitivity: 'base',
+  });
+}
 
 const ProveedorPedidoView: React.FC = () => {
   const formRef = React.useRef<HTMLFormElement>(null);
@@ -42,6 +56,7 @@ const ProveedorPedidoView: React.FC = () => {
   const [form, setForm] = useState(emptyForm);
   const [searchTerm, setSearchTerm] = useState('');
   const [filtroActivo, setFiltroActivo] = useState('');
+  const [sortConfig, setSortConfig] = useState<SortConfig>({ key: 'razon_social_90', direction: 'asc' });
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
   const API_URL = apiUrl('/proveedores-pedido');
@@ -67,7 +82,7 @@ const ProveedorPedidoView: React.FC = () => {
 
   const filtered = useMemo(() => {
     const q = searchTerm.trim().toLowerCase();
-    return items.filter((p) => {
+    const list = items.filter((p) => {
       if (filtroActivo === '1' && !p.activo_90) return false;
       if (filtroActivo === '0' && p.activo_90) return false;
       if (!q) return true;
@@ -77,14 +92,37 @@ const ProveedorPedidoView: React.FC = () => {
         (p.contacto_90 || '').toLowerCase().includes(q)
       );
     });
-  }, [items, searchTerm, filtroActivo]);
+    const dir = sortConfig.direction === 'asc' ? 1 : -1;
+    list.sort((a, b) => compararCelda(a, b, sortConfig.key) * dir);
+    return list;
+  }, [items, searchTerm, filtroActivo, sortConfig]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / itemsPerPage));
   const pageItems = filtered.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, filtroActivo]);
+  }, [searchTerm, filtroActivo, sortConfig]);
+
+  const handleSort = (key: SortKey) => {
+    setSortConfig((prev) => ({
+      key,
+      direction: prev.key === key && prev.direction === 'asc' ? 'desc' : 'asc',
+    }));
+  };
+
+  const sortClass = (key: SortKey) =>
+    `sortable ${sortConfig.key === key ? (sortConfig.direction === 'asc' ? 'sort-asc' : 'sort-desc') : ''}`;
+
+  const onSortKey = (key: SortKey) => (e: React.KeyboardEvent<HTMLTableCellElement>) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      handleSort(key);
+    }
+  };
+
+  const ariaSort = (key: SortKey): React.AriaAttributes['aria-sort'] =>
+    sortConfig.key !== key ? 'none' : sortConfig.direction === 'asc' ? 'ascending' : 'descending';
 
   const resetForm = () => {
     setForm(emptyForm);
@@ -312,13 +350,29 @@ const ProveedorPedidoView: React.FC = () => {
         <table className="data-table">
           <thead>
             <tr>
-              <th>ID</th>
-              <th>Razón social</th>
-              <th>RUC</th>
-              <th>Despacho</th>
-              <th>Contacto</th>
-              <th>Teléfono</th>
-              <th>Activo</th>
+              {(
+                [
+                  ['id_proveedor_90', 'ID'],
+                  ['razon_social_90', 'Razón social'],
+                  ['ruc_90', 'RUC'],
+                  ['tipo_despacho_90', 'Despacho'],
+                  ['contacto_90', 'Contacto'],
+                  ['telefono_90', 'Teléfono'],
+                  ['activo_90', 'Activo'],
+                ] as Array<[SortKey, string]>
+              ).map(([key, label]) => (
+                <th
+                  key={key}
+                  className={sortClass(key)}
+                  onClick={() => handleSort(key)}
+                  onKeyDown={onSortKey(key)}
+                  tabIndex={0}
+                  role="columnheader"
+                  aria-sort={ariaSort(key)}
+                >
+                  {label}
+                </th>
+              ))}
               <th>Acciones</th>
             </tr>
           </thead>

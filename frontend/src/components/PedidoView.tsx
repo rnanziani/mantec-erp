@@ -381,7 +381,7 @@ const PedidoView: React.FC = () => {
   const anulado = detalleAbierto?.estado_recepcion_92 === 'Anulado';
 
   return (
-    <div className="bodega-view">
+    <div className="bodega-view pedido-view">
       <div className="view-header">
         <h2>Pedidos</h2>
         <div className="header-actions">
@@ -425,9 +425,21 @@ const PedidoView: React.FC = () => {
         <div className="form-container">
           <h3>{editingId ? `Editar ${numero || editingId}` : 'Nuevo pedido'}</h3>
           <form ref={formRef} onSubmit={handleSubmit}>
-            <div className="form-row form-row-3">
+            <div className="pedido-cabecera">
               <div className="form-group">
-                <label htmlFor="id_proveedor_92">Proveedor *</label>
+                <label htmlFor="id_proveedor_92">
+                  Proveedor *{' '}
+                  <button
+                    type="button"
+                    className="btn-link"
+                    style={{ background: 'none', border: 'none', color: '#0d6efd', cursor: 'pointer', padding: 0, textDecoration: 'underline', fontSize: 12 }}
+                    onClick={() => {
+                      window.location.hash = 'proveedores-pedido';
+                    }}
+                  >
+                    Alta
+                  </button>
+                </label>
                 <SearchableSelect
                   id="id_proveedor_92"
                   value={idProveedor}
@@ -441,19 +453,6 @@ const PedidoView: React.FC = () => {
                   }
                   aria-label="Proveedor"
                 />
-                <small style={{ color: '#6c757d' }}>
-                  Alta en{' '}
-                  <button
-                    type="button"
-                    className="btn-link"
-                    style={{ background: 'none', border: 'none', color: '#0d6efd', cursor: 'pointer', padding: 0, textDecoration: 'underline' }}
-                    onClick={() => {
-                      window.location.hash = 'proveedores-pedido';
-                    }}
-                  >
-                    Pedidos → Proveedores
-                  </button>
-                </small>
               </div>
               <div className="form-group">
                 <label htmlFor="id_responsable_92">Responsable *</label>
@@ -471,17 +470,17 @@ const PedidoView: React.FC = () => {
                 <input id="fecha_pedido_92" type="date" className="form-input" value={fecha} onChange={(e) => setFecha(e.target.value)} required />
               </div>
               <div className="form-group">
-                <label htmlFor="numero_orden_92">N° orden (opcional)</label>
+                <label htmlFor="numero_orden_92">N° orden</label>
                 <input
                   id="numero_orden_92"
                   className="form-input"
                   value={numero}
                   style={{ textTransform: 'uppercase' }}
                   onChange={(e) => changeKeepingCaret(e, setNumero)}
-                  placeholder="Se genera PED-000001"
+                  placeholder="PED-000001"
                 />
               </div>
-              <div className="form-group" style={{ gridColumn: '1 / -1' }}>
+              <div className="form-group pedido-obs">
                 <label htmlFor="observaciones_cab_92">Observaciones</label>
                 <input
                   id="observaciones_cab_92"
@@ -493,7 +492,9 @@ const PedidoView: React.FC = () => {
               </div>
             </div>
 
-            <h4>Detalle</h4>
+            <h4>
+              Detalle ({lineas.filter((l) => l.cod_insumo_91 || l.descripcion.trim()).length} ítems)
+            </h4>
             <p className="form-hint" style={{ marginTop: 0 }}>
               Código de catálogo o, si no existe, solo descripción y cantidad (extensión, unión, fabricar). Queda en el mismo pedido.
             </p>
@@ -501,6 +502,7 @@ const PedidoView: React.FC = () => {
               <table className="data-table">
                 <thead>
                   <tr>
+                    <th className="pedido-linea-nro">#</th>
                     <th>SKU</th>
                     <th>Descripción</th>
                     <th>Proveedor</th>
@@ -512,6 +514,9 @@ const PedidoView: React.FC = () => {
                 <tbody>
                   {lineas.map((ln, idx) => (
                       <tr key={idx}>
+                        <td className="pedido-linea-nro" aria-label={`Línea ${idx + 1}`}>
+                          {idx + 1}
+                        </td>
                         <td style={{ minWidth: 220 }}>
                           <SearchableSelect
                             id={`sku_linea_${idx}`}
@@ -656,6 +661,7 @@ const PedidoView: React.FC = () => {
             <table className="data-table">
               <thead>
                 <tr>
+                  <th className="pedido-linea-nro">#</th>
                   <th>SKU</th>
                   <th>Descripción</th>
                   <th>Proveedor</th>
@@ -666,10 +672,11 @@ const PedidoView: React.FC = () => {
                 </tr>
               </thead>
               <tbody>
-                {(detalleAbierto.detalles || []).map((d) => {
+                {(detalleAbierto.detalles || []).map((d, idx) => {
                   const pend = Math.round(Number(d.cantidad_solicitada_91) - Number(d.cantidad_recibida_91 || 0));
                   return (
                     <tr key={d.id_detalle_91}>
+                      <td className="pedido-linea-nro">{idx + 1}</td>
                       <td>{d.codigo_89 || 'SIN CÓDIGO'}</td>
                       <td>{d.descripcion_89}</td>
                       <td>{d.proveedor_89 || '—'}</td>

@@ -444,3 +444,57 @@
 .login-password-peek-btn:active {
     background: rgba(0, 0, 0, 0.1);
 }
+
+/* Pedidos: barra de Guardar fija y cabecera compacta (muchas líneas). */
+.pedido-view .view-header {
+    position: sticky;
+    top: 0;
+    z-index: 520;
+    background: #f5f5f5;
+    padding: 12px 0 14px;
+    margin: -8px 0 16px;
+    border-bottom: 1px solid #dee2e6;
+    box-shadow: 0 8px 16px -12px rgba(0, 0, 0, 0.35);
+}
+
+.pedido-cabecera {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 12px;
+    margin-bottom: 8px;
+    align-items: start;
+}
+
+.pedido-cabecera .form-group {
+    margin-bottom: 0;
+    min-width: 0;
+}
+
+.pedido-cabecera .pedido-obs {
+    grid-column: auto;
+}
+
+@media (min-width: 900px) {
+    .pedido-cabecera {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+
+    .pedido-cabecera .pedido-obs {
+        grid-column: span 2;
+    }
+}
+
+@media (min-width: 1200px) {
+    .pedido-cabecera {
+        grid-template-columns: repeat(6, minmax(0, 1fr));
+    }
+}
+
+.pedido-linea-nro {
+    width: 2.5rem;
+    text-align: center;
+    color: #6c757d;
+    font-variant-numeric: tabular-nums;
+    font-weight: 600;
+    vertical-align: middle;
+}
