@@ -29,12 +29,13 @@ interface Sku {
 }
 interface Detalle {
   id_detalle_91?: number;
-  cod_insumo_91: number;
+  cod_insumo_91?: number | null;
+  descripcion_libre_91?: string | null;
   cantidad_solicitada_91: number;
   cantidad_recibida_91?: number;
   precio_unitario_91?: number | null;
   observaciones_det_91?: string | null;
-  codigo_89?: string;
+  codigo_89?: string | null;
   descripcion_89?: string;
   proveedor_89?: string;
 }
@@ -65,7 +66,14 @@ interface ApiResponse<T = unknown> {
   error?: string;
 }
 
-const emptyLinea = { cod_insumo_91: '', idProveedorLinea: '', cantidad: '1', precio: '', obs: '' };
+const emptyLinea = {
+  cod_insumo_91: '',
+  descripcion: '',
+  idProveedorLinea: '',
+  cantidad: '1',
+  precio: '',
+  obs: '',
+};
 
 /** Pedido: cantidad siempre entera (1, 2, 10). Evita 1,000 / 1.000. */
 function cantidadEntera(value: unknown): string {
@@ -182,11 +190,18 @@ const PedidoView: React.FC = () => {
       let extra = patch;
       if (Object.prototype.hasOwnProperty.call(patch, 'cod_insumo_91')) {
         const sku = skuPorId.get(String(patch.cod_insumo_91 || ''));
-        extra = { ...patch, idProveedorLinea: matchProveedorId(sku?.proveedor_89) };
+        extra = sku
+          ? {
+              ...patch,
+              idProveedorLinea: matchProveedorId(sku.proveedor_89),
+              descripcion: sku.descripcion_89 || '',
+            }
+          : patch;
       }
       const next = rows.map((r, i) => (i === idx ? { ...r, ...extra } : r));
-      const eligioSku = Boolean(extra.cod_insumo_91) && idx === rows.length - 1;
-      if (eligioSku) next.push({ ...emptyLinea });
+      const last = next[idx];
+      const lastLlena = Boolean(String(last.cod_insumo_91 || '').trim() || last.descripcion.trim());
+      if (idx === rows.length - 1 && lastLlena) next.push({ ...emptyLinea });
       return next;
     });
   };
@@ -241,7 +256,8 @@ const PedidoView: React.FC = () => {
     setObs(p.observaciones_cab_92 || '');
     setLineas(
       (p.detalles || []).map((d) => ({
-        cod_insumo_91: String(d.cod_insumo_91),
+        cod_insumo_91: d.cod_insumo_91 ? String(d.cod_insumo_91) : '',
+        descripcion: d.cod_insumo_91 ? d.descripcion_89 || '' : d.descripcion_libre_91 || d.descripcion_89 || '',
         idProveedorLinea: matchProveedorId(d.proveedor_89),
         cantidad: cantidadEntera(d.cantidad_solicitada_91) || '1',
         precio: d.precio_unitario_91 != null ? String(d.precio_unitario_91) : '',
@@ -268,15 +284,19 @@ const PedidoView: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const detalles = lineas
-      .filter((l) => l.cod_insumo_91 && Number(l.cantidad) > 0)
-      .map((l) => ({
-        cod_insumo_91: Number(l.cod_insumo_91),
-        cantidad_solicitada_91: Math.round(Number(l.cantidad)),
-        precio_unitario_91: l.precio === '' ? null : Number(l.precio),
-        observaciones_det_91: l.obs || null,
-      }));
+      .filter((l) => (l.cod_insumo_91 || l.descripcion.trim()) && Number(l.cantidad) > 0)
+      .map((l) => {
+        const sku = l.cod_insumo_91 ? Number(l.cod_insumo_91) : null;
+        return {
+          cod_insumo_91: sku,
+          descripcion_libre_91: sku ? null : l.descripcion.trim().toUpperCase(),
+          cantidad_solicitada_91: Math.round(Number(l.cantidad)),
+          precio_unitario_91: l.precio === '' ? null : Number(l.precio),
+          observaciones_det_91: l.obs || null,
+        };
+      });
     if (!idProveedor || !idResponsable || detalles.length === 0) {
-      await showError('Validación', 'Proveedor, responsable y al menos un SKU con cantidad');
+      await showError('Validación', 'Proveedor, responsable y al menos una línea (SKU o descripción) con cantidad');
       return;
     }
     const payload = {
@@ -464,11 +484,15 @@ const PedidoView: React.FC = () => {
             </div>
 
             <h4>Detalle</h4>
+            <p className="form-hint" style={{ marginTop: 0 }}>
+              Código de catálogo o, si no existe, solo descripción y cantidad (extensión, unión, fabricar). Queda en el mismo pedido.
+            </p>
             <div className="table-container table-container--combos">
               <table className="data-table">
                 <thead>
                   <tr>
                     <th>SKU</th>
+                    <th>Descripción</th>
                     <th>Proveedor</th>
                     <th>Cantidad</th>
                     <th>Precio</th>
@@ -478,14 +502,27 @@ const PedidoView: React.FC = () => {
                 <tbody>
                   {lineas.map((ln, idx) => (
                       <tr key={idx}>
-                        <td style={{ minWidth: 260 }}>
+                        <td style={{ minWidth: 220 }}>
                           <SearchableSelect
                             id={`sku_linea_${idx}`}
                             value={ln.cod_insumo_91}
                             onChange={(v) => setLinea(idx, { cod_insumo_91: v })}
                             options={skuOptions}
-                            placeholder="BUSCAR CÓDIGO..."
+                            placeholder="CÓDIGO O VACÍO..."
                             aria-label={`SKU línea ${idx + 1}`}
+                          />
+                        </td>
+                        <td style={{ minWidth: 220 }}>
+                          <input
+                            id={`desc_linea_${idx}`}
+                            className="form-input"
+                            value={ln.descripcion}
+                            disabled={Boolean(ln.cod_insumo_91)}
+                            maxLength={200}
+                            style={{ textTransform: 'uppercase' }}
+                            placeholder="EXTENSIÓN CORTA..."
+                            onChange={(e) => changeKeepingCaret(e, (v) => setLinea(idx, { descripcion: v }))}
+                            aria-label={`Descripción línea ${idx + 1}`}
                           />
                         </td>
                         <td style={{ minWidth: 160 }}>
@@ -622,7 +659,7 @@ const PedidoView: React.FC = () => {
                   const pend = Math.round(Number(d.cantidad_solicitada_91) - Number(d.cantidad_recibida_91 || 0));
                   return (
                     <tr key={d.id_detalle_91}>
-                      <td>{d.codigo_89}</td>
+                      <td>{d.codigo_89 || 'SIN CÓDIGO'}</td>
                       <td>{d.descripcion_89}</td>
                       <td>{d.proveedor_89 || '—'}</td>
                       <td>{mostrarEntero(d.cantidad_solicitada_91)}</td>
@@ -646,7 +683,7 @@ const PedidoView: React.FC = () => {
                                   [d.id_detalle_91 || 0]: cantidadEntera(e.target.value),
                                 }))
                               }
-                              aria-label={`Cantidad a recibir ${d.codigo_89}`}
+                              aria-label={`Cantidad a recibir ${d.codigo_89 || d.descripcion_89}`}
                             />
                             <button type="button" className="btn-primary" onClick={() => handleRecepcion(d.id_detalle_91 || 0)}>
                               Recibir

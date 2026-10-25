@@ -36,11 +36,12 @@ CREATE TABLE IF NOT EXISTS public.tbl_92_pedido_cabecera (
         REFERENCES public.tbl_08_responsable_entrega(idresponsableentrega_08)
 );
 
--- 3. Detalle (SKU = tbl_89 etiquetas)
+-- 3. Detalle (SKU de tbl_89 o descripción libre sin código)
 CREATE TABLE IF NOT EXISTS public.tbl_91_pedido_detalle (
     id_detalle_91 SERIAL PRIMARY KEY,
     id_pedido_91 INT NOT NULL,
-    cod_insumo_91 INT NOT NULL,
+    cod_insumo_91 INT,
+    descripcion_libre_91 VARCHAR(200),
     cantidad_solicitada_91 NUMERIC(12,4) NOT NULL CHECK (cantidad_solicitada_91 > 0),
     cantidad_recibida_91 NUMERIC(12,4) DEFAULT 0 CHECK (cantidad_recibida_91 >= 0),
     precio_unitario_91 NUMERIC(12,4),
@@ -51,7 +52,11 @@ CREATE TABLE IF NOT EXISTS public.tbl_91_pedido_detalle (
         REFERENCES public.tbl_92_pedido_cabecera(id_pedido_92) ON DELETE CASCADE,
     CONSTRAINT fk_91_insumo FOREIGN KEY (cod_insumo_91)
         REFERENCES public.tbl_89_codigo_etiqueta(idcodigo_89),
-    CONSTRAINT chk_91_cantidades CHECK (cantidad_recibida_91 <= cantidad_solicitada_91)
+    CONSTRAINT chk_91_cantidades CHECK (cantidad_recibida_91 <= cantidad_solicitada_91),
+    CONSTRAINT chk_91_sku_o_texto CHECK (
+        cod_insumo_91 IS NOT NULL
+        OR TRIM(BOTH FROM COALESCE(descripcion_libre_91, '')) <> ''
+    )
 );
 
 -- 4. Recepciones parciales

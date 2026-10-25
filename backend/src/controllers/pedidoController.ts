@@ -5,7 +5,8 @@ import { pool } from '../db.js';
 const PAGOS = new Set(['Pendiente', 'Pagado', 'Parcial', 'Anulado']);
 
 type LineaIn = {
-  cod_insumo_91: number;
+  cod_insumo_91: number | null;
+  descripcion_libre_91: string | null;
   cantidad_solicitada_91: number;
   precio_unitario_91?: number | null;
   observaciones_det_91?: string | null;
@@ -69,10 +70,10 @@ const SELECT_CAB = `
 const SELECT_DET = `
   SELECT d.*,
          e.codigo_89,
-         e.descripcion_89,
+         COALESCE(e.descripcion_89, d.descripcion_libre_91) AS descripcion_89,
          e.proveedor_89
   FROM tbl_91_pedido_detalle d
-  JOIN tbl_89_codigo_etiqueta e ON d.cod_insumo_91 = e.idcodigo_89
+  LEFT JOIN tbl_89_codigo_etiqueta e ON d.cod_insumo_91 = e.idcodigo_89
   WHERE d.id_pedido_91 = $1
   ORDER BY d.id_detalle_91
 `;
@@ -118,11 +119,14 @@ function parseLineas(raw: unknown): LineaIn[] | null {
   if (!Array.isArray(raw) || raw.length === 0) return null;
   const lineas: LineaIn[] = [];
   for (const row of raw) {
-    const sku = num(row.cod_insumo_91);
+    const sku = num(row.cod_insumo_91) || 0;
+    const desc = upper(row.descripcion_libre_91);
     const qty = cantidadEntera(row.cantidad_solicitada_91);
-    if (!sku || qty <= 0) return null;
+    if (qty <= 0) return null;
+    if (!sku && !desc) return null;
     lineas.push({
-      cod_insumo_91: sku,
+      cod_insumo_91: sku || null,
+      descripcion_libre_91: sku ? null : (desc ? desc.slice(0, 200) : null),
       cantidad_solicitada_91: qty,
       precio_unitario_91: row.precio_unitario_91 == null || row.precio_unitario_91 === '' ? null : num(row.precio_unitario_91),
       observaciones_det_91: upper(row.observaciones_det_91),
@@ -217,7 +221,7 @@ export const createPedido = async (req: Request, res: Response): Promise<void> =
       return;
     }
     for (const ln of lineas) {
-      if (!(await skuExiste(ln.cod_insumo_91))) {
+      if (ln.cod_insumo_91 && !(await skuExiste(ln.cod_insumo_91))) {
         res.status(400).json({ success: false, error: `SKU ${ln.cod_insumo_91} no está activo en etiquetas` });
         return;
       }
@@ -248,9 +252,9 @@ export const createPedido = async (req: Request, res: Response): Promise<void> =
     for (const ln of lineas) {
       await client.query(
         `INSERT INTO tbl_91_pedido_detalle (
-           id_pedido_91, cod_insumo_91, cantidad_solicitada_91, precio_unitario_91, observaciones_det_91
-         ) VALUES ($1, $2, $3, $4, $5)`,
-        [idPedido, ln.cod_insumo_91, ln.cantidad_solicitada_91, ln.precio_unitario_91, ln.observaciones_det_91]
+           id_pedido_91, cod_insumo_91, descripcion_libre_91, cantidad_solicitada_91, precio_unitario_91, observaciones_det_91
+         ) VALUES ($1, $2, $3, $4, $5, $6)`,
+        [idPedido, ln.cod_insumo_91, ln.descripcion_libre_91, ln.cantidad_solicitada_91, ln.precio_unitario_91, ln.observaciones_det_91]
       );
     }
     await client.query('COMMIT');
@@ -297,6 +301,12 @@ export const updatePedido = async (req: Request, res: Response): Promise<void> =
       res.status(400).json({ success: false, error: 'Proveedor, responsable y líneas son requeridos' });
       return;
     }
+    for (const ln of lineas) {
+      if (ln.cod_insumo_91 && !(await skuExiste(ln.cod_insumo_91))) {
+        res.status(400).json({ success: false, error: `SKU ${ln.cod_insumo_91} no está activo en etiquetas` });
+        return;
+      }
+    }
     await client.query('BEGIN');
     await client.query(
       `UPDATE tbl_92_pedido_cabecera
@@ -319,9 +329,9 @@ export const updatePedido = async (req: Request, res: Response): Promise<void> =
     for (const ln of lineas) {
       await client.query(
         `INSERT INTO tbl_91_pedido_detalle (
-           id_pedido_91, cod_insumo_91, cantidad_solicitada_91, precio_unitario_91, observaciones_det_91
-         ) VALUES ($1, $2, $3, $4, $5)`,
-        [id, ln.cod_insumo_91, ln.cantidad_solicitada_91, ln.precio_unitario_91, ln.observaciones_det_91]
+           id_pedido_91, cod_insumo_91, descripcion_libre_91, cantidad_solicitada_91, precio_unitario_91, observaciones_det_91
+         ) VALUES ($1, $2, $3, $4, $5, $6)`,
+        [id, ln.cod_insumo_91, ln.descripcion_libre_91, ln.cantidad_solicitada_91, ln.precio_unitario_91, ln.observaciones_det_91]
       );
     }
     await client.query('COMMIT');
