@@ -64,7 +64,8 @@ const SELECT_CAB = `
 const SELECT_DET = `
   SELECT d.*,
          e.codigo_89,
-         e.descripcion_89
+         e.descripcion_89,
+         e.proveedor_89
   FROM tbl_91_pedido_detalle d
   JOIN tbl_89_codigo_etiqueta e ON d.cod_insumo_91 = e.idcodigo_89
   WHERE d.id_pedido_91 = $1

@@ -24,6 +24,7 @@ interface Sku {
   idcodigo_89: number;
   codigo_89: string;
   descripcion_89: string;
+  proveedor_89?: string;
   activo_89?: boolean;
 }
 interface Detalle {
@@ -35,6 +36,7 @@ interface Detalle {
   observaciones_det_91?: string | null;
   codigo_89?: string;
   descripcion_89?: string;
+  proveedor_89?: string;
 }
 interface Pedido {
   id_pedido_92: number;
@@ -142,6 +144,20 @@ const PedidoView: React.FC = () => {
       })),
     [skus]
   );
+  const skuPorId = useMemo(() => {
+    const m = new Map<string, Sku>();
+    skus.forEach((s) => m.set(String(s.idcodigo_89), s));
+    return m;
+  }, [skus]);
+
+  const setLinea = (idx: number, patch: Partial<typeof emptyLinea>) => {
+    setLineas((rows) => {
+      const next = rows.map((r, i) => (i === idx ? { ...r, ...patch } : r));
+      const eligioSku = Boolean(patch.cod_insumo_91) && idx === rows.length - 1;
+      if (eligioSku) next.push({ ...emptyLinea });
+      return next;
+    });
+  };
 
   const filtered = useMemo(() => {
     const q = searchTerm.trim().toLowerCase();
@@ -362,8 +378,8 @@ const PedidoView: React.FC = () => {
                   }
                   aria-label="Proveedor"
                 />
-                <small style={{ color: '#6c757d', display: 'block', marginTop: 4 }}>
-                  Primero se da de alta en{' '}
+                <small style={{ color: '#6c757d' }}>
+                  Alta en{' '}
                   <button
                     type="button"
                     className="btn-link"
@@ -374,7 +390,6 @@ const PedidoView: React.FC = () => {
                   >
                     Pedidos → Proveedores
                   </button>
-                  . Aquí solo se busca y se elige.
                 </small>
               </div>
               <div className="form-group">
@@ -415,59 +430,83 @@ const PedidoView: React.FC = () => {
               </div>
             </div>
 
-            <h4>Ítems (SKU de etiquetas)</h4>
-            {lineas.map((ln, idx) => (
-              <div key={idx} className="form-row form-row-3" style={{ alignItems: 'end' }}>
-                <div className="form-group" style={{ minWidth: 260 }}>
-                  <label>SKU *</label>
-                  <SearchableSelect
-                    value={ln.cod_insumo_91}
-                    onChange={(v) =>
-                      setLineas((rows) => rows.map((r, i) => (i === idx ? { ...r, cod_insumo_91: v } : r)))
-                    }
-                    options={skuOptions}
-                    placeholder="Buscar código..."
-                    aria-label={`SKU línea ${idx + 1}`}
-                  />
-                </div>
-                <div className="form-group">
-                  <label>Cantidad *</label>
-                  <input
-                    type="number"
-                    min="0.0001"
-                    step="0.0001"
-                    className="form-input"
-                    value={ln.cantidad}
-                    onChange={(e) =>
-                      setLineas((rows) => rows.map((r, i) => (i === idx ? { ...r, cantidad: e.target.value } : r)))
-                    }
-                  />
-                </div>
-                <div className="form-group">
-                  <label>Precio</label>
-                  <input
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    className="form-input"
-                    value={ln.precio}
-                    onChange={(e) =>
-                      setLineas((rows) => rows.map((r, i) => (i === idx ? { ...r, precio: e.target.value } : r)))
-                    }
-                  />
-                </div>
-                <div className="form-group">
-                  <button
-                    type="button"
-                    className="btn-delete"
-                    onClick={() => setLineas((rows) => (rows.length === 1 ? rows : rows.filter((_, i) => i !== idx)))}
-                  >
-                    Quitar
-                  </button>
-                </div>
-              </div>
-            ))}
-            <button type="button" className="btn-secondary" onClick={() => setLineas((rows) => [...rows, { ...emptyLinea }])}>
+            <h4>Detalle</h4>
+            <div className="table-container table-container--combos">
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th>SKU</th>
+                    <th>Proveedor</th>
+                    <th>Cantidad</th>
+                    <th>Precio</th>
+                    <th>Acciones</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {lineas.map((ln, idx) => {
+                    const sku = skuPorId.get(ln.cod_insumo_91);
+                    return (
+                      <tr key={idx}>
+                        <td style={{ minWidth: 280 }}>
+                          <SearchableSelect
+                            id={`sku_linea_${idx}`}
+                            value={ln.cod_insumo_91}
+                            onChange={(v) => setLinea(idx, { cod_insumo_91: v })}
+                            options={skuOptions}
+                            placeholder="BUSCAR CÓDIGO..."
+                            aria-label={`SKU línea ${idx + 1}`}
+                          />
+                        </td>
+                        <td>{sku?.proveedor_89 || '—'}</td>
+                        <td style={{ width: 110 }}>
+                          <input
+                            type="number"
+                            min="0.0001"
+                            step="0.0001"
+                            className="form-input"
+                            value={ln.cantidad}
+                            onChange={(e) => setLinea(idx, { cantidad: e.target.value })}
+                            aria-label={`Cantidad línea ${idx + 1}`}
+                          />
+                        </td>
+                        <td style={{ width: 120 }}>
+                          <input
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            className="form-input"
+                            value={ln.precio}
+                            onChange={(e) => setLinea(idx, { precio: e.target.value })}
+                            aria-label={`Precio línea ${idx + 1}`}
+                          />
+                        </td>
+                        <td className="actions" style={{ width: 56, textAlign: 'center' }}>
+                          <button
+                            type="button"
+                            className="btn-delete"
+                            title="Quitar línea"
+                            aria-label={`Quitar línea ${idx + 1}`}
+                            onClick={() =>
+                              setLineas((rows) =>
+                                rows.length === 1 ? [{ ...emptyLinea }] : rows.filter((_, i) => i !== idx)
+                              )
+                            }
+                          >
+                            🗑️
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+            <button
+              type="button"
+              className="btn-secondary"
+              style={{ marginTop: 8 }}
+              onClick={() => setLineas((rows) => [...rows, { ...emptyLinea }])}
+            >
               + Línea
             </button>
           </form>
@@ -531,6 +570,7 @@ const PedidoView: React.FC = () => {
                 <tr>
                   <th>SKU</th>
                   <th>Descripción</th>
+                  <th>Proveedor</th>
                   <th>Solicitado</th>
                   <th>Recibido</th>
                   <th>Pendiente</th>
@@ -544,6 +584,7 @@ const PedidoView: React.FC = () => {
                     <tr key={d.id_detalle_91}>
                       <td>{d.codigo_89}</td>
                       <td>{d.descripcion_89}</td>
+                      <td>{d.proveedor_89 || '—'}</td>
                       <td>{d.cantidad_solicitada_91}</td>
                       <td>{d.cantidad_recibida_91 || 0}</td>
                       <td>{pend}</td>
