@@ -245,20 +245,90 @@ export const exportReporteResumenPrendasToExcel = (
   XLSX.writeFile(workbook, `${filename}.xlsx`);
 };
 
+/** Tabla de Excel: encabezado congelado, filtro y anchos automáticos. */
 export const exportToExcel = <T extends Record<string, any>>(
   data: T[],
   filename: string,
   sheetName: string = 'Datos'
 ): void => {
-  // Crear worksheet desde los datos
   const worksheet = XLSX.utils.json_to_sheet(data);
-
-  // Crear workbook
+  if (data.length > 0) {
+    const range = XLSX.utils.decode_range(worksheet['!ref'] || 'A1');
+    const lastCol = XLSX.utils.encode_col(range.e.c);
+    const lastRow = range.e.r + 1;
+    worksheet['!autofilter'] = { ref: `A1:${lastCol}${lastRow}` };
+    worksheet['!views'] = [{ state: 'frozen', ySplit: 1, topLeftCell: 'A2', activePane: 'bottomLeft' }];
+    const headers = Object.keys(data[0]);
+    worksheet['!cols'] = headers.map((h) => {
+      const maxLen = Math.max(h.length, ...data.map((row) => String(row[h] ?? '').length));
+      return { wch: Math.min(48, Math.max(10, maxLen + 2)) };
+    });
+  }
   const workbook = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(workbook, worksheet, sheetName);
-
-  // Generar archivo
+  XLSX.utils.book_append_sheet(workbook, worksheet, sheetName.slice(0, 31));
   XLSX.writeFile(workbook, `${filename}.xlsx`);
+};
+
+export type FilaPedidoGrupo = {
+  codigo: string;
+  descripcion: string;
+  cantidad: number;
+  precio: string | number;
+};
+
+export type GrupoPedidoExcel = {
+  proveedor: string;
+  totalQty: number;
+  lineas: FilaPedidoGrupo[];
+};
+
+/** Excel con el mismo recorte que el PDF: bloques por proveedor, cantidad mayor a menor. */
+export const exportExcelPedidoPorProveedor = (opts: {
+  numero: string;
+  fecha: string;
+  proveedorPedido: string;
+  responsable: string;
+  pago: string;
+  recepcion: string;
+  observaciones?: string | null;
+  grupos: GrupoPedidoExcel[];
+  totalItems: number;
+  totalUnidades: number;
+}): void => {
+  const aoa: (string | number)[][] = [];
+  const merges: XLSX.Range[] = [];
+  const pushBanner = (text: string) => {
+    const r = aoa.length;
+    aoa.push([text, '', '', '', '']);
+    merges.push({ s: { r, c: 0 }, e: { r, c: 4 } });
+  };
+
+  pushBanner('MANTEC ERP');
+  pushBanner(`Requerimientos por proveedor — ${opts.numero}`);
+  pushBanner(
+    `Fecha ${opts.fecha}  ·  Pedido a ${opts.proveedorPedido}  ·  ${opts.responsable}  ·  Pago ${opts.pago}  ·  Recepción ${opts.recepcion}`
+  );
+  pushBanner(
+    `${opts.totalItems} ítems  ·  ${opts.totalUnidades} unidades  ·  ${opts.grupos.length} proveedores`
+  );
+  if (opts.observaciones) pushBanner(`Obs.: ${opts.observaciones}`);
+  aoa.push(['', '', '', '', '']);
+
+  for (const g of opts.grupos) {
+    pushBanner(`${g.proveedor}  —  ${g.lineas.length} ítems  —  ${g.totalQty} un.`);
+    aoa.push(['#', 'Código', 'Descripción', 'Cant.', 'Precio']);
+    g.lineas.forEach((l, i) => {
+      aoa.push([i + 1, l.codigo, l.descripcion, l.cantidad, l.precio]);
+    });
+    aoa.push(['', '', '', '', '']);
+  }
+
+  const worksheet = XLSX.utils.aoa_to_sheet(aoa);
+  worksheet['!merges'] = merges;
+  worksheet['!cols'] = [{ wch: 6 }, { wch: 18 }, { wch: 58 }, { wch: 10 }, { wch: 12 }];
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, worksheet, 'Por proveedor');
+  XLSX.writeFile(workbook, `${opts.numero}_requerimientos.xlsx`);
 };
 
 export const exportToCSV = <T extends Record<string, any>>(

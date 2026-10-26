@@ -608,7 +608,12 @@ export const generarPdfPedido = async (req: Request, res: Response): Promise<voi
     const fallback = String(data.proveedor_nombre || '').trim().toUpperCase();
     const grupos = agruparRequerimientos(detalles, fallback);
     const numero = String(data.numero_orden_92 || `PED-${String(data.id_pedido_92).padStart(6, '0')}`);
-    const fecha = String(data.fecha_pedido_92 || '').slice(0, 10);
+    const cruda = data.fecha_pedido_92;
+    const fecha =
+      cruda instanceof Date && !Number.isNaN(cruda.getTime())
+        ? cruda.toISOString().slice(0, 10)
+        : String(cruda || '').match(/^\d{4}-\d{2}-\d{2}/)?.[0]
+          || String(cruda || '').slice(0, 10);
     const totalQty = grupos.reduce((s, g) => s + g.totalQty, 0);
 
     const cell = (text: string | number, extra: Record<string, unknown> = {}) => ({

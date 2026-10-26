@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import './BodegaView.css';
 import Pagination from './shared/Pagination';
 import SearchableSelect from './shared/SearchableSelect';
-import { exportToExcel } from '../utils/exportUtils';
+import { exportExcelPedidoPorProveedor, exportToExcel } from '../utils/exportUtils';
 import { showDeleteConfirm, showError, showSuccess } from '../utils/swal';
 import { apiFetch, apiUrl, openAuthenticatedBlob } from '../lib/apiClient';
 import { filtrarResponsablesActivos } from '../utils/responsablesEntrega';
@@ -89,6 +89,44 @@ function mostrarEntero(value: unknown): string {
   const n = Number(value);
   if (!Number.isFinite(n)) return '0';
   return String(Math.round(n));
+}
+
+function fechaPedidoIso(value: unknown): string {
+  if (value instanceof Date && !Number.isNaN(value.getTime())) return value.toISOString().slice(0, 10);
+  const s = String(value ?? '');
+  const iso = s.match(/^\d{4}-\d{2}-\d{2}/);
+  if (iso) return iso[0];
+  const d = new Date(s);
+  return Number.isNaN(d.getTime()) ? s.slice(0, 10) : d.toISOString().slice(0, 10);
+}
+
+function gruposPedidoComoPdf(ped: Pedido) {
+  const fallback = String(ped.proveedor_nombre || '').trim().toUpperCase();
+  const map = new Map<string, Detalle[]>();
+  for (const d of ped.detalles || []) {
+    const key = String(d.proveedor_89 || '').trim().toUpperCase() || fallback || 'SIN PROVEEDOR';
+    const arr = map.get(key) || [];
+    arr.push(d);
+    map.set(key, arr);
+  }
+  return [...map.entries()]
+    .map(([proveedor, lineas]) => {
+      const ordenadas = [...lineas].sort(
+        (a, b) => Math.round(Number(b.cantidad_solicitada_91)) - Math.round(Number(a.cantidad_solicitada_91))
+      );
+      const totalQty = ordenadas.reduce((s, l) => s + (Math.round(Number(l.cantidad_solicitada_91)) || 0), 0);
+      return {
+        proveedor,
+        totalQty,
+        lineas: ordenadas.map((l) => ({
+          codigo: l.codigo_89 || 'SIN CÓDIGO',
+          descripcion: l.descripcion_89 || '',
+          cantidad: Math.round(Number(l.cantidad_solicitada_91)) || 0,
+          precio: l.precio_unitario_91 == null ? '—' : Number(l.precio_unitario_91),
+        })),
+      };
+    })
+    .sort((a, b) => b.totalQty - a.totalQty || a.proveedor.localeCompare(b.proveedor, 'es'));
 }
 
 const PedidoView: React.FC = () => {
@@ -398,6 +436,33 @@ const PedidoView: React.FC = () => {
       exportToExcel(filas, `${ped.numero_orden_92 || 'pedido'}-detalle`, 'Detalle');
     } catch {
       await showError('Error', 'No se pudo exportar el Excel');
+    }
+  };
+
+  const exportarExcelPorProveedor = async (id: number) => {
+    try {
+      const ped = await pedidoConDetalle(id);
+      if (!ped) return;
+      const grupos = gruposPedidoComoPdf(ped);
+      if (grupos.length === 0) {
+        await showError('Exportar', 'Este pedido no tiene líneas');
+        return;
+      }
+      const totalUnidades = grupos.reduce((s, g) => s + g.totalQty, 0);
+      exportExcelPedidoPorProveedor({
+        numero: ped.numero_orden_92 || `PED-${String(ped.id_pedido_92).padStart(6, '0')}`,
+        fecha: fechaPedidoIso(ped.fecha_pedido_92),
+        proveedorPedido: String(ped.proveedor_nombre || '').trim().toUpperCase() || '—',
+        responsable: ped.responsable_nombre || '—',
+        pago: ped.estado_pago_92,
+        recepcion: ped.estado_recepcion_92,
+        observaciones: ped.observaciones_cab_92,
+        grupos,
+        totalItems: (ped.detalles || []).length,
+        totalUnidades,
+      });
+    } catch {
+      await showError('Error', 'No se pudo exportar el Excel por proveedor');
     }
   };
 
@@ -713,6 +778,13 @@ const PedidoView: React.FC = () => {
               </button>
               <button
                 type="button"
+                className="btn-info"
+                onClick={() => void exportarExcelPorProveedor(detalleAbierto.id_pedido_92)}
+              >
+                Excel por proveedor
+              </button>
+              <button
+                type="button"
                 className="btn-export"
                 onClick={() => void exportarPdfPedido(detalleAbierto.id_pedido_92)}
               >
@@ -728,6 +800,13 @@ const PedidoView: React.FC = () => {
                 onClick={() => void exportarExcelDetalle(detalleAbierto.id_pedido_92)}
               >
                 Excel detalle
+              </button>
+              <button
+                type="button"
+                className="btn-info"
+                onClick={() => void exportarExcelPorProveedor(detalleAbierto.id_pedido_92)}
+              >
+                Excel por proveedor
               </button>
               <button
                 type="button"
