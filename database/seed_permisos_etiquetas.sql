@@ -1,4 +1,4 @@
--- Permisos pantalla Etiquetas (Operaciones, orden 3050)
+-- Permisos pantalla Etiquetas (menú propio, un clic). Orden 3050.
 -- En DBeaver: Alt+X. Idempotente.
 
 INSERT INTO tbl_05_permiso (nombre_permiso_05, descripcion_05, orden_05)

@@ -53,6 +53,16 @@ const Sidebar: React.FC<SidebarProps> = ({ onNavigate, currentView }) => {
             ]
         },
         {
+            id: 'panol',
+            label: 'Pañol',
+            icon: '🧰',
+            permissionRequired: 'MENU_PANOL',
+            children: [
+                { id: 'herramientas', label: 'Herramientas', icon: '🔧', path: 'herramientas', permissionRequired: 'MENU_PANOL_HERRAMIENTAS' },
+                { id: 'movimientos-panol', label: 'Movimientos', icon: '📋', path: 'movimientos-panol', permissionRequired: 'MENU_PANOL_MOVIMIENTOS' }
+            ]
+        },
+        {
             id: 'operaciones',
             label: 'Operaciones',
             icon: '⚙️',
@@ -61,8 +71,18 @@ const Sidebar: React.FC<SidebarProps> = ({ onNavigate, currentView }) => {
                 { id: 'ordenes-trabajo', label: 'Órdenes de Trabajo', icon: '🔧', path: 'ordenes-trabajo', permissionRequired: 'MENU_OPERACIONES_ORDENES_TRABAJO' },
                 { id: 'asignacion-productos-aseo', label: 'Asignación Productos Aseo', icon: '📋', path: 'asignacion-productos-aseo', permissionRequired: 'MENU_OPERACIONES_ASIGNACION_ASEO' },
                 { id: 'asignacion-prendas', label: 'Asignación de Prendas', icon: '👔', path: 'asignacion-prendas', permissionRequired: 'MENU_OPERACIONES_ASIGNACION_PRENDAS' },
-                { id: 'cargo-maquina', label: 'Cargo Máquina', icon: '🚛', path: 'cargo-maquina', permissionRequired: 'MENU_OPERACIONES_CARGO_MAQUINA' },
-                { id: 'etiquetas', label: 'Etiquetas', icon: '🏷️', path: 'etiquetas', permissionRequired: 'MENU_OPERACIONES_ETIQUETAS' }
+                { id: 'cargo-maquina', label: 'Cargo Máquina', icon: '🚛', path: 'cargo-maquina', permissionRequired: 'MENU_OPERACIONES_CARGO_MAQUINA' }
+            ]
+        },
+        {
+            id: 'insumos-menu',
+            label: 'Insumos',
+            icon: '📦',
+            permissionRequired: 'MENU_INSUMOS',
+            children: [
+                { id: 'consumo-insumos', label: 'Asignación de insumos', icon: '📋', path: 'consumo-insumos', permissionRequired: 'MENU_INSUMOS_ASIGNACION' },
+                { id: 'insumos', label: 'Insumos', icon: '🧾', path: 'insumos', permissionRequired: 'MENU_INSUMOS_CATALOGO' },
+                { id: 'marcas-insumo', label: 'Marca de insumo', icon: '🏭', path: 'marcas-insumo', permissionRequired: 'MENU_INSUMOS_MARCAS' },
             ]
         },
         {
@@ -77,6 +97,13 @@ const Sidebar: React.FC<SidebarProps> = ({ onNavigate, currentView }) => {
             ]
         },
         {
+            id: 'etiquetas',
+            label: 'Etiquetas',
+            icon: '🏷️',
+            path: 'etiquetas',
+            permissionRequired: 'MENU_OPERACIONES_ETIQUETAS'
+        },
+        {
             id: 'inventario',
             label: 'Gestion Alternadores',
             icon: '📦',
@@ -89,17 +116,6 @@ const Sidebar: React.FC<SidebarProps> = ({ onNavigate, currentView }) => {
                 { id: 'estados', label: 'Estado Alternador', icon: '📊', path: 'estados', permissionRequired: 'MENU_GESTION_ALTERNADORES_ESTADO' },
                 { id: 'bodegas', label: 'Bodegas', icon: '🏢', path: 'bodegas', permissionRequired: 'MENU_GESTION_ALTERNADORES_BODEGAS' },
                 { id: 'tipos-transaccion', label: 'Tipos de Transacción', icon: '🔄', path: 'tipos-transaccion', permissionRequired: 'MENU_GESTION_ALTERNADORES_TIPOS_TRANSACCION' },
-            ]
-        },
-        {
-            id: 'insumos-menu',
-            label: 'Insumos',
-            icon: '📦',
-            permissionRequired: 'MENU_INSUMOS',
-            children: [
-                { id: 'consumo-insumos', label: 'Asignación de insumos', icon: '📋', path: 'consumo-insumos', permissionRequired: 'MENU_INSUMOS_ASIGNACION' },
-                { id: 'insumos', label: 'Insumos', icon: '🧾', path: 'insumos', permissionRequired: 'MENU_INSUMOS_CATALOGO' },
-                { id: 'marcas-insumo', label: 'Marca de insumo', icon: '🏭', path: 'marcas-insumo', permissionRequired: 'MENU_INSUMOS_MARCAS' },
             ]
         },
         {
@@ -127,16 +143,6 @@ const Sidebar: React.FC<SidebarProps> = ({ onNavigate, currentView }) => {
                 { id: 'tipos-epp', label: 'Tipos', icon: '📂', path: 'tipos-epp', permissionRequired: 'MENU_EPP_TIPOS' },
                 { id: 'categorias-epp', label: 'Categorías', icon: '🏷️', path: 'categorias-epp', permissionRequired: 'MENU_EPP_CATEGORIAS' },
                 { id: 'elementos-epp', label: 'Elementos', icon: '🧤', path: 'elementos-epp', permissionRequired: 'MENU_EPP_ELEMENTOS' },
-            ]
-        },
-        {
-            id: 'panol',
-            label: 'Pañol',
-            icon: '🧰',
-            permissionRequired: 'MENU_PANOL',
-            children: [
-                { id: 'herramientas', label: 'Herramientas', icon: '🔧', path: 'herramientas', permissionRequired: 'MENU_PANOL_HERRAMIENTAS' },
-                { id: 'movimientos-panol', label: 'Movimientos', icon: '📋', path: 'movimientos-panol', permissionRequired: 'MENU_PANOL_MOVIMIENTOS' }
             ]
         },
         {
