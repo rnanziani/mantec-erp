@@ -7,6 +7,7 @@ import type { PdfDocumentDefinition } from '../utils/pdfTypes.js';
 const PAGOS = new Set(['Pendiente', 'Pagado', 'Parcial', 'Anulado']);
 
 type LineaIn = {
+  id_detalle_91?: number | null;
   cod_insumo_91: number | null;
   descripcion_libre_91: string | null;
   id_proveedor_91: number | null;
@@ -74,19 +75,43 @@ const SELECT_DET = `
   SELECT d.*,
          e.codigo_89,
          COALESCE(e.descripcion_89, d.descripcion_libre_91) AS descripcion_89,
-         COALESCE(pl.razon_social_90, e.proveedor_89) AS proveedor_89
+         COALESCE(pl.razon_social_90, e.proveedor_89) AS proveedor_89,
+         wa.fecha_envio_wa
   FROM tbl_91_pedido_detalle d
   LEFT JOIN tbl_89_codigo_etiqueta e ON d.cod_insumo_91 = e.idcodigo_89
   LEFT JOIN tbl_90_proveedor pl ON d.id_proveedor_91 = pl.id_proveedor_90
+  LEFT JOIN (
+    SELECT det.id_detalle_99, MIN(ev.fecha_envio_98) AS fecha_envio_wa
+    FROM tbl_99_pedido_envio_wa_det det
+    JOIN tbl_98_pedido_envio_wa ev ON ev.id_envio_98 = det.id_envio_99
+    GROUP BY det.id_detalle_99
+  ) wa ON wa.id_detalle_99 = d.id_detalle_91
   WHERE d.id_pedido_91 = $1
   ORDER BY d.id_detalle_91
 `;
+
+async function cargarEnviosWhatsApp(idPedido: string | number) {
+  const r = await pool.query(
+    `SELECT e.*,
+            COALESCE((
+              SELECT json_agg(json_build_object('id_detalle_99', d.id_detalle_99) ORDER BY d.id_envio_det_99)
+              FROM tbl_99_pedido_envio_wa_det d
+              WHERE d.id_envio_99 = e.id_envio_98
+            ), '[]'::json) AS lineas
+     FROM tbl_98_pedido_envio_wa e
+     WHERE e.id_pedido_98 = $1
+     ORDER BY e.fecha_envio_98 ASC, e.id_envio_98 ASC`,
+    [idPedido]
+  );
+  return r.rows;
+}
 
 async function cargarPedido(id: string | number) {
   const cab = await pool.query(`${SELECT_CAB} WHERE c.id_pedido_92 = $1`, [id]);
   if ((cab.rowCount ?? 0) === 0) return null;
   const det = await pool.query(SELECT_DET, [id]);
-  return { ...cab.rows[0], detalles: det.rows };
+  const envios = await cargarEnviosWhatsApp(id);
+  return { ...cab.rows[0], detalles: det.rows, envios_whatsapp: envios };
 }
 
 async function recalcularRecepcion(client: PoolClient, idPedido: number): Promise<void> {
@@ -129,7 +154,9 @@ function parseLineas(raw: unknown): LineaIn[] | null {
     if (qty <= 0) return null;
     if (!sku && !desc) return null;
     const idProv = num(row.id_proveedor_91) || 0;
+    const idDet = num(row.id_detalle_91) || 0;
     lineas.push({
+      id_detalle_91: idDet || null,
       cod_insumo_91: sku || null,
       descripcion_libre_91: sku ? null : (desc ? desc.slice(0, 200) : null),
       id_proveedor_91: idProv || null,
@@ -326,6 +353,14 @@ export const updatePedido = async (req: Request, res: Response): Promise<void> =
       res.status(400).json({ success: false, error: errorLinea });
       return;
     }
+    const idsExistentes = new Set(
+      (actual.detalles as Array<{ id_detalle_91: number }>).map((d) => Number(d.id_detalle_91))
+    );
+    const idsConservar: number[] = [];
+    for (const ln of lineas) {
+      const idDet = ln.id_detalle_91 && idsExistentes.has(Number(ln.id_detalle_91)) ? Number(ln.id_detalle_91) : 0;
+      if (idDet) idsConservar.push(idDet);
+    }
     await client.query('BEGIN');
     await client.query(
       `UPDATE tbl_92_pedido_cabecera
@@ -344,14 +379,46 @@ export const updatePedido = async (req: Request, res: Response): Promise<void> =
         upper(req.body.numero_orden_92),
       ]
     );
-    await client.query('DELETE FROM tbl_91_pedido_detalle WHERE id_pedido_91 = $1', [id]);
-    for (const ln of lineas) {
+    if (idsConservar.length === 0) {
+      await client.query('DELETE FROM tbl_91_pedido_detalle WHERE id_pedido_91 = $1', [id]);
+    } else {
       await client.query(
-        `INSERT INTO tbl_91_pedido_detalle (
-           id_pedido_91, cod_insumo_91, descripcion_libre_91, id_proveedor_91, cantidad_solicitada_91, precio_unitario_91, observaciones_det_91
-         ) VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-        [id, ln.cod_insumo_91, ln.descripcion_libre_91, ln.id_proveedor_91, ln.cantidad_solicitada_91, ln.precio_unitario_91, ln.observaciones_det_91]
+        `DELETE FROM tbl_91_pedido_detalle
+         WHERE id_pedido_91 = $1 AND NOT (id_detalle_91 = ANY($2::int[]))`,
+        [id, idsConservar]
       );
+    }
+    for (const ln of lineas) {
+      const idDet = ln.id_detalle_91 && idsExistentes.has(Number(ln.id_detalle_91)) ? Number(ln.id_detalle_91) : 0;
+      if (idDet) {
+        await client.query(
+          `UPDATE tbl_91_pedido_detalle
+           SET cod_insumo_91 = $2,
+               descripcion_libre_91 = $3,
+               id_proveedor_91 = $4,
+               cantidad_solicitada_91 = $5,
+               precio_unitario_91 = $6,
+               observaciones_det_91 = $7
+           WHERE id_detalle_91 = $1 AND id_pedido_91 = $8`,
+          [
+            idDet,
+            ln.cod_insumo_91,
+            ln.descripcion_libre_91,
+            ln.id_proveedor_91,
+            ln.cantidad_solicitada_91,
+            ln.precio_unitario_91,
+            ln.observaciones_det_91,
+            id,
+          ]
+        );
+      } else {
+        await client.query(
+          `INSERT INTO tbl_91_pedido_detalle (
+             id_pedido_91, cod_insumo_91, descripcion_libre_91, id_proveedor_91, cantidad_solicitada_91, precio_unitario_91, observaciones_det_91
+           ) VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+          [id, ln.cod_insumo_91, ln.descripcion_libre_91, ln.id_proveedor_91, ln.cantidad_solicitada_91, ln.precio_unitario_91, ln.observaciones_det_91]
+        );
+      }
     }
     await client.query('COMMIT');
     res.json({ success: true, data: await cargarPedido(id), message: 'Pedido actualizado' });
@@ -728,6 +795,173 @@ export const generarPdfPedido = async (req: Request, res: Response): Promise<voi
     res.status(500).json({
       success: false,
       error: 'Error al generar el PDF del pedido',
+      message: error instanceof Error ? error.message : 'Error desconocido',
+    });
+  }
+};
+
+type DetallePedido = DetallePdf & { id_detalle_91: number };
+
+function telefonoWhatsAppE164(raw: string | null | undefined): string | null {
+  const digits = String(raw || '').replace(/\D/g, '');
+  if (!digits) return null;
+  if (digits.startsWith('56') && digits.length >= 11) return digits.slice(0, 11);
+  if (digits.length === 9 && digits.startsWith('9')) return `56${digits}`;
+  if (digits.length >= 10 && digits.length <= 15) return digits;
+  return null;
+}
+
+async function catalogoProveedorPorNombre(nombre: string) {
+  const exact = await pool.query(
+    `SELECT id_proveedor_90, razon_social_90, telefono_90
+     FROM tbl_90_proveedor
+     WHERE UPPER(TRIM(BOTH FROM razon_social_90)) = $1
+     LIMIT 1`,
+    [nombre]
+  );
+  if ((exact.rowCount ?? 0) > 0) return exact.rows[0];
+  const hits = await pool.query(
+    `SELECT id_proveedor_90, razon_social_90, telefono_90
+     FROM tbl_90_proveedor
+     WHERE UPPER(TRIM(BOTH FROM razon_social_90)) LIKE $1
+        OR $2 LIKE '%' || UPPER(TRIM(BOTH FROM razon_social_90)) || '%'`,
+    [`%${nombre}%`, nombre]
+  );
+  return (hits.rowCount ?? 0) === 1 ? hits.rows[0] : null;
+}
+
+/** Marca las líneas pendientes de un proveedor y devuelve el texto para WhatsApp. */
+export const registrarEnvioWhatsApp = async (req: Request, res: Response): Promise<void> => {
+  const client = await pool.connect();
+  try {
+    const idPedido = num(req.params.id);
+    const proveedor = upper(req.body.proveedor);
+    if (!idPedido || !proveedor) {
+      res.status(400).json({ success: false, error: 'Pedido y proveedor son requeridos' });
+      return;
+    }
+    const data = await cargarPedido(idPedido);
+    if (!data) {
+      res.status(404).json({ success: false, error: 'Pedido no encontrado' });
+      return;
+    }
+    if (data.estado_pago_92 === 'Anulado' || data.estado_recepcion_92 === 'Anulado') {
+      res.status(400).json({ success: false, error: 'Pedido anulado' });
+      return;
+    }
+    const fallback = String(data.proveedor_nombre || '').trim().toUpperCase();
+    const delPedido = (data.detalles || []) as DetallePedido[];
+    const delGrupo = delPedido.filter((d) => proveedorDeLinea(d, fallback) === proveedor);
+    if (delGrupo.length === 0) {
+      res.status(400).json({ success: false, error: `No hay líneas para ${proveedor}` });
+      return;
+    }
+    const ya = await pool.query(
+      `SELECT d.id_detalle_99
+       FROM tbl_99_pedido_envio_wa_det d
+       JOIN tbl_98_pedido_envio_wa e ON e.id_envio_98 = d.id_envio_99
+       WHERE e.id_pedido_98 = $1`,
+      [idPedido]
+    );
+    const enviados = new Set(ya.rows.map((r: { id_detalle_99: number }) => Number(r.id_detalle_99)));
+    const pendientes = delGrupo.filter((d) => !enviados.has(Number(d.id_detalle_91)));
+    if (pendientes.length === 0) {
+      res.status(400).json({ success: false, error: `Nada pendiente para ${proveedor}. Lo de las 09:30 no se vuelve a mandar.` });
+      return;
+    }
+    const catalogo = await catalogoProveedorPorNombre(proveedor);
+    const e164 = telefonoWhatsAppE164(catalogo?.telefono_90);
+    if (!e164) {
+      res.status(400).json({
+        success: false,
+        error: `No hay teléfono para ${proveedor}. Cárgalo en Pedidos → Proveedores.`,
+      });
+      return;
+    }
+    const numero = String(data.numero_orden_92 || `PED-${String(idPedido).padStart(6, '0')}`);
+    const fecha =
+      data.fecha_pedido_92 instanceof Date && !Number.isNaN(data.fecha_pedido_92.getTime())
+        ? data.fecha_pedido_92.toISOString().slice(0, 10)
+        : String(data.fecha_pedido_92 || '').match(/^\d{4}-\d{2}-\d{2}/)?.[0]
+          || String(data.fecha_pedido_92 || '').slice(0, 10);
+    const totalQty = pendientes.reduce((s, l) => s + cantidadEntera(l.cantidad_solicitada_91), 0);
+    const lineasTxt = pendientes.map(
+      (l, i) =>
+        `${i + 1}. ${l.descripcion_89 || ''} (${l.codigo_89 || 'SIN CÓDIGO'}) — ${cantidadEntera(l.cantidad_solicitada_91)} un.`
+    );
+    const texto = [
+      'MANTEC ERP',
+      `Pedido ${numero} — ${fecha}`,
+      `Requerimientos NUEVOS para ${proveedor}`,
+      '(no incluye lo ya enviado)',
+      '',
+      ...lineasTxt,
+      '',
+      `Total este envío: ${pendientes.length} ítems, ${totalQty} unidades`,
+    ].join('\n');
+
+    await client.query('BEGIN');
+    const cab = await client.query(
+      `INSERT INTO tbl_98_pedido_envio_wa (
+         id_pedido_98, proveedor_98, id_proveedor_98, telefono_98, texto_98, usuario_98
+       ) VALUES ($1, $2, $3, $4, $5, $6)
+       RETURNING *`,
+      [idPedido, proveedor, catalogo?.id_proveedor_90 || null, e164, texto, usuario(req)]
+    );
+    const idEnvio = cab.rows[0].id_envio_98 as number;
+    for (const ln of pendientes) {
+      await client.query(
+        `INSERT INTO tbl_99_pedido_envio_wa_det (id_envio_99, id_detalle_99) VALUES ($1, $2)`,
+        [idEnvio, ln.id_detalle_91]
+      );
+    }
+    await client.query('COMMIT');
+    res.status(201).json({
+      success: true,
+      data: {
+        ...cab.rows[0],
+        telefono_e164: e164,
+        texto,
+        pendientes: pendientes.length,
+        pedido: await cargarPedido(idPedido),
+      },
+      message: `Lote ${pendientes.length} ítems a ${proveedor}`,
+    });
+  } catch (error) {
+    await client.query('ROLLBACK');
+    res.status(500).json({
+      success: false,
+      error: 'Error al registrar el envío WhatsApp',
+      message: error instanceof Error ? error.message : 'Error desconocido',
+    });
+  } finally {
+    client.release();
+  }
+};
+
+export const deshacerEnvioWhatsApp = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const idPedido = num(req.params.id);
+    const idEnvio = num(req.params.idEnvio);
+    const found = await pool.query(
+      `SELECT id_envio_98 FROM tbl_98_pedido_envio_wa
+       WHERE id_envio_98 = $1 AND id_pedido_98 = $2`,
+      [idEnvio, idPedido]
+    );
+    if ((found.rowCount ?? 0) === 0) {
+      res.status(404).json({ success: false, error: 'Envío no encontrado en este pedido' });
+      return;
+    }
+    await pool.query('DELETE FROM tbl_98_pedido_envio_wa WHERE id_envio_98 = $1', [idEnvio]);
+    res.json({
+      success: true,
+      data: await cargarPedido(idPedido),
+      message: 'Envío deshecho: esas líneas vuelven a pendiente',
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: 'Error al deshacer el envío',
       message: error instanceof Error ? error.message : 'Error desconocido',
     });
   }

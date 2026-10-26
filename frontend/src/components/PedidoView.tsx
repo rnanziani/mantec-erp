@@ -3,7 +3,7 @@ import './BodegaView.css';
 import Pagination from './shared/Pagination';
 import SearchableSelect from './shared/SearchableSelect';
 import { exportExcelPedidoPorProveedor, exportToExcel } from '../utils/exportUtils';
-import { showDeleteConfirm, showError, showSuccess } from '../utils/swal';
+import { showConfirm, showDeleteConfirm, showError, showSuccess } from '../utils/swal';
 import { apiFetch, apiUrl, openAuthenticatedBlob } from '../lib/apiClient';
 import { filtrarResponsablesActivos } from '../utils/responsablesEntrega';
 import { changeKeepingCaret } from '../hooks/useCaretTransform';
@@ -40,6 +40,16 @@ interface Detalle {
   descripcion_89?: string;
   proveedor_89?: string;
   id_proveedor_91?: number | null;
+  fecha_envio_wa?: string | null;
+}
+interface EnvioWhatsApp {
+  id_envio_98: number;
+  proveedor_98: string;
+  telefono_98?: string | null;
+  texto_98?: string | null;
+  usuario_98?: string | null;
+  fecha_envio_98: string;
+  lineas?: Array<{ id_detalle_99: number }>;
 }
 interface Pedido {
   id_pedido_92: number;
@@ -53,6 +63,7 @@ interface Pedido {
   proveedor_nombre?: string;
   responsable_nombre?: string;
   detalles?: Detalle[];
+  envios_whatsapp?: EnvioWhatsApp[];
 }
 interface Historial {
   id_historial_94: number;
@@ -69,6 +80,7 @@ interface ApiResponse<T = unknown> {
 }
 
 const emptyLinea = {
+  id_detalle_91: null as number | null,
   cod_insumo_91: '',
   descripcion: '',
   idProveedorLinea: '',
@@ -120,6 +132,8 @@ function gruposPedidoComoPdf(ped: Pedido) {
         proveedor,
         totalQty,
         lineas: ordenadas.map((l) => ({
+          idDetalle: l.id_detalle_91 || 0,
+          enviadoAt: l.fecha_envio_wa || null,
           codigo: l.codigo_89 || 'SIN CÓDIGO',
           descripcion: l.descripcion_89 || '',
           cantidad: Math.round(Number(l.cantidad_solicitada_91)) || 0,
@@ -140,21 +154,14 @@ function telefonoWhatsApp(raw: string | null | undefined): string | null {
   return null;
 }
 
-function textoWhatsAppGrupo(
-  ped: Pedido,
-  grupo: ReturnType<typeof gruposPedidoComoPdf>[number]
-): string {
-  const orden = ped.numero_orden_92 || `PED-${String(ped.id_pedido_92).padStart(6, '0')}`;
-  const lineas = grupo.lineas.map((l, i) => `${i + 1}. ${l.descripcion} (${l.codigo}) — ${l.cantidad} un.`);
-  return [
-    'MANTEC ERP',
-    `Pedido ${orden} — ${fechaPedidoIso(ped.fecha_pedido_92)}`,
-    `Requerimientos para ${grupo.proveedor}`,
-    '',
-    ...lineas,
-    '',
-    `Total: ${grupo.lineas.length} ítems, ${grupo.totalQty} unidades`,
-  ].join('\n');
+function pendientesDeGrupo(grupo: ReturnType<typeof gruposPedidoComoPdf>[number]) {
+  const lineas = grupo.lineas.filter((l) => !l.enviadoAt);
+  const totalQty = lineas.reduce((s, l) => s + l.cantidad, 0);
+  return { lineas, totalQty };
+}
+
+function mostrarFechaHora(value: unknown): string {
+  return String(value ?? '').slice(0, 19).replace('T', ' ');
 }
 
 const PedidoView: React.FC = () => {
@@ -182,6 +189,7 @@ const PedidoView: React.FC = () => {
   const [historial, setHistorial] = useState<Historial[]>([]);
   const [qtyRecibe, setQtyRecibe] = useState<Record<number, string>>({});
   const [idRecibe, setIdRecibe] = useState('');
+  const [enviandoWa, setEnviandoWa] = useState(false);
 
   const API = apiUrl('/pedidos');
 
@@ -335,6 +343,7 @@ const PedidoView: React.FC = () => {
     setObs(p.observaciones_cab_92 || '');
     setLineas(
       (p.detalles || []).map((d) => ({
+        id_detalle_91: d.id_detalle_91 || null,
         cod_insumo_91: d.cod_insumo_91 ? String(d.cod_insumo_91) : '',
         descripcion: d.cod_insumo_91 ? d.descripcion_89 || '' : d.descripcion_libre_91 || d.descripcion_89 || '',
         idProveedorLinea: d.id_proveedor_91 ? String(d.id_proveedor_91) : matchProveedorId(d.proveedor_89),
@@ -367,6 +376,7 @@ const PedidoView: React.FC = () => {
       .map((l) => {
         const sku = l.cod_insumo_91 ? Number(l.cod_insumo_91) : null;
         return {
+          id_detalle_91: l.id_detalle_91 || null,
           cod_insumo_91: sku,
           descripcion_libre_91: sku ? null : l.descripcion.trim().toUpperCase(),
           id_proveedor_91: l.idProveedorLinea ? Number(l.idProveedorLinea) : null,
@@ -514,11 +524,14 @@ const PedidoView: React.FC = () => {
     }
   };
 
+  const aplicarPedido = (ped: Pedido | undefined) => {
+    if (ped) setDetalleAbierto(ped);
+  };
+
   const enviarWhatsAppGrupo = async (
     ped: Pedido,
     grupo: ReturnType<typeof gruposPedidoComoPdf>[number]
   ) => {
-    const texto = textoWhatsAppGrupo(ped, grupo);
     const catalogo = matchProveedor(grupo.proveedor);
     const e164 = telefonoWhatsApp(catalogo?.telefono_90);
     if (!e164) {
@@ -528,8 +541,68 @@ const PedidoView: React.FC = () => {
       );
       return;
     }
-    const url = `https://wa.me/${e164}?text=${encodeURIComponent(texto)}`;
-    window.open(url, '_blank', 'noopener,noreferrer');
+    const pendientes = pendientesDeGrupo(grupo);
+    if (pendientes.lineas.length === 0) {
+      await showError(
+        'WhatsApp',
+        `Nada pendiente para ${grupo.proveedor}. Lo ya enviado (p. ej. las 09:30) no se vuelve a mandar.`
+      );
+      return;
+    }
+    const ok = await showConfirm(
+      `WhatsApp a ${grupo.proveedor}`,
+      `Se registrarán ${pendientes.lineas.length} ítems NUEVOS (${pendientes.totalQty} un.). Lo ya enviado no va. El chat se abre después; tú pulsas Enviar en WhatsApp. Si no llegas a enviar, usa Deshacer.`,
+      'Registrar y abrir chat'
+    );
+    if (!ok) return;
+    if (enviandoWa) return;
+    setEnviandoWa(true);
+    try {
+      const res = await apiFetch(`${API}/${ped.id_pedido_92}/envios-whatsapp`, {
+        method: 'POST',
+        body: JSON.stringify({ proveedor: grupo.proveedor }),
+      });
+      const data: ApiResponse<{
+        telefono_e164: string;
+        texto: string;
+        pendientes: number;
+        pedido: Pedido;
+      }> = await res.json();
+      if (!data.success || !data.data) {
+        await showError('WhatsApp', data.error || 'No se pudo registrar el envío');
+        return;
+      }
+      aplicarPedido(data.data.pedido);
+      await fetchAll();
+      const url = `https://wa.me/${data.data.telefono_e164}?text=${encodeURIComponent(data.data.texto)}`;
+      window.open(url, '_blank', 'noopener,noreferrer');
+    } catch {
+      await showError('WhatsApp', 'Error de conexión al registrar el envío');
+    } finally {
+      setEnviandoWa(false);
+    }
+  };
+
+  const deshacerEnvioWhatsApp = async (ped: Pedido, envio: EnvioWhatsApp) => {
+    const hora = mostrarFechaHora(envio.fecha_envio_98);
+    const n = envio.lineas?.length || 0;
+    const ok = await showConfirm(
+      'Deshacer envío WhatsApp',
+      `${hora} a ${envio.proveedor_98} (${n} ítems) vuelve a pendiente. Úsalo si no pulsaste Enviar en WhatsApp.`,
+      'Deshacer'
+    );
+    if (!ok) return;
+    const res = await apiFetch(`${API}/${ped.id_pedido_92}/envios-whatsapp/${envio.id_envio_98}`, {
+      method: 'DELETE',
+    });
+    const data: ApiResponse<Pedido> = await res.json();
+    if (!data.success) {
+      await showError('WhatsApp', data.error || 'No se pudo deshacer');
+      return;
+    }
+    aplicarPedido(data.data);
+    await fetchAll();
+    await showSuccess('Listo', data.message || 'Envío deshecho');
   };
 
   const handleDelete = async (id: number) => {
@@ -875,6 +948,84 @@ const PedidoView: React.FC = () => {
               </button>
             </div>
           )}
+          <h4 style={{ marginTop: 8 }}>WhatsApp por proveedor</h4>
+          <p className="form-hint" style={{ marginTop: 0 }}>
+            Un botón por ferretería. Se registra el lote y luego se abre el chat; tú pulsas Enviar.
+            Si a las 11:30 agregas líneas, el segundo envío lleva solo las nuevas.
+          </p>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 16 }}>
+            {gruposPedidoComoPdf(detalleAbierto).map((g) => {
+              const catalogo = matchProveedor(g.proveedor);
+              const e164 = telefonoWhatsApp(catalogo?.telefono_90);
+              const pendientes = pendientesDeGrupo(g);
+              const enviados = g.lineas.length - pendientes.lineas.length;
+              const puedeEnviar = Boolean(e164) && pendientes.lineas.length > 0 && !anulado;
+              return (
+                <div
+                  key={g.proveedor}
+                  style={{
+                    display: 'flex',
+                    flexWrap: 'wrap',
+                    alignItems: 'center',
+                    gap: 8,
+                    padding: '8px 12px',
+                    background: '#fff',
+                    border: '1px solid #dee2e6',
+                    borderRadius: 6,
+                  }}
+                >
+                  <strong style={{ minWidth: 160 }}>{g.proveedor}</strong>
+                  <span style={{ color: '#6c757d' }}>
+                    {pendientes.lineas.length > 0
+                      ? `${pendientes.lineas.length} nuevos · ${pendientes.totalQty} un.`
+                      : 'nada pendiente'}
+                    {enviados > 0 ? ` · ${enviados} enviados` : ''}
+                    {e164 ? ` · +${e164}` : ' · sin teléfono'}
+                  </span>
+                  <button
+                    type="button"
+                    className="btn-success"
+                    disabled={!puedeEnviar || enviandoWa}
+                    title={
+                      !e164
+                        ? 'Cargue el teléfono en Pedidos → Proveedores'
+                        : pendientes.lineas.length === 0
+                          ? 'Todo lo de este proveedor ya se envió'
+                          : `Registrar ${pendientes.lineas.length} nuevos y abrir WhatsApp +${e164}`
+                    }
+                    onClick={() => void enviarWhatsAppGrupo(detalleAbierto, g)}
+                  >
+                    {pendientes.lineas.length > 0 ? `WhatsApp (${pendientes.lineas.length} nuevos)` : 'Ya enviado'}
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+          {(detalleAbierto.envios_whatsapp || []).length > 0 && (
+            <>
+              <h4 style={{ marginTop: 0 }}>Envíos WhatsApp</h4>
+              <ul style={{ marginTop: 0, marginBottom: 16 }}>
+                {(detalleAbierto.envios_whatsapp || []).map((ev) => (
+                  <li key={ev.id_envio_98} style={{ marginBottom: 6 }}>
+                    {mostrarFechaHora(ev.fecha_envio_98)} — {ev.proveedor_98} · {ev.lineas?.length || 0} ítems
+                    {ev.usuario_98 ? ` · ${ev.usuario_98}` : ''}
+                    {!anulado && (
+                      <>
+                        {' '}
+                        <button
+                          type="button"
+                          className="btn-secondary"
+                          onClick={() => void deshacerEnvioWhatsApp(detalleAbierto, ev)}
+                        >
+                          Deshacer
+                        </button>
+                      </>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
           <div className="form-group" style={{ maxWidth: 360 }}>
             <label>Quién recibe</label>
             <SearchableSelect
@@ -896,6 +1047,7 @@ const PedidoView: React.FC = () => {
                   <th>Solicitado</th>
                   <th>Recibido</th>
                   <th>Pendiente</th>
+                  <th>WhatsApp</th>
                   <th>Recibir</th>
                 </tr>
               </thead>
@@ -911,6 +1063,15 @@ const PedidoView: React.FC = () => {
                       <td>{mostrarEntero(d.cantidad_solicitada_91)}</td>
                       <td>{mostrarEntero(d.cantidad_recibida_91 || 0)}</td>
                       <td>{mostrarEntero(pend)}</td>
+                      <td>
+                        {d.fecha_envio_wa ? (
+                          <span className="badge badge-success" title={mostrarFechaHora(d.fecha_envio_wa)}>
+                            ENVIADO
+                          </span>
+                        ) : (
+                          '—'
+                        )}
+                      </td>
                       <td>
                         {pend > 0 && !anulado ? (
                           <>
@@ -944,46 +1105,6 @@ const PedidoView: React.FC = () => {
                 })}
               </tbody>
             </table>
-          </div>
-          <h4 style={{ marginTop: 16 }}>WhatsApp por proveedor</h4>
-          <p className="form-hint" style={{ marginTop: 0 }}>
-            Abre el chat con el listado listo; tú pulsas Enviar. No se manda solo. El teléfono sale de Pedidos → Proveedores.
-          </p>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 16 }}>
-            {gruposPedidoComoPdf(detalleAbierto).map((g) => {
-              const catalogo = matchProveedor(g.proveedor);
-              const e164 = telefonoWhatsApp(catalogo?.telefono_90);
-              return (
-                <div
-                  key={g.proveedor}
-                  style={{
-                    display: 'flex',
-                    flexWrap: 'wrap',
-                    alignItems: 'center',
-                    gap: 8,
-                    padding: '8px 12px',
-                    background: '#fff',
-                    border: '1px solid #dee2e6',
-                    borderRadius: 6,
-                  }}
-                >
-                  <strong style={{ minWidth: 160 }}>{g.proveedor}</strong>
-                  <span style={{ color: '#6c757d' }}>
-                    {g.lineas.length} ítems · {g.totalQty} un.
-                    {e164 ? ` · +${e164}` : ' · sin teléfono'}
-                  </span>
-                  <button
-                    type="button"
-                    className="btn-success"
-                    disabled={!e164}
-                    title={e164 ? `Abrir WhatsApp +${e164}` : 'Cargue el teléfono en Pedidos → Proveedores'}
-                    onClick={() => void enviarWhatsAppGrupo(detalleAbierto, g)}
-                  >
-                    WhatsApp
-                  </button>
-                </div>
-              );
-            })}
           </div>
           {historial.length > 0 && (
             <>

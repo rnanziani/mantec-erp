@@ -3,12 +3,14 @@ import {
   anularPedido,
   createPedido,
   deletePedido,
+  deshacerEnvioWhatsApp,
   generarPdfPedido,
   getAllPedidos,
   getHistorialPedido,
   getPedidoById,
   getVerificadorPedidos,
   marcarNoRetirado,
+  registrarEnvioWhatsApp,
   registrarPago,
   registrarRecepcion,
   updatePedido,
@@ -28,5 +30,7 @@ router.post('/:id/recepciones', registrarRecepcion);
 router.post('/:id/pago', registrarPago);
 router.post('/:id/anular', anularPedido);
 router.post('/:id/no-retirado', marcarNoRetirado);
+router.post('/:id/envios-whatsapp', registrarEnvioWhatsApp);
+router.delete('/:id/envios-whatsapp/:idEnvio', deshacerEnvioWhatsApp);
 
 export default router;
