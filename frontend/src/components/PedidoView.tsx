@@ -11,6 +11,7 @@ import { changeKeepingCaret } from '../hooks/useCaretTransform';
 interface Proveedor {
   id_proveedor_90: number;
   razon_social_90: string;
+  telefono_90?: string | null;
   activo_90: boolean;
 }
 interface Responsable {
@@ -129,6 +130,33 @@ function gruposPedidoComoPdf(ped: Pedido) {
     .sort((a, b) => b.totalQty - a.totalQty || a.proveedor.localeCompare(b.proveedor, 'es'));
 }
 
+/** Chile: 9XXXXXXXX → 569XXXXXXXX. WhatsApp pide país + número, sin +. */
+function telefonoWhatsApp(raw: string | null | undefined): string | null {
+  const digits = String(raw || '').replace(/\D/g, '');
+  if (!digits) return null;
+  if (digits.startsWith('56') && digits.length >= 11) return digits.slice(0, 11);
+  if (digits.length === 9 && digits.startsWith('9')) return `56${digits}`;
+  if (digits.length >= 10 && digits.length <= 15) return digits;
+  return null;
+}
+
+function textoWhatsAppGrupo(
+  ped: Pedido,
+  grupo: ReturnType<typeof gruposPedidoComoPdf>[number]
+): string {
+  const orden = ped.numero_orden_92 || `PED-${String(ped.id_pedido_92).padStart(6, '0')}`;
+  const lineas = grupo.lineas.map((l, i) => `${i + 1}. ${l.descripcion} (${l.codigo}) — ${l.cantidad} un.`);
+  return [
+    'MANTEC ERP',
+    `Pedido ${orden} — ${fechaPedidoIso(ped.fecha_pedido_92)}`,
+    `Requerimientos para ${grupo.proveedor}`,
+    '',
+    ...lineas,
+    '',
+    `Total: ${grupo.lineas.length} ítems, ${grupo.totalQty} unidades`,
+  ].join('\n');
+}
+
 const PedidoView: React.FC = () => {
   const formRef = React.useRef<HTMLFormElement>(null);
   const [pedidos, setPedidos] = useState<Pedido[]>([]);
@@ -222,6 +250,18 @@ const PedidoView: React.FC = () => {
       return n.includes(q) || q.includes(n);
     });
     return hits.length === 1 ? String(hits[0].id_proveedor_90) : '';
+  };
+
+  const matchProveedor = (nombre?: string | null) => {
+    const q = String(nombre || '').trim().toUpperCase();
+    if (!q) return undefined;
+    const exact = proveedores.find((p) => p.razon_social_90.trim().toUpperCase() === q);
+    if (exact) return exact;
+    const hits = proveedores.filter((p) => {
+      const n = p.razon_social_90.trim().toUpperCase();
+      return n.includes(q) || q.includes(n);
+    });
+    return hits.length === 1 ? hits[0] : undefined;
   };
 
   const setLinea = (idx: number, patch: Partial<typeof emptyLinea>) => {
@@ -472,6 +512,24 @@ const PedidoView: React.FC = () => {
     } catch (e) {
       await showError('PDF', e instanceof Error ? e.message : 'No se pudo generar el PDF');
     }
+  };
+
+  const enviarWhatsAppGrupo = async (
+    ped: Pedido,
+    grupo: ReturnType<typeof gruposPedidoComoPdf>[number]
+  ) => {
+    const texto = textoWhatsAppGrupo(ped, grupo);
+    const catalogo = matchProveedor(grupo.proveedor);
+    const e164 = telefonoWhatsApp(catalogo?.telefono_90);
+    if (!e164) {
+      await showError(
+        'WhatsApp',
+        `No hay teléfono para ${grupo.proveedor}. Cárgalo en Pedidos → Proveedores y vuelve a intentar.`
+      );
+      return;
+    }
+    const url = `https://wa.me/${e164}?text=${encodeURIComponent(texto)}`;
+    window.open(url, '_blank', 'noopener,noreferrer');
   };
 
   const handleDelete = async (id: number) => {
@@ -886,6 +944,46 @@ const PedidoView: React.FC = () => {
                 })}
               </tbody>
             </table>
+          </div>
+          <h4 style={{ marginTop: 16 }}>WhatsApp por proveedor</h4>
+          <p className="form-hint" style={{ marginTop: 0 }}>
+            Abre el chat con el listado listo; tú pulsas Enviar. No se manda solo. El teléfono sale de Pedidos → Proveedores.
+          </p>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 16 }}>
+            {gruposPedidoComoPdf(detalleAbierto).map((g) => {
+              const catalogo = matchProveedor(g.proveedor);
+              const e164 = telefonoWhatsApp(catalogo?.telefono_90);
+              return (
+                <div
+                  key={g.proveedor}
+                  style={{
+                    display: 'flex',
+                    flexWrap: 'wrap',
+                    alignItems: 'center',
+                    gap: 8,
+                    padding: '8px 12px',
+                    background: '#fff',
+                    border: '1px solid #dee2e6',
+                    borderRadius: 6,
+                  }}
+                >
+                  <strong style={{ minWidth: 160 }}>{g.proveedor}</strong>
+                  <span style={{ color: '#6c757d' }}>
+                    {g.lineas.length} ítems · {g.totalQty} un.
+                    {e164 ? ` · +${e164}` : ' · sin teléfono'}
+                  </span>
+                  <button
+                    type="button"
+                    className="btn-success"
+                    disabled={!e164}
+                    title={e164 ? `Abrir WhatsApp +${e164}` : 'Cargue el teléfono en Pedidos → Proveedores'}
+                    onClick={() => void enviarWhatsAppGrupo(detalleAbierto, g)}
+                  >
+                    WhatsApp
+                  </button>
+                </div>
+              );
+            })}
           </div>
           {historial.length > 0 && (
             <>
