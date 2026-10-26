@@ -1,6 +1,8 @@
 import { Request, Response } from 'express';
 import { PoolClient } from 'pg';
+import PdfPrinter from 'pdfmake';
 import { pool } from '../db.js';
+import type { PdfDocumentDefinition } from '../utils/pdfTypes.js';
 
 const PAGOS = new Set(['Pendiente', 'Pagado', 'Parcial', 'Anulado']);
 
@@ -553,6 +555,174 @@ export const marcarNoRetirado = async (req: Request, res: Response): Promise<voi
     res.status(500).json({
       success: false,
       error: 'Error al marcar no retirado',
+      message: error instanceof Error ? error.message : 'Error desconocido',
+    });
+  }
+};
+
+type DetallePdf = {
+  codigo_89?: string | null;
+  descripcion_89?: string | null;
+  proveedor_89?: string | null;
+  cantidad_solicitada_91: number;
+  precio_unitario_91?: number | null;
+};
+
+function proveedorDeLinea(d: DetallePdf, fallback: string): string {
+  const n = String(d.proveedor_89 || '').trim().toUpperCase();
+  return n || fallback || 'SIN PROVEEDOR';
+}
+
+function agruparRequerimientos(detalles: DetallePdf[], fallback: string) {
+  const map = new Map<string, DetallePdf[]>();
+  for (const d of detalles) {
+    const key = proveedorDeLinea(d, fallback);
+    const arr = map.get(key) || [];
+    arr.push(d);
+    map.set(key, arr);
+  }
+  return [...map.entries()]
+    .map(([proveedor, lineas]) => {
+      const ordenadas = [...lineas].sort(
+        (a, b) => cantidadEntera(b.cantidad_solicitada_91) - cantidadEntera(a.cantidad_solicitada_91)
+      );
+      const totalQty = ordenadas.reduce((s, l) => s + cantidadEntera(l.cantidad_solicitada_91), 0);
+      return { proveedor, lineas: ordenadas, totalQty };
+    })
+    .sort((a, b) => b.totalQty - a.totalQty || a.proveedor.localeCompare(b.proveedor, 'es'));
+}
+
+/** PDF del pedido: requerimientos agrupados por proveedor, cantidad de mayor a menor. */
+export const generarPdfPedido = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const data = await cargarPedido(req.params.id);
+    if (!data) {
+      res.status(404).json({ success: false, error: 'Pedido no encontrado' });
+      return;
+    }
+    const detalles = (data.detalles || []) as DetallePdf[];
+    if (detalles.length === 0) {
+      res.status(400).json({ success: false, error: 'El pedido no tiene líneas para exportar' });
+      return;
+    }
+    const fallback = String(data.proveedor_nombre || '').trim().toUpperCase();
+    const grupos = agruparRequerimientos(detalles, fallback);
+    const numero = String(data.numero_orden_92 || `PED-${String(data.id_pedido_92).padStart(6, '0')}`);
+    const fecha = String(data.fecha_pedido_92 || '').slice(0, 10);
+    const totalQty = grupos.reduce((s, g) => s + g.totalQty, 0);
+
+    const cell = (text: string | number, extra: Record<string, unknown> = {}) => ({
+      text: String(text ?? ''),
+      fontSize: 8,
+      ...extra,
+    });
+    const headerCell = (text: string) =>
+      cell(text, { bold: true, color: '#1e3a5f', fillColor: '#eef2f6' });
+
+    const content: unknown[] = [
+      { text: 'MANTEC ERP', fontSize: 9, color: '#64748b', margin: [0, 0, 0, 2] },
+      { text: `Requerimientos por proveedor — ${numero}`, fontSize: 14, bold: true, color: '#1e3a5f' },
+      {
+        text: `Fecha ${fecha}  ·  Pedido a ${fallback || '—'}  ·  ${data.responsable_nombre || '—'}  ·  Pago ${data.estado_pago_92}  ·  Recepción ${data.estado_recepcion_92}`,
+        fontSize: 8,
+        color: '#64748b',
+        margin: [0, 4, 0, 2],
+      },
+      {
+        text: `${detalles.length} ítems  ·  ${totalQty} unidades  ·  ${grupos.length} proveedores`,
+        fontSize: 8,
+        color: '#64748b',
+        margin: [0, 0, 0, data.observaciones_cab_92 ? 2 : 10],
+      },
+    ];
+    if (data.observaciones_cab_92) {
+      content.push({
+        text: `Obs.: ${data.observaciones_cab_92}`,
+        fontSize: 8,
+        italics: true,
+        margin: [0, 0, 0, 10],
+      });
+    }
+
+    for (const g of grupos) {
+      content.push({
+        table: {
+          widths: ['*'],
+          body: [[
+            {
+              text: `${g.proveedor}  —  ${g.lineas.length} ítems  —  ${g.totalQty} un.`,
+              bold: true,
+              color: '#fff',
+              fillColor: '#1e3a5f',
+              fontSize: 10,
+              margin: [6, 4, 6, 4],
+            },
+          ]],
+        },
+        layout: 'noBorders',
+        margin: [0, 8, 0, 0],
+      });
+      const body = [
+        [headerCell('#'), headerCell('Código'), headerCell('Descripción'), headerCell('Cant.'), headerCell('Precio')],
+        ...g.lineas.map((l, i) => [
+          cell(i + 1, { alignment: 'center' }),
+          cell(l.codigo_89 || 'SIN CÓDIGO'),
+          cell(l.descripcion_89 || ''),
+          cell(cantidadEntera(l.cantidad_solicitada_91), { alignment: 'right', bold: true }),
+          cell(l.precio_unitario_91 == null ? '—' : num(l.precio_unitario_91).toFixed(2), { alignment: 'right' }),
+        ]),
+      ];
+      content.push({
+        table: { headerRows: 1, widths: [22, 90, '*', 40, 50], body },
+        layout: {
+          hLineWidth: () => 0.4,
+          vLineWidth: () => 0.4,
+          hLineColor: () => '#c5cdd6',
+          vLineColor: () => '#c5cdd6',
+          paddingLeft: () => 4,
+          paddingRight: () => 4,
+          paddingTop: () => 3,
+          paddingBottom: () => 3,
+        },
+        margin: [0, 0, 0, 4],
+      });
+    }
+
+    const fonts = {
+      Roboto: {
+        normal: 'Helvetica',
+        bold: 'Helvetica-Bold',
+        italics: 'Helvetica-Oblique',
+        bolditalics: 'Helvetica-BoldOblique',
+      },
+    };
+    const printer = new PdfPrinter(fonts);
+    const docDefinition: PdfDocumentDefinition = {
+      pageSize: 'LETTER',
+      pageMargins: [40, 36, 40, 40],
+      content,
+      defaultStyle: { font: 'Roboto', fontSize: 9 },
+      footer: (currentPage: number, pageCount: number) => ({
+        columns: [
+          { text: 'Uso interno · Agrupado por proveedor (cantidad mayor a menor)', fontSize: 7, color: '#94a3b8', margin: [40, 0, 0, 0] },
+          { text: `Página ${currentPage} de ${pageCount}`, alignment: 'right', fontSize: 7, color: '#94a3b8', margin: [0, 0, 40, 0] },
+        ],
+      }),
+    };
+
+    const pdfDoc = printer.createPdfKitDocument(docDefinition);
+    const filename = `${numero}_requerimientos.pdf`;
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename="${filename}"; filename*=UTF-8''${encodeURIComponent(filename)}`
+    );
+    pdfDoc.pipe(res);
+    pdfDoc.end();
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: 'Error al generar el PDF del pedido',
       message: error instanceof Error ? error.message : 'Error desconocido',
     });
   }

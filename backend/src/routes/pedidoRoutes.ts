@@ -3,6 +3,7 @@ import {
   anularPedido,
   createPedido,
   deletePedido,
+  generarPdfPedido,
   getAllPedidos,
   getHistorialPedido,
   getPedidoById,
@@ -18,6 +19,7 @@ const router = Router();
 router.get('/', getAllPedidos);
 router.get('/verificador', getVerificadorPedidos);
 router.get('/:id/historial', getHistorialPedido);
+router.get('/:id/pdf', generarPdfPedido);
 router.get('/:id', getPedidoById);
 router.post('/', createPedido);
 router.put('/:id', updatePedido);

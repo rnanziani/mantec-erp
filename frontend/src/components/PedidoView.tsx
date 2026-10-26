@@ -4,7 +4,7 @@ import Pagination from './shared/Pagination';
 import SearchableSelect from './shared/SearchableSelect';
 import { exportToExcel } from '../utils/exportUtils';
 import { showDeleteConfirm, showError, showSuccess } from '../utils/swal';
-import { apiFetch, apiUrl } from '../lib/apiClient';
+import { apiFetch, apiUrl, openAuthenticatedBlob } from '../lib/apiClient';
 import { filtrarResponsablesActivos } from '../utils/responsablesEntrega';
 import { changeKeepingCaret } from '../hooks/useCaretTransform';
 
@@ -362,6 +362,53 @@ const PedidoView: React.FC = () => {
     setQtyRecibe((p) => ({ ...p, [idDetalle]: '' }));
   };
 
+  const pedidoConDetalle = async (id: number): Promise<Pedido | null> => {
+    if (detalleAbierto?.id_pedido_92 === id && (detalleAbierto.detalles || []).length > 0) {
+      return detalleAbierto;
+    }
+    const res = await apiFetch(`${API}/${id}`);
+    const data: ApiResponse<Pedido> = await res.json();
+    if (!data.success || !data.data) {
+      await showError('Error', data.error || 'No se pudo abrir el pedido');
+      return null;
+    }
+    return data.data;
+  };
+
+  const exportarExcelDetalle = async (id: number) => {
+    try {
+      const ped = await pedidoConDetalle(id);
+      if (!ped) return;
+      const filas = (ped.detalles || []).map((d, i) => ({
+        N: i + 1,
+        Orden: ped.numero_orden_92 || '',
+        Fecha: String(ped.fecha_pedido_92).slice(0, 10),
+        'Proveedor pedido': ped.proveedor_nombre || '',
+        SKU: d.codigo_89 || 'SIN CÓDIGO',
+        Descripción: d.descripcion_89 || '',
+        Proveedor: d.proveedor_89 || ped.proveedor_nombre || '',
+        Cantidad: Math.round(Number(d.cantidad_solicitada_91)) || 0,
+        Precio: d.precio_unitario_91 == null ? '' : Number(d.precio_unitario_91),
+        Observaciones: d.observaciones_det_91 || '',
+      }));
+      if (filas.length === 0) {
+        await showError('Exportar', 'Este pedido no tiene líneas');
+        return;
+      }
+      exportToExcel(filas, `${ped.numero_orden_92 || 'pedido'}-detalle`, 'Detalle');
+    } catch {
+      await showError('Error', 'No se pudo exportar el Excel');
+    }
+  };
+
+  const exportarPdfPedido = async (id: number) => {
+    try {
+      await openAuthenticatedBlob(`/pedidos/${id}/pdf`);
+    } catch (e) {
+      await showError('PDF', e instanceof Error ? e.message : 'No se pudo generar el PDF');
+    }
+  };
+
   const handleDelete = async (id: number) => {
     const ok = await showDeleteConfirm('este pedido');
     if (!ok) return;
@@ -394,7 +441,11 @@ const PedidoView: React.FC = () => {
           <button
             type="button"
             className="btn-info"
-            onClick={() =>
+            onClick={() => {
+              if (detalleAbierto) {
+                void exportarExcelDetalle(detalleAbierto.id_pedido_92);
+                return;
+              }
               exportToExcel(
                 filtered.map((p) => ({
                   Orden: p.numero_orden_92,
@@ -404,10 +455,18 @@ const PedidoView: React.FC = () => {
                   Recepción: p.estado_recepcion_92,
                 })),
                 'pedidos'
-              )
-            }
+              );
+            }}
           >
             Excel
+          </button>
+          <button
+            type="button"
+            className="btn-export"
+            disabled={!detalleAbierto}
+            onClick={() => detalleAbierto && void exportarPdfPedido(detalleAbierto.id_pedido_92)}
+          >
+            PDF
           </button>
           <button type="button" className="btn-secondary" onClick={() => { window.location.hash = 'dashboard'; }}>
             Salir
@@ -644,6 +703,38 @@ const PedidoView: React.FC = () => {
               )}
               <button type="button" className="btn-delete" onClick={() => postAccion(`${API}/${detalleAbierto.id_pedido_92}/anular`)}>
                 Anular
+              </button>
+              <button
+                type="button"
+                className="btn-info"
+                onClick={() => void exportarExcelDetalle(detalleAbierto.id_pedido_92)}
+              >
+                Excel detalle
+              </button>
+              <button
+                type="button"
+                className="btn-export"
+                onClick={() => void exportarPdfPedido(detalleAbierto.id_pedido_92)}
+              >
+                PDF por proveedor
+              </button>
+            </div>
+          )}
+          {anulado && (
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 12 }}>
+              <button
+                type="button"
+                className="btn-info"
+                onClick={() => void exportarExcelDetalle(detalleAbierto.id_pedido_92)}
+              >
+                Excel detalle
+              </button>
+              <button
+                type="button"
+                className="btn-export"
+                onClick={() => void exportarPdfPedido(detalleAbierto.id_pedido_92)}
+              >
+                PDF por proveedor
               </button>
             </div>
           )}
