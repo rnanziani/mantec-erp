@@ -41,6 +41,7 @@ interface Detalle {
   proveedor_89?: string;
   id_proveedor_91?: number | null;
   fecha_envio_wa?: string | null;
+  pedido_origen_92?: string | null;
 }
 interface EnvioWhatsApp {
   id_envio_98: number;
@@ -164,6 +165,11 @@ function mostrarFechaHora(value: unknown): string {
   return String(value ?? '').slice(0, 19).replace('T', ' ');
 }
 
+function pedidoAbierto(p: Pick<Pedido, 'estado_pago_92' | 'estado_recepcion_92'>): boolean {
+  const rec = p.estado_recepcion_92;
+  return p.estado_pago_92 !== 'Anulado' && rec !== 'Anulado' && rec !== 'Recibido' && rec !== 'Cerrada';
+}
+
 const PedidoView: React.FC = () => {
   const formRef = React.useRef<HTMLFormElement>(null);
   const [pedidos, setPedidos] = useState<Pedido[]>([]);
@@ -175,6 +181,7 @@ const PedidoView: React.FC = () => {
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [filtroCiclo, setFiltroCiclo] = useState<'abiertas' | 'cerradas' | 'todas'>('abiertas');
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
 
@@ -188,6 +195,7 @@ const PedidoView: React.FC = () => {
   const [detalleAbierto, setDetalleAbierto] = useState<Pedido | null>(null);
   const [historial, setHistorial] = useState<Historial[]>([]);
   const [qtyRecibe, setQtyRecibe] = useState<Record<number, string>>({});
+  const [llego, setLlego] = useState<Record<number, boolean>>({});
   const [idRecibe, setIdRecibe] = useState('');
   const [enviandoWa, setEnviandoWa] = useState(false);
 
@@ -294,21 +302,24 @@ const PedidoView: React.FC = () => {
   };
 
   const filtered = useMemo(() => {
+    let rows = pedidos;
+    if (filtroCiclo === 'abiertas') rows = rows.filter(pedidoAbierto);
+    if (filtroCiclo === 'cerradas') rows = rows.filter((p) => !pedidoAbierto(p));
     const q = searchTerm.trim().toLowerCase();
-    if (!q) return pedidos;
-    return pedidos.filter((p) =>
+    if (!q) return rows;
+    return rows.filter((p) =>
       [p.numero_orden_92, p.proveedor_nombre, p.responsable_nombre, p.estado_pago_92, p.estado_recepcion_92]
         .join(' ')
         .toLowerCase()
         .includes(q)
     );
-  }, [pedidos, searchTerm]);
+  }, [pedidos, searchTerm, filtroCiclo]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / itemsPerPage));
   const pageItems = filtered.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm]);
+  }, [searchTerm, filtroCiclo]);
 
   const resetForm = () => {
     setEditingId(null);
@@ -365,6 +376,7 @@ const PedidoView: React.FC = () => {
       setShowForm(false);
       setIdRecibe('');
       setQtyRecibe({});
+      setLlego({});
     }
     if (dHis.success && Array.isArray(dHis.data)) setHistorial(dHis.data);
   };
@@ -448,6 +460,46 @@ const PedidoView: React.FC = () => {
       id_responsable_recibe_93: Number(idRecibe),
     });
     setQtyRecibe((p) => ({ ...p, [idDetalle]: '' }));
+  };
+
+  const handleCerrarRecepcion = async () => {
+    if (!detalleAbierto) return;
+    const idsRecibidos = (detalleAbierto.detalles || [])
+      .filter((d) => d.id_detalle_91 && llego[d.id_detalle_91])
+      .map((d) => Number(d.id_detalle_91));
+    const nPendientes = (detalleAbierto.detalles || []).filter((d) => {
+      const pend = Math.round(Number(d.cantidad_solicitada_91) - Number(d.cantidad_recibida_91 || 0));
+      return pend > 0 && !llego[d.id_detalle_91 || 0];
+    }).length;
+    if (idsRecibidos.length > 0 && !idRecibe) {
+      await showError('Validación', 'Indique quién recibe lo que llegó');
+      return;
+    }
+    const ok = await showConfirm(
+      'Cerrar recepción',
+      idsRecibidos.length || nPendientes
+        ? `${idsRecibidos.length} ítems a Recibido. ${nPendientes} pendientes pasan al pedido consolidado (no se reescriben). El PDF de ${detalleAbierto.numero_orden_92} no cambia.`
+        : 'No hay pendientes. Se cierra este pedido.',
+      'Cerrar'
+    );
+    if (!ok) return;
+    const res = await apiFetch(`${API}/${detalleAbierto.id_pedido_92}/cerrar-recepcion`, {
+      method: 'POST',
+      body: JSON.stringify({
+        ids_recibidos: idsRecibidos,
+        id_responsable_recibe_93: idRecibe ? Number(idRecibe) : null,
+      }),
+    });
+    const data: ApiResponse<Pedido> = await res.json();
+    if (!data.success) {
+      await showError('Error', data.error || 'No se pudo cerrar');
+      return;
+    }
+    await fetchAll();
+    if (data.data) setDetalleAbierto(data.data);
+    setLlego({});
+    setQtyRecibe({});
+    await showSuccess('Listo', data.message || 'Recepción cerrada');
   };
 
   const pedidoConDetalle = async (id: number): Promise<Pedido | null> => {
@@ -622,6 +674,7 @@ const PedidoView: React.FC = () => {
   if (loading) return <div className="loading">Cargando pedidos...</div>;
 
   const anulado = detalleAbierto?.estado_recepcion_92 === 'Anulado';
+  const cerrado = Boolean(detalleAbierto && !pedidoAbierto(detalleAbierto));
 
   return (
     <div className="bodega-view pedido-view">
@@ -888,7 +941,7 @@ const PedidoView: React.FC = () => {
                   Pago parcial
                 </button>
               )}
-              {detalleAbierto.estado_recepcion_92 === 'Pendiente' && (
+              {!cerrado && detalleAbierto.estado_recepcion_92 === 'Pendiente' && (
                 <button
                   type="button"
                   className="btn-secondary"
@@ -897,9 +950,11 @@ const PedidoView: React.FC = () => {
                   No retirado
                 </button>
               )}
-              <button type="button" className="btn-delete" onClick={() => postAccion(`${API}/${detalleAbierto.id_pedido_92}/anular`)}>
-                Anular
-              </button>
+              {!cerrado && (
+                <button type="button" className="btn-delete" onClick={() => postAccion(`${API}/${detalleAbierto.id_pedido_92}/anular`)}>
+                  Anular
+                </button>
+              )}
               <button
                 type="button"
                 className="btn-info"
@@ -959,7 +1014,7 @@ const PedidoView: React.FC = () => {
               const e164 = telefonoWhatsApp(catalogo?.telefono_90);
               const pendientes = pendientesDeGrupo(g);
               const enviados = g.lineas.length - pendientes.lineas.length;
-              const puedeEnviar = Boolean(e164) && pendientes.lineas.length > 0 && !anulado;
+              const puedeEnviar = Boolean(e164) && pendientes.lineas.length > 0 && !cerrado;
               return (
                 <div
                   key={g.proveedor}
@@ -1009,7 +1064,7 @@ const PedidoView: React.FC = () => {
                   <li key={ev.id_envio_98} style={{ marginBottom: 6 }}>
                     {mostrarFechaHora(ev.fecha_envio_98)} — {ev.proveedor_98} · {ev.lineas?.length || 0} ítems
                     {ev.usuario_98 ? ` · ${ev.usuario_98}` : ''}
-                    {!anulado && (
+                    {!cerrado && (
                       <>
                         {' '}
                         <button
@@ -1026,16 +1081,26 @@ const PedidoView: React.FC = () => {
               </ul>
             </>
           )}
-          <div className="form-group" style={{ maxWidth: 360 }}>
-            <label>Quién recibe</label>
-            <SearchableSelect
-              value={idRecibe}
-              onChange={setIdRecibe}
-              options={responsableOptions}
-              placeholder="Responsable que recibe..."
-              aria-label="Responsable que recibe"
-            />
-          </div>
+          {!cerrado && (
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'flex-end', marginBottom: 12 }}>
+              <div className="form-group" style={{ maxWidth: 360, marginBottom: 0 }}>
+                <label>Quién recibe</label>
+                <SearchableSelect
+                  value={idRecibe}
+                  onChange={setIdRecibe}
+                  options={responsableOptions}
+                  placeholder="Responsable que recibe..."
+                  aria-label="Responsable que recibe"
+                />
+              </div>
+              <button type="button" className="btn-primary" onClick={() => void handleCerrarRecepcion()}>
+                Cerrar recepción
+              </button>
+              <p className="form-hint" style={{ margin: 0, maxWidth: 420 }}>
+                Marque Llegó lo que ya está. Al cerrar, el resto pasa al pedido consolidado (COMISA 2 y VIVIPRA 1 no se vuelven a tipear). Esperar 3 insumos es operativo, no se bloquea.
+              </p>
+            </div>
+          )}
           <div className="table-container">
             <table className="data-table">
               <thead>
@@ -1048,6 +1113,7 @@ const PedidoView: React.FC = () => {
                   <th>Recibido</th>
                   <th>Pendiente</th>
                   <th>WhatsApp</th>
+                  <th>Llegó</th>
                   <th>Recibir</th>
                 </tr>
               </thead>
@@ -1058,7 +1124,14 @@ const PedidoView: React.FC = () => {
                     <tr key={d.id_detalle_91}>
                       <td className="pedido-linea-nro">{idx + 1}</td>
                       <td>{d.codigo_89 || 'SIN CÓDIGO'}</td>
-                      <td>{d.descripcion_89}</td>
+                      <td>
+                        {d.descripcion_89}
+                        {d.pedido_origen_92 ? (
+                          <div className="form-hint" style={{ margin: 0 }}>
+                            Desde {d.pedido_origen_92}
+                          </div>
+                        ) : null}
+                      </td>
                       <td>{d.proveedor_89 || '—'}</td>
                       <td>{mostrarEntero(d.cantidad_solicitada_91)}</td>
                       <td>{mostrarEntero(d.cantidad_recibida_91 || 0)}</td>
@@ -1073,7 +1146,23 @@ const PedidoView: React.FC = () => {
                         )}
                       </td>
                       <td>
-                        {pend > 0 && !anulado ? (
+                        {pend > 0 && !cerrado ? (
+                          <input
+                            type="checkbox"
+                            checked={Boolean(llego[d.id_detalle_91 || 0])}
+                            onChange={(e) =>
+                              setLlego((p) => ({ ...p, [d.id_detalle_91 || 0]: e.target.checked }))
+                            }
+                            aria-label={`Llegó ${d.codigo_89 || d.descripcion_89}`}
+                          />
+                        ) : pend <= 0 ? (
+                          <span className="badge badge-success">OK</span>
+                        ) : (
+                          '—'
+                        )}
+                      </td>
+                      <td>
+                        {pend > 0 && !cerrado ? (
                           <>
                             <input
                               type="number"
@@ -1122,16 +1211,33 @@ const PedidoView: React.FC = () => {
         </div>
       )}
 
-      <div className="filters-row" style={{ display: 'flex', gap: 12, marginBottom: 12 }}>
+      <div className="filters-row" style={{ display: 'flex', gap: 12, marginBottom: 12, flexWrap: 'wrap', alignItems: 'center' }}>
         <input
           type="search"
           className="form-input"
-          style={{ flex: 1, textTransform: 'uppercase' }}
+          style={{ flex: 1, minWidth: 200, textTransform: 'uppercase' }}
           placeholder="Buscar orden, proveedor, estado..."
           value={searchTerm}
           onChange={(e) => changeKeepingCaret(e, setSearchTerm)}
           aria-label="Buscar pedidos"
         />
+        <div role="group" aria-label="Filtro abierta o cerrada" style={{ display: 'flex', gap: 6 }}>
+          {([
+            ['abiertas', 'Abiertas'],
+            ['cerradas', 'Cerradas'],
+            ['todas', 'Todas'],
+          ] as const).map(([id, label]) => (
+            <button
+              key={id}
+              type="button"
+              className={filtroCiclo === id ? 'btn-primary' : 'btn-secondary'}
+              aria-pressed={filtroCiclo === id}
+              onClick={() => setFiltroCiclo(id)}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
       </div>
 
       <div className="table-container">
@@ -1170,9 +1276,11 @@ const PedidoView: React.FC = () => {
                         ✏️
                       </button>
                     )}
-                    <button type="button" className="btn-delete" onClick={() => handleDelete(p.id_pedido_92)} title="Eliminar">
-                      🗑️
-                    </button>
+                    {pedidoAbierto(p) && (
+                      <button type="button" className="btn-delete" onClick={() => handleDelete(p.id_pedido_92)} title="Eliminar">
+                        🗑️
+                      </button>
+                    )}
                   </td>
                 </tr>
               ))

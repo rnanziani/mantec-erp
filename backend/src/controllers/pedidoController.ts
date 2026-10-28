@@ -76,10 +76,13 @@ const SELECT_DET = `
          e.codigo_89,
          COALESCE(e.descripcion_89, d.descripcion_libre_91) AS descripcion_89,
          COALESCE(pl.razon_social_90, e.proveedor_89) AS proveedor_89,
-         wa.fecha_envio_wa
+         wa.fecha_envio_wa,
+         origen_cab.numero_orden_92 AS pedido_origen_92
   FROM tbl_91_pedido_detalle d
   LEFT JOIN tbl_89_codigo_etiqueta e ON d.cod_insumo_91 = e.idcodigo_89
   LEFT JOIN tbl_90_proveedor pl ON d.id_proveedor_91 = pl.id_proveedor_90
+  LEFT JOIN tbl_91_pedido_detalle orig ON orig.id_detalle_91 = d.id_detalle_origen_91
+  LEFT JOIN tbl_92_pedido_cabecera origen_cab ON origen_cab.id_pedido_92 = orig.id_pedido_91
   LEFT JOIN (
     SELECT det.id_detalle_99, MIN(ev.fecha_envio_98) AS fecha_envio_wa
     FROM tbl_99_pedido_envio_wa_det det
@@ -89,6 +92,25 @@ const SELECT_DET = `
   WHERE d.id_pedido_91 = $1
   ORDER BY d.id_detalle_91
 `;
+
+function cicloCerrado(estadoRecepcion: unknown, estadoPago?: unknown): boolean {
+  const rec = String(estadoRecepcion || '');
+  const pago = String(estadoPago || '');
+  return pago === 'Anulado' || rec === 'Anulado' || rec === 'Recibido' || rec === 'Cerrada';
+}
+
+function claveConsolidar(d: {
+  cod_insumo_91?: number | null;
+  descripcion_libre_91?: string | null;
+  descripcion_89?: string | null;
+  id_proveedor_91?: number | null;
+}): string {
+  const sku = num(d.cod_insumo_91);
+  const prov = num(d.id_proveedor_91);
+  if (sku) return `s:${sku}:${prov}`;
+  const desc = upper(d.descripcion_libre_91 || d.descripcion_89) || '';
+  return `t:${desc}:${prov}`;
+}
 
 async function cargarEnviosWhatsApp(idPedido: string | number) {
   const r = await pool.query(
@@ -120,7 +142,7 @@ async function recalcularRecepcion(client: PoolClient, idPedido: number): Promis
     [idPedido]
   );
   const actual = String(cab.rows[0]?.estado_recepcion_92 || 'Pendiente');
-  if (actual === 'Anulado') return;
+  if (actual === 'Anulado' || actual === 'Cerrada') return;
   const r = await client.query(
     `SELECT
        COALESCE(SUM(cantidad_solicitada_91), 0) AS sol,
@@ -330,8 +352,8 @@ export const updatePedido = async (req: Request, res: Response): Promise<void> =
       res.status(404).json({ success: false, error: 'Pedido no encontrado' });
       return;
     }
-    if (actual.estado_pago_92 === 'Anulado' || actual.estado_recepcion_92 === 'Anulado') {
-      res.status(400).json({ success: false, error: 'No se puede editar un pedido anulado' });
+    if (cicloCerrado(actual.estado_recepcion_92, actual.estado_pago_92)) {
+      res.status(400).json({ success: false, error: 'No se edita un pedido cerrado, recibido o anulado' });
       return;
     }
     const recibida = (actual.detalles as Array<{ cantidad_recibida_91: number }>).some(
@@ -441,6 +463,10 @@ export const deletePedido = async (req: Request, res: Response): Promise<void> =
       res.status(404).json({ success: false, error: 'Pedido no encontrado' });
       return;
     }
+    if (cicloCerrado(actual.estado_recepcion_92, actual.estado_pago_92)) {
+      res.status(400).json({ success: false, error: 'No se elimina un pedido cerrado. Ábralo con el filtro Cerradas.' });
+      return;
+    }
     const recibida = (actual.detalles as Array<{ cantidad_recibida_91: number }>).some(
       (d) => num(d.cantidad_recibida_91) > 0
     );
@@ -489,9 +515,9 @@ export const registrarRecepcion = async (req: Request, res: Response): Promise<v
       return;
     }
     const row = det.rows[0];
-    if (row.estado_recepcion_92 === 'Anulado' || row.estado_pago_92 === 'Anulado') {
+    if (cicloCerrado(row.estado_recepcion_92, row.estado_pago_92)) {
       await client.query('ROLLBACK');
-      res.status(400).json({ success: false, error: 'Pedido anulado' });
+      res.status(400).json({ success: false, error: 'Pedido cerrado: no se registra recepción aquí' });
       return;
     }
     const pendiente = num(row.cantidad_solicitada_91) - num(row.cantidad_recibida_91);
@@ -572,6 +598,10 @@ export const anularPedido = async (req: Request, res: Response): Promise<void> =
       res.status(404).json({ success: false, error: 'Pedido no encontrado' });
       return;
     }
+    if (actual.estado_recepcion_92 === 'Cerrada' || actual.estado_recepcion_92 === 'Recibido') {
+      res.status(400).json({ success: false, error: 'Pedido cerrado: no se anula' });
+      return;
+    }
     const recibida = (actual.detalles as Array<{ cantidad_recibida_91: number }>).some(
       (d) => num(d.cantidad_recibida_91) > 0
     );
@@ -609,8 +639,8 @@ export const marcarNoRetirado = async (req: Request, res: Response): Promise<voi
       res.status(400).json({ success: false, error: 'Ya hay recepción: no aplica No retirado' });
       return;
     }
-    if (actual.estado_recepcion_92 === 'Anulado') {
-      res.status(400).json({ success: false, error: 'Pedido anulado' });
+    if (cicloCerrado(actual.estado_recepcion_92, actual.estado_pago_92)) {
+      res.status(400).json({ success: false, error: 'Pedido cerrado' });
       return;
     }
     await pool.query(
@@ -624,6 +654,257 @@ export const marcarNoRetirado = async (req: Request, res: Response): Promise<voi
       error: 'Error al marcar no retirado',
       message: error instanceof Error ? error.message : 'Error desconocido',
     });
+  }
+};
+
+type LineaPedido = {
+  id_detalle_91: number;
+  id_pedido_91: number;
+  cod_insumo_91?: number | null;
+  descripcion_libre_91?: string | null;
+  descripcion_89?: string | null;
+  id_proveedor_91?: number | null;
+  cantidad_solicitada_91: number;
+  cantidad_recibida_91?: number;
+  precio_unitario_91?: number | null;
+  observaciones_det_91?: string | null;
+};
+
+async function buscarPedidoConsolidado(
+  client: PoolClient,
+  idOrigen: number,
+  idProveedor: number
+): Promise<{ id_pedido_92: number; numero_orden_92: string } | null> {
+  const r = await client.query(
+    `SELECT id_pedido_92, numero_orden_92
+     FROM tbl_92_pedido_cabecera
+     WHERE id_pedido_92 <> $1
+       AND id_proveedor_92 = $2
+       AND estado_pago_92 <> 'Anulado'
+       AND estado_recepcion_92 IN ('Pendiente', 'Parcial', 'No retirado')
+     ORDER BY
+       CASE WHEN estado_recepcion_92 = 'Pendiente' THEN 0 ELSE 1 END,
+       fecha_pedido_92 DESC,
+       id_pedido_92 DESC
+     LIMIT 1`,
+    [idOrigen, idProveedor]
+  );
+  return (r.rowCount ?? 0) > 0 ? r.rows[0] : null;
+}
+
+async function crearPedidoConsolidado(
+  client: PoolClient,
+  origen: { id_pedido_92: number; numero_orden_92?: string | null; id_proveedor_92: number; id_responsable_92: number },
+  user: string
+): Promise<{ id_pedido_92: number; numero_orden_92: string }> {
+  const cab = await client.query(
+    `INSERT INTO tbl_92_pedido_cabecera (
+       id_proveedor_92, id_responsable_92, fecha_pedido_92, observaciones_cab_92, usuario_creacion_92
+     ) VALUES ($1, $2, CURRENT_DATE, $3, $4)
+     RETURNING id_pedido_92`,
+    [
+      origen.id_proveedor_92,
+      origen.id_responsable_92,
+      `PENDIENTES DE ${origen.numero_orden_92 || `PED-${String(origen.id_pedido_92).padStart(6, '0')}`}`,
+      user,
+    ]
+  );
+  const id = cab.rows[0].id_pedido_92 as number;
+  const numero = `PED-${String(id).padStart(6, '0')}`;
+  await client.query(
+    `UPDATE tbl_92_pedido_cabecera SET numero_orden_92 = $2 WHERE id_pedido_92 = $1`,
+    [id, numero]
+  );
+  return { id_pedido_92: id, numero_orden_92: numero };
+}
+
+/**
+ * Recibe lo marcado (cantidad pendiente completa) y copia el resto al pedido consolidado abierto.
+ * El documento de ayer no se reescribe: COMISA 2 / VIVIPRA 1 siguen en el PDF original.
+ */
+export const cerrarRecepcionPedido = async (req: Request, res: Response): Promise<void> => {
+  const client = await pool.connect();
+  try {
+    const idPedido = num(req.params.id);
+    const idsRecibidos = new Set(
+      (Array.isArray(req.body.ids_recibidos) ? req.body.ids_recibidos : [])
+        .map((v: unknown) => num(v))
+        .filter((n: number) => n > 0)
+    );
+    const idResp = num(req.body.id_responsable_recibe_93);
+    if (!idPedido) {
+      res.status(400).json({ success: false, error: 'Pedido requerido' });
+      return;
+    }
+    const data = await cargarPedido(idPedido);
+    if (!data) {
+      res.status(404).json({ success: false, error: 'Pedido no encontrado' });
+      return;
+    }
+    if (cicloCerrado(data.estado_recepcion_92, data.estado_pago_92)) {
+      res.status(400).json({ success: false, error: 'Este pedido ya está cerrado' });
+      return;
+    }
+    const detalles = (data.detalles || []) as LineaPedido[];
+    const marcadas = detalles.filter((d) => idsRecibidos.has(Number(d.id_detalle_91)));
+    const pendientesMarcada = marcadas.filter(
+      (d) => cantidadEntera(d.cantidad_solicitada_91) - num(d.cantidad_recibida_91) > 0
+    );
+    if (pendientesMarcada.length > 0) {
+      if (!idResp) {
+        res.status(400).json({ success: false, error: 'Indique quién recibe lo que llegó' });
+        return;
+      }
+      if (!(await responsableExiste(idResp))) {
+        res.status(400).json({ success: false, error: 'Responsable de recepción inválido' });
+        return;
+      }
+    }
+
+    await client.query('BEGIN');
+    await client.query(
+      `SELECT id_pedido_92 FROM tbl_92_pedido_cabecera WHERE id_pedido_92 = $1 FOR UPDATE`,
+      [idPedido]
+    );
+
+    let recibidos = 0;
+    for (const ln of pendientesMarcada) {
+      const det = await client.query(
+        `SELECT cantidad_solicitada_91, cantidad_recibida_91
+         FROM tbl_91_pedido_detalle
+         WHERE id_detalle_91 = $1 AND id_pedido_91 = $2
+         FOR UPDATE`,
+        [ln.id_detalle_91, idPedido]
+      );
+      if ((det.rowCount ?? 0) === 0) continue;
+      const pend = cantidadEntera(det.rows[0].cantidad_solicitada_91) - num(det.rows[0].cantidad_recibida_91);
+      if (pend < 1) continue;
+      await client.query(
+        `INSERT INTO tbl_93_recepcion_parcial (
+           id_detalle_93, cantidad_recibida_93, id_responsable_recibe_93, observaciones_rec_93
+         ) VALUES ($1, $2, $3, $4)`,
+        [ln.id_detalle_91, pend, idResp, 'CIERRE RECEPCIÓN']
+      );
+      await client.query(
+        `UPDATE tbl_91_pedido_detalle
+         SET cantidad_recibida_91 = cantidad_recibida_91 + $2
+         WHERE id_detalle_91 = $1`,
+        [ln.id_detalle_91, pend]
+      );
+      recibidos += 1;
+    }
+
+    const origenTrasReceive = await client.query(
+      `SELECT id_detalle_91, cod_insumo_91, descripcion_libre_91, id_proveedor_91,
+              cantidad_solicitada_91, cantidad_recibida_91, precio_unitario_91, observaciones_det_91
+       FROM tbl_91_pedido_detalle
+       WHERE id_pedido_91 = $1
+       ORDER BY id_detalle_91`,
+      [idPedido]
+    );
+    const aTrasladar = (origenTrasReceive.rows as LineaPedido[]).filter(
+      (d) => cantidadEntera(d.cantidad_solicitada_91) - num(d.cantidad_recibida_91) > 0
+    );
+
+    let destino: { id_pedido_92: number; numero_orden_92: string } | null = null;
+    let fusionados = 0;
+    let copiados = 0;
+    if (aTrasladar.length > 0) {
+      destino = await buscarPedidoConsolidado(client, idPedido, num(data.id_proveedor_92));
+      if (!destino) {
+        destino = await crearPedidoConsolidado(
+          client,
+          {
+            id_pedido_92: idPedido,
+            numero_orden_92: data.numero_orden_92,
+            id_proveedor_92: num(data.id_proveedor_92),
+            id_responsable_92: num(data.id_responsable_92),
+          },
+          usuario(req)
+        );
+      }
+      const destLineas = await client.query(
+        `SELECT id_detalle_91, cod_insumo_91, descripcion_libre_91, id_proveedor_91,
+                cantidad_solicitada_91, cantidad_recibida_91
+         FROM tbl_91_pedido_detalle
+         WHERE id_pedido_91 = $1 AND COALESCE(cantidad_recibida_91, 0) = 0`,
+        [destino.id_pedido_92]
+      );
+      const porClave = new Map<string, { id_detalle_91: number }>();
+      for (const row of destLineas.rows as LineaPedido[]) {
+        porClave.set(claveConsolidar(row), { id_detalle_91: Number(row.id_detalle_91) });
+      }
+      const numeroOrigen = String(data.numero_orden_92 || `PED-${String(idPedido).padStart(6, '0')}`);
+      for (const ln of aTrasladar) {
+        const qty = cantidadEntera(ln.cantidad_solicitada_91) - num(ln.cantidad_recibida_91);
+        if (qty < 1) continue;
+        const clave = claveConsolidar(ln);
+        const ya = porClave.get(clave);
+        if (ya) {
+          await client.query(
+            `UPDATE tbl_91_pedido_detalle
+             SET cantidad_solicitada_91 = cantidad_solicitada_91 + $2
+             WHERE id_detalle_91 = $1 AND id_pedido_91 = $3`,
+            [ya.id_detalle_91, qty, destino.id_pedido_92]
+          );
+          fusionados += 1;
+        } else {
+          const ins = await client.query(
+            `INSERT INTO tbl_91_pedido_detalle (
+               id_pedido_91, cod_insumo_91, descripcion_libre_91, id_proveedor_91,
+               cantidad_solicitada_91, precio_unitario_91, observaciones_det_91, id_detalle_origen_91
+             ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+             RETURNING id_detalle_91`,
+            [
+              destino.id_pedido_92,
+              ln.cod_insumo_91 || null,
+              ln.descripcion_libre_91 || null,
+              ln.id_proveedor_91 || null,
+              qty,
+              ln.precio_unitario_91 ?? null,
+              upper(`DESDE ${numeroOrigen}${ln.observaciones_det_91 ? ` — ${ln.observaciones_det_91}` : ''}`),
+              ln.id_detalle_91,
+            ]
+          );
+          porClave.set(clave, { id_detalle_91: Number(ins.rows[0].id_detalle_91) });
+          copiados += 1;
+        }
+      }
+      await client.query(
+        `UPDATE tbl_92_pedido_cabecera
+         SET estado_recepcion_92 = 'Cerrada',
+             fecha_retiro_92 = COALESCE(fecha_retiro_92, CURRENT_DATE)
+         WHERE id_pedido_92 = $1`,
+        [idPedido]
+      );
+    } else {
+      await recalcularRecepcion(client, idPedido);
+    }
+
+    await client.query('COMMIT');
+    const cerrado = await cargarPedido(idPedido);
+    const destData = destino ? await cargarPedido(destino.id_pedido_92) : null;
+    const numeroDest = destino?.numero_orden_92;
+    res.json({
+      success: true,
+      data: destData || cerrado,
+      cerrado,
+      destino: destData,
+      message: aTrasladar.length > 0
+        ? `Cerrado. ${recibidos} recibidos. ${copiados + fusionados} pendientes en ${numeroDest}`
+        : recibidos > 0
+          ? `Recepción cerrada: ${recibidos} ítems recibidos`
+          : 'Recepción cerrada',
+    });
+  } catch (error) {
+    await client.query('ROLLBACK');
+    res.status(500).json({
+      success: false,
+      error: 'Error al cerrar la recepción',
+      message: error instanceof Error ? error.message : 'Error desconocido',
+    });
+  } finally {
+    client.release();
   }
 };
 
@@ -845,8 +1126,8 @@ export const registrarEnvioWhatsApp = async (req: Request, res: Response): Promi
       res.status(404).json({ success: false, error: 'Pedido no encontrado' });
       return;
     }
-    if (data.estado_pago_92 === 'Anulado' || data.estado_recepcion_92 === 'Anulado') {
-      res.status(400).json({ success: false, error: 'Pedido anulado' });
+    if (cicloCerrado(data.estado_recepcion_92, data.estado_pago_92)) {
+      res.status(400).json({ success: false, error: 'Pedido cerrado: no se envía WhatsApp' });
       return;
     }
     const fallback = String(data.proveedor_nombre || '').trim().toUpperCase();

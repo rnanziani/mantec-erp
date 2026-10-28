@@ -24,7 +24,7 @@ CREATE TABLE IF NOT EXISTS public.tbl_92_pedido_cabecera (
     estado_pago_92 VARCHAR(20) DEFAULT 'Pendiente'
         CHECK (estado_pago_92 IN ('Pendiente', 'Pagado', 'Parcial', 'Anulado')),
     estado_recepcion_92 VARCHAR(20) DEFAULT 'Pendiente'
-        CHECK (estado_recepcion_92 IN ('Pendiente', 'Recibido', 'Parcial', 'No retirado', 'Anulado')),
+        CHECK (estado_recepcion_92 IN ('Pendiente', 'Recibido', 'Parcial', 'No retirado', 'Anulado', 'Cerrada')),
     fecha_pago_92 DATE,
     fecha_retiro_92 DATE,
     observaciones_cab_92 TEXT,
@@ -49,6 +49,7 @@ CREATE TABLE IF NOT EXISTS public.tbl_91_pedido_detalle (
     subtotal_91 NUMERIC(12,4) GENERATED ALWAYS AS
         (cantidad_solicitada_91 * COALESCE(precio_unitario_91, 0)) STORED,
     observaciones_det_91 TEXT,
+    id_detalle_origen_91 INT,
     CONSTRAINT fk_91_cabecera FOREIGN KEY (id_pedido_91)
         REFERENCES public.tbl_92_pedido_cabecera(id_pedido_92) ON DELETE CASCADE,
     CONSTRAINT fk_91_insumo FOREIGN KEY (cod_insumo_91)
@@ -59,7 +60,9 @@ CREATE TABLE IF NOT EXISTS public.tbl_91_pedido_detalle (
     CONSTRAINT chk_91_sku_o_texto CHECK (
         cod_insumo_91 IS NOT NULL
         OR TRIM(BOTH FROM COALESCE(descripcion_libre_91, '')) <> ''
-    )
+    ),
+    CONSTRAINT fk_91_origen FOREIGN KEY (id_detalle_origen_91)
+        REFERENCES public.tbl_91_pedido_detalle(id_detalle_91)
 );
 
 -- 4. Recepciones parciales
@@ -96,6 +99,7 @@ CREATE INDEX IF NOT EXISTS idx_92_estado_recepcion ON public.tbl_92_pedido_cabec
 CREATE INDEX IF NOT EXISTS idx_91_pedido ON public.tbl_91_pedido_detalle(id_pedido_91);
 CREATE INDEX IF NOT EXISTS idx_91_insumo ON public.tbl_91_pedido_detalle(cod_insumo_91);
 CREATE INDEX IF NOT EXISTS idx_91_proveedor ON public.tbl_91_pedido_detalle(id_proveedor_91);
+CREATE INDEX IF NOT EXISTS idx_91_origen ON public.tbl_91_pedido_detalle(id_detalle_origen_91);
 
 CREATE OR REPLACE FUNCTION public.fn_audit_estado_pedido()
 RETURNS TRIGGER AS $$
@@ -134,6 +138,8 @@ SELECT
     SUM(d.cantidad_recibida_91) AS total_items_recibidos,
     CASE
         WHEN c.estado_recepcion_92 = 'No retirado' THEN 'NO RETIRADO'
+        WHEN c.estado_recepcion_92 = 'Cerrada' THEN 'CERRADA'
+        WHEN c.estado_recepcion_92 = 'Anulado' THEN 'ANULADO'
         WHEN SUM(d.cantidad_recibida_91) = 0 THEN 'PENDIENTE DE RETIRO'
         WHEN SUM(d.cantidad_recibida_91) < SUM(d.cantidad_solicitada_91) THEN 'INCOMPLETO'
         ELSE 'COMPLETO'
