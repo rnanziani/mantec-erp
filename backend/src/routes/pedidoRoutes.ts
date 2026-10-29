@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import {
   anularPedido,
-  cerrarRecepcionPedido,
+  cerrarLineaPedido,
   createPedido,
   deletePedido,
   deshacerEnvioWhatsApp,
@@ -31,7 +31,7 @@ router.post('/:id/recepciones', registrarRecepcion);
 router.post('/:id/pago', registrarPago);
 router.post('/:id/anular', anularPedido);
 router.post('/:id/no-retirado', marcarNoRetirado);
-router.post('/:id/cerrar-recepcion', cerrarRecepcionPedido);
+router.post('/:id/cerrar-linea', cerrarLineaPedido);
 router.post('/:id/envios-whatsapp', registrarEnvioWhatsApp);
 router.delete('/:id/envios-whatsapp/:idEnvio', deshacerEnvioWhatsApp);
 

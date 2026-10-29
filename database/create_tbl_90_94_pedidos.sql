@@ -45,6 +45,8 @@ CREATE TABLE IF NOT EXISTS public.tbl_91_pedido_detalle (
     id_proveedor_91 INT,
     cantidad_solicitada_91 NUMERIC(12,4) NOT NULL CHECK (cantidad_solicitada_91 > 0),
     cantidad_recibida_91 NUMERIC(12,4) DEFAULT 0 CHECK (cantidad_recibida_91 >= 0),
+    cantidad_pasada_91 NUMERIC(12,4) NOT NULL DEFAULT 0 CHECK (cantidad_pasada_91 >= 0),
+    cantidad_baja_91 NUMERIC(12,4) NOT NULL DEFAULT 0 CHECK (cantidad_baja_91 >= 0),
     precio_unitario_91 NUMERIC(12,4),
     subtotal_91 NUMERIC(12,4) GENERATED ALWAYS AS
         (cantidad_solicitada_91 * COALESCE(precio_unitario_91, 0)) STORED,
@@ -57,6 +59,9 @@ CREATE TABLE IF NOT EXISTS public.tbl_91_pedido_detalle (
     CONSTRAINT fk_91_proveedor FOREIGN KEY (id_proveedor_91)
         REFERENCES public.tbl_90_proveedor(id_proveedor_90),
     CONSTRAINT chk_91_cantidades CHECK (cantidad_recibida_91 <= cantidad_solicitada_91),
+    CONSTRAINT chk_91_cierre CHECK (
+        cantidad_recibida_91 + cantidad_pasada_91 + cantidad_baja_91 <= cantidad_solicitada_91
+    ),
     CONSTRAINT chk_91_sku_o_texto CHECK (
         cod_insumo_91 IS NOT NULL
         OR TRIM(BOTH FROM COALESCE(descripcion_libre_91, '')) <> ''

@@ -602,6 +602,17 @@
     }
 }
 
+.pedido-resto {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+}
+
+.pedido-resto button {
+    padding: 6px 8px;
+    font-size: 12px;
+}
+
 .pedido-linea-nro {
     width: 2.5rem;
     text-align: center;

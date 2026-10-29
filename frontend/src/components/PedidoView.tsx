@@ -34,6 +34,8 @@ interface Detalle {
   descripcion_libre_91?: string | null;
   cantidad_solicitada_91: number;
   cantidad_recibida_91?: number;
+  cantidad_pasada_91?: number;
+  cantidad_baja_91?: number;
   precio_unitario_91?: number | null;
   observaciones_det_91?: string | null;
   codigo_89?: string | null;
@@ -96,6 +98,44 @@ function cantidadEntera(value: unknown): string {
   if (t === '') return '';
   const n = parseInt(t, 10);
   if (!Number.isFinite(n) || n < 1) return '';
+  return String(n);
+}
+
+function pendienteLinea(d: {
+  cantidad_solicitada_91: number;
+  cantidad_recibida_91?: number;
+  cantidad_pasada_91?: number;
+  cantidad_baja_91?: number;
+}): number {
+  return Math.max(
+    0,
+    Math.round(Number(d.cantidad_solicitada_91))
+      - Math.round(Number(d.cantidad_recibida_91 || 0))
+      - Math.round(Number(d.cantidad_pasada_91 || 0))
+      - Math.round(Number(d.cantidad_baja_91 || 0))
+  );
+}
+
+function resumenCierre(d: {
+  cantidad_recibida_91?: number;
+  cantidad_pasada_91?: number;
+  cantidad_baja_91?: number;
+}): string {
+  const partes: string[] = [];
+  const rec = Math.round(Number(d.cantidad_recibida_91 || 0));
+  const pas = Math.round(Number(d.cantidad_pasada_91 || 0));
+  const baja = Math.round(Number(d.cantidad_baja_91 || 0));
+  if (rec > 0) partes.push(`Llegó ${rec}`);
+  if (pas > 0) partes.push(`Mañana ${pas}`);
+  if (baja > 0) partes.push(`Ya no ${baja}`);
+  return partes.join(' · ') || 'Cerrada';
+}
+
+function cantidadDesdeCero(value: unknown): string {
+  const t = String(value ?? '').trim().replace(',', '.');
+  if (t === '') return '';
+  const n = parseInt(t, 10);
+  if (!Number.isFinite(n) || n < 0) return '';
   return String(n);
 }
 
@@ -194,9 +234,9 @@ const PedidoView: React.FC = () => {
 
   const [detalleAbierto, setDetalleAbierto] = useState<Pedido | null>(null);
   const [historial, setHistorial] = useState<Historial[]>([]);
-  const [qtyRecibe, setQtyRecibe] = useState<Record<number, string>>({});
-  const [llego, setLlego] = useState<Record<number, boolean>>({});
   const [idRecibe, setIdRecibe] = useState('');
+  const [llegadaLinea, setLlegadaLinea] = useState<Record<number, string>>({});
+  const [restoLinea, setRestoLinea] = useState<Record<number, '' | 'manana' | 'ya_no'>>({});
   const [enviandoWa, setEnviandoWa] = useState(false);
 
   const API = apiUrl('/pedidos');
@@ -375,8 +415,8 @@ const PedidoView: React.FC = () => {
       setDetalleAbierto(dPed.data);
       setShowForm(false);
       setIdRecibe('');
-      setQtyRecibe({});
-      setLlego({});
+      setLlegadaLinea({});
+      setRestoLinea({});
     }
     if (dHis.success && Array.isArray(dHis.data)) setHistorial(dHis.data);
   };
@@ -447,59 +487,52 @@ const PedidoView: React.FC = () => {
     await showSuccess('Listo', data.message || 'OK');
   };
 
-  const handleRecepcion = async (idDetalle: number) => {
-    const qty = Math.round(Number(qtyRecibe[idDetalle]));
-    if (!idRecibe || !(qty >= 1)) {
-      await showError('Validación', 'Indique cantidad y quién recibe');
+  const handleCerrarLinea = async (d: Detalle) => {
+    if (!detalleAbierto || !d.id_detalle_91) return;
+    const id = d.id_detalle_91;
+    const pend = pendienteLinea(d);
+    const llegada = llegadaLinea[id] === undefined || llegadaLinea[id] === '' ? 0 : Math.round(Number(llegadaLinea[id]));
+    const resto = restoLinea[id] || '';
+    if (!Number.isFinite(llegada) || llegada < 0 || llegada > pend) {
+      await showError('Validación', `Indique cuántos llegaron, entre 0 y ${pend}`);
       return;
     }
-    if (!detalleAbierto) return;
-    await postAccion(`${API}/${detalleAbierto.id_pedido_92}/recepciones`, {
-      id_detalle_91: idDetalle,
-      cantidad_recibida_93: qty,
-      id_responsable_recibe_93: Number(idRecibe),
-    });
-    setQtyRecibe((p) => ({ ...p, [idDetalle]: '' }));
-  };
-
-  const handleCerrarRecepcion = async () => {
-    if (!detalleAbierto) return;
-    const idsRecibidos = (detalleAbierto.detalles || [])
-      .filter((d) => d.id_detalle_91 && llego[d.id_detalle_91])
-      .map((d) => Number(d.id_detalle_91));
-    const nPendientes = (detalleAbierto.detalles || []).filter((d) => {
-      const pend = Math.round(Number(d.cantidad_solicitada_91) - Number(d.cantidad_recibida_91 || 0));
-      return pend > 0 && !llego[d.id_detalle_91 || 0];
-    }).length;
-    if (idsRecibidos.length > 0 && !idRecibe) {
+    if (llegada < pend && resto !== 'manana' && resto !== 'ya_no') {
+      await showError('Validación', 'El resto pasa a mañana o ya no se pide por el sistema');
+      return;
+    }
+    if (llegada > 0 && !idRecibe) {
       await showError('Validación', 'Indique quién recibe lo que llegó');
       return;
     }
-    const ok = await showConfirm(
-      'Cerrar recepción',
-      idsRecibidos.length || nPendientes
-        ? `${idsRecibidos.length} ítems a Recibido. ${nPendientes} pendientes pasan al pedido consolidado (no se reescriben). El PDF de ${detalleAbierto.numero_orden_92} no cambia.`
-        : 'No hay pendientes. Se cierra este pedido.',
-      'Cerrar'
-    );
+    const falta = pend - llegada;
+    const texto = [
+      llegada > 0 ? `Llegaron ${llegada}.` : 'No llegó nada.',
+      falta > 0 && resto === 'manana' ? `${falta} pasan al pedido de mañana.` : '',
+      falta > 0 && resto === 'ya_no' ? `${falta} ya no se piden por el sistema.` : '',
+      'El PDF de este pedido no cambia.',
+    ].filter(Boolean).join(' ');
+    const ok = await showConfirm('Cerrar insumo', texto, 'Cerrar');
     if (!ok) return;
-    const res = await apiFetch(`${API}/${detalleAbierto.id_pedido_92}/cerrar-recepcion`, {
+    const res = await apiFetch(`${API}/${detalleAbierto.id_pedido_92}/cerrar-linea`, {
       method: 'POST',
       body: JSON.stringify({
-        ids_recibidos: idsRecibidos,
-        id_responsable_recibe_93: idRecibe ? Number(idRecibe) : null,
+        id_detalle_91: id,
+        cantidad_llegada: llegada,
+        resto: falta > 0 ? resto : null,
+        id_responsable_recibe_93: llegada > 0 ? Number(idRecibe) : null,
       }),
     });
     const data: ApiResponse<Pedido> = await res.json();
     if (!data.success) {
-      await showError('Error', data.error || 'No se pudo cerrar');
+      await showError('Error', data.error || 'No se pudo cerrar la línea');
       return;
     }
     await fetchAll();
     if (data.data) setDetalleAbierto(data.data);
-    setLlego({});
-    setQtyRecibe({});
-    await showSuccess('Listo', data.message || 'Recepción cerrada');
+    setLlegadaLinea((p) => ({ ...p, [id]: '' }));
+    setRestoLinea((p) => ({ ...p, [id]: '' }));
+    await showSuccess('Listo', data.message || 'Línea cerrada');
   };
 
   const pedidoConDetalle = async (id: number): Promise<Pedido | null> => {
@@ -1081,11 +1114,9 @@ const PedidoView: React.FC = () => {
                   aria-label="Responsable que recibe"
                 />
               </div>
-              <button type="button" className="btn-primary" onClick={() => void handleCerrarRecepcion()}>
-                Cerrar recepción
-              </button>
-              <p className="form-hint" style={{ margin: 0, maxWidth: 420 }}>
-                Marque Llegó lo que ya está. Al cerrar, el resto pasa al pedido consolidado (COMISA 2 y VIVIPRA 1 no se vuelven a tipear). Esperar 3 insumos es operativo, no se bloquea.
+              <p className="form-hint" style={{ margin: 0, maxWidth: 520 }}>
+                Cierre cada insumo. Si llegaron menos de los pedidos, el resto pasa a mañana o ya no se pide por acá
+                (porque se compró afuera). El PDF de este pedido no cambia.
               </p>
             </div>
           )}
@@ -1101,13 +1132,19 @@ const PedidoView: React.FC = () => {
                   <th>Recibido</th>
                   <th>Pendiente</th>
                   <th>WhatsApp</th>
-                  <th>Llegó</th>
-                  <th>Recibir</th>
+                  <th>Llegaron</th>
+                  <th>Resto</th>
+                  <th>Cerrar</th>
                 </tr>
               </thead>
               <tbody>
                 {(detalleAbierto.detalles || []).map((d, idx) => {
-                  const pend = Math.round(Number(d.cantidad_solicitada_91) - Number(d.cantidad_recibida_91 || 0));
+                  const pend = pendienteLinea(d);
+                  const id = d.id_detalle_91 || 0;
+                  const llegadaTxt = llegadaLinea[id] ?? '';
+                  const llegadaNum = llegadaTxt === '' ? 0 : Math.round(Number(llegadaTxt));
+                  const falta = Math.max(0, pend - (Number.isFinite(llegadaNum) ? llegadaNum : 0));
+                  const resto = restoLinea[id] || '';
                   return (
                     <tr key={d.id_detalle_91}>
                       <td className="pedido-linea-nro">{idx + 1}</td>
@@ -1133,50 +1170,58 @@ const PedidoView: React.FC = () => {
                           '—'
                         )}
                       </td>
-                      <td>
-                        {pend > 0 && !cerrado ? (
-                          <input
-                            type="checkbox"
-                            checked={Boolean(llego[d.id_detalle_91 || 0])}
-                            onChange={(e) =>
-                              setLlego((p) => ({ ...p, [d.id_detalle_91 || 0]: e.target.checked }))
-                            }
-                            aria-label={`Llegó ${d.codigo_89 || d.descripcion_89}`}
-                          />
-                        ) : pend <= 0 ? (
-                          <span className="badge badge-success">OK</span>
-                        ) : (
-                          '—'
-                        )}
-                      </td>
-                      <td>
-                        {pend > 0 && !cerrado ? (
-                          <>
+                      {pend > 0 && !cerrado ? (
+                        <>
+                          <td>
                             <input
                               type="number"
-                              min={1}
+                              min={0}
                               max={pend}
                               step={1}
                               inputMode="numeric"
                               className="form-input"
-                              style={{ width: 90, display: 'inline-block' }}
-                              value={qtyRecibe[d.id_detalle_91 || 0] || ''}
+                              style={{ width: 72 }}
+                              value={llegadaTxt}
+                              placeholder="0"
                               onChange={(e) =>
-                                setQtyRecibe((p) => ({
-                                  ...p,
-                                  [d.id_detalle_91 || 0]: cantidadEntera(e.target.value),
-                                }))
+                                setLlegadaLinea((p) => ({ ...p, [id]: cantidadDesdeCero(e.target.value) }))
                               }
-                              aria-label={`Cantidad a recibir ${d.codigo_89 || d.descripcion_89}`}
+                              aria-label={`Cuántos llegaron de ${d.codigo_89 || d.descripcion_89}`}
                             />
-                            <button type="button" className="btn-primary" onClick={() => handleRecepcion(d.id_detalle_91 || 0)}>
-                              Recibir
+                          </td>
+                          <td>
+                            {falta > 0 ? (
+                              <div className="pedido-resto" role="group" aria-label="Qué hacer con el resto">
+                                <button
+                                  type="button"
+                                  className={resto === 'manana' ? 'btn-primary' : 'btn-secondary'}
+                                  aria-pressed={resto === 'manana'}
+                                  onClick={() => setRestoLinea((p) => ({ ...p, [id]: 'manana' }))}
+                                >
+                                  Mañana
+                                </button>
+                                <button
+                                  type="button"
+                                  className={resto === 'ya_no' ? 'btn-primary' : 'btn-secondary'}
+                                  aria-pressed={resto === 'ya_no'}
+                                  onClick={() => setRestoLinea((p) => ({ ...p, [id]: 'ya_no' }))}
+                                >
+                                  Ya no
+                                </button>
+                              </div>
+                            ) : (
+                              <span className="form-hint">Llegó todo</span>
+                            )}
+                          </td>
+                          <td>
+                            <button type="button" className="btn-primary" onClick={() => void handleCerrarLinea(d)}>
+                              Cerrar
                             </button>
-                          </>
-                        ) : (
-                          '—'
-                        )}
-                      </td>
+                          </td>
+                        </>
+                      ) : (
+                        <td colSpan={3}>{resumenCierre(d)}</td>
+                      )}
                     </tr>
                   );
                 })}
