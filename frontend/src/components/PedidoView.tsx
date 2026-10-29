@@ -922,7 +922,7 @@ const PedidoView: React.FC = () => {
             <span className="badge">Recepción {detalleAbierto.estado_recepcion_92}</span>
           </h3>
           {!anulado && (
-            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 12 }}>
+            <div className="pedido-button-grid">
               {detalleAbierto.estado_pago_92 !== 'Pagado' && (
                 <button
                   type="button"
@@ -979,7 +979,7 @@ const PedidoView: React.FC = () => {
             </div>
           )}
           {anulado && (
-            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 12 }}>
+            <div className="pedido-button-grid">
               <button
                 type="button"
                 className="btn-info"
@@ -1008,7 +1008,7 @@ const PedidoView: React.FC = () => {
             Un botón por ferretería. Se registra el lote y luego se abre el chat; tú pulsas Enviar.
             Si a las 11:30 agregas líneas, el segundo envío lleva solo las nuevas.
           </p>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 16 }}>
+          <div className="pedido-button-grid" aria-label="WhatsApp por proveedor">
             {gruposPedidoComoPdf(detalleAbierto).map((g) => {
               const catalogo = matchProveedor(g.proveedor);
               const e164 = telefonoWhatsApp(catalogo?.telefono_90);
@@ -1016,21 +1016,9 @@ const PedidoView: React.FC = () => {
               const enviados = g.lineas.length - pendientes.lineas.length;
               const puedeEnviar = Boolean(e164) && pendientes.lineas.length > 0 && !cerrado;
               return (
-                <div
-                  key={g.proveedor}
-                  style={{
-                    display: 'flex',
-                    flexWrap: 'wrap',
-                    alignItems: 'center',
-                    gap: 8,
-                    padding: '8px 12px',
-                    background: '#fff',
-                    border: '1px solid #dee2e6',
-                    borderRadius: 6,
-                  }}
-                >
-                  <strong style={{ minWidth: 160 }}>{g.proveedor}</strong>
-                  <span style={{ color: '#6c757d' }}>
+                <div key={g.proveedor} className="pedido-wa-card">
+                  <strong>{g.proveedor}</strong>
+                  <span className="pedido-wa-meta">
                     {pendientes.lineas.length > 0
                       ? `${pendientes.lineas.length} nuevos · ${pendientes.totalQty} un.`
                       : 'nada pendiente'}
@@ -1059,26 +1047,26 @@ const PedidoView: React.FC = () => {
           {(detalleAbierto.envios_whatsapp || []).length > 0 && (
             <>
               <h4 style={{ marginTop: 0 }}>Envíos WhatsApp</h4>
-              <ul style={{ marginTop: 0, marginBottom: 16 }}>
+              <div className="pedido-envio-grid" aria-label="Envíos WhatsApp">
                 {(detalleAbierto.envios_whatsapp || []).map((ev) => (
-                  <li key={ev.id_envio_98} style={{ marginBottom: 6 }}>
-                    {mostrarFechaHora(ev.fecha_envio_98)} — {ev.proveedor_98} · {ev.lineas?.length || 0} ítems
-                    {ev.usuario_98 ? ` · ${ev.usuario_98}` : ''}
+                  <div key={ev.id_envio_98} className="pedido-wa-card">
+                    <strong>{ev.proveedor_98}</strong>
+                    <span className="pedido-wa-meta">
+                      {mostrarFechaHora(ev.fecha_envio_98)} · {ev.lineas?.length || 0} ítems
+                      {ev.usuario_98 ? ` · ${ev.usuario_98}` : ''}
+                    </span>
                     {!cerrado && (
-                      <>
-                        {' '}
-                        <button
-                          type="button"
-                          className="btn-secondary"
-                          onClick={() => void deshacerEnvioWhatsApp(detalleAbierto, ev)}
-                        >
-                          Deshacer
-                        </button>
-                      </>
+                      <button
+                        type="button"
+                        className="btn-secondary"
+                        onClick={() => void deshacerEnvioWhatsApp(detalleAbierto, ev)}
+                      >
+                        Deshacer
+                      </button>
                     )}
-                  </li>
+                  </div>
                 ))}
-              </ul>
+              </div>
             </>
           )}
           {!cerrado && (
