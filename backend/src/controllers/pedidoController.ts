@@ -1014,25 +1014,20 @@ export const generarPdfPedido = async (req: Request, res: Response): Promise<voi
       });
     }
 
+    const celdaVacia = () => ({ text: '', border: [false, false, false, false] });
     for (const g of grupos) {
-      content.push({
-        table: {
-          widths: ['*'],
-          body: [[
-            {
-              text: `${g.proveedor}  —  ${g.lineas.length} ítems  —  ${g.totalQty} un.`,
-              bold: true,
-              color: '#fff',
-              fillColor: '#1e3a5f',
-              fontSize: 10,
-              margin: [6, 4, 6, 4],
-            },
-          ]],
-        },
-        layout: 'noBorders',
-        margin: [0, 8, 0, 0],
-      });
+      const banner = {
+        text: `${g.proveedor}  —  ${g.lineas.length} ítems  —  ${g.totalQty} un.`,
+        colSpan: 5,
+        bold: true,
+        color: '#fff',
+        fillColor: '#1e3a5f',
+        fontSize: 10,
+        margin: [6, 4, 6, 4],
+        border: [false, false, false, false],
+      };
       const body = [
+        [banner, celdaVacia(), celdaVacia(), celdaVacia(), celdaVacia()],
         [headerCell('#'), headerCell('Código'), headerCell('Descripción'), headerCell('Cant.'), headerCell('Precio')],
         ...g.lineas.map((l, i) => [
           cell(i + 1, { alignment: 'center' }),
@@ -1043,9 +1038,15 @@ export const generarPdfPedido = async (req: Request, res: Response): Promise<voi
         ]),
       ];
       content.push({
-        table: { headerRows: 1, widths: [22, 90, '*', 40, 50], body },
+        table: {
+          headerRows: 2,
+          keepWithHeaderRows: 1,
+          dontBreakRows: true,
+          widths: [22, 90, '*', 40, 50],
+          body,
+        },
         layout: {
-          hLineWidth: () => 0.4,
+          hLineWidth: (i: number) => (i <= 1 ? 0 : 0.4),
           vLineWidth: () => 0.4,
           hLineColor: () => '#c5cdd6',
           vLineColor: () => '#c5cdd6',
@@ -1054,7 +1055,7 @@ export const generarPdfPedido = async (req: Request, res: Response): Promise<voi
           paddingTop: () => 3,
           paddingBottom: () => 3,
         },
-        margin: [0, 0, 0, 4],
+        margin: [0, 8, 0, 4],
       });
     }
 
