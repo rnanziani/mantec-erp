@@ -241,6 +241,76 @@ export const getAllPedidos = async (_req: Request, res: Response): Promise<void>
   }
 };
 
+/** Texto plano para contabilidad: un día, los proveedores que todavía no están pagados. */
+export const getResumenPago = async (_req: Request, res: Response): Promise<void> => {
+  try {
+    const result = await pool.query(
+      `SELECT to_char(c.fecha_pedido_92, 'DD-MM-YY') AS fecha,
+              c.id_pedido_92,
+              NULLIF(TRIM(c.observaciones_cab_92), '') AS nota,
+              UPPER(TRIM(BOTH FROM COALESCE(
+                pl.razon_social_90,
+                NULLIF(TRIM(e.proveedor_89), ''),
+                p.razon_social_90
+              ))) AS proveedor
+       FROM tbl_92_pedido_cabecera c
+       JOIN tbl_90_proveedor p ON p.id_proveedor_90 = c.id_proveedor_92
+       LEFT JOIN tbl_91_pedido_detalle d ON d.id_pedido_91 = c.id_pedido_92
+       LEFT JOIN tbl_90_proveedor pl ON pl.id_proveedor_90 = d.id_proveedor_91
+       LEFT JOIN tbl_89_codigo_etiqueta e ON e.idcodigo_89 = d.cod_insumo_91
+       WHERE c.estado_pago_92 IN ('Pendiente', 'Parcial')
+         AND c.estado_recepcion_92 <> 'Anulado'
+       ORDER BY c.fecha_pedido_92, c.id_pedido_92, proveedor`
+    );
+    const pedidos = new Map<number, { fecha: string; nota: string; proveedores: Set<string>; orden: number }>();
+    let orden = 0;
+    for (const row of result.rows as Array<{ fecha: string; id_pedido_92: number; nota: string | null; proveedor: string | null }>) {
+      const id = Number(row.id_pedido_92);
+      let ped = pedidos.get(id);
+      if (!ped) {
+        ped = { fecha: String(row.fecha), nota: String(row.nota || '').trim(), proveedores: new Set(), orden: orden++ };
+        pedidos.set(id, ped);
+      }
+      const prov = String(row.proveedor || '').trim();
+      if (prov) ped.proveedores.add(prov);
+    }
+    const dias = new Map<string, Map<string, { orden: number; notas: string[] }>>();
+    for (const ped of pedidos.values()) {
+      const lista = [...ped.proveedores];
+      if (lista.length === 0) continue;
+      let dia = dias.get(ped.fecha);
+      if (!dia) {
+        dia = new Map();
+        dias.set(ped.fecha, dia);
+      }
+      for (const prov of lista) {
+        let item = dia.get(prov);
+        if (!item) {
+          item = { orden: ped.orden, notas: [] };
+          dia.set(prov, item);
+        }
+        if (lista.length === 1 && ped.nota && !item.notas.includes(ped.nota)) item.notas.push(ped.nota);
+      }
+    }
+    const bloques = [...dias.entries()].map(([fecha, provs]) => {
+      const lineas = [...provs.entries()]
+        .sort((a, b) => a[1].orden - b[1].orden || a[0].localeCompare(b[0], 'es'))
+        .map(([nombre, info]) => (info.notas.length > 0 ? `${nombre} (${info.notas.join('; ')})` : nombre));
+      return `Pagos ${fecha}\n${lineas.join('\n')}`;
+    });
+    res.json({
+      success: true,
+      data: { texto: bloques.join('\n\n') || 'No hay pagos pendientes.' },
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: 'Error al armar el resumen de pago',
+      message: error instanceof Error ? error.message : 'Error desconocido',
+    });
+  }
+};
+
 export const getVerificadorPedidos = async (_req: Request, res: Response): Promise<void> => {
   try {
     const result = await pool.query(

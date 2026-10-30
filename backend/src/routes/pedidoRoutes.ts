@@ -9,6 +9,7 @@ import {
   getAllPedidos,
   getHistorialPedido,
   getPedidoById,
+  getResumenPago,
   getVerificadorPedidos,
   marcarNoRetirado,
   registrarEnvioWhatsApp,
@@ -21,6 +22,7 @@ const router = Router();
 
 router.get('/', getAllPedidos);
 router.get('/verificador', getVerificadorPedidos);
+router.get('/resumen-pago', getResumenPago);
 router.get('/:id/historial', getHistorialPedido);
 router.get('/:id/pdf', generarPdfPedido);
 router.get('/:id', getPedidoById);

@@ -602,6 +602,17 @@
     }
 }
 
+.pedido-resumen-texto {
+    width: 100%;
+    min-height: 220px;
+    margin: 0 0 12px;
+    font-family: ui-monospace, Consolas, monospace;
+    font-size: 14px;
+    line-height: 1.45;
+    text-transform: none;
+    white-space: pre;
+}
+
 .pedido-resto {
     display: flex;
     flex-wrap: wrap;

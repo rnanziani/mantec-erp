@@ -238,6 +238,8 @@ const PedidoView: React.FC = () => {
   const [llegadaLinea, setLlegadaLinea] = useState<Record<number, string>>({});
   const [restoLinea, setRestoLinea] = useState<Record<number, '' | 'manana' | 'ya_no'>>({});
   const [enviandoWa, setEnviandoWa] = useState(false);
+  const [resumenPago, setResumenPago] = useState<string | null>(null);
+  const resumenRef = React.useRef<HTMLTextAreaElement>(null);
 
   const API = apiUrl('/pedidos');
 
@@ -690,6 +692,28 @@ const PedidoView: React.FC = () => {
     await showSuccess('Listo', data.message || 'Envío deshecho');
   };
 
+  const abrirResumenPago = async () => {
+    const res = await apiFetch(`${API}/resumen-pago`);
+    const data: ApiResponse<{ texto: string }> = await res.json();
+    if (!data.success || !data.data?.texto) {
+      await showError('Resumen de pago', data.error || 'No se pudo armar el resumen');
+      return;
+    }
+    setResumenPago(data.data.texto);
+  };
+
+  const copiarResumenPago = async () => {
+    if (!resumenPago) return;
+    try {
+      await navigator.clipboard.writeText(resumenPago);
+      await showSuccess('Listo', 'Resumen copiado. Pégalo en el bloc de notas.');
+    } catch {
+      resumenRef.current?.focus();
+      resumenRef.current?.select();
+      await showError('Copiar', 'Selecciona el texto y cópialo con Ctrl+C');
+    }
+  };
+
   const handleDelete = async (id: number) => {
     const ok = await showDeleteConfirm('este pedido');
     if (!ok) return;
@@ -750,6 +774,9 @@ const PedidoView: React.FC = () => {
           >
             PDF
           </button>
+          <button type="button" className="btn-info" onClick={() => void abrirResumenPago()}>
+            Resumen de pago
+          </button>
           <button type="button" className="btn-secondary" onClick={() => { window.location.hash = 'dashboard'; }}>
             Salir
           </button>
@@ -759,6 +786,32 @@ const PedidoView: React.FC = () => {
       {error && (
         <div className="error-message" role="alert">
           {error}
+        </div>
+      )}
+
+      {resumenPago !== null && (
+        <div className="form-container pedido-resumen-pago">
+          <h3>Resumen de pago</h3>
+          <p className="form-hint">
+            Pedidos con pago Pendiente o Parcial, un proveedor por línea. Puedes corregir el texto antes de copiarlo.
+          </p>
+          <textarea
+            ref={resumenRef}
+            className="form-input pedido-resumen-texto"
+            readOnly={false}
+            rows={16}
+            value={resumenPago}
+            onChange={(e) => setResumenPago(e.target.value)}
+            aria-label="Resumen de pago para contabilidad"
+          />
+          <div className="pedido-resto">
+            <button type="button" className="btn-primary" onClick={() => void copiarResumenPago()}>
+              Copiar
+            </button>
+            <button type="button" className="btn-secondary" onClick={() => setResumenPago(null)}>
+              Cerrar
+            </button>
+          </div>
         </div>
       )}
 
