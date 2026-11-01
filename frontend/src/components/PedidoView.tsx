@@ -264,6 +264,7 @@ const PedidoView: React.FC = () => {
   const [editingId, setEditingId] = useState<number | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [filtroCiclo, setFiltroCiclo] = useState<'abiertas' | 'cerradas' | 'todas'>('abiertas');
+  const [filtroPago, setFiltroPago] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
 
@@ -390,6 +391,7 @@ const PedidoView: React.FC = () => {
     let rows = pedidos;
     if (filtroCiclo === 'abiertas') rows = rows.filter(pedidoAbierto);
     if (filtroCiclo === 'cerradas') rows = rows.filter((p) => !pedidoAbierto(p));
+    if (filtroPago) rows = rows.filter((p) => p.estado_pago_92 === filtroPago);
     const q = searchTerm.trim().toLowerCase();
     if (!q) return rows;
     return rows.filter((p) =>
@@ -398,13 +400,13 @@ const PedidoView: React.FC = () => {
         .toLowerCase()
         .includes(q)
     );
-  }, [pedidos, searchTerm, filtroCiclo]);
+  }, [pedidos, searchTerm, filtroCiclo, filtroPago]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / itemsPerPage));
   const pageItems = filtered.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, filtroCiclo]);
+  }, [searchTerm, filtroCiclo, filtroPago]);
 
   const resetForm = () => {
     setEditingId(null);
@@ -658,6 +660,14 @@ const PedidoView: React.FC = () => {
   const exportarPdfPedido = async (id: number) => {
     try {
       await openAuthenticatedBlob(`/pedidos/${id}/pdf`);
+    } catch (e) {
+      await showError('PDF', e instanceof Error ? e.message : 'No se pudo generar el PDF');
+    }
+  };
+
+  const exportarPdfPagos = async (tipo: 'pendientes' | 'pagados') => {
+    try {
+      await openAuthenticatedBlob(`/pedidos/pdf-pagos?tipo=${tipo}`);
     } catch (e) {
       await showError('PDF', e instanceof Error ? e.message : 'No se pudo generar el PDF');
     }
@@ -1403,7 +1413,7 @@ const PedidoView: React.FC = () => {
           onChange={(e) => changeKeepingCaret(e, setSearchTerm)}
           aria-label="Buscar pedidos"
         />
-        <div role="group" aria-label="Filtro abierta o cerrada" style={{ display: 'flex', gap: 6 }}>
+        <div role="group" aria-label="Filtro abierta o cerrada" style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
           {([
             ['abiertas', 'Abiertas'],
             ['cerradas', 'Cerradas'],
@@ -1420,6 +1430,28 @@ const PedidoView: React.FC = () => {
             </button>
           ))}
         </div>
+        <label className="pedido-pago-filter" htmlFor="filtro_pago">
+          Pago
+          <select
+            id="filtro_pago"
+            className="form-input"
+            value={filtroPago}
+            onChange={(e) => setFiltroPago(e.target.value)}
+            aria-label="Filtrar pedidos por estado de pago"
+          >
+            <option value="">Todos</option>
+            <option value="Pendiente">Pendiente</option>
+            <option value="Parcial">Parcial</option>
+            <option value="Pagado">Pagado</option>
+            <option value="Anulado">Anulado</option>
+          </select>
+        </label>
+        <button type="button" className="btn-export" onClick={() => void exportarPdfPagos('pendientes')}>
+          PDF pendientes
+        </button>
+        <button type="button" className="btn-export" onClick={() => void exportarPdfPagos('pagados')}>
+          PDF pagados
+        </button>
       </div>
 
       <div className="table-container">

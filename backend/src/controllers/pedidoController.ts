@@ -357,6 +357,141 @@ export const getResumenPago = async (_req: Request, res: Response): Promise<void
   }
 };
 
+/** PDF de contabilidad: pendientes (incluye parcial) o ya pagados, una ferretería por línea. */
+export const generarPdfPagos = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const tipo = String(req.query.tipo || '').trim().toLowerCase();
+    const pagados = tipo === 'pagados';
+    if (tipo !== 'pagados' && tipo !== 'pendientes') {
+      res.status(400).json({ success: false, error: 'El PDF es de pagados o de pendientes' });
+      return;
+    }
+    const result = await pool.query(
+      `SELECT to_char(c.fecha_pedido_92, 'DD-MM-YYYY') AS fecha,
+              c.id_pedido_92,
+              COALESCE(c.numero_orden_92, 'PED-' || LPAD(c.id_pedido_92::text, 6, '0')) AS numero,
+              c.estado_pago_92,
+              to_char(c.fecha_pago_92, 'DD-MM-YYYY') AS fecha_pago,
+              NULLIF(TRIM(c.observaciones_cab_92), '') AS nota,
+              UPPER(TRIM(BOTH FROM COALESCE(
+                pl.razon_social_90,
+                NULLIF(TRIM(e.proveedor_89), ''),
+                p.razon_social_90
+              ))) AS proveedor
+       FROM tbl_92_pedido_cabecera c
+       JOIN tbl_90_proveedor p ON p.id_proveedor_90 = c.id_proveedor_92
+       LEFT JOIN tbl_91_pedido_detalle d ON d.id_pedido_91 = c.id_pedido_92
+       LEFT JOIN tbl_90_proveedor pl ON pl.id_proveedor_90 = d.id_proveedor_91
+       LEFT JOIN tbl_89_codigo_etiqueta e ON e.idcodigo_89 = d.cod_insumo_91
+       WHERE c.estado_recepcion_92 <> 'Anulado'
+         AND c.estado_pago_92 = ANY($1::text[])
+       ORDER BY c.fecha_pedido_92, c.id_pedido_92, proveedor`,
+      [pagados ? ['Pagado'] : ['Pendiente', 'Parcial']]
+    );
+    const vistos = new Set<string>();
+    const filas: Array<{ fecha: string; numero: string; pago: string; fechaPago: string; nota: string; proveedor: string }> = [];
+    for (const row of result.rows as Array<{
+      fecha: string;
+      id_pedido_92: number;
+      numero: string;
+      estado_pago_92: string;
+      fecha_pago: string | null;
+      nota: string | null;
+      proveedor: string | null;
+    }>) {
+      const proveedor = String(row.proveedor || '').trim();
+      if (!proveedor) continue;
+      const clave = `${row.id_pedido_92}|${proveedor}`;
+      if (vistos.has(clave)) continue;
+      vistos.add(clave);
+      filas.push({
+        fecha: String(row.fecha),
+        numero: String(row.numero),
+        pago: String(row.estado_pago_92),
+        fechaPago: String(row.fecha_pago || ''),
+        nota: String(row.nota || '').trim(),
+        proveedor,
+      });
+    }
+    const titulo = pagados ? 'Pagos realizados' : 'Pagos pendientes';
+    const cell = (text: string, extra: Record<string, unknown> = {}) => ({ text, fontSize: 8, ...extra });
+    const headerCell = (text: string) => cell(text, { bold: true, color: '#1e3a5f', fillColor: '#eef2f6' });
+    const encabezados = pagados
+      ? ['Fecha pedido', 'Orden', 'Ferretería', 'Pagado el']
+      : ['Fecha pedido', 'Orden', 'Ferretería', 'Pago'];
+    const body = [
+      encabezados.map((h) => headerCell(h)),
+      ...(filas.length > 0
+        ? filas.map((f) => pagados
+          ? [cell(f.fecha), cell(f.numero), cell(f.nota ? `${f.proveedor} (${f.nota})` : f.proveedor), cell(f.fechaPago || '—')]
+          : [cell(f.fecha), cell(f.numero), cell(f.nota ? `${f.proveedor} (${f.nota})` : f.proveedor), cell(f.pago)])
+        : [[cell(pagados ? 'No hay pedidos pagados.' : 'No hay pagos pendientes.', { colSpan: 4 }), {}, {}, {}]]),
+    ];
+    const content: unknown[] = [
+      { text: 'MANTEC ERP', fontSize: 9, color: '#64748b', margin: [0, 0, 0, 2] },
+      { text: titulo, fontSize: 14, bold: true, color: '#1e3a5f' },
+      {
+        text: pagados
+          ? `Generado el ${fechaCl(hoyChile())}  ·  Pedidos con pago Pagado  ·  ${filas.length} ferreterías`
+          : `Generado el ${fechaCl(hoyChile())}  ·  Pendiente y Parcial  ·  ${filas.length} ferreterías`,
+        fontSize: 8,
+        color: '#64748b',
+        margin: [0, 4, 0, 10],
+      },
+      {
+        table: { headerRows: 1, dontBreakRows: true, widths: [70, 80, '*', 70], body },
+        layout: {
+          hLineWidth: () => 0.4,
+          vLineWidth: () => 0.4,
+          hLineColor: () => '#c5cdd6',
+          vLineColor: () => '#c5cdd6',
+          paddingLeft: () => 4,
+          paddingRight: () => 4,
+          paddingTop: () => 3,
+          paddingBottom: () => 3,
+        },
+      },
+    ];
+    const fonts = {
+      Roboto: {
+        normal: 'Helvetica',
+        bold: 'Helvetica-Bold',
+        italics: 'Helvetica-Oblique',
+        bolditalics: 'Helvetica-BoldOblique',
+      },
+    };
+    const printer = new PdfPrinter(fonts);
+    const docDefinition: PdfDocumentDefinition = {
+      pageSize: 'LETTER',
+      pageMargins: [40, 36, 40, 40],
+      content,
+      defaultStyle: { font: 'Roboto', fontSize: 9 },
+      footer: (currentPage: number, pageCount: number) => ({
+        columns: [
+          { text: 'Uso interno · Contabilidad', fontSize: 7, color: '#94a3b8', margin: [40, 0, 0, 0] },
+          { text: `Página ${currentPage} de ${pageCount}`, alignment: 'right', fontSize: 7, color: '#94a3b8', margin: [0, 0, 40, 0] },
+        ],
+      }),
+    };
+    const pdfDoc = printer.createPdfKitDocument(docDefinition);
+    const filename = pagados ? 'pagos-realizados.pdf' : 'pagos-pendientes.pdf';
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename="${filename}"; filename*=UTF-8''${encodeURIComponent(filename)}`
+    );
+    pdfDoc.pipe(res);
+    pdfDoc.end();
+  } catch (error) {
+    if (res.headersSent) return;
+    res.status(500).json({
+      success: false,
+      error: 'Error al generar el PDF de pagos',
+      message: error instanceof Error ? error.message : 'Error desconocido',
+    });
+  }
+};
+
 export const getVerificadorPedidos = async (_req: Request, res: Response): Promise<void> => {
   try {
     const result = await pool.query(
