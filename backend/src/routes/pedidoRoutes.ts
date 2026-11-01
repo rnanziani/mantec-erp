@@ -5,6 +5,7 @@ import {
   createPedido,
   deletePedido,
   deshacerEnvioWhatsApp,
+  generarPdfDetalle,
   generarPdfPagos,
   generarPdfPedido,
   getAllPedidos,
@@ -27,6 +28,7 @@ router.get('/resumen-pago', getResumenPago);
 router.get('/pdf-pagos', generarPdfPagos);
 router.get('/:id/historial', getHistorialPedido);
 router.get('/:id/pdf', generarPdfPedido);
+router.get('/:id/pdf-detalle', generarPdfDetalle);
 router.get('/:id', getPedidoById);
 router.post('/', createPedido);
 router.put('/:id', updatePedido);

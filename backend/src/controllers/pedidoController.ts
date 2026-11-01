@@ -1377,6 +1377,137 @@ export const generarPdfPedido = async (req: Request, res: Response): Promise<voi
   }
 };
 
+const ETIQUETA_DECISION: Record<string, string> = {
+  mas_1: '+1 día',
+  mas_2: '+2 días',
+  mas_3: '+3 días',
+  re_solicitar: 'Pendiente (volver a solicitar)',
+  retirar: 'Pendiente (pagado, solo retirar)',
+  cancelar: 'Cancelar',
+  recepcionado: 'Recepcionado en bodega',
+  bodega: 'Pagado y en bodega',
+};
+
+/** PDF del detalle abierto, con los mismos filtros de la tabla: proveedor, abiertos/cerrados y estado. */
+export const generarPdfDetalle = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const data = await cargarPedido(req.params.id);
+    if (!data) {
+      res.status(404).json({ success: false, error: 'Pedido no encontrado' });
+      return;
+    }
+    const proveedorFiltro = String(req.query.proveedor || '').trim().toUpperCase();
+    const situacion = String(req.query.situacion || '').trim().toLowerCase();
+    const estado = String(req.query.estado || '').trim().toLowerCase();
+    const cabecera = String(data.proveedor_nombre || '').trim().toUpperCase();
+    const lineas = ((data.detalles || []) as Array<Record<string, unknown>>)
+      .map((d, idx) => ({ d, idx }))
+      .filter(({ d }) => {
+        const nombre = String(d.proveedor_89 || cabecera || '').trim().toUpperCase();
+        if (proveedorFiltro && nombre !== proveedorFiltro) return false;
+        const pend = pendienteOperativo(d);
+        if (situacion === 'abiertos' && pend <= 0) return false;
+        if (situacion === 'cerrados' && pend > 0) return false;
+        const decision = String(d.decision_linea_91 || '');
+        if (estado === 'sin' && decision) return false;
+        if (estado && estado !== 'sin' && decision !== estado) return false;
+        return true;
+      });
+    const numero = String(data.numero_orden_92 || `PED-${String(data.id_pedido_92).padStart(6, '0')}`);
+    const cell = (text: string | number, extra: Record<string, unknown> = {}) => ({
+      text: String(text ?? ''),
+      fontSize: 8,
+      ...extra,
+    });
+    const headerCell = (text: string) => cell(text, { bold: true, color: '#1e3a5f', fillColor: '#eef2f6' });
+    const filtros = [
+      proveedorFiltro ? `Proveedor ${proveedorFiltro}` : '',
+      situacion === 'abiertos' ? 'Abiertos' : situacion === 'cerrados' ? 'Cerrados' : '',
+      estado === 'sin' ? 'Sin estado' : ETIQUETA_DECISION[estado] || '',
+    ].filter(Boolean);
+    const body = [
+      ['#', 'SKU', 'Descripción', 'Proveedor', 'Solicitado', 'Recibido', 'Pendiente', 'Estado'].map((h) => headerCell(h)),
+      ...(lineas.length > 0
+        ? lineas.map(({ d, idx }) => {
+            const pend = pendienteOperativo(d);
+            const decision = String(d.decision_linea_91 || '');
+            return [
+              cell(idx + 1, { alignment: 'center' }),
+              cell(String(d.codigo_89 || 'SIN CÓDIGO')),
+              cell(String(d.descripcion_89 || d.descripcion_libre_91 || '')),
+              cell(String(d.proveedor_89 || cabecera || '—')),
+              cell(cantidadEntera(d.cantidad_solicitada_91), { alignment: 'right' }),
+              cell(Math.round(num(d.cantidad_recibida_91)), { alignment: 'right' }),
+              cell(pend, { alignment: 'right' }),
+              cell(ETIQUETA_DECISION[decision] || (pend > 0 ? 'Sin estado' : 'Cerrada')),
+            ];
+          })
+        : [[cell('Ningún insumo con estos filtros.', { colSpan: 8 }), {}, {}, {}, {}, {}, {}, {}]]),
+    ];
+    const content: unknown[] = [
+      { text: 'MANTEC ERP', fontSize: 9, color: '#64748b', margin: [0, 0, 0, 2] },
+      { text: `Detalle del pedido — ${numero}`, fontSize: 14, bold: true, color: '#1e3a5f' },
+      {
+        text: `Pago ${data.estado_pago_92}  ·  Recepción ${data.estado_recepcion_92}  ·  ${lineas.length} insumos${filtros.length ? `  ·  ${filtros.join('  ·  ')}` : ''}`,
+        fontSize: 8,
+        color: '#64748b',
+        margin: [0, 4, 0, 10],
+      },
+      {
+        table: { headerRows: 1, dontBreakRows: true, widths: [18, 62, '*', 78, 42, 40, 46, 78], body },
+        layout: {
+          hLineWidth: () => 0.4,
+          vLineWidth: () => 0.4,
+          hLineColor: () => '#c5cdd6',
+          vLineColor: () => '#c5cdd6',
+          paddingLeft: () => 3,
+          paddingRight: () => 3,
+          paddingTop: () => 3,
+          paddingBottom: () => 3,
+        },
+      },
+    ];
+    const fonts = {
+      Roboto: {
+        normal: 'Helvetica',
+        bold: 'Helvetica-Bold',
+        italics: 'Helvetica-Oblique',
+        bolditalics: 'Helvetica-BoldOblique',
+      },
+    };
+    const printer = new PdfPrinter(fonts);
+    const docDefinition: PdfDocumentDefinition = {
+      pageSize: 'LETTER',
+      pageOrientation: 'landscape',
+      pageMargins: [28, 28, 28, 36],
+      content,
+      defaultStyle: { font: 'Roboto', fontSize: 8 },
+      footer: (currentPage: number, pageCount: number) => ({
+        columns: [
+          { text: 'Uso interno · Detalle del pedido', fontSize: 7, color: '#94a3b8', margin: [28, 0, 0, 0] },
+          { text: `Página ${currentPage} de ${pageCount}`, alignment: 'right', fontSize: 7, color: '#94a3b8', margin: [0, 0, 28, 0] },
+        ],
+      }),
+    };
+    const pdfDoc = printer.createPdfKitDocument(docDefinition);
+    const filename = `${numero}_detalle.pdf`;
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename="${filename}"; filename*=UTF-8''${encodeURIComponent(filename)}`
+    );
+    pdfDoc.pipe(res);
+    pdfDoc.end();
+  } catch (error) {
+    if (res.headersSent) return;
+    res.status(500).json({
+      success: false,
+      error: 'Error al generar el PDF del detalle',
+      message: error instanceof Error ? error.message : 'Error desconocido',
+    });
+  }
+};
+
 type DetallePedido = DetallePdf & { id_detalle_91: number };
 
 function telefonoWhatsAppE164(raw: string | null | undefined): string | null {

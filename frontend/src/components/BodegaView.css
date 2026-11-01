@@ -632,6 +632,14 @@
     background: #7c2d12;
 }
 
+.pedido-detalle-filters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    align-items: flex-end;
+    margin-bottom: 12px;
+}
+
 .pedido-pago-filter {
     display: flex;
     align-items: center;

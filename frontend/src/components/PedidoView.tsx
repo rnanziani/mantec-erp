@@ -117,6 +117,39 @@ function textoDecision(resto: string, falta: number, llegada: number): string {
   return `${cabeza} Lo que falta sigue en este pedido, para volver a solicitar sin fecha.`;
 }
 
+function nombreProveedorLinea(d: Detalle, cabecera?: string | null): string {
+  return String(d.proveedor_89 || cabecera || '').trim().toUpperCase();
+}
+
+function lineaPasaFiltro(
+  d: Detalle,
+  cabecera: string,
+  proveedor: string,
+  situacion: string,
+  estado: string
+): boolean {
+  if (proveedor && nombreProveedorLinea(d, cabecera) !== proveedor) return false;
+  const pend = pendienteLinea(d);
+  if (situacion === 'abiertos' && pend <= 0) return false;
+  if (situacion === 'cerrados' && pend > 0) return false;
+  const decision = d.decision_linea_91 || '';
+  if (estado === 'sin' && decision) return false;
+  if (estado && estado !== 'sin' && decision !== estado) return false;
+  return true;
+}
+
+const FILTROS_ESTADO_DETALLE = [
+  { value: 'sin', label: 'Sin estado' },
+  { value: 'mas_1', label: '+1 día' },
+  { value: 'mas_2', label: '+2 días' },
+  { value: 'mas_3', label: '+3 días' },
+  { value: 're_solicitar', label: 'Pendiente (volver a solicitar)' },
+  { value: 'retirar', label: 'Pendiente (pagado, solo retirar)' },
+  { value: 'cancelar', label: 'Cancelar' },
+  { value: 'recepcionado', label: 'Recepcionado en bodega' },
+  { value: 'bodega', label: 'Pagado y en bodega' },
+] as const;
+
 const emptyLinea = {
   id_detalle_91: null as number | null,
   cod_insumo_91: '',
@@ -279,6 +312,8 @@ const PedidoView: React.FC = () => {
   const [historial, setHistorial] = useState<Historial[]>([]);
   const [idRecibe, setIdRecibe] = useState('');
   const [filtroProveedor, setFiltroProveedor] = useState('');
+  const [filtroSituacion, setFiltroSituacion] = useState('');
+  const [filtroEstadoDetalle, setFiltroEstadoDetalle] = useState('');
   const [llegadaLinea, setLlegadaLinea] = useState<Record<number, string>>({});
   const [restoLinea, setRestoLinea] = useState<Record<number, string>>({});
   const [enviandoWa, setEnviandoWa] = useState(false);
@@ -463,6 +498,8 @@ const PedidoView: React.FC = () => {
       setShowForm(false);
       setIdRecibe('');
       setFiltroProveedor('');
+      setFiltroSituacion('');
+      setFiltroEstadoDetalle('');
       setLlegadaLinea({});
       setRestoLinea({});
     }
@@ -668,6 +705,19 @@ const PedidoView: React.FC = () => {
   const exportarPdfPagos = async (tipo: 'pendientes' | 'pagados') => {
     try {
       await openAuthenticatedBlob(`/pedidos/pdf-pagos?tipo=${tipo}`);
+    } catch (e) {
+      await showError('PDF', e instanceof Error ? e.message : 'No se pudo generar el PDF');
+    }
+  };
+
+  const exportarPdfDetalle = async (id: number) => {
+    const params = new URLSearchParams();
+    if (filtroProveedor) params.set('proveedor', filtroProveedor);
+    if (filtroSituacion) params.set('situacion', filtroSituacion);
+    if (filtroEstadoDetalle) params.set('estado', filtroEstadoDetalle);
+    const qs = params.toString();
+    try {
+      await openAuthenticatedBlob(`/pedidos/${id}/pdf-detalle${qs ? `?${qs}` : ''}`);
     } catch (e) {
       await showError('PDF', e instanceof Error ? e.message : 'No se pudo generar el PDF');
     }
@@ -1235,30 +1285,66 @@ const PedidoView: React.FC = () => {
               </p>
             </div>
           )}
-          <div className="form-group pedido-proveedor-filter" style={{ maxWidth: 280, marginBottom: 12 }}>
-            <label htmlFor="filtro_proveedor_detalle">Proveedor</label>
-            <select
-              id="filtro_proveedor_detalle"
-              className="form-input"
-              value={filtroProveedor}
-              onChange={(e) => setFiltroProveedor(e.target.value)}
-              aria-label="Filtrar insumos por proveedor"
-            >
-              <option value="">Todos</option>
-              {Array.from(
-                new Set(
-                  (detalleAbierto.detalles || [])
-                    .map((d) => String(d.proveedor_89 || detalleAbierto.proveedor_nombre || '').trim().toUpperCase())
-                    .filter(Boolean)
+          <div className="pedido-detalle-filters">
+            <label className="pedido-pago-filter" htmlFor="filtro_proveedor_detalle">
+              Proveedor
+              <select
+                id="filtro_proveedor_detalle"
+                className="form-input"
+                value={filtroProveedor}
+                onChange={(e) => setFiltroProveedor(e.target.value)}
+                aria-label="Filtrar insumos por proveedor"
+              >
+                <option value="">Todos</option>
+                {Array.from(
+                  new Set(
+                    (detalleAbierto.detalles || [])
+                      .map((d) => nombreProveedorLinea(d, detalleAbierto.proveedor_nombre))
+                      .filter(Boolean)
+                  )
                 )
-              )
-                .sort((a, b) => a.localeCompare(b, 'es'))
-                .map((nombre) => (
-                  <option key={nombre} value={nombre}>
-                    {nombre}
+                  .sort((a, b) => a.localeCompare(b, 'es'))
+                  .map((nombre) => (
+                    <option key={nombre} value={nombre}>
+                      {nombre}
+                    </option>
+                  ))}
+              </select>
+            </label>
+            <label className="pedido-pago-filter" htmlFor="filtro_situacion_detalle">
+              Situación
+              <select
+                id="filtro_situacion_detalle"
+                className="form-input"
+                value={filtroSituacion}
+                onChange={(e) => setFiltroSituacion(e.target.value)}
+                aria-label="Filtrar insumos abiertos o cerrados"
+              >
+                <option value="">Todos</option>
+                <option value="abiertos">Abiertos</option>
+                <option value="cerrados">Cerrados</option>
+              </select>
+            </label>
+            <label className="pedido-pago-filter" htmlFor="filtro_estado_detalle">
+              Estado
+              <select
+                id="filtro_estado_detalle"
+                className="form-input"
+                value={filtroEstadoDetalle}
+                onChange={(e) => setFiltroEstadoDetalle(e.target.value)}
+                aria-label="Filtrar insumos por estado del resto"
+              >
+                <option value="">Todos</option>
+                {FILTROS_ESTADO_DETALLE.map((o) => (
+                  <option key={o.value} value={o.value}>
+                    {o.label}
                   </option>
                 ))}
-            </select>
+              </select>
+            </label>
+            <button type="button" className="btn-export" onClick={() => void exportarPdfDetalle(detalleAbierto.id_pedido_92)}>
+              PDF detalle
+            </button>
           </div>
           <div className="table-container">
             <table className="data-table">
@@ -1280,11 +1366,15 @@ const PedidoView: React.FC = () => {
               <tbody>
                 {(detalleAbierto.detalles || [])
                   .map((d, idx) => ({ d, idx }))
-                  .filter(({ d }) => {
-                    if (!filtroProveedor) return true;
-                    const nombre = String(d.proveedor_89 || detalleAbierto.proveedor_nombre || '').trim().toUpperCase();
-                    return nombre === filtroProveedor;
-                  })
+                  .filter(({ d }) =>
+                    lineaPasaFiltro(
+                      d,
+                      String(detalleAbierto.proveedor_nombre || ''),
+                      filtroProveedor,
+                      filtroSituacion,
+                      filtroEstadoDetalle
+                    )
+                  )
                   .map(({ d, idx }) => {
                   const pend = pendienteLinea(d);
                   const id = d.id_detalle_91 || 0;
@@ -1375,13 +1465,19 @@ const PedidoView: React.FC = () => {
                     </tr>
                   );
                 })}
-                {filtroProveedor &&
-                  (detalleAbierto.detalles || []).every((d) => {
-                    const nombre = String(d.proveedor_89 || detalleAbierto.proveedor_nombre || '').trim().toUpperCase();
-                    return nombre !== filtroProveedor;
-                  }) && (
+                {(filtroProveedor || filtroSituacion || filtroEstadoDetalle) &&
+                  (detalleAbierto.detalles || []).every(
+                    (d) =>
+                      !lineaPasaFiltro(
+                        d,
+                        String(detalleAbierto.proveedor_nombre || ''),
+                        filtroProveedor,
+                        filtroSituacion,
+                        filtroEstadoDetalle
+                      )
+                  ) && (
                     <tr>
-                      <td colSpan={11}>Ningún insumo de este proveedor.</td>
+                      <td colSpan={11}>Ningún insumo con estos filtros.</td>
                     </tr>
                   )}
               </tbody>
