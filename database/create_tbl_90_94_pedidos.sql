@@ -59,13 +59,15 @@ CREATE TABLE IF NOT EXISTS public.tbl_91_pedido_detalle (
         REFERENCES public.tbl_89_codigo_etiqueta(idcodigo_89),
     CONSTRAINT fk_91_proveedor FOREIGN KEY (id_proveedor_91)
         REFERENCES public.tbl_90_proveedor(id_proveedor_90),
-    CONSTRAINT chk_91_cantidades CHECK (cantidad_recibida_91 <= cantidad_solicitada_91),
     CONSTRAINT chk_91_cierre CHECK (
-        cantidad_recibida_91 + cantidad_pasada_91 + cantidad_baja_91 <= cantidad_solicitada_91
+        cantidad_pasada_91 >= 0
+        AND cantidad_baja_91 >= 0
+        AND cantidad_pasada_91 + cantidad_baja_91
+            <= cantidad_solicitada_91 - LEAST(COALESCE(cantidad_recibida_91, 0), cantidad_solicitada_91)
     ),
     CONSTRAINT chk_91_decision CHECK (
         decision_linea_91 IS NULL
-        OR decision_linea_91 IN ('mas_1', 'mas_2', 'mas_3', 'bodega', 're_solicitar', 'retirar', 'cancelar')
+        OR decision_linea_91 IN ('mas_1', 'mas_2', 'mas_3', 'bodega', 'recepcionado', 're_solicitar', 'retirar', 'cancelar')
     ),
     CONSTRAINT chk_91_sku_o_texto CHECK (
         cod_insumo_91 IS NOT NULL

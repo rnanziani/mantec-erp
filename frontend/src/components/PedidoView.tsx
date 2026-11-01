@@ -93,14 +93,18 @@ const OPCIONES_RESTO_PENDIENTE = [
   { value: 'cancelar', label: 'Cancelar (no se vuelve a solicitar)' },
 ] as const;
 
+const OPCION_RECEPCIONADO = { value: 'recepcionado', label: 'Recepcionado en bodega' } as const;
 const OPCION_BODEGA = { value: 'bodega', label: 'Cerrar (pagado y en bodega)' } as const;
 
 function opcionesResto(falta: number): Array<{ value: string; label: string }> {
-  return falta > 0 ? [...OPCIONES_RESTO_PENDIENTE] : [OPCION_BODEGA];
+  return falta > 0 ? [...OPCIONES_RESTO_PENDIENTE] : [OPCION_RECEPCIONADO, OPCION_BODEGA];
 }
 
 function textoDecision(resto: string, falta: number, llegada: number): string {
   const cabeza = llegada > 0 ? `Llegaron ${llegada}.` : 'No llegó nada.';
+  if (resto === 'recepcionado') {
+    return `${cabeza} Queda recepcionado en bodega. El pago del pedido no cambia. El PDF de este pedido no cambia.`;
+  }
   if (resto === 'bodega') {
     return `${cabeza} Esta línea queda pagada y en bodega. El PDF de este pedido no cambia.`;
   }
@@ -158,7 +162,8 @@ function resumenCierre(d: {
   const pas = Math.round(Number(d.cantidad_pasada_91 || 0));
   const baja = Math.round(Number(d.cantidad_baja_91 || 0));
   const decision = d.decision_linea_91 || '';
-  if (decision === 'bodega') return rec > 0 ? `En bodega · Llegó ${rec}` : 'En bodega';
+  if (decision === 'recepcionado') return rec > 0 ? `Recepcionado en bodega · Llegó ${rec}` : 'Recepcionado en bodega';
+  if (decision === 'bodega') return rec > 0 ? `Pagado y en bodega · Llegó ${rec}` : 'Pagado y en bodega';
   if (rec > 0) partes.push(`Llegó ${rec}`);
   if (pas > 0) {
     const n = decision === 'mas_1' ? 1 : decision === 'mas_2' ? 2 : decision === 'mas_3' ? 3 : 0;
@@ -272,6 +277,7 @@ const PedidoView: React.FC = () => {
   const [detalleAbierto, setDetalleAbierto] = useState<Pedido | null>(null);
   const [historial, setHistorial] = useState<Historial[]>([]);
   const [idRecibe, setIdRecibe] = useState('');
+  const [filtroProveedor, setFiltroProveedor] = useState('');
   const [llegadaLinea, setLlegadaLinea] = useState<Record<number, string>>({});
   const [restoLinea, setRestoLinea] = useState<Record<number, string>>({});
   const [enviandoWa, setEnviandoWa] = useState(false);
@@ -454,6 +460,7 @@ const PedidoView: React.FC = () => {
       setDetalleAbierto(dPed.data);
       setShowForm(false);
       setIdRecibe('');
+      setFiltroProveedor('');
       setLlegadaLinea({});
       setRestoLinea({});
     }
@@ -531,8 +538,8 @@ const PedidoView: React.FC = () => {
     const id = d.id_detalle_91;
     const pend = pendienteLinea(d);
     const llegada = llegadaLinea[id] === undefined || llegadaLinea[id] === '' ? 0 : Math.round(Number(llegadaLinea[id]));
-    if (!Number.isFinite(llegada) || llegada < 0 || llegada > pend) {
-      await showError('Validación', `Indique cuántos llegaron, entre 0 y ${pend}`);
+    if (!Number.isFinite(llegada) || llegada < 0) {
+      await showError('Validación', 'Indique cuántos llegaron. Puede ser más que lo pedido si vino una caja.');
       return;
     }
     const falta = pend - llegada;
@@ -542,7 +549,7 @@ const PedidoView: React.FC = () => {
     if (!resto) {
       await showError(
         'Validación',
-        falta > 0 ? 'Elija qué pasa con lo que no llegó' : 'Elija Cerrar (pagado y en bodega)'
+        falta > 0 ? 'Elija qué pasa con lo que no llegó' : 'Elija Recepcionado en bodega o Cerrar (pagado y en bodega)'
       );
       return;
     }
@@ -550,7 +557,12 @@ const PedidoView: React.FC = () => {
       await showError('Validación', 'Indique quién recibe lo que llegó');
       return;
     }
-    const ok = await showConfirm('Cerrar insumo', textoDecision(resto, falta, llegada), 'Cerrar');
+    const ok = await showConfirm(
+      'Cerrar insumo',
+      textoDecision(resto, falta, llegada) +
+        (llegada > pend ? ` Llegaron ${llegada} y quedaban ${pend}. El PDF sigue con lo solicitado.` : ''),
+      'Cerrar'
+    );
     if (!ok) return;
     const res = await apiFetch(`${API}/${detalleAbierto.id_pedido_92}/cerrar-linea`, {
       method: 'POST',
@@ -1213,6 +1225,31 @@ const PedidoView: React.FC = () => {
               </p>
             </div>
           )}
+          <div className="form-group pedido-proveedor-filter" style={{ maxWidth: 280, marginBottom: 12 }}>
+            <label htmlFor="filtro_proveedor_detalle">Proveedor</label>
+            <select
+              id="filtro_proveedor_detalle"
+              className="form-input"
+              value={filtroProveedor}
+              onChange={(e) => setFiltroProveedor(e.target.value)}
+              aria-label="Filtrar insumos por proveedor"
+            >
+              <option value="">Todos</option>
+              {Array.from(
+                new Set(
+                  (detalleAbierto.detalles || [])
+                    .map((d) => String(d.proveedor_89 || detalleAbierto.proveedor_nombre || '').trim().toUpperCase())
+                    .filter(Boolean)
+                )
+              )
+                .sort((a, b) => a.localeCompare(b, 'es'))
+                .map((nombre) => (
+                  <option key={nombre} value={nombre}>
+                    {nombre}
+                  </option>
+                ))}
+            </select>
+          </div>
           <div className="table-container">
             <table className="data-table">
               <thead>
@@ -1231,7 +1268,14 @@ const PedidoView: React.FC = () => {
                 </tr>
               </thead>
               <tbody>
-                {(detalleAbierto.detalles || []).map((d, idx) => {
+                {(detalleAbierto.detalles || [])
+                  .map((d, idx) => ({ d, idx }))
+                  .filter(({ d }) => {
+                    if (!filtroProveedor) return true;
+                    const nombre = String(d.proveedor_89 || detalleAbierto.proveedor_nombre || '').trim().toUpperCase();
+                    return nombre === filtroProveedor;
+                  })
+                  .map(({ d, idx }) => {
                   const pend = pendienteLinea(d);
                   const id = d.id_detalle_91 || 0;
                   const llegadaTxt = llegadaLinea[id] ?? '';
@@ -1240,8 +1284,9 @@ const PedidoView: React.FC = () => {
                   const opciones = opcionesResto(falta);
                   const elegida = id in restoLinea ? restoLinea[id] : (d.decision_linea_91 || '');
                   const resto = opciones.some((o) => o.value === elegida) ? elegida : '';
+                  const marcadoRetirar = d.decision_linea_91 === 'retirar';
                   return (
-                    <tr key={d.id_detalle_91}>
+                    <tr key={d.id_detalle_91} className={marcadoRetirar ? 'pedido-fila-retirar' : undefined}>
                       <td className="pedido-linea-nro">{idx + 1}</td>
                       <td>{d.codigo_89 || 'SIN CÓDIGO'}</td>
                       <td>
@@ -1271,7 +1316,6 @@ const PedidoView: React.FC = () => {
                             <input
                               type="number"
                               min={0}
-                              max={pend}
                               step={1}
                               inputMode="numeric"
                               className="form-input"
@@ -1300,7 +1344,17 @@ const PedidoView: React.FC = () => {
                             </select>
                           </td>
                           <td>
-                            <button type="button" className="btn-primary" onClick={() => void handleCerrarLinea(d)}>
+                            <button
+                              type="button"
+                              className={marcadoRetirar ? 'pedido-cerrar-retirar' : 'btn-primary'}
+                              title={marcadoRetirar ? 'Ya procesado: pagado, solo retirar' : 'Cerrar insumo'}
+                              aria-label={
+                                marcadoRetirar
+                                  ? 'Cerrar. Ya marcado como pagado, solo retirar'
+                                  : `Cerrar ${d.codigo_89 || d.descripcion_89}`
+                              }
+                              onClick={() => void handleCerrarLinea(d)}
+                            >
                               Cerrar
                             </button>
                           </td>
@@ -1311,6 +1365,15 @@ const PedidoView: React.FC = () => {
                     </tr>
                   );
                 })}
+                {filtroProveedor &&
+                  (detalleAbierto.detalles || []).every((d) => {
+                    const nombre = String(d.proveedor_89 || detalleAbierto.proveedor_nombre || '').trim().toUpperCase();
+                    return nombre !== filtroProveedor;
+                  }) && (
+                    <tr>
+                      <td colSpan={11}>Ningún insumo de este proveedor.</td>
+                    </tr>
+                  )}
               </tbody>
             </table>
           </div>

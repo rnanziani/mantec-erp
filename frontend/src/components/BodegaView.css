@@ -613,6 +613,25 @@
     white-space: pre;
 }
 
+.pedido-proveedor-filter {
+    min-width: 180px;
+}
+
+.pedido-view .pedido-fila-retirar {
+    background: #ffedd5;
+}
+
+.pedido-view .pedido-cerrar-retirar {
+    background: #9a3412;
+    color: #fff;
+    border: 1px solid #7c2d12;
+    font-weight: 700;
+}
+
+.pedido-view .pedido-cerrar-retirar:hover {
+    background: #7c2d12;
+}
+
 .pedido-resto-select {
     width: 100%;
     min-width: 220px;

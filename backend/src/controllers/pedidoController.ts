@@ -43,6 +43,7 @@ function pendienteOperativo(row: {
 
 /** Combo de Resto. No es catálogo: cada código mueve la cantidad de una forma distinta. */
 const DECISION_BODEGA = 'bodega';
+const DECISION_RECEPCIONADO = 'recepcionado';
 const DECISION_RE_SOLICITAR = 're_solicitar';
 const DECISION_RETIRAR = 'retirar';
 const DECISION_CANCELAR = 'cancelar';
@@ -197,20 +198,28 @@ async function recalcularRecepcion(client: PoolClient, idPedido: number): Promis
   const r = await client.query(
     `SELECT
        COALESCE(SUM(cantidad_solicitada_91), 0) AS sol,
-       COALESCE(SUM(cantidad_recibida_91), 0) AS rec,
-       COALESCE(SUM(cantidad_pasada_91), 0) AS pas,
-       COALESCE(SUM(cantidad_baja_91), 0) AS baja
+       COALESCE(SUM(LEAST(COALESCE(cantidad_recibida_91, 0), cantidad_solicitada_91)), 0) AS rec_pedido,
+       COALESCE(SUM(GREATEST(0,
+         cantidad_solicitada_91
+         - COALESCE(cantidad_recibida_91, 0)
+         - COALESCE(cantidad_pasada_91, 0)
+         - COALESCE(cantidad_baja_91, 0)
+       )), 0) AS pend,
+       COALESCE(SUM(COALESCE(cantidad_recibida_91, 0)), 0) AS rec,
+       COALESCE(SUM(COALESCE(cantidad_pasada_91, 0)), 0) AS pas,
+       COALESCE(SUM(COALESCE(cantidad_baja_91, 0)), 0) AS baja
      FROM tbl_91_pedido_detalle
      WHERE id_pedido_91 = $1`,
     [idPedido]
   );
   const sol = num(r.rows[0]?.sol);
+  const recPedido = num(r.rows[0]?.rec_pedido);
+  const pend = num(r.rows[0]?.pend);
   const rec = num(r.rows[0]?.rec);
   const pas = num(r.rows[0]?.pas);
   const baja = num(r.rows[0]?.baja);
-  const pend = sol - rec - pas - baja;
   let next = 'Pendiente';
-  if (pend <= 0) next = rec >= sol && sol > 0 ? 'Recibido' : 'Cerrada';
+  if (pend <= 0) next = recPedido >= sol && sol > 0 ? 'Recibido' : 'Cerrada';
   else if (rec > 0 || pas > 0 || baja > 0) next = 'Parcial';
   else if (actual === 'No retirado') next = 'No retirado';
   const cierra = next === 'Recibido' || next === 'Cerrada';
@@ -651,9 +660,9 @@ export const registrarRecepcion = async (req: Request, res: Response): Promise<v
       return;
     }
     const pendiente = pendienteOperativo(row);
-    if (cantidad > pendiente) {
+    if (pendiente < 1) {
       await client.query('ROLLBACK');
-      res.status(400).json({ success: false, error: `Solo quedan ${pendiente} por recibir` });
+      res.status(400).json({ success: false, error: 'Esta línea ya está cerrada' });
       return;
     }
     await client.query(
@@ -664,7 +673,7 @@ export const registrarRecepcion = async (req: Request, res: Response): Promise<v
     );
     await client.query(
       `UPDATE tbl_91_pedido_detalle
-       SET cantidad_recibida_91 = cantidad_recibida_91 + $2
+       SET cantidad_recibida_91 = COALESCE(cantidad_recibida_91, 0) + $2
        WHERE id_detalle_91 = $1`,
       [idDetalle, cantidad]
     );
@@ -869,7 +878,7 @@ export const cerrarLineaPedido = async (req: Request, res: Response): Promise<vo
       res.status(400).json({ success: false, error: 'Pedido y línea requeridos' });
       return;
     }
-    if (!dias && resto !== DECISION_BODEGA && resto !== DECISION_RE_SOLICITAR && resto !== DECISION_RETIRAR && resto !== DECISION_CANCELAR) {
+    if (!dias && resto !== DECISION_BODEGA && resto !== DECISION_RECEPCIONADO && resto !== DECISION_RE_SOLICITAR && resto !== DECISION_RETIRAR && resto !== DECISION_CANCELAR) {
       res.status(400).json({ success: false, error: 'Elija el estado del insumo en Resto' });
       return;
     }
@@ -909,21 +918,16 @@ export const cerrarLineaPedido = async (req: Request, res: Response): Promise<vo
       res.status(400).json({ success: false, error: 'Esta línea ya está cerrada' });
       return;
     }
-    if (llegada > pend) {
-      await client.query('ROLLBACK');
-      res.status(400).json({ success: false, error: `Solo quedan ${pend} pendientes` });
-      return;
-    }
-    const falta = pend - llegada;
-    if (falta === 0 && resto !== DECISION_BODEGA) {
+    const falta = Math.max(0, pend - llegada);
+    if (falta === 0 && resto !== DECISION_BODEGA && resto !== DECISION_RECEPCIONADO) {
       await client.query('ROLLBACK');
       res.status(400).json({
         success: false,
-        error: 'Llegó todo: el estado es Cerrar (pagado y en bodega)',
+        error: 'Llegó todo: el estado es Recepcionado en bodega o Cerrar (pagado y en bodega)',
       });
       return;
     }
-    if (falta > 0 && resto === DECISION_BODEGA) {
+    if (falta > 0 && (resto === DECISION_BODEGA || resto === DECISION_RECEPCIONADO)) {
       await client.query('ROLLBACK');
       res.status(400).json({
         success: false,
@@ -945,7 +949,7 @@ export const cerrarLineaPedido = async (req: Request, res: Response): Promise<vo
       );
       await client.query(
         `UPDATE tbl_91_pedido_detalle
-         SET cantidad_recibida_91 = cantidad_recibida_91 + $2
+         SET cantidad_recibida_91 = COALESCE(cantidad_recibida_91, 0) + $2
          WHERE id_detalle_91 = $1`,
         [idDetalle, llegada]
       );
@@ -1025,7 +1029,7 @@ export const cerrarLineaPedido = async (req: Request, res: Response): Promise<vo
         [idDetalle, falta, resto]
       );
     }
-    if (resto === DECISION_BODEGA || resto === DECISION_RE_SOLICITAR || resto === DECISION_RETIRAR) {
+    if (resto === DECISION_BODEGA || resto === DECISION_RECEPCIONADO || resto === DECISION_RE_SOLICITAR || resto === DECISION_RETIRAR) {
       await client.query(
         `UPDATE tbl_91_pedido_detalle
          SET decision_linea_91 = $2
@@ -1042,7 +1046,8 @@ export const cerrarLineaPedido = async (req: Request, res: Response): Promise<vo
     if (falta > 0 && dias > 0) {
       partes.push(`${falta} para el ${fechaCl(fechaDestino)} en ${destino?.numero_orden_92 || 'el pedido de ese día'}`);
     }
-    if (resto === DECISION_BODEGA) partes.push('en bodega');
+    if (resto === DECISION_BODEGA) partes.push('pagado y en bodega');
+    if (resto === DECISION_RECEPCIONADO) partes.push('recepcionado en bodega');
     if (resto === DECISION_RE_SOLICITAR) partes.push('sigue pendiente para volver a solicitar');
     if (resto === DECISION_RETIRAR) partes.push('pagado, solo falta retirar');
     if (resto === DECISION_CANCELAR) partes.push(`${falta} cancelados, no se vuelven a solicitar`);
