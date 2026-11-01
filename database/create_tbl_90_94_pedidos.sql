@@ -47,6 +47,7 @@ CREATE TABLE IF NOT EXISTS public.tbl_91_pedido_detalle (
     cantidad_recibida_91 NUMERIC(12,4) DEFAULT 0 CHECK (cantidad_recibida_91 >= 0),
     cantidad_pasada_91 NUMERIC(12,4) NOT NULL DEFAULT 0 CHECK (cantidad_pasada_91 >= 0),
     cantidad_baja_91 NUMERIC(12,4) NOT NULL DEFAULT 0 CHECK (cantidad_baja_91 >= 0),
+    decision_linea_91 VARCHAR(20),
     precio_unitario_91 NUMERIC(12,4),
     subtotal_91 NUMERIC(12,4) GENERATED ALWAYS AS
         (cantidad_solicitada_91 * COALESCE(precio_unitario_91, 0)) STORED,
@@ -61,6 +62,10 @@ CREATE TABLE IF NOT EXISTS public.tbl_91_pedido_detalle (
     CONSTRAINT chk_91_cantidades CHECK (cantidad_recibida_91 <= cantidad_solicitada_91),
     CONSTRAINT chk_91_cierre CHECK (
         cantidad_recibida_91 + cantidad_pasada_91 + cantidad_baja_91 <= cantidad_solicitada_91
+    ),
+    CONSTRAINT chk_91_decision CHECK (
+        decision_linea_91 IS NULL
+        OR decision_linea_91 IN ('mas_1', 'mas_2', 'mas_3', 'bodega', 're_solicitar', 'retirar', 'cancelar')
     ),
     CONSTRAINT chk_91_sku_o_texto CHECK (
         cod_insumo_91 IS NOT NULL

@@ -41,6 +41,42 @@ function pendienteOperativo(row: {
   );
 }
 
+/** Combo de Resto. No es catálogo: cada código mueve la cantidad de una forma distinta. */
+const DECISION_BODEGA = 'bodega';
+const DECISION_RE_SOLICITAR = 're_solicitar';
+const DECISION_RETIRAR = 'retirar';
+const DECISION_CANCELAR = 'cancelar';
+const DIAS_COMPRA: Record<string, number> = { mas_1: 1, mas_2: 2, mas_3: 3 };
+
+function hoyChile(ahora = new Date()): string {
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'America/Santiago',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(ahora);
+}
+
+/** Suma días de compra (lunes a viernes). El sábado y el domingo no se piden insumos. */
+function sumarDiasCompra(iso: string, dias: number): string {
+  const [y, m, d] = iso.split('-').map(Number);
+  const dt = new Date(Date.UTC(y, m - 1, d));
+  let left = dias;
+  while (left > 0) {
+    dt.setUTCDate(dt.getUTCDate() + 1);
+    const dow = dt.getUTCDay();
+    if (dow !== 0 && dow !== 6) left -= 1;
+  }
+  const mm = String(dt.getUTCMonth() + 1).padStart(2, '0');
+  const dd = String(dt.getUTCDate()).padStart(2, '0');
+  return `${dt.getUTCFullYear()}-${mm}-${dd}`;
+}
+
+function fechaCl(iso: string): string {
+  const [y, m, d] = iso.split('-');
+  return `${d}-${m}-${y}`;
+}
+
 function upper(value: unknown): string | null {
   if (value == null) return null;
   const t = String(value).trim().toUpperCase();
@@ -177,15 +213,16 @@ async function recalcularRecepcion(client: PoolClient, idPedido: number): Promis
   if (pend <= 0) next = rec >= sol && sol > 0 ? 'Recibido' : 'Cerrada';
   else if (rec > 0 || pas > 0 || baja > 0) next = 'Parcial';
   else if (actual === 'No retirado') next = 'No retirado';
+  const cierra = next === 'Recibido' || next === 'Cerrada';
   await client.query(
     `UPDATE tbl_92_pedido_cabecera
      SET estado_recepcion_92 = $2,
          fecha_retiro_92 = CASE
-           WHEN $2 IN ('Recibido', 'Cerrada') THEN COALESCE(fecha_retiro_92, CURRENT_DATE)
+           WHEN $3 THEN COALESCE(fecha_retiro_92, CURRENT_DATE)
            ELSE fecha_retiro_92
          END
      WHERE id_pedido_92 = $1`,
-    [idPedido, next]
+    [idPedido, next, cierra]
   );
 }
 
@@ -763,24 +800,24 @@ type LineaPedido = {
   observaciones_det_91?: string | null;
 };
 
-async function buscarPedidoConsolidado(
+async function buscarPedidoDelDia(
   client: PoolClient,
   idOrigen: number,
-  idProveedor: number
+  fecha: string
 ): Promise<{ id_pedido_92: number; numero_orden_92: string } | null> {
   const r = await client.query(
     `SELECT id_pedido_92, numero_orden_92
      FROM tbl_92_pedido_cabecera
      WHERE id_pedido_92 <> $1
-       AND id_proveedor_92 = $2
+       AND fecha_pedido_92 = $2::date
        AND estado_pago_92 <> 'Anulado'
        AND estado_recepcion_92 IN ('Pendiente', 'Parcial', 'No retirado')
      ORDER BY
        CASE WHEN estado_recepcion_92 = 'Pendiente' THEN 0 ELSE 1 END,
-       fecha_pedido_92 DESC,
        id_pedido_92 DESC
-     LIMIT 1`,
-    [idOrigen, idProveedor]
+     LIMIT 1
+     FOR UPDATE`,
+    [idOrigen, fecha]
   );
   return (r.rowCount ?? 0) > 0 ? r.rows[0] : null;
 }
@@ -788,17 +825,19 @@ async function buscarPedidoConsolidado(
 async function crearPedidoConsolidado(
   client: PoolClient,
   origen: { id_pedido_92: number; numero_orden_92?: string | null; id_proveedor_92: number; id_responsable_92: number },
+  fecha: string,
   user: string
 ): Promise<{ id_pedido_92: number; numero_orden_92: string }> {
   const cab = await client.query(
     `INSERT INTO tbl_92_pedido_cabecera (
        id_proveedor_92, id_responsable_92, fecha_pedido_92, observaciones_cab_92, usuario_creacion_92
-     ) VALUES ($1, $2, CURRENT_DATE, $3, $4)
+     ) VALUES ($1, $2, $3::date, $4, $5)
      RETURNING id_pedido_92`,
     [
       origen.id_proveedor_92,
       origen.id_responsable_92,
-      `DIA SIGUIENTE — PENDIENTES DE ${origen.numero_orden_92 || `PED-${String(origen.id_pedido_92).padStart(6, '0')}`}`,
+      fecha,
+      `PENDIENTES DE ${origen.numero_orden_92 || `PED-${String(origen.id_pedido_92).padStart(6, '0')}`}`,
       user,
     ]
   );
@@ -812,7 +851,9 @@ async function crearPedidoConsolidado(
 }
 
 /**
- * Cierra una línea: lo que llegó se recibe; el resto pasa a mañana o se da de baja.
+ * Cierra una línea según el combo Resto.
+ * +N días copia lo que no llegó al pedido de esa fecha de compra.
+ * Bodega cierra la línea. Re-solicitar y solo retirar la dejan abierta.
  * El PDF no cambia: cantidad_solicitada_91 sigue siendo lo pedido ese día.
  */
 export const cerrarLineaPedido = async (req: Request, res: Response): Promise<void> => {
@@ -823,12 +864,13 @@ export const cerrarLineaPedido = async (req: Request, res: Response): Promise<vo
     const llegada = Math.max(0, Math.round(num(req.body.cantidad_llegada)));
     const resto = String(req.body.resto || '').trim().toLowerCase();
     const idResp = num(req.body.id_responsable_recibe_93);
+    const dias = DIAS_COMPRA[resto] || 0;
     if (!idPedido || !idDetalle) {
       res.status(400).json({ success: false, error: 'Pedido y línea requeridos' });
       return;
     }
-    if (resto && resto !== 'manana' && resto !== 'ya_no') {
-      res.status(400).json({ success: false, error: 'El resto es mañana o ya no' });
+    if (!dias && resto !== DECISION_BODEGA && resto !== DECISION_RE_SOLICITAR && resto !== DECISION_RETIRAR && resto !== DECISION_CANCELAR) {
+      res.status(400).json({ success: false, error: 'Elija el estado del insumo en Resto' });
       return;
     }
     const data = await cargarPedido(idPedido);
@@ -873,11 +915,19 @@ export const cerrarLineaPedido = async (req: Request, res: Response): Promise<vo
       return;
     }
     const falta = pend - llegada;
-    if (falta > 0 && resto !== 'manana' && resto !== 'ya_no') {
+    if (falta === 0 && resto !== DECISION_BODEGA) {
       await client.query('ROLLBACK');
       res.status(400).json({
         success: false,
-        error: 'Indique si el resto pasa a mañana o ya no se pide por el sistema',
+        error: 'Llegó todo: el estado es Cerrar (pagado y en bodega)',
+      });
+      return;
+    }
+    if (falta > 0 && resto === DECISION_BODEGA) {
+      await client.query('ROLLBACK');
+      res.status(400).json({
+        success: false,
+        error: 'Quedan unidades sin llegar. Elija +1, +2, +3 días, volver a solicitar, solo retirar o cancelar',
       });
       return;
     }
@@ -902,9 +952,11 @@ export const cerrarLineaPedido = async (req: Request, res: Response): Promise<vo
     }
 
     let destino: { id_pedido_92: number; numero_orden_92: string } | null = null;
-    if (falta > 0 && resto === 'manana') {
+    let fechaDestino = '';
+    if (falta > 0 && dias > 0) {
       const idProv = num(row.id_proveedor_91) || num(data.id_proveedor_92);
-      destino = await buscarPedidoConsolidado(client, idPedido, idProv);
+      fechaDestino = sumarDiasCompra(hoyChile(), dias);
+      destino = await buscarPedidoDelDia(client, idPedido, fechaDestino);
       if (!destino) {
         destino = await crearPedidoConsolidado(
           client,
@@ -914,6 +966,7 @@ export const cerrarLineaPedido = async (req: Request, res: Response): Promise<vo
             id_proveedor_92: idProv,
             id_responsable_92: num(data.id_responsable_92),
           },
+          fechaDestino,
           usuario(req)
         );
       }
@@ -957,17 +1010,27 @@ export const cerrarLineaPedido = async (req: Request, res: Response): Promise<vo
       }
       await client.query(
         `UPDATE tbl_91_pedido_detalle
-         SET cantidad_pasada_91 = COALESCE(cantidad_pasada_91, 0) + $2
+         SET cantidad_pasada_91 = COALESCE(cantidad_pasada_91, 0) + $2,
+             decision_linea_91 = $3
          WHERE id_detalle_91 = $1`,
-        [idDetalle, falta]
+        [idDetalle, falta, resto]
       );
     }
-    if (falta > 0 && resto === 'ya_no') {
+    if (falta > 0 && resto === DECISION_CANCELAR) {
       await client.query(
         `UPDATE tbl_91_pedido_detalle
-         SET cantidad_baja_91 = COALESCE(cantidad_baja_91, 0) + $2
+         SET cantidad_baja_91 = COALESCE(cantidad_baja_91, 0) + $2,
+             decision_linea_91 = $3
          WHERE id_detalle_91 = $1`,
-        [idDetalle, falta]
+        [idDetalle, falta, resto]
+      );
+    }
+    if (resto === DECISION_BODEGA || resto === DECISION_RE_SOLICITAR || resto === DECISION_RETIRAR) {
+      await client.query(
+        `UPDATE tbl_91_pedido_detalle
+         SET decision_linea_91 = $2
+         WHERE id_detalle_91 = $1`,
+        [idDetalle, resto]
       );
     }
 
@@ -976,12 +1039,17 @@ export const cerrarLineaPedido = async (req: Request, res: Response): Promise<vo
     const actualizado = await cargarPedido(idPedido);
     const partes: string[] = [];
     if (llegada > 0) partes.push(`${llegada} recibidos`);
-    if (falta > 0 && resto === 'manana') partes.push(`${falta} para mañana en ${destino?.numero_orden_92 || 'el pedido siguiente'}`);
-    if (falta > 0 && resto === 'ya_no') partes.push(`${falta} dados de baja`);
+    if (falta > 0 && dias > 0) {
+      partes.push(`${falta} para el ${fechaCl(fechaDestino)} en ${destino?.numero_orden_92 || 'el pedido de ese día'}`);
+    }
+    if (resto === DECISION_BODEGA) partes.push('en bodega');
+    if (resto === DECISION_RE_SOLICITAR) partes.push('sigue pendiente para volver a solicitar');
+    if (resto === DECISION_RETIRAR) partes.push('pagado, solo falta retirar');
+    if (resto === DECISION_CANCELAR) partes.push(`${falta} cancelados, no se vuelven a solicitar`);
     res.json({
       success: true,
       data: actualizado,
-      message: partes.length > 0 ? `Línea cerrada: ${partes.join('. ')}` : 'Línea cerrada',
+      message: partes.length > 0 ? partes.join('. ') : 'Línea actualizada',
     });
   } catch (error) {
     await client.query('ROLLBACK');

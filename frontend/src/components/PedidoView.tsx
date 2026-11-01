@@ -44,6 +44,7 @@ interface Detalle {
   id_proveedor_91?: number | null;
   fecha_envio_wa?: string | null;
   pedido_origen_92?: string | null;
+  decision_linea_91?: string | null;
 }
 interface EnvioWhatsApp {
   id_envio_98: number;
@@ -80,6 +81,36 @@ interface ApiResponse<T = unknown> {
   data?: T;
   message?: string;
   error?: string;
+}
+
+/** Combo fijo: cada valor ejecuta una acción distinta. No sale de una tabla. */
+const OPCIONES_RESTO_PENDIENTE = [
+  { value: 'mas_1', label: '+1 día (volver a solicitar en 1 día)' },
+  { value: 'mas_2', label: '+2 días (volver a solicitar en 2 días)' },
+  { value: 'mas_3', label: '+3 días (volver a solicitar en 3 días)' },
+  { value: 're_solicitar', label: 'Pendiente (volver a solicitar)' },
+  { value: 'retirar', label: 'Pendiente (pagado, solo retirar)' },
+  { value: 'cancelar', label: 'Cancelar (no se vuelve a solicitar)' },
+] as const;
+
+const OPCION_BODEGA = { value: 'bodega', label: 'Cerrar (pagado y en bodega)' } as const;
+
+function opcionesResto(falta: number): Array<{ value: string; label: string }> {
+  return falta > 0 ? [...OPCIONES_RESTO_PENDIENTE] : [OPCION_BODEGA];
+}
+
+function textoDecision(resto: string, falta: number, llegada: number): string {
+  const cabeza = llegada > 0 ? `Llegaron ${llegada}.` : 'No llegó nada.';
+  if (resto === 'bodega') {
+    return `${cabeza} Esta línea queda pagada y en bodega. El PDF de este pedido no cambia.`;
+  }
+  if (resto === 'mas_1' || resto === 'mas_2' || resto === 'mas_3') {
+    const n = Number(resto.slice(4));
+    return `${cabeza} ${falta} se vuelven a solicitar en ${n} día${n > 1 ? 's' : ''} de compra (lunes a viernes). El PDF de este pedido no cambia.`;
+  }
+  if (resto === 'retirar') return `${cabeza} Lo que falta sigue en este pedido: pagado, solo retirar.`;
+  if (resto === 'cancelar') return `${cabeza} ${falta} se cancelan y no se vuelven a solicitar. El PDF de este pedido no cambia.`;
+  return `${cabeza} Lo que falta sigue en este pedido, para volver a solicitar sin fecha.`;
 }
 
 const emptyLinea = {
@@ -120,14 +151,20 @@ function resumenCierre(d: {
   cantidad_recibida_91?: number;
   cantidad_pasada_91?: number;
   cantidad_baja_91?: number;
+  decision_linea_91?: string | null;
 }): string {
   const partes: string[] = [];
   const rec = Math.round(Number(d.cantidad_recibida_91 || 0));
   const pas = Math.round(Number(d.cantidad_pasada_91 || 0));
   const baja = Math.round(Number(d.cantidad_baja_91 || 0));
+  const decision = d.decision_linea_91 || '';
+  if (decision === 'bodega') return rec > 0 ? `En bodega · Llegó ${rec}` : 'En bodega';
   if (rec > 0) partes.push(`Llegó ${rec}`);
-  if (pas > 0) partes.push(`Mañana ${pas}`);
-  if (baja > 0) partes.push(`Ya no ${baja}`);
+  if (pas > 0) {
+    const n = decision === 'mas_1' ? 1 : decision === 'mas_2' ? 2 : decision === 'mas_3' ? 3 : 0;
+    partes.push(n > 0 ? `+${n} día${n > 1 ? 's' : ''} ${pas}` : `Pasó ${pas}`);
+  }
+  if (baja > 0) partes.push(decision === 'cancelar' ? `Cancelado ${baja}` : `Ya no ${baja}`);
   return partes.join(' · ') || 'Cerrada';
 }
 
@@ -236,7 +273,7 @@ const PedidoView: React.FC = () => {
   const [historial, setHistorial] = useState<Historial[]>([]);
   const [idRecibe, setIdRecibe] = useState('');
   const [llegadaLinea, setLlegadaLinea] = useState<Record<number, string>>({});
-  const [restoLinea, setRestoLinea] = useState<Record<number, '' | 'manana' | 'ya_no'>>({});
+  const [restoLinea, setRestoLinea] = useState<Record<number, string>>({});
   const [enviandoWa, setEnviandoWa] = useState(false);
   const [resumenPago, setResumenPago] = useState<string | null>(null);
   const resumenRef = React.useRef<HTMLTextAreaElement>(null);
@@ -494,46 +531,49 @@ const PedidoView: React.FC = () => {
     const id = d.id_detalle_91;
     const pend = pendienteLinea(d);
     const llegada = llegadaLinea[id] === undefined || llegadaLinea[id] === '' ? 0 : Math.round(Number(llegadaLinea[id]));
-    const resto = restoLinea[id] || '';
     if (!Number.isFinite(llegada) || llegada < 0 || llegada > pend) {
       await showError('Validación', `Indique cuántos llegaron, entre 0 y ${pend}`);
       return;
     }
-    if (llegada < pend && resto !== 'manana' && resto !== 'ya_no') {
-      await showError('Validación', 'El resto pasa a mañana o ya no se pide por el sistema');
+    const falta = pend - llegada;
+    const opciones = opcionesResto(falta);
+    const elegida = id in restoLinea ? restoLinea[id] : (d.decision_linea_91 || '');
+    const resto = opciones.some((o) => o.value === elegida) ? elegida : '';
+    if (!resto) {
+      await showError(
+        'Validación',
+        falta > 0 ? 'Elija qué pasa con lo que no llegó' : 'Elija Cerrar (pagado y en bodega)'
+      );
       return;
     }
     if (llegada > 0 && !idRecibe) {
       await showError('Validación', 'Indique quién recibe lo que llegó');
       return;
     }
-    const falta = pend - llegada;
-    const texto = [
-      llegada > 0 ? `Llegaron ${llegada}.` : 'No llegó nada.',
-      falta > 0 && resto === 'manana' ? `${falta} pasan al pedido de mañana.` : '',
-      falta > 0 && resto === 'ya_no' ? `${falta} ya no se piden por el sistema.` : '',
-      'El PDF de este pedido no cambia.',
-    ].filter(Boolean).join(' ');
-    const ok = await showConfirm('Cerrar insumo', texto, 'Cerrar');
+    const ok = await showConfirm('Cerrar insumo', textoDecision(resto, falta, llegada), 'Cerrar');
     if (!ok) return;
     const res = await apiFetch(`${API}/${detalleAbierto.id_pedido_92}/cerrar-linea`, {
       method: 'POST',
       body: JSON.stringify({
         id_detalle_91: id,
         cantidad_llegada: llegada,
-        resto: falta > 0 ? resto : null,
+        resto,
         id_responsable_recibe_93: llegada > 0 ? Number(idRecibe) : null,
       }),
     });
     const data: ApiResponse<Pedido> = await res.json();
     if (!data.success) {
-      await showError('Error', data.error || 'No se pudo cerrar la línea');
+      await showError('Error', data.message || data.error || 'No se pudo cerrar la línea');
       return;
     }
     await fetchAll();
     if (data.data) setDetalleAbierto(data.data);
     setLlegadaLinea((p) => ({ ...p, [id]: '' }));
-    setRestoLinea((p) => ({ ...p, [id]: '' }));
+    setRestoLinea((p) => {
+      const next = { ...p };
+      delete next[id];
+      return next;
+    });
     await showSuccess('Listo', data.message || 'Línea cerrada');
   };
 
@@ -1168,8 +1208,8 @@ const PedidoView: React.FC = () => {
                 />
               </div>
               <p className="form-hint" style={{ margin: 0, maxWidth: 520 }}>
-                Cierre cada insumo. Si llegaron menos de los pedidos, el resto pasa a mañana o ya no se pide por acá
-                (porque se compró afuera). El PDF de este pedido no cambia.
+                Cierre cada insumo. Si no llegó todo, el combo dice en cuántos días de compra se vuelve a pedir,
+                o si sigue pendiente. El PDF de este pedido no cambia. El pago del pedido completo sigue en Marcar pagado.
               </p>
             </div>
           )}
@@ -1197,7 +1237,9 @@ const PedidoView: React.FC = () => {
                   const llegadaTxt = llegadaLinea[id] ?? '';
                   const llegadaNum = llegadaTxt === '' ? 0 : Math.round(Number(llegadaTxt));
                   const falta = Math.max(0, pend - (Number.isFinite(llegadaNum) ? llegadaNum : 0));
-                  const resto = restoLinea[id] || '';
+                  const opciones = opcionesResto(falta);
+                  const elegida = id in restoLinea ? restoLinea[id] : (d.decision_linea_91 || '');
+                  const resto = opciones.some((o) => o.value === elegida) ? elegida : '';
                   return (
                     <tr key={d.id_detalle_91}>
                       <td className="pedido-linea-nro">{idx + 1}</td>
@@ -1243,28 +1285,19 @@ const PedidoView: React.FC = () => {
                             />
                           </td>
                           <td>
-                            {falta > 0 ? (
-                              <div className="pedido-resto" role="group" aria-label="Qué hacer con el resto">
-                                <button
-                                  type="button"
-                                  className={resto === 'manana' ? 'btn-primary' : 'btn-secondary'}
-                                  aria-pressed={resto === 'manana'}
-                                  onClick={() => setRestoLinea((p) => ({ ...p, [id]: 'manana' }))}
-                                >
-                                  Mañana
-                                </button>
-                                <button
-                                  type="button"
-                                  className={resto === 'ya_no' ? 'btn-primary' : 'btn-secondary'}
-                                  aria-pressed={resto === 'ya_no'}
-                                  onClick={() => setRestoLinea((p) => ({ ...p, [id]: 'ya_no' }))}
-                                >
-                                  Ya no
-                                </button>
-                              </div>
-                            ) : (
-                              <span className="form-hint">Llegó todo</span>
-                            )}
+                            <select
+                              className="form-input pedido-resto-select"
+                              value={resto}
+                              onChange={(e) => setRestoLinea((p) => ({ ...p, [id]: e.target.value }))}
+                              aria-label={`Estado del resto de ${d.codigo_89 || d.descripcion_89}`}
+                            >
+                              <option value="">Elija el estado</option>
+                              {opciones.map((o) => (
+                                <option key={o.value} value={o.value}>
+                                  {o.label}
+                                </option>
+                              ))}
+                            </select>
                           </td>
                           <td>
                             <button type="button" className="btn-primary" onClick={() => void handleCerrarLinea(d)}>

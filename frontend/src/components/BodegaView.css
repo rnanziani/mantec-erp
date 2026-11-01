@@ -613,6 +613,14 @@
     white-space: pre;
 }
 
+.pedido-resto-select {
+    width: 100%;
+    min-width: 220px;
+    max-width: 340px;
+    padding: 6px 8px;
+    font-size: 13px;
+}
+
 .pedido-resto {
     display: flex;
     flex-wrap: wrap;
