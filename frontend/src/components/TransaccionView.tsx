@@ -802,6 +802,39 @@ const TransaccionView: React.FC = () => {
     setReportIdAlternador('');
   };
 
+  const handleExportPantalla = () => {
+    if (processedTransacciones.length === 0) {
+      void showWarning('Excel', 'No hay transacciones con esos filtros');
+      return;
+    }
+    const fechaExcel = (v?: string) => {
+      const iso = toFechaISO(v);
+      if (!iso) return '';
+      const [y, m, d] = iso.split('-');
+      return `${d}/${m}/${y}`;
+    };
+    const desde = filtroFechaDesde || 'inicio';
+    const hasta = filtroFechaHasta || 'hoy';
+    exportToExcel(
+      processedTransacciones.map((t) => ({
+        ID: t.id_transaccion_28,
+        Fecha: fechaExcel(t.fecha_28),
+        Hora: t.hora_28 || '',
+        Alternador: t.cod_alternador_19 || '',
+        Marca: t.marca_18 || '',
+        Origen: t.ubicacion_origen_descripcion || '',
+        Destino: t.ubicacion_destino_descripcion || '',
+        Tipo: [t.tipo_codigo, t.tipo_descripcion].filter(Boolean).join(' - '),
+        Técnico: t.tecnico_nombre || '',
+        Máquina: [t.maquina_numinterno, t.maquina_ppu ? `(${t.maquina_ppu})` : ''].filter(Boolean).join(' '),
+        'Tipo componente': t.tipo_comp_descripcion || '',
+        Observación: t.observacion_28 || '',
+      })),
+      `transacciones-${desde}-${hasta}`,
+      'Transacciones'
+    );
+  };
+
   const handleExportExcel = () => {
     if (previewData.length === 0) {
       void showWarning('Excel', 'No hay transacciones para exportar');
@@ -1539,6 +1572,18 @@ const TransaccionView: React.FC = () => {
               aria-label="Filtrar hasta fecha"
               style={{ width: '100%', padding: '8px 12px', borderRadius: '4px', border: '1px solid #ced4da', fontSize: '14px' }}
             />
+          </div>
+          <div className="form-group" style={{ margin: 0, flex: '0 0 auto' }}>
+            <label htmlFor="excel-transacciones">Excel</label>
+            <button
+              id="excel-transacciones"
+              type="button"
+              className="btn-export"
+              onClick={handleExportPantalla}
+              aria-label="Descargar a Excel las transacciones filtradas"
+            >
+              Excel
+            </button>
           </div>
           <div className="form-group" style={{ margin: 0, flex: '1 1 200px', minWidth: 180 }}>
             <label htmlFor="filtro-alternador">Alternador</label>
