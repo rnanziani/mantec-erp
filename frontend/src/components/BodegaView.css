@@ -116,8 +116,15 @@
     border-radius: 4px;
     font-size: 14px;
     font-family: inherit;
-    color: #495057;
+    color-scheme: light;
+    color: #212529;
     box-sizing: border-box;
+    background-color: #fff;
+}
+
+.form-container select option {
+    color-scheme: light;
+    color: #212529;
     background-color: #fff;
 }
 

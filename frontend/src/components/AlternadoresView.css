@@ -58,6 +58,14 @@
   white-space: nowrap;
 }
 
+.alternadores-filter-select,
+.alternadores-view select,
+.alternadores-view select option {
+  color-scheme: light;
+  color: #212529;
+  background-color: #fff;
+}
+
 .alternadores-filter-select {
   flex: 1;
   padding: 0.5rem 0.75rem;
