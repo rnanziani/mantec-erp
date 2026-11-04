@@ -7,6 +7,7 @@ import Pagination from './shared/Pagination';
 import { exportToExcel } from '../utils/exportUtils';
 import { apiUrl } from '../lib/apiClient';
 import { changeKeepingCaret } from '../hooks/useCaretTransform';
+import SearchableSelect from './shared/SearchableSelect';
 
 interface Alternador {
   id_alternador_19: number;
@@ -117,6 +118,22 @@ const AlternadoresView: React.FC = () => {
       console.error('Error al cargar tipos de componente:', err);
     }
   };
+
+  const marcaOptions = useMemo(
+    () => marcas.map((marca) => ({
+      value: String(marca.id_marca_18),
+      label: marca.marca_18?.trim() || `Marca ${marca.id_marca_18}`,
+    })),
+    [marcas]
+  );
+
+  const tipoOptions = useMemo(
+    () => tiposComp.map((tipo) => ({
+      value: String(tipo.id_tipo_comp_alternador_30),
+      label: tipo.tipo_comp_alternador_30?.trim() || `Tipo ${tipo.id_tipo_comp_alternador_30}`,
+    })),
+    [tiposComp]
+  );
 
   // Filtrar y ordenar datos
   const filteredAndSortedAlternadores = useMemo(() => {
@@ -356,20 +373,15 @@ const AlternadoresView: React.FC = () => {
               <label htmlFor="filter-tipo-comp" className="alternadores-filter-label">
                 Filtrar por Tipo:
               </label>
-              <select
+              <SearchableSelect
                 id="filter-tipo-comp"
-                value={filterTipoComp}
-                onChange={(e) => setFilterTipoComp(parseInt(e.target.value))}
-                className="alternadores-filter-select"
+                value={filterTipoComp ? String(filterTipoComp) : ''}
+                onChange={(value) => setFilterTipoComp(parseInt(value, 10) || 0)}
+                options={[{ value: '', label: 'Todos los tipos' }, ...tipoOptions]}
+                placeholder="Todos los tipos"
+                emptyMessage="No hay tipos de componente"
                 aria-label="Filtrar alternadores por tipo de componente"
-              >
-                <option value={0}>Todos los tipos</option>
-                {tiposComp.map(tipo => (
-                  <option key={tipo.id_tipo_comp_alternador_30} value={tipo.id_tipo_comp_alternador_30}>
-                    {tipo.tipo_comp_alternador_30}
-                  </option>
-                ))}
-              </select>
+              />
             </div>
             <div className="alternadores-results-info">
               Mostrando {currentAlternadores.length} de {filteredAndSortedAlternadores.length} registros
@@ -390,20 +402,16 @@ const AlternadoresView: React.FC = () => {
           <form onSubmit={editingId ? handleUpdate : handleCreate}>
             <div className="form-group">
               <label htmlFor="marca">Marca del Alternador:</label>
-              <select
+              <SearchableSelect
                 id="marca"
-                className="form-select"
-                value={selectedMarca}
-                onChange={(e) => setSelectedMarca(parseInt(e.target.value))}
+                value={selectedMarca ? String(selectedMarca) : ''}
+                onChange={(value) => setSelectedMarca(parseInt(value, 10) || 0)}
+                options={marcaOptions}
+                placeholder="Seleccione una marca"
                 required
-              >
-                <option value="0">-- Seleccione una marca --</option>
-                {marcas.map((marca) => (
-                  <option key={marca.id_marca_18} value={marca.id_marca_18}>
-                    {marca.marca_18}
-                  </option>
-                ))}
-              </select>
+                emptyMessage={marcaOptions.length === 0 ? 'No hay marcas cargadas' : 'Ninguna marca coincide'}
+                aria-label="Marca del alternador"
+              />
               <small className="form-hint">
                 💡 El código del alternador se generará automáticamente
               </small>
@@ -425,20 +433,16 @@ const AlternadoresView: React.FC = () => {
             </div>
             <div className="form-group">
               <label htmlFor="tipoComp">Tipo de Componente:</label>
-              <select
+              <SearchableSelect
                 id="tipoComp"
-                className="form-select"
-                value={selectedTipoComp}
-                onChange={(e) => setSelectedTipoComp(parseInt(e.target.value))}
+                value={selectedTipoComp ? String(selectedTipoComp) : ''}
+                onChange={(value) => setSelectedTipoComp(parseInt(value, 10) || 0)}
+                options={tipoOptions}
+                placeholder="Seleccione un tipo"
                 required
-              >
-                <option value="0">-- Seleccione un tipo --</option>
-                {tiposComp.map((tipo) => (
-                  <option key={tipo.id_tipo_comp_alternador_30} value={tipo.id_tipo_comp_alternador_30}>
-                    {tipo.tipo_comp_alternador_30}
-                  </option>
-                ))}
-              </select>
+                emptyMessage={tipoOptions.length === 0 ? 'No hay tipos de componente' : 'Ningún tipo coincide'}
+                aria-label="Tipo de componente del alternador"
+              />
               <small className="form-hint">
                 💡 Tipo de componente del alternador (por defecto: 1)
               </small>

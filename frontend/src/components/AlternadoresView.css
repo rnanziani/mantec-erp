@@ -51,6 +51,11 @@
   min-width: 220px;
 }
 
+.alternadores-filter-wrap .searchable-select {
+  flex: 1;
+  min-width: 180px;
+}
+
 .alternadores-filter-label {
   font-size: 0.875rem;
   font-weight: 500;

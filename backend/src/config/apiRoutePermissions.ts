@@ -134,7 +134,7 @@ export const API_PREFIX_RULES: Array<{
   { prefix: '/api/existencias', permission: 'MENU_GESTION_ALTERNADORES_STOCK' },
   { prefix: '/api/alternadores', permission: 'MENU_GESTION_ALTERNADORES_ALTERNADORES' },
   { prefix: '/api/bodegas', permission: 'MENU_GESTION_ALTERNADORES_BODEGAS' },
-  { prefix: '/api/marcas', permission: 'MENU_GESTION_ALTERNADORES_MARCAS' },
+  { prefix: '/api/marcas', permission: 'MENU_GESTION_ALTERNADORES_MARCAS', readAuthOnly: true },
   { prefix: '/api/estados', permission: 'MENU_GESTION_ALTERNADORES_ESTADO' },
 
   // Mantenedores (readAuthOnly en catálogos usados como lookup en operaciones)
