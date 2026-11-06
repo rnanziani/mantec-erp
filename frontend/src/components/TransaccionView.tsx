@@ -318,6 +318,50 @@ const TransaccionView: React.FC = () => {
     [tiposTransaccion]
   );
 
+  const ubicacionFormOptions = useMemo(
+    () =>
+      [...ubicacionesActivas]
+        .map((u) => ({
+          value: String(u.id_ubicacion_27),
+          label: u.descripcion_27
+        }))
+        .sort((a, b) => a.label.localeCompare(b.label, 'es')),
+    [ubicacionesActivas]
+  );
+
+  const ubicacionAllOptions = useMemo(
+    () =>
+      [...ubicaciones]
+        .map((u) => ({
+          value: String(u.id_ubicacion_27),
+          label: u.descripcion_27
+        }))
+        .sort((a, b) => a.label.localeCompare(b.label, 'es')),
+    [ubicaciones]
+  );
+
+  const marcaOptions = useMemo(
+    () =>
+      [...marcas]
+        .map((m) => ({
+          value: String(m.id_marca_18),
+          label: m.marca_18
+        }))
+        .sort((a, b) => a.label.localeCompare(b.label, 'es')),
+    [marcas]
+  );
+
+  const tipoCompOptions = useMemo(
+    () =>
+      [...tiposComp]
+        .map((t: { id_tipo_comp_alternador_30: number; tipo_comp_alternador_30: string }) => ({
+          value: String(t.id_tipo_comp_alternador_30),
+          label: t.tipo_comp_alternador_30
+        }))
+        .sort((a, b) => a.label.localeCompare(b.label, 'es')),
+    [tiposComp]
+  );
+
   /** El combo muestra nombre + apellidos; la API ordena por apellido y la lista se ve desordenada. */
   const tecnicosOrdenados = useMemo(
     () =>
@@ -698,12 +742,6 @@ const TransaccionView: React.FC = () => {
     setError('');
   };
 
-  const getValorAccionIcon = (valor?: -1 | 0 | 1) => {
-    if (valor === 1) return '📈 +1';
-    if (valor === -1) return '📉 -1';
-    return '➖ 0';
-  };
-
   const formatValorInsumo = (n?: number | null) => {
     if (n == null || Number.isNaN(Number(n))) return '—';
     return Number(n).toLocaleString('es-CL', {
@@ -943,56 +981,44 @@ const TransaccionView: React.FC = () => {
 
               <div className="form-group">
                 <label htmlFor="ubicacion-origen">Ubicación Origen *</label>
-                <select
+                <SearchableSelect
                   id="ubicacion-origen"
                   value={idUbicacionOrigen}
-                  onChange={(e) => setIdUbicacionOrigen(e.target.value)}
+                  onChange={setIdUbicacionOrigen}
+                  options={ubicacionFormOptions}
+                  placeholder="Buscar origen (Máquina, Bodega...)"
                   required
-                  style={{ width: '100%', padding: '8px 12px', borderRadius: '4px', border: '1px solid #ced4da', fontSize: '14px' }}
-                >
-                  <option value="">Seleccione ubicación origen</option>
-                  {ubicacionesActivas.map(ubic => (
-                    <option key={ubic.id_ubicacion_27} value={ubic.id_ubicacion_27}>
-                      {ubic.descripcion_27}
-                    </option>
-                  ))}
-                </select>
+                  aria-label="Buscar o seleccionar ubicación origen"
+                  emptyMessage="No hay ubicaciones activas"
+                />
               </div>
 
               <div className="form-group">
                 <label htmlFor="ubicacion-destino">Ubicación Destino *</label>
-                <select
+                <SearchableSelect
                   id="ubicacion-destino"
                   value={idUbicacionDestino}
-                  onChange={(e) => setIdUbicacionDestino(e.target.value)}
+                  onChange={setIdUbicacionDestino}
+                  options={ubicacionFormOptions}
+                  placeholder="Buscar destino (Bodega, Taller...)"
                   required
-                  style={{ width: '100%', padding: '8px 12px', borderRadius: '4px', border: '1px solid #ced4da', fontSize: '14px' }}
-                >
-                  <option value="">Seleccione ubicación destino</option>
-                  {ubicacionesActivas.map(ubic => (
-                    <option key={ubic.id_ubicacion_27} value={ubic.id_ubicacion_27}>
-                      {ubic.descripcion_27}
-                    </option>
-                  ))}
-                </select>
-            </div>
+                  aria-label="Buscar o seleccionar ubicación destino"
+                  emptyMessage="No hay ubicaciones activas"
+                />
+              </div>
 
               <div className="form-group">
                 <label htmlFor="tipo-transaccion">Tipo de Transacción *</label>
-                <select
+                <SearchableSelect
                   id="tipo-transaccion"
                   value={idTipoTransaccion}
-                  onChange={(e) => setIdTipoTransaccion(e.target.value)}
+                  onChange={setIdTipoTransaccion}
+                  options={filtroTipoOptions}
+                  placeholder="Buscar tipo (SBM, código...)"
                   required
-                  style={{ width: '100%', padding: '8px 12px', borderRadius: '4px', border: '1px solid #ced4da', fontSize: '14px' }}
-                >
-                  <option value="">Seleccione un tipo</option>
-                  {tiposTransaccion.map(tipo => (
-                    <option key={tipo.id_tipo_transaccion_25} value={tipo.id_tipo_transaccion_25}>
-                      {tipo.cod_accion_25} - {tipo.descripcion_25} ({getValorAccionIcon(tipo.valor_accion_25)})
-                    </option>
-                  ))}
-                </select>
+                  aria-label="Buscar o seleccionar tipo de transacción"
+                  emptyMessage="No hay tipos de transacción"
+                />
                 <small style={{ color: '#334155', fontSize: '0.85em', display: 'block', marginTop: '8px' }}>
                   Ciclo de reparación: Máquina → Bodega (malo) → Taller → Bodega (reparado) → Máquina.
                   Si baja de máquina, no se exige stock en Máquina; elija la máquina y el destino (Bodega).
@@ -1160,51 +1186,42 @@ const TransaccionView: React.FC = () => {
               </div>
 
               <div className="form-group">
-                <label>Tipo de Transacción</label>
-                <select
+                <label htmlFor="reporte-tipo">Tipo de Transacción</label>
+                <SearchableSelect
+                  id="reporte-tipo"
                   value={reportIdTipoTransaccion}
-                  onChange={(e) => setReportIdTipoTransaccion(e.target.value)}
-                  style={{ width: '100%', padding: '8px 12px', borderRadius: '4px', border: '1px solid #ced4da' }}
-                >
-                  <option value="">Todos los tipos</option>
-                  {tiposTransaccion.map(tipo => (
-                    <option key={tipo.id_tipo_transaccion_25} value={tipo.id_tipo_transaccion_25}>
-                      {tipo.cod_accion_25} - {tipo.descripcion_25}
-                    </option>
-                  ))}
-                </select>
+                  onChange={setReportIdTipoTransaccion}
+                  options={[{ value: '', label: 'Todos los tipos' }, ...filtroTipoOptions]}
+                  placeholder="Todos los tipos..."
+                  aria-label="Filtrar reporte por tipo"
+                  emptyMessage="Sin tipos"
+                />
               </div>
 
               <div className="form-group">
-                <label>Marca</label>
-                <select
+                <label htmlFor="reporte-marca">Marca</label>
+                <SearchableSelect
+                  id="reporte-marca"
                   value={reportIdMarca}
-                  onChange={(e) => setReportIdMarca(e.target.value)}
-                  style={{ width: '100%', padding: '8px 12px', borderRadius: '4px', border: '1px solid #ced4da' }}
-                >
-                  <option value="">Todas las marcas</option>
-                  {marcas.map(marca => (
-                    <option key={marca.id_marca_18} value={marca.id_marca_18}>
-                      {marca.marca_18}
-                    </option>
-                  ))}
-                </select>
+                  onChange={setReportIdMarca}
+                  options={[{ value: '', label: 'Todas las marcas' }, ...marcaOptions]}
+                  placeholder="Todas las marcas..."
+                  aria-label="Filtrar reporte por marca"
+                  emptyMessage="Sin marcas"
+                />
               </div>
 
               <div className="form-group">
-                <label>Destino (Ubicación)</label>
-                <select
+                <label htmlFor="reporte-destino">Destino (Ubicación)</label>
+                <SearchableSelect
+                  id="reporte-destino"
                   value={reportIdDestino}
-                  onChange={(e) => setReportIdDestino(e.target.value)}
-                  style={{ width: '100%', padding: '8px 12px', borderRadius: '4px', border: '1px solid #ced4da' }}
-                >
-                  <option value="">Todos los destinos</option>
-                  {ubicaciones.map(ubic => (
-                    <option key={ubic.id_ubicacion_27} value={ubic.id_ubicacion_27}>
-                      {ubic.descripcion_27}
-                    </option>
-                  ))}
-                </select>
+                  onChange={setReportIdDestino}
+                  options={[{ value: '', label: 'Todos los destinos' }, ...ubicacionAllOptions]}
+                  placeholder="Todos los destinos..."
+                  aria-label="Filtrar reporte por destino"
+                  emptyMessage="Sin ubicaciones"
+                />
               </div>
 
               <div className="form-group">
@@ -1718,51 +1735,42 @@ const TransaccionView: React.FC = () => {
               </div>
 
               <div className="form-group">
-                <label>Tipo de Transacción</label>
-                <select
+                <label htmlFor="cantcomp-tipo">Tipo de Transacción</label>
+                <SearchableSelect
+                  id="cantcomp-tipo"
                   value={cantCompIdTipoTransaccion}
-                  onChange={(e) => setCantCompIdTipoTransaccion(e.target.value)}
-                  style={{ width: '100%', padding: '8px 12px', borderRadius: '4px', border: '1px solid #ced4da' }}
-                >
-                  <option value="">Todos los tipos</option>
-                  {tiposTransaccion.map(tipo => (
-                    <option key={tipo.id_tipo_transaccion_25} value={tipo.id_tipo_transaccion_25}>
-                      {tipo.cod_accion_25} - {tipo.descripcion_25}
-                    </option>
-                  ))}
-                </select>
+                  onChange={setCantCompIdTipoTransaccion}
+                  options={[{ value: '', label: 'Todos los tipos' }, ...filtroTipoOptions]}
+                  placeholder="Todos los tipos..."
+                  aria-label="Filtrar cantidad por tipo"
+                  emptyMessage="Sin tipos"
+                />
               </div>
 
               <div className="form-group">
-                <label>Marca</label>
-                <select
+                <label htmlFor="cantcomp-marca">Marca</label>
+                <SearchableSelect
+                  id="cantcomp-marca"
                   value={cantCompIdMarca}
-                  onChange={(e) => setCantCompIdMarca(e.target.value)}
-                  style={{ width: '100%', padding: '8px 12px', borderRadius: '4px', border: '1px solid #ced4da' }}
-                >
-                  <option value="">Todas las marcas</option>
-                  {marcas.map(marca => (
-                    <option key={marca.id_marca_18} value={marca.id_marca_18}>
-                      {marca.marca_18}
-                    </option>
-                  ))}
-                </select>
+                  onChange={setCantCompIdMarca}
+                  options={[{ value: '', label: 'Todas las marcas' }, ...marcaOptions]}
+                  placeholder="Todas las marcas..."
+                  aria-label="Filtrar cantidad por marca"
+                  emptyMessage="Sin marcas"
+                />
               </div>
 
               <div className="form-group">
-                <label>Destino (Ubicación)</label>
-                <select
+                <label htmlFor="cantcomp-destino">Destino (Ubicación)</label>
+                <SearchableSelect
+                  id="cantcomp-destino"
                   value={cantCompIdDestino}
-                  onChange={(e) => setCantCompIdDestino(e.target.value)}
-                  style={{ width: '100%', padding: '8px 12px', borderRadius: '4px', border: '1px solid #ced4da' }}
-                >
-                  <option value="">Todos los destinos</option>
-                  {ubicaciones.map(ubic => (
-                    <option key={ubic.id_ubicacion_27} value={ubic.id_ubicacion_27}>
-                      {ubic.descripcion_27}
-                    </option>
-                  ))}
-                </select>
+                  onChange={setCantCompIdDestino}
+                  options={[{ value: '', label: 'Todos los destinos' }, ...ubicacionAllOptions]}
+                  placeholder="Todos los destinos..."
+                  aria-label="Filtrar cantidad por destino"
+                  emptyMessage="Sin ubicaciones"
+                />
               </div>
 
               <div className="form-group">
@@ -1779,19 +1787,16 @@ const TransaccionView: React.FC = () => {
               </div>
 
               <div className="form-group">
-                <label>Tipo de Componente</label>
-                <select
+                <label htmlFor="cantcomp-tipocomp">Tipo de Componente</label>
+                <SearchableSelect
+                  id="cantcomp-tipocomp"
                   value={cantCompIdTipoComp}
-                  onChange={(e) => setCantCompIdTipoComp(e.target.value)}
-                  style={{ width: '100%', padding: '8px 12px', borderRadius: '4px', border: '1px solid #ced4da' }}
-                >
-                  <option value="">Todos los tipos</option>
-                  {tiposComp.map(tipo => (
-                    <option key={tipo.id_tipo_comp_alternador_30} value={tipo.id_tipo_comp_alternador_30}>
-                      {tipo.tipo_comp_alternador_30}
-                    </option>
-                  ))}
-                </select>
+                  onChange={setCantCompIdTipoComp}
+                  options={[{ value: '', label: 'Todos los tipos' }, ...tipoCompOptions]}
+                  placeholder="Todos los tipos..."
+                  aria-label="Filtrar cantidad por tipo de componente"
+                  emptyMessage="Sin tipos de componente"
+                />
               </div>
 
               <div className="form-group">

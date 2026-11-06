@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import './BodegaView.css'; // Reutilizamos los mismos estilos
 import { showSuccess, showError, showDeleteConfirm } from '../utils/swal';
 import { apiUrl, openAuthenticatedBlob } from '../lib/apiClient';
-import { filtrarTrabajadoresPorApellido } from '../utils/trabajadorSearch';
+import SearchableSelect from './shared/SearchableSelect';
 import { filtrarResponsablesActivos } from '../utils/responsablesEntrega';
 import { changeKeepingCaret } from '../hooks/useCaretTransform';
 
@@ -74,6 +74,23 @@ type SortConfig = {
   direction: 'asc' | 'desc';
 };
 
+function nombreTrabajador(t: Trabajador): string {
+  return `${t.apaterno_06 || ''} ${t.amaterno_06 || ''} ${t.nombre_06 || ''}`.trim();
+}
+
+function etiquetaMaquina(m: Maquina): string {
+  return [m.ppu_11, m.numinterno_11, m.descripcion_11 ? `(${m.descripcion_11})` : null]
+    .filter(Boolean)
+    .join(' — ');
+}
+
+function nombreResponsable(r: Responsable): string {
+  return (
+    r.nombre_completo ||
+    `${r.nombreresponsableentrega_08 || ''} ${r.apaternoresponsableentrega_08 || ''} ${r.amaternoresponsableentrega_08 || ''}`
+  ).trim();
+}
+
 const AsignacionProductosAseoView: React.FC = () => {
   const [asignaciones, setAsignaciones] = useState<Asignacion[]>([]);
   const [productos, setProductos] = useState<ProductoAseo[]>([]);
@@ -87,16 +104,14 @@ const AsignacionProductosAseoView: React.FC = () => {
   // Formulario Maestro
   const [showForm, setShowForm] = useState<boolean>(false);
   const [idAsignacionSeleccionada, setIdAsignacionSeleccionada] = useState<number | null>(null);
-  const [buscarPatente, setBuscarPatente] = useState<string>('');
-  const [buscarApellido, setBuscarApellido] = useState<string>('');
+  const [idMaquina, setIdMaquina] = useState<string>('');
+  const [idTrabajador, setIdTrabajador] = useState<string>('');
   const [idResponsable, setIdResponsable] = useState<string>('');
   const [fecha, setFecha] = useState<string>(new Date().toISOString().split('T')[0]);
   const [hora, setHora] = useState<string>(new Date().toTimeString().split(' ')[0].substring(0, 5));
   
   // Detalle de productos
   const [detalleProductos, setDetalleProductos] = useState<DetalleAsignacion[]>([]);
-  const [maquinaSeleccionada, setMaquinaSeleccionada] = useState<Maquina | null>(null);
-  const [trabajadorSeleccionado, setTrabajadorSeleccionado] = useState<Trabajador | null>(null);
 
   // Búsqueda y ordenamiento
   const [filtro, setFiltro] = useState<string>('');
@@ -117,10 +132,8 @@ const AsignacionProductosAseoView: React.FC = () => {
     return date.toISOString().split('T')[0];
   });
   const [reportFechaHasta, setReportFechaHasta] = useState<string>(new Date().toISOString().split('T')[0]);
-  const [reportBuscarPatente, setReportBuscarPatente] = useState<string>('');
-  const [reportBuscarTrabajador, setReportBuscarTrabajador] = useState<string>('');
-  const [reportMaquinaSeleccionada, setReportMaquinaSeleccionada] = useState<Maquina | null>(null);
-  const [reportTrabajadorSeleccionado, setReportTrabajadorSeleccionado] = useState<Trabajador | null>(null);
+  const [reportIdMaquina, setReportIdMaquina] = useState<string>('');
+  const [reportIdTrabajador, setReportIdTrabajador] = useState<string>('');
   const [reportProducto, setReportProducto] = useState<string>('');
 
   const API_URL = apiUrl('/asignaciones-productos-aseo');
@@ -252,6 +265,55 @@ const AsignacionProductosAseoView: React.FC = () => {
     }
   };
 
+  const maquinaSeleccionada = useMemo(
+    () => maquinas.find((m) => String(m.idmaquina_11) === idMaquina) || null,
+    [maquinas, idMaquina]
+  );
+
+  const trabajadorSeleccionado = useMemo(
+    () => trabajadores.find((t) => String(t.idtrabajador_06) === idTrabajador) || null,
+    [trabajadores, idTrabajador]
+  );
+
+  const maquinaOptions = useMemo(
+    () =>
+      [...maquinas]
+        .map((m) => ({ value: String(m.idmaquina_11), label: etiquetaMaquina(m) }))
+        .sort((a, b) => a.label.localeCompare(b.label, 'es', { numeric: true })),
+    [maquinas]
+  );
+
+  const trabajadorOptions = useMemo(
+    () =>
+      [...trabajadores]
+        .map((t) => ({
+          value: String(t.idtrabajador_06),
+          label: [nombreTrabajador(t), t.ruttrabajador_06].filter(Boolean).join(' — ')
+        }))
+        .sort((a, b) => a.label.localeCompare(b.label, 'es')),
+    [trabajadores]
+  );
+
+  const responsableOptions = useMemo(
+    () =>
+      [...responsables]
+        .map((r) => ({
+          value: String(r.idresponsableentrega_08),
+          label: nombreResponsable(r)
+        }))
+        .sort((a, b) => a.label.localeCompare(b.label, 'es')),
+    [responsables]
+  );
+
+  const productoOptions = useMemo(
+    () =>
+      productos
+        .filter((p) => p.activo !== false)
+        .map((p) => ({ value: String(p.id_producto), label: p.nombre_producto }))
+        .sort((a, b) => a.label.localeCompare(b.label, 'es')),
+    [productos]
+  );
+
   // Lógica de filtrado y ordenamiento
   const processedAsignaciones = useMemo(() => {
     let data = [...asignaciones];
@@ -343,8 +405,8 @@ const AsignacionProductosAseoView: React.FC = () => {
     setShowForm(true);
     setIdAsignacionSeleccionada(null);
     setDetalleProductos([]);
-    setMaquinaSeleccionada(null);
-    setTrabajadorSeleccionado(null);
+    setIdMaquina('');
+    setIdTrabajador('');
   };
 
   const handleGuardar = async () => {
@@ -436,13 +498,8 @@ const AsignacionProductosAseoView: React.FC = () => {
     setFecha(asignacion.fecha);
     setHora(asignacion.hora);
     setIdResponsable(asignacion.id_responsable.toString());
-    
-    // Buscar máquina y trabajador
-    const maq = maquinas.find(m => m.idmaquina_11 === asignacion.id_maquina);
-    const trab = trabajadores.find(t => t.idtrabajador_06 === asignacion.id_trabajador);
-    
-    setMaquinaSeleccionada(maq || null);
-    setTrabajadorSeleccionado(trab || null);
+    setIdMaquina(asignacion.id_maquina ? String(asignacion.id_maquina) : '');
+    setIdTrabajador(asignacion.id_trabajador ? String(asignacion.id_trabajador) : '');
     setShowForm(true);
   };
 
@@ -487,68 +544,24 @@ const AsignacionProductosAseoView: React.FC = () => {
   };
 
   const resetForm = () => {
-    setBuscarPatente('');
-    setBuscarApellido('');
+    setIdMaquina('');
+    setIdTrabajador('');
     setIdResponsable('');
     setFecha(new Date().toISOString().split('T')[0]);
     setHora(new Date().toTimeString().split(' ')[0].substring(0, 5));
     setDetalleProductos([]);
-    setMaquinaSeleccionada(null);
-    setTrabajadorSeleccionado(null);
     setIdAsignacionSeleccionada(null);
     setShowForm(false);
     setError('');
   };
-
-  // Filtrar máquinas y trabajadores para el modal de reporte
-  const reportMaquinasFiltradas = useMemo(() => {
-    if (!reportBuscarPatente || reportBuscarPatente.trim() === '') return maquinas;
-    const patenteLower = reportBuscarPatente.toLowerCase();
-    return maquinas.filter(m =>
-      (m.ppu_11 && m.ppu_11.toLowerCase().includes(patenteLower)) ||
-      (m.numinterno_11 && m.numinterno_11.toLowerCase().includes(patenteLower)) ||
-      (m.descripcion_11 && m.descripcion_11.toLowerCase().includes(patenteLower))
-    );
-  }, [maquinas, reportBuscarPatente]);
-
-  const reportTrabajadoresFiltrados = useMemo(() => {
-    if (!reportBuscarTrabajador || reportBuscarTrabajador.trim() === '') {
-      return trabajadores;
-    }
-    const busqueda = reportBuscarTrabajador.trim();
-    const apellidos = busqueda.split(/\s+/).map(a => a.toLowerCase());
-    if (apellidos.length === 1) {
-      const word = apellidos[0];
-      const paternoMatch = trabajadores.filter(t =>
-        t.apaterno_06 != null && t.apaterno_06.toLowerCase().startsWith(word)
-      );
-      const maternoMatch = trabajadores.filter(t =>
-        t.amaterno_06 != null && t.amaterno_06.toLowerCase().startsWith(word) &&
-        !paternoMatch.some(p => p.idtrabajador_06 === t.idtrabajador_06)
-      );
-      return [...paternoMatch, ...maternoMatch];
-    }
-    const [primer, segundo] = apellidos;
-    return trabajadores
-      .filter(t =>
-        t.apaterno_06 != null && t.apaterno_06.toLowerCase().startsWith(primer) &&
-        t.amaterno_06 != null && t.amaterno_06.toLowerCase().startsWith(segundo)
-      )
-      .sort((a, b) => {
-        const cmpP = (a.apaterno_06 || '').localeCompare(b.apaterno_06 || '');
-        return cmpP !== 0 ? cmpP : (a.amaterno_06 || '').localeCompare(b.amaterno_06 || '');
-      });
-  }, [trabajadores, reportBuscarTrabajador]);
 
   const handleLimpiarFiltrosReporte = () => {
     const date = new Date();
     date.setMonth(date.getMonth() - 1);
     setReportFechaDesde(date.toISOString().split('T')[0]);
     setReportFechaHasta(new Date().toISOString().split('T')[0]);
-    setReportBuscarPatente('');
-    setReportBuscarTrabajador('');
-    setReportMaquinaSeleccionada(null);
-    setReportTrabajadorSeleccionado(null);
+    setReportIdMaquina('');
+    setReportIdTrabajador('');
     setReportProducto('');
   };
 
@@ -559,11 +572,12 @@ const AsignacionProductosAseoView: React.FC = () => {
     });
 
     // Agregar filtros opcionales si están seleccionados
-    if (reportMaquinaSeleccionada && reportMaquinaSeleccionada.ppu_11) {
-      params.append('patente', reportMaquinaSeleccionada.ppu_11);
+    const maqReporte = maquinas.find((m) => String(m.idmaquina_11) === reportIdMaquina);
+    if (maqReporte?.ppu_11) {
+      params.append('patente', maqReporte.ppu_11);
     }
-    if (reportTrabajadorSeleccionado) {
-      params.append('id_trabajador', reportTrabajadorSeleccionado.idtrabajador_06.toString());
+    if (reportIdTrabajador) {
+      params.append('id_trabajador', reportIdTrabajador);
     }
     if (reportProducto) {
       params.append('id_producto', reportProducto);
@@ -623,22 +637,6 @@ const AsignacionProductosAseoView: React.FC = () => {
     setShowPreview(false);
   };
 
-  // Filtrar máquinas y trabajadores para mostrar en las listas de selección
-  const maquinasFiltradas = useMemo(() => {
-    if (!buscarPatente || buscarPatente.trim() === '') return maquinas;
-    const patenteLower = buscarPatente.toLowerCase();
-    return maquinas.filter(m =>
-      (m.ppu_11 && m.ppu_11.toLowerCase().includes(patenteLower)) ||
-      (m.numinterno_11 && m.numinterno_11.toLowerCase().includes(patenteLower)) ||
-      (m.descripcion_11 && m.descripcion_11.toLowerCase().includes(patenteLower))
-    );
-  }, [maquinas, buscarPatente]);
-
-  const trabajadoresFiltrados = useMemo(
-    () => filtrarTrabajadoresPorApellido(trabajadores, buscarApellido),
-    [trabajadores, buscarApellido]
-  );
-
   return (
     <div className="bodega-view">
       <div className="view-header">
@@ -679,178 +677,71 @@ const AsignacionProductosAseoView: React.FC = () => {
         <div className="form-container">
           <h3>Datos de la Asignación</h3>
           
-          {/* Fila única: Buscar Patente | Seleccionar Máquina | Buscar Trabajador | Seleccionar Trabajador */}
           <div
             style={{
               display: 'grid',
-              gridTemplateColumns: '1fr 1fr 1fr 1fr',
+              gridTemplateColumns: '1fr 1fr',
               gap: '20px',
               marginBottom: '20px'
             }}
           >
             <div className="form-group">
-              <label>Buscar Por Patente</label>
-              <input
-                type="text"
-                value={buscarPatente}
-                onChange={(e) => changeKeepingCaret(e, setBuscarPatente)}
-                placeholder="INGRESE PATENTE O NÚMERO INTERNO"
-                style={{
-                  width: '100%',
-                  padding: '8px 12px',
-                  borderRadius: '4px',
-                  border: '1px solid #ced4da',
-                  textTransform: 'uppercase'
-                }}
+              <label htmlFor="aseo-maquina">Máquina *</label>
+              <SearchableSelect
+                id="aseo-maquina"
+                value={idMaquina}
+                onChange={setIdMaquina}
+                options={maquinaOptions}
+                placeholder="Buscar por patente o número interno..."
+                required
+                aria-label="Buscar o seleccionar máquina"
+                emptyMessage={maquinas.length === 0 ? 'Cargando máquinas...' : 'No se encontraron máquinas'}
               />
-            </div>
-
-            <div className="form-group">
-              <label>Seleccionar Máquina *</label>
-              <div
-                style={{
-                  maxHeight: '150px',
-                  overflowY: 'auto',
-                  border: '1px solid #ced4da',
-                  borderRadius: '4px',
-                  padding: '10px'
-                }}
-              >
-                {maquinasFiltradas.length > 0 ? (
-                  maquinasFiltradas.map((maq) => (
-                    <div
-                      key={maq.idmaquina_11}
-                      onClick={() => setMaquinaSeleccionada(maq)}
-                      style={{
-                        padding: '8px',
-                        cursor: 'pointer',
-                        backgroundColor:
-                          maquinaSeleccionada?.idmaquina_11 === maq.idmaquina_11 ? '#007bff' : 'transparent',
-                        color: maquinaSeleccionada?.idmaquina_11 === maq.idmaquina_11 ? 'white' : 'black',
-                        marginBottom: '5px',
-                        borderRadius: '4px',
-                        border:
-                          maquinaSeleccionada?.idmaquina_11 === maq.idmaquina_11
-                            ? '2px solid #0056b3'
-                            : '1px solid #ced4da'
-                      }}
-                    >
-                      <strong>{maq.ppu_11 || 'N/A'}</strong> - {maq.numinterno_11 || 'N/A'}{' '}
-                      {maq.descripcion_11 ? `(${maq.descripcion_11})` : ''}
-                    </div>
-                  ))
-                ) : (
-                  <div
-                    style={{
-                      textAlign: 'center',
-                      color: '#6c757d',
-                      padding: '10px'
-                    }}
-                  >
-                    {maquinas.length === 0 ? 'Cargando máquinas...' : 'No se encontraron máquinas con ese criterio'}
-                  </div>
-                )}
-              </div>
-            </div>
-
-            <div className="form-group">
-              <label>Buscar Trabajador Por Apellido</label>
-              <input
-                type="text"
-                value={buscarApellido}
-                onChange={(e) => changeKeepingCaret(e, setBuscarApellido)}
-                placeholder="EJ: GONZALEZ O GONZALEZ PEREZ"
-                style={{
-                  width: '100%',
-                  padding: '8px 12px',
-                  borderRadius: '4px',
-                  border: '1px solid #ced4da',
-                  textTransform: 'uppercase'
-                }}
-              />
-              <small style={{ color: '#6c757d', fontSize: '0.85em' }}>
-                💡 Tip: Una palabra busca por apellido paterno primero, luego materno (empieza con). Dos
-                palabras: paterno y materno en ese orden.
+              <small style={{ color: '#007bff', fontSize: '0.85em', display: 'block', marginTop: '5px' }}>
+                Tip: escriba patente, interno o descripción
               </small>
             </div>
 
             <div className="form-group">
-              <label>Seleccionar Trabajador *</label>
-              <div
-                style={{
-                  maxHeight: '150px',
-                  overflowY: 'auto',
-                  border: '1px solid #ced4da',
-                  borderRadius: '4px',
-                  padding: '10px'
-                }}
-              >
-                {trabajadoresFiltrados.length > 0 ? (
-                  trabajadoresFiltrados.map((trab) => (
-                    <div
-                      key={trab.idtrabajador_06}
-                      onClick={() => setTrabajadorSeleccionado(trab)}
-                      style={{
-                        padding: '8px',
-                        cursor: 'pointer',
-                        backgroundColor:
-                          trabajadorSeleccionado?.idtrabajador_06 === trab.idtrabajador_06
-                            ? '#007bff'
-                            : 'transparent',
-                        color: trabajadorSeleccionado?.idtrabajador_06 === trab.idtrabajador_06 ? 'white' : 'black',
-                        marginBottom: '5px',
-                        borderRadius: '4px',
-                        border:
-                          trabajadorSeleccionado?.idtrabajador_06 === trab.idtrabajador_06
-                            ? '2px solid #0056b3'
-                            : '1px solid #ced4da'
-                      }}
-                    >
-                      <strong>{trab.apaterno_06 || ''} {trab.amaterno_06 || ''}</strong> {trab.nombre_06 || ''} -{' '}
-                      <span style={{ fontSize: '0.9em', opacity: 0.8 }}>{trab.ruttrabajador_06 || ''}</span>
-                    </div>
-                  ))
-                ) : (
-                  <div
-                    style={{
-                      textAlign: 'center',
-                      color: '#6c757d',
-                      padding: '10px'
-                    }}
-                  >
-                    {!trabajadoresLoaded
-                      ? 'Cargando trabajadores...'
-                      : trabajadores.length === 0
-                        ? 'No hay trabajadores en el sistema. Verifique la carga de datos en la BD.'
-                        : 'No se encontraron trabajadores con ese criterio'}
-                  </div>
-                )}
-              </div>
+              <label htmlFor="aseo-trabajador">Trabajador *</label>
+              <SearchableSelect
+                id="aseo-trabajador"
+                value={idTrabajador}
+                onChange={setIdTrabajador}
+                options={trabajadorOptions}
+                placeholder="Buscar por apellido, nombre o RUT..."
+                required
+                uppercase={false}
+                aria-label="Buscar o seleccionar trabajador"
+                emptyMessage={
+                  !trabajadoresLoaded
+                    ? 'Cargando trabajadores...'
+                    : trabajadores.length === 0
+                      ? 'No hay trabajadores en el sistema'
+                      : 'No se encontraron trabajadores'
+                }
+              />
+              <small style={{ color: '#007bff', fontSize: '0.85em', display: 'block', marginTop: '5px' }}>
+                Tip: escriba apellido (GONZALEZ o GONZALEZ PEREZ), nombre o RUT
+              </small>
             </div>
           </div>
 
           {/* Fila Inferior: Responsable, Fecha y Hora en 3 columnas */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '15px', marginBottom: '20px' }}>
             <div className="form-group">
-              <label>Responsable *</label>
-              <select
+              <label htmlFor="aseo-responsable">Responsable *</label>
+              <SearchableSelect
+                id="aseo-responsable"
                 value={idResponsable}
-                onChange={(e) => setIdResponsable(e.target.value)}
+                onChange={setIdResponsable}
+                options={responsableOptions}
+                placeholder="Buscar responsable..."
                 required
-                style={{ width: '100%', padding: '8px 12px', borderRadius: '4px', border: '1px solid #ced4da' }}
-              >
-                <option value="">Seleccione un responsable</option>
-                {responsables.length === 0 ? (
-                  <option value="" disabled>Cargando responsables...</option>
-                ) : (
-                  responsables.map(resp => (
-                    <option key={resp.idresponsableentrega_08} value={resp.idresponsableentrega_08}>
-                      {resp.nombre_completo || 
-                       `${resp.nombreresponsableentrega_08 || ''} ${resp.apaternoresponsableentrega_08 || ''} ${resp.amaternoresponsableentrega_08 || ''}`.trim()}
-                    </option>
-                  ))
-                )}
-              </select>
+                uppercase={false}
+                aria-label="Buscar o seleccionar responsable"
+                emptyMessage={responsables.length === 0 ? 'Cargando responsables...' : 'No se encontraron responsables'}
+              />
               {error && error.includes('responsable') && (
                 <small style={{ color: '#dc3545', display: 'block', marginTop: '5px' }}>{error}</small>
               )}
@@ -1039,165 +930,44 @@ const AsignacionProductosAseoView: React.FC = () => {
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', marginBottom: '15px' }}>
                 <div className="form-group">
-                  <label>Buscar Por Patente</label>
-                  <input
-                    type="text"
-                    value={reportBuscarPatente}
-                    onChange={(e) => changeKeepingCaret(e, setReportBuscarPatente)}
-                    placeholder="Ingrese patente o número interno"
-                    style={{ width: '100%', padding: '8px 12px', borderRadius: '4px', border: '1px solid #ced4da', textTransform: 'uppercase', fontSize: '14px' }}
+                  <label htmlFor="reporte-aseo-maquina">Máquina (opcional)</label>
+                  <SearchableSelect
+                    id="reporte-aseo-maquina"
+                    value={reportIdMaquina}
+                    onChange={setReportIdMaquina}
+                    options={[{ value: '', label: 'Todas las máquinas' }, ...maquinaOptions]}
+                    placeholder="Todas las máquinas..."
+                    aria-label="Filtrar reporte por máquina"
+                    emptyMessage="Sin máquinas"
                   />
                 </div>
 
                 <div className="form-group">
-                  <label>Buscar Trabajador Por Apellido</label>
-                    <input
-                      type="text"
-                      value={reportBuscarTrabajador}
-                      onChange={(e) => changeKeepingCaret(e, setReportBuscarTrabajador)}
-                      placeholder="Ej: GONZALEZ o GONZALEZ PEREZ"
-                      style={{ width: '100%', padding: '8px 12px', borderRadius: '4px', border: '1px solid #ced4da', textTransform: 'uppercase', fontSize: '14px' }}
-                    />
-                    <small style={{ color: '#6c757d', fontSize: '0.85em' }}>
-                      💡 Tip: Una palabra busca por apellido paterno primero, luego materno (empieza con). Dos palabras: paterno y materno en ese orden.
-                    </small>
-                </div>
-              </div>
-
-              {/* Selección de Máquina para Reporte */}
-              <div className="form-group" style={{ marginBottom: '15px' }}>
-                <label>Seleccionar Máquina (opcional)</label>
-                <div style={{ 
-                  maxHeight: '120px', 
-                  overflowY: 'auto', 
-                  border: '1px solid #ced4da', 
-                  borderRadius: '4px',
-                  padding: '8px'
-                }}>
-                  {reportMaquinasFiltradas.length > 0 ? (
-                    <>
-                      <div
-                        onClick={() => setReportMaquinaSeleccionada(null)}
-                        style={{
-                          padding: '8px',
-                          cursor: 'pointer',
-                          backgroundColor: reportMaquinaSeleccionada === null ? '#007bff' : 'transparent',
-                          color: reportMaquinaSeleccionada === null ? 'white' : 'black',
-                          marginBottom: '5px',
-                          borderRadius: '4px',
-                          border: reportMaquinaSeleccionada === null ? '2px solid #0056b3' : '1px solid #ced4da',
-                          fontSize: '14px',
-                          fontWeight: reportMaquinaSeleccionada === null ? 'bold' : 'normal'
-                        }}
-                      >
-                        TODAS
-                      </div>
-                      {reportMaquinasFiltradas.map(maq => (
-                        <div
-                          key={maq.idmaquina_11}
-                          onClick={() => setReportMaquinaSeleccionada(maq)}
-                          style={{
-                            padding: '8px',
-                            cursor: 'pointer',
-                            backgroundColor: reportMaquinaSeleccionada?.idmaquina_11 === maq.idmaquina_11 ? '#007bff' : 'transparent',
-                            color: reportMaquinaSeleccionada?.idmaquina_11 === maq.idmaquina_11 ? 'white' : 'black',
-                            marginBottom: '5px',
-                            borderRadius: '4px',
-                            border: reportMaquinaSeleccionada?.idmaquina_11 === maq.idmaquina_11 ? '2px solid #0056b3' : '1px solid #ced4da',
-                            fontSize: '14px'
-                          }}
-                        >
-                          <strong>{maq.ppu_11 || 'N/A'}</strong> - {maq.numinterno_11 || 'N/A'} {maq.descripcion_11 ? `(${maq.descripcion_11})` : ''}
-                        </div>
-                      ))}
-                    </>
-                  ) : (
-                    <div style={{ 
-                      textAlign: 'center', 
-                      color: '#6c757d', 
-                      padding: '10px',
-                      fontSize: '14px'
-                    }}>
-                      {maquinas.length === 0 ? 'Cargando máquinas...' : 'No se encontraron máquinas con ese criterio'}
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Selección de Trabajador para Reporte */}
-              <div className="form-group" style={{ marginBottom: '15px' }}>
-                <label>Seleccionar Trabajador (opcional)</label>
-                <div style={{ 
-                  maxHeight: '120px', 
-                  overflowY: 'auto', 
-                  border: '1px solid #ced4da', 
-                  borderRadius: '4px',
-                  padding: '8px'
-                }}>
-                  {reportTrabajadoresFiltrados.length > 0 ? (
-                    <>
-                      <div
-                        onClick={() => setReportTrabajadorSeleccionado(null)}
-                        style={{
-                          padding: '8px',
-                          cursor: 'pointer',
-                          backgroundColor: reportTrabajadorSeleccionado === null ? '#007bff' : 'transparent',
-                          color: reportTrabajadorSeleccionado === null ? 'white' : 'black',
-                          marginBottom: '5px',
-                          borderRadius: '4px',
-                          border: reportTrabajadorSeleccionado === null ? '2px solid #0056b3' : '1px solid #ced4da',
-                          fontSize: '14px',
-                          fontWeight: reportTrabajadorSeleccionado === null ? 'bold' : 'normal'
-                        }}
-                      >
-                        TODOS
-                      </div>
-                      {reportTrabajadoresFiltrados.map(trab => (
-                        <div
-                          key={trab.idtrabajador_06}
-                          onClick={() => setReportTrabajadorSeleccionado(trab)}
-                          style={{
-                            padding: '8px',
-                            cursor: 'pointer',
-                            backgroundColor: reportTrabajadorSeleccionado?.idtrabajador_06 === trab.idtrabajador_06 ? '#007bff' : 'transparent',
-                            color: reportTrabajadorSeleccionado?.idtrabajador_06 === trab.idtrabajador_06 ? 'white' : 'black',
-                            marginBottom: '5px',
-                            borderRadius: '4px',
-                            border: reportTrabajadorSeleccionado?.idtrabajador_06 === trab.idtrabajador_06 ? '2px solid #0056b3' : '1px solid #ced4da',
-                            fontSize: '14px'
-                          }}
-                        >
-                          <strong>{trab.apaterno_06 || ''} {trab.amaterno_06 || ''}</strong> {trab.nombre_06 || ''} - <span style={{ fontSize: '0.9em', opacity: 0.8 }}>{trab.ruttrabajador_06 || ''}</span>
-                        </div>
-                      ))}
-                    </>
-                  ) : (
-                    <div style={{ 
-                      textAlign: 'center', 
-                      color: '#6c757d', 
-                      padding: '10px',
-                      fontSize: '14px'
-                    }}>
-                      {trabajadores.length === 0 ? 'Cargando trabajadores...' : 'No se encontraron trabajadores con ese criterio'}
-                    </div>
-                  )}
+                  <label htmlFor="reporte-aseo-trabajador">Trabajador (opcional)</label>
+                  <SearchableSelect
+                    id="reporte-aseo-trabajador"
+                    value={reportIdTrabajador}
+                    onChange={setReportIdTrabajador}
+                    options={[{ value: '', label: 'Todos los trabajadores' }, ...trabajadorOptions]}
+                    placeholder="Todos los trabajadores..."
+                    uppercase={false}
+                    aria-label="Filtrar reporte por trabajador"
+                    emptyMessage="Sin trabajadores"
+                  />
                 </div>
               </div>
 
               <div className="form-group" style={{ marginBottom: '20px' }}>
-                <label>Insumo (Producto)</label>
-                <select
+                <label htmlFor="reporte-aseo-producto">Insumo (Producto)</label>
+                <SearchableSelect
+                  id="reporte-aseo-producto"
                   value={reportProducto}
-                  onChange={(e) => setReportProducto(e.target.value)}
-                  style={{ width: '100%', padding: '8px 12px', borderRadius: '4px', border: '1px solid #ced4da', fontSize: '14px' }}
-                >
-                  <option value="">TODOS</option>
-                  {productos.filter(p => p.activo !== false).map(producto => (
-                    <option key={producto.id_producto} value={producto.id_producto.toString()}>
-                      {producto.nombre_producto}
-                    </option>
-                  ))}
-                </select>
+                  onChange={setReportProducto}
+                  options={[{ value: '', label: 'Todos' }, ...productoOptions]}
+                  placeholder="Todos los insumos..."
+                  aria-label="Filtrar reporte por insumo"
+                  emptyMessage="Sin productos"
+                />
               </div>
 
               <div className="form-actions">
