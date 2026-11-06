@@ -121,12 +121,6 @@ const TransaccionView: React.FC = () => {
   const [fecha, setFecha] = useState<string>(new Date().toISOString().split('T')[0]);
   const [hora, setHora] = useState<string>(new Date().toTimeString().split(' ')[0].substring(0, 5));
   const [observacion, setObservacion] = useState<string>('');
-  
-  // Búsqueda para alternadores y máquinas
-  const [buscarAlternador, setBuscarAlternador] = useState<string>('');
-  const [buscarMaquina, setBuscarMaquina] = useState<string>('');
-  const [alternadorSeleccionado, setAlternadorSeleccionado] = useState<Alternador | null>(null);
-  const [maquinaSeleccionada, setMaquinaSeleccionada] = useState<Maquina | null>(null);
 
   // Estados para el modal de reporte
   const [showReportModal, setShowReportModal] = useState<boolean>(false);
@@ -360,13 +354,85 @@ const TransaccionView: React.FC = () => {
       [...maquinas]
         .map((m) => ({
           value: String(m.idmaquina_11),
-          label: [m.numinterno_11 || m.idmaquina_11, m.ppu_11 ? `(${m.ppu_11})` : null]
+          label: [m.numinterno_11 || m.idmaquina_11, m.ppu_11 ? `(${m.ppu_11})` : null, m.descripcion_11]
             .filter(Boolean)
             .join(' ')
         }))
         .sort((a, b) => a.label.localeCompare(b.label, 'es', { numeric: true })),
     [maquinas]
   );
+
+  const alternadorFormOptions = useMemo(
+    () =>
+      [...alternadores]
+        .map((a) => ({
+          value: String(a.id_alternador_19),
+          label: [a.cod_alternador_19, a.marca_18, a.observacion_19]
+            .filter(Boolean)
+            .join(' — ')
+        }))
+        .sort((a, b) => a.label.localeCompare(b.label, 'es', { numeric: true })),
+    [alternadores]
+  );
+
+  const maquinaFormOptions = useMemo(
+    () =>
+      [...maquinas]
+        .map((m) => ({
+          value: String(m.idmaquina_11),
+          label: [m.ppu_11, m.numinterno_11, m.descripcion_11 ? `(${m.descripcion_11})` : null]
+            .filter(Boolean)
+            .join(' — ')
+        }))
+        .sort((a, b) => a.label.localeCompare(b.label, 'es', { numeric: true })),
+    [maquinas]
+  );
+
+  const consultarStockAlternador = async (id: string) => {
+    setIdAlternador(id);
+    if (!id) {
+      setStockHint('');
+      return;
+    }
+    const alt = alternadores.find((a) => String(a.id_alternador_19) === id);
+    if (!alt) {
+      setStockHint('');
+      return;
+    }
+    try {
+      const res = await fetch(EXISTENCIAS_URL);
+      const data: ApiResponse = await res.json();
+      if (!data.success || !Array.isArray(data.data)) {
+        setStockHint('');
+        return;
+      }
+      const filas = data.data.filter(
+        (e: { id_alternador_26: number; cantidad_26: number; ubicacion_descripcion?: string }) =>
+          Number(e.id_alternador_26) === alt.id_alternador_19 && Number(e.cantidad_26) >= 1
+      );
+      if (!filas.length) {
+        setStockHint(
+          `${alt.cod_alternador_19} no tiene existencias. Bájelo desde Máquina a Bodega para iniciar el ciclo.`
+        );
+        return;
+      }
+      const det = filas
+        .map((e: { ubicacion_descripcion?: string; cantidad_26: number }) =>
+          `${e.ubicacion_descripcion} (${e.cantidad_26})`
+        )
+        .join(', ');
+      const enMaq = filas.some((e: { ubicacion_descripcion?: string }) =>
+        esNombreMaquina(e.ubicacion_descripcion)
+      );
+      setStockHint(
+        enMaq
+          ? `${alt.cod_alternador_19} está en ${det}. Para reparación: origen Máquina → destino Bodega. No use SBM.`
+          : `${alt.cod_alternador_19} está en ${det}. Use esa ubicación como origen.`
+      );
+    } catch {
+      setStockHint('');
+    }
+  };
 
   const hayFiltrosActivos = Boolean(
     filtro.trim() ||
@@ -467,11 +533,6 @@ const TransaccionView: React.FC = () => {
       return;
     }
 
-    if (!alternadorSeleccionado) {
-      await showError('Validación', 'Por favor seleccione un alternador de la lista');
-      return;
-    }
-
     if (idUbicacionOrigen === idUbicacionDestino) {
       await showError('Validación', 'La ubicación de origen y destino deben ser diferentes');
       return;
@@ -529,11 +590,6 @@ const TransaccionView: React.FC = () => {
 
     if (!idAlternador || !idUbicacionOrigen || !idUbicacionDestino || !idTipoTransaccion) {
       await showError('Validación', 'Todos los campos marcados con * son requeridos');
-      return;
-    }
-
-    if (!alternadorSeleccionado) {
-      await showError('Validación', 'Por favor seleccione un alternador de la lista');
       return;
     }
 
@@ -595,25 +651,7 @@ const TransaccionView: React.FC = () => {
     );
     setHora(transaccion.hora_28 ? String(transaccion.hora_28).slice(0, 5) : '');
     setObservacion(transaccion.observacion_28 || '');
-
-    const alt = alternadores.find((a) => a.id_alternador_19 === transaccion.id_alternador_28);
-    setAlternadorSeleccionado(
-      alt || {
-        id_alternador_19: transaccion.id_alternador_28,
-        cod_alternador_19: transaccion.cod_alternador_19 || '',
-        marca_18: transaccion.marca_18
-      }
-    );
-    setBuscarAlternador(transaccion.cod_alternador_19 || '');
-
-    if (transaccion.id_maquina_28) {
-      const maq = maquinas.find((m) => m.idmaquina_11 === transaccion.id_maquina_28);
-      setMaquinaSeleccionada(maq || null);
-      setBuscarMaquina(transaccion.maquina_ppu || transaccion.maquina_numinterno || '');
-    } else {
-      setMaquinaSeleccionada(null);
-      setBuscarMaquina('');
-    }
+    setStockHint('');
 
     setShowForm(true);
     setError('');
@@ -654,36 +692,11 @@ const TransaccionView: React.FC = () => {
     setFecha(new Date().toISOString().split('T')[0]);
     setHora(new Date().toTimeString().split(' ')[0].substring(0, 5));
     setObservacion('');
-    setBuscarAlternador('');
-    setBuscarMaquina('');
-    setAlternadorSeleccionado(null);
-    setMaquinaSeleccionada(null);
     setStockHint('');
     setEditingId(null);
     setShowForm(false);
     setError('');
   };
-
-  // Filtrar alternadores y máquinas para mostrar en las listas de selección
-  const alternadoresFiltrados = useMemo(() => {
-    if (!buscarAlternador || buscarAlternador.trim() === '') return alternadores;
-    const busquedaLower = buscarAlternador.toLowerCase();
-    return alternadores.filter(alt =>
-      (alt.cod_alternador_19 && alt.cod_alternador_19.toLowerCase().includes(busquedaLower)) ||
-      (alt.marca_18 && alt.marca_18.toLowerCase().includes(busquedaLower)) ||
-      (alt.observacion_19 && alt.observacion_19.toLowerCase().includes(busquedaLower))
-    );
-  }, [alternadores, buscarAlternador]);
-
-  const maquinasFiltradas = useMemo(() => {
-    if (!buscarMaquina || buscarMaquina.trim() === '') return maquinas;
-    const busquedaLower = buscarMaquina.toLowerCase();
-    return maquinas.filter(maq =>
-      (maq.ppu_11 && maq.ppu_11.toLowerCase().includes(busquedaLower)) ||
-      (maq.numinterno_11 && maq.numinterno_11.toLowerCase().includes(busquedaLower)) ||
-      (maq.descripcion_11 && maq.descripcion_11.toLowerCase().includes(busquedaLower))
-    );
-  }, [maquinas, buscarMaquina]);
 
   const getValorAccionIcon = (valor?: -1 | 0 | 1) => {
     if (valor === 1) return '📈 +1';
@@ -910,101 +923,22 @@ const TransaccionView: React.FC = () => {
         <div className="form-container">
           <h3>{editingId ? '✏️ Editar Transacción' : 'Nueva Transacción'}</h3>
           <form onSubmit={editingId ? handleUpdate : handleCreate}>
-            {/* 10 controles: 5 + 5 */}
             <div className="transaccion-cinco-campos">
               <div className="form-group">
-                <label htmlFor="buscar-alternador">Buscar Alternador</label>
-                <input
-                  id="buscar-alternador"
-                  type="text"
-                  value={buscarAlternador}
-                  onChange={(e) => changeKeepingCaret(e, setBuscarAlternador)}
-                  placeholder="INGRESE CÓDIGO O MARCA"
-                  style={{ width: '100%', padding: '8px 12px', borderRadius: '4px', border: '1px solid #ced4da', textTransform: 'uppercase', fontSize: '14px' }}
+                <label htmlFor="alternador-transaccion">Alternador *</label>
+                <SearchableSelect
+                  id="alternador-transaccion"
+                  value={idAlternador}
+                  onChange={(v) => void consultarStockAlternador(v)}
+                  options={alternadorFormOptions}
+                  placeholder="Buscar por código o marca..."
+                  required
+                  aria-label="Buscar o seleccionar alternador"
+                  emptyMessage="No se encontraron alternadores"
                 />
                 <small style={{ color: '#007bff', fontSize: '0.85em', display: 'block', marginTop: '5px' }}>
-                  💡 Tip: Busque por código de alternador o marca
+                  Tip: escriba código o marca; el aviso de stock indica el origen del ciclo
                 </small>
-              </div>
-
-              <div className="form-group">
-                <label>Seleccionar Alternador *</label>
-                <div style={{ 
-                  maxHeight: '150px', 
-                  overflowY: 'auto', 
-                  border: '1px solid #ced4da', 
-                  borderRadius: '4px',
-                  padding: '10px'
-                }}>
-                  {alternadoresFiltrados.length > 0 ? (
-                    alternadoresFiltrados.map(alt => (
-                      <div
-                        key={alt.id_alternador_19}
-                        onClick={() => {
-                          setAlternadorSeleccionado(alt);
-                          setIdAlternador(alt.id_alternador_19.toString());
-                          void (async () => {
-                            try {
-                              const res = await fetch(EXISTENCIAS_URL);
-                              const data: ApiResponse = await res.json();
-                              if (!data.success || !Array.isArray(data.data)) {
-                                setStockHint('');
-                                return;
-                              }
-                              const filas = data.data.filter(
-                                (e: { id_alternador_26: number; cantidad_26: number; ubicacion_descripcion?: string }) =>
-                                  Number(e.id_alternador_26) === alt.id_alternador_19 && Number(e.cantidad_26) >= 1
-                              );
-                              if (!filas.length) {
-                                setStockHint(
-                                  `${alt.cod_alternador_19} no tiene existencias. Bájelo desde Máquina a Bodega para iniciar el ciclo.`
-                                );
-                                return;
-                              }
-                              const det = filas
-                                .map((e: { ubicacion_descripcion?: string; cantidad_26: number }) =>
-                                  `${e.ubicacion_descripcion} (${e.cantidad_26})`
-                                )
-                                .join(', ');
-                              const enMaq = filas.some((e: { ubicacion_descripcion?: string }) =>
-                                esNombreMaquina(e.ubicacion_descripcion)
-                              );
-                              setStockHint(
-                                enMaq
-                                  ? `${alt.cod_alternador_19} está en ${det}. Para reparación: origen Máquina → destino Bodega. No use SBM.`
-                                  : `${alt.cod_alternador_19} está en ${det}. Use esa ubicación como origen.`
-                              );
-                            } catch {
-                              setStockHint('');
-                            }
-                          })();
-                        }}
-                        style={{
-                          padding: '8px',
-                          cursor: 'pointer',
-                          backgroundColor: alternadorSeleccionado?.id_alternador_19 === alt.id_alternador_19 ? '#007bff' : 'transparent',
-                          color: alternadorSeleccionado?.id_alternador_19 === alt.id_alternador_19 ? 'white' : 'black',
-                          marginBottom: '5px',
-                          borderRadius: '4px',
-                          border: alternadorSeleccionado?.id_alternador_19 === alt.id_alternador_19 ? '2px solid #0056b3' : '1px solid #ced4da',
-                          fontSize: '14px'
-                        }}
-                      >
-                        <strong>{alt.cod_alternador_19 || 'N/A'}</strong> - {alt.marca_18 || 'N/A'}
-                        {alt.observacion_19 ? ` — ${alt.observacion_19}` : ''}
-                      </div>
-                    ))
-                  ) : (
-                    <div style={{ 
-                      textAlign: 'center', 
-                      color: '#6c757d', 
-                      padding: '10px',
-                      fontSize: '14px'
-                    }}>
-                      {alternadores.length === 0 ? 'Cargando alternadores...' : 'No se encontraron alternadores con ese criterio'}
-                    </div>
-                  )}
-                </div>
               </div>
 
               <div className="form-group">
@@ -1107,62 +1041,26 @@ const TransaccionView: React.FC = () => {
               </div>
 
               <div className="form-group">
-                <label htmlFor="buscar-maquina">Buscar Máquina</label>
-                <input
-                  id="buscar-maquina"
-                  type="text"
-                  value={buscarMaquina}
-                  onChange={(e) => changeKeepingCaret(e, setBuscarMaquina)}
-                  placeholder="INGRESE PATENTE, NÚMERO INTERNO O DESCRIPCIÓN"
-                  style={{ width: '100%', padding: '8px 12px', borderRadius: '4px', border: '1px solid #ced4da', textTransform: 'uppercase', fontSize: '14px' }}
+                <label htmlFor="maquina-transaccion">Máquina {origenEsMaquina ? '*' : '(opcional)'}</label>
+                <SearchableSelect
+                  id="maquina-transaccion"
+                  value={idMaquina}
+                  onChange={setIdMaquina}
+                  options={
+                    origenEsMaquina
+                      ? maquinaFormOptions
+                      : [{ value: '', label: 'Sin máquina (opcional)' }, ...maquinaFormOptions]
+                  }
+                  placeholder="Buscar por patente, interno o descripción..."
+                  required={origenEsMaquina}
+                  aria-label="Buscar o seleccionar máquina"
+                  emptyMessage="No se encontraron máquinas"
                 />
                 <small style={{ color: '#007bff', fontSize: '0.85em', display: 'block', marginTop: '5px' }}>
-                  💡 Tip: Busque por patente, número interno o descripción
+                  {origenEsMaquina
+                    ? 'Origen Máquina: elija de qué bus baja el alternador'
+                    : 'Tip: escriba patente o número interno; la máquina es opcional si no baja de un bus'}
                 </small>
-              </div>
-
-              <div className="form-group">
-              <label htmlFor="seleccionar-maquina">Seleccionar Máquina {origenEsMaquina ? '*' : '(opcional)'}</label>
-              <div style={{ 
-                  maxHeight: '150px', 
-                overflowY: 'auto', 
-                border: '1px solid #ced4da', 
-                borderRadius: '4px',
-                  padding: '10px'
-              }}>
-                {maquinasFiltradas.length > 0 ? (
-                  maquinasFiltradas.map(maq => (
-                    <div
-                      key={maq.idmaquina_11}
-                      onClick={() => {
-                        setMaquinaSeleccionada(maq);
-                        setIdMaquina(maq.idmaquina_11.toString());
-                      }}
-                      style={{
-                        padding: '8px',
-                        cursor: 'pointer',
-                        backgroundColor: maquinaSeleccionada?.idmaquina_11 === maq.idmaquina_11 ? '#007bff' : 'transparent',
-                        color: maquinaSeleccionada?.idmaquina_11 === maq.idmaquina_11 ? 'white' : 'black',
-                        marginBottom: '5px',
-                        borderRadius: '4px',
-                        border: maquinaSeleccionada?.idmaquina_11 === maq.idmaquina_11 ? '2px solid #0056b3' : '1px solid #ced4da',
-                        fontSize: '14px'
-                      }}
-                    >
-                      <strong>{maq.ppu_11 || 'N/A'}</strong> - {maq.numinterno_11 || 'N/A'} {maq.descripcion_11 ? `(${maq.descripcion_11})` : ''}
-                    </div>
-                  ))
-                ) : (
-                  <div style={{ 
-                    textAlign: 'center', 
-                    color: '#6c757d', 
-                    padding: '10px',
-                    fontSize: '14px'
-                  }}>
-                    {maquinas.length === 0 ? 'Cargando máquinas...' : 'No se encontraron máquinas con ese criterio'}
-                  </div>
-                )}
-                </div>
               </div>
             </div>
 
@@ -1310,35 +1208,29 @@ const TransaccionView: React.FC = () => {
               </div>
 
               <div className="form-group">
-                <label>Máquina</label>
-                <select
+                <label htmlFor="reporte-maquina">Máquina</label>
+                <SearchableSelect
+                  id="reporte-maquina"
                   value={reportIdMaquina}
-                  onChange={(e) => setReportIdMaquina(e.target.value)}
-                  style={{ width: '100%', padding: '8px 12px', borderRadius: '4px', border: '1px solid #ced4da' }}
-                >
-                  <option value="">Todas las máquinas</option>
-                  {maquinas.map(maq => (
-                    <option key={maq.idmaquina_11} value={maq.idmaquina_11}>
-                      {maq.numinterno_11} - {maq.ppu_11}
-                    </option>
-                  ))}
-                </select>
+                  onChange={setReportIdMaquina}
+                  options={[{ value: '', label: 'Todas las máquinas' }, ...filtroMaquinaOptions]}
+                  placeholder="Todas las máquinas..."
+                  aria-label="Filtrar reporte por máquina"
+                  emptyMessage="Sin máquinas"
+                />
               </div>
 
               <div className="form-group">
-                <label>Código de alternador (componente)</label>
-                <select
+                <label htmlFor="reporte-alternador">Código de alternador (componente)</label>
+                <SearchableSelect
+                  id="reporte-alternador"
                   value={reportIdAlternador}
-                  onChange={(e) => setReportIdAlternador(e.target.value)}
-                  style={{ width: '100%', padding: '8px 12px', borderRadius: '4px', border: '1px solid #ced4da' }}
-                >
-                  <option value="">Todos los componentes</option>
-                  {alternadores.map(alt => (
-                    <option key={alt.id_alternador_19} value={alt.id_alternador_19}>
-                      {alt.cod_alternador_19} - {alt.marca_18 || 'Sin marca'}
-                    </option>
-                  ))}
-                </select>
+                  onChange={setReportIdAlternador}
+                  options={[{ value: '', label: 'Todos los componentes' }, ...filtroAlternadorOptions]}
+                  placeholder="Todos los componentes..."
+                  aria-label="Filtrar reporte por alternador"
+                  emptyMessage="Sin alternadores"
+                />
               </div>
 
               <div className="form-actions">
@@ -1874,19 +1766,16 @@ const TransaccionView: React.FC = () => {
               </div>
 
               <div className="form-group">
-                <label>Máquina</label>
-                <select
+                <label htmlFor="cantcomp-maquina">Máquina</label>
+                <SearchableSelect
+                  id="cantcomp-maquina"
                   value={cantCompIdMaquina}
-                  onChange={(e) => setCantCompIdMaquina(e.target.value)}
-                  style={{ width: '100%', padding: '8px 12px', borderRadius: '4px', border: '1px solid #ced4da' }}
-                >
-                  <option value="">Todas las máquinas</option>
-                  {maquinas.map(maq => (
-                    <option key={maq.idmaquina_11} value={maq.idmaquina_11}>
-                      {maq.numinterno_11} - {maq.ppu_11}
-                    </option>
-                  ))}
-                </select>
+                  onChange={setCantCompIdMaquina}
+                  options={[{ value: '', label: 'Todas las máquinas' }, ...filtroMaquinaOptions]}
+                  placeholder="Todas las máquinas..."
+                  aria-label="Filtrar cantidad por máquina"
+                  emptyMessage="Sin máquinas"
+                />
               </div>
 
               <div className="form-group">
@@ -1906,19 +1795,16 @@ const TransaccionView: React.FC = () => {
               </div>
 
               <div className="form-group">
-                <label>Componente (código de alternador)</label>
-                <select
+                <label htmlFor="cantcomp-alternador">Componente (código de alternador)</label>
+                <SearchableSelect
+                  id="cantcomp-alternador"
                   value={cantCompIdAlternador}
-                  onChange={(e) => setCantCompIdAlternador(e.target.value)}
-                  style={{ width: '100%', padding: '8px 12px', borderRadius: '4px', border: '1px solid #ced4da' }}
-                >
-                  <option value="">Todos los componentes</option>
-                  {alternadores.map(alt => (
-                    <option key={alt.id_alternador_19} value={alt.id_alternador_19}>
-                      {alt.cod_alternador_19} - {alt.marca_18 || 'Sin marca'}
-                    </option>
-                  ))}
-                </select>
+                  onChange={setCantCompIdAlternador}
+                  options={[{ value: '', label: 'Todos los componentes' }, ...filtroAlternadorOptions]}
+                  placeholder="Todos los componentes..."
+                  aria-label="Filtrar cantidad por alternador"
+                  emptyMessage="Sin alternadores"
+                />
               </div>
 
               <div className="form-actions">
