@@ -641,7 +641,7 @@ const AsignacionProductosAseoView: React.FC = () => {
     <div className="bodega-view">
       <div className="view-header">
         <h2>🧼 Asignación de Productos de Aseo</h2>
-        <div style={{ display: 'flex', gap: '10px' }}>
+        <div className="view-header-actions">
           <button
             className="btn-primary"
             onClick={handleNuevo}
@@ -677,14 +677,7 @@ const AsignacionProductosAseoView: React.FC = () => {
         <div className="form-container">
           <h3>Datos de la Asignación</h3>
           
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: '1fr 1fr',
-              gap: '20px',
-              marginBottom: '20px'
-            }}
-          >
+          <div className="transaccion-cinco-campos">
             <div className="form-group">
               <label htmlFor="aseo-maquina">Máquina *</label>
               <SearchableSelect
@@ -692,14 +685,11 @@ const AsignacionProductosAseoView: React.FC = () => {
                 value={idMaquina}
                 onChange={setIdMaquina}
                 options={maquinaOptions}
-                placeholder="Buscar por patente o número interno..."
+                placeholder="Patente o interno..."
                 required
                 aria-label="Buscar o seleccionar máquina"
                 emptyMessage={maquinas.length === 0 ? 'Cargando máquinas...' : 'No se encontraron máquinas'}
               />
-              <small style={{ color: '#007bff', fontSize: '0.85em', display: 'block', marginTop: '5px' }}>
-                Tip: escriba patente, interno o descripción
-              </small>
             </div>
 
             <div className="form-group">
@@ -709,7 +699,7 @@ const AsignacionProductosAseoView: React.FC = () => {
                 value={idTrabajador}
                 onChange={setIdTrabajador}
                 options={trabajadorOptions}
-                placeholder="Buscar por apellido, nombre o RUT..."
+                placeholder="Apellido, nombre o RUT..."
                 required
                 uppercase={false}
                 aria-label="Buscar o seleccionar trabajador"
@@ -721,14 +711,8 @@ const AsignacionProductosAseoView: React.FC = () => {
                       : 'No se encontraron trabajadores'
                 }
               />
-              <small style={{ color: '#007bff', fontSize: '0.85em', display: 'block', marginTop: '5px' }}>
-                Tip: escriba apellido (GONZALEZ o GONZALEZ PEREZ), nombre o RUT
-              </small>
             </div>
-          </div>
 
-          {/* Fila Inferior: Responsable, Fecha y Hora en 3 columnas */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '15px', marginBottom: '20px' }}>
             <div className="form-group">
               <label htmlFor="aseo-responsable">Responsable *</label>
               <SearchableSelect
@@ -748,8 +732,9 @@ const AsignacionProductosAseoView: React.FC = () => {
             </div>
 
             <div className="form-group">
-              <label>Fecha *</label>
+              <label htmlFor="aseo-fecha">Fecha *</label>
               <input
+                id="aseo-fecha"
                 type="date"
                 value={fecha}
                 onChange={(e) => setFecha(e.target.value)}
@@ -759,8 +744,9 @@ const AsignacionProductosAseoView: React.FC = () => {
             </div>
 
             <div className="form-group">
-              <label>Hora *</label>
+              <label htmlFor="aseo-hora">Hora *</label>
               <input
+                id="aseo-hora"
                 type="time"
                 value={hora}
                 onChange={(e) => setHora(e.target.value)}
@@ -904,7 +890,7 @@ const AsignacionProductosAseoView: React.FC = () => {
             <h3 style={{ marginTop: 0, marginBottom: '20px' }}>📊 Generar Reporte de Entregas</h3>
             
             <div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', marginBottom: '15px' }}>
+              <div className="form-fila-dos">
                 <div className="form-group">
                   <label>Fecha Desde *</label>
                   <input
@@ -928,7 +914,7 @@ const AsignacionProductosAseoView: React.FC = () => {
                 </div>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', marginBottom: '15px' }}>
+              <div className="form-fila-dos">
                 <div className="form-group">
                   <label htmlFor="reporte-aseo-maquina">Máquina (opcional)</label>
                   <SearchableSelect
@@ -1050,7 +1036,7 @@ const AsignacionProductosAseoView: React.FC = () => {
                   Período: {reportFechaDesde} - {reportFechaHasta} | Total: {previewData.length} registros
                 </p>
               </div>
-              <div style={{ display: 'flex', gap: '10px' }}>
+              <div className="view-header-actions">
                 <button
                   className="btn-primary"
                   onClick={handleGenerarReporte}
@@ -1249,7 +1235,8 @@ const AsignacionProductosAseoView: React.FC = () => {
       {/* Controles de paginación */}
       {totalPaginas > 1 && (
         <div style={{ 
-          display: 'flex', 
+          display: 'flex',
+          flexWrap: 'wrap',
           justifyContent: 'center', 
           alignItems: 'center', 
           gap: '10px', 
