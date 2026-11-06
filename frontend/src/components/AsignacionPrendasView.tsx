@@ -7,10 +7,10 @@ import {
   exportReporteSoloMaestroToExcel,
   exportReporteResumenPrendasToExcel
 } from '../utils/exportUtils';
-import { filtrarTrabajadoresPorApellido } from '../utils/trabajadorSearch';
 import { apiUrl, openAuthenticatedBlob } from '../lib/apiClient';
 import { changeKeepingCaret } from '../hooks/useCaretTransform';
 import { filtrarResponsablesActivos } from '../utils/responsablesEntrega';
+import SearchableSelect from './shared/SearchableSelect';
 
 interface AsignacionPrenda {
   idasignacionmain_09: number;
@@ -86,6 +86,17 @@ interface ApiResponse {
   count?: number;
   message?: string;
   error?: string;
+}
+
+function nombreTrabajador(t: Trabajador): string {
+  return `${t.apaterno_06 || ''} ${t.amaterno_06 || ''} ${t.nombre_06 || ''}`.trim();
+}
+
+function nombreResponsable(r: Responsable): string {
+  return (
+    r.nombre_completo ||
+    `${r.nombreresponsableentrega_08 || ''} ${r.apaternoresponsableentrega_08 || ''} ${r.amaternoresponsableentrega_08 || ''}`
+  ).trim();
 }
 
 const formatApiError = (data: ApiResponse, fallback: string): string => {
@@ -210,7 +221,7 @@ const AsignacionPrendasView: React.FC = () => {
   // Formulario Maestro
   const [showForm, setShowForm] = useState<boolean>(false);
   const [idAsignacionSeleccionada, setIdAsignacionSeleccionada] = useState<number | null>(null);
-  const [buscarApellido, setBuscarApellido] = useState<string>('');
+  const [idTrabajador, setIdTrabajador] = useState<string>('');
   const [idResponsable, setIdResponsable] = useState<string>('');
   const [idEmpresa, setIdEmpresa] = useState<string>('');
   const [observaciones, setObservaciones] = useState<string>('');
@@ -220,7 +231,6 @@ const AsignacionPrendasView: React.FC = () => {
   
   // Detalle de prendas
   const [detallePrendas, setDetallePrendas] = useState<DetalleAsignacionPrenda[]>([]);
-  const [trabajadorSeleccionado, setTrabajadorSeleccionado] = useState<Trabajador | null>(null);
 
   // Selección y edición masiva (detalle)
   type EditModeDetalle = 'single' | 'bulk';
@@ -433,6 +443,11 @@ const AsignacionPrendasView: React.FC = () => {
     });
   }, [detallePrendas]);
 
+  const trabajadorSeleccionado = useMemo(
+    () => trabajadores.find((t) => String(t.idtrabajador_06) === idTrabajador) || null,
+    [trabajadores, idTrabajador]
+  );
+
   const toggleSeleccionDetalle = (idDetalle: number) => {
     const idN = Number(idDetalle);
     setSelectedDetalleIds((prev) => {
@@ -589,7 +604,7 @@ const AsignacionPrendasView: React.FC = () => {
     setShowForm(true);
     setIdAsignacionSeleccionada(null);
     setDetallePrendas([]);
-    setTrabajadorSeleccionado(null);
+    setIdTrabajador('');
   };
 
   const handleGuardar = async () => {
@@ -753,8 +768,7 @@ const AsignacionPrendasView: React.FC = () => {
   const resetForm = () => {
     setShowForm(false);
     setIdAsignacionSeleccionada(null);
-    setTrabajadorSeleccionado(null);
-    setBuscarApellido('');
+    setIdTrabajador('');
     setIdResponsable('');
     setIdEmpresa('');
     setObservaciones('');
@@ -788,7 +802,7 @@ const AsignacionPrendasView: React.FC = () => {
 
     setObservaciones(asignacion.observaciones_09 || '');
     setEntregado(asignacion.entregado === true);
-    setTrabajadorSeleccionado(trabajador || null);
+    setIdTrabajador(String(asignacion.idtrabajador_09));
     
     setShowForm(true);
     setEditModeDetalle('single');
@@ -796,10 +810,57 @@ const AsignacionPrendasView: React.FC = () => {
     setBulkEntregado('keep');
   };
 
-  const trabajadoresFiltrados = useMemo(
-    () => filtrarTrabajadoresPorApellido(trabajadores, buscarApellido),
-    [trabajadores, buscarApellido]
+  const trabajadorOptions = useMemo(
+    () =>
+      [...trabajadores]
+        .map((t) => ({
+          value: String(t.idtrabajador_06),
+          label: [nombreTrabajador(t), t.ruttrabajador_06].filter(Boolean).join(' — ')
+        }))
+        .sort((a, b) => a.label.localeCompare(b.label, 'es')),
+    [trabajadores]
   );
+
+  const responsableOptions = useMemo(
+    () =>
+      [...responsables]
+        .map((r) => ({
+          value: String(r.idresponsableentrega_08),
+          label: nombreResponsable(r)
+        }))
+        .sort((a, b) => a.label.localeCompare(b.label, 'es')),
+    [responsables]
+  );
+
+  const empresaOptions = useMemo(
+    () =>
+      [...empresas]
+        .map((e) => ({
+          value: String(e.idempresa_15),
+          label: e.nombreempresa_15
+        }))
+        .sort((a, b) => a.label.localeCompare(b.label, 'es')),
+    [empresas]
+  );
+
+  const prendaOptions = useMemo(
+    () =>
+      [...prendas]
+        .map((p) => ({
+          value: String(p.idprenda_07),
+          label: p.prenda_07
+        }))
+        .sort((a, b) => a.label.localeCompare(b.label, 'es')),
+    [prendas]
+  );
+
+  const handleCambioTrabajador = (id: string) => {
+    setIdTrabajador(id);
+    const trab = trabajadores.find((t) => String(t.idtrabajador_06) === id);
+    if (idAsignacionSeleccionada && !String(idEmpresa).trim() && trab?.idempresa_06 != null) {
+      setIdEmpresa(String(trab.idempresa_06));
+    }
+  };
 
   const rutByTrabajadorId = useMemo(() => {
     const map = new Map<number, string>();
@@ -1303,27 +1364,9 @@ const AsignacionPrendasView: React.FC = () => {
 
   return (
     <div className="bodega-view">
-      <div
-        className="view-header"
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'auto minmax(0, 1fr) auto',
-          alignItems: 'center',
-          gap: '12px',
-          width: '100%'
-        }}
-      >
-        <h2 style={{ margin: 0 }}>👔 Asignación de Prendas</h2>
-        <div
-          style={{
-            justifySelf: 'center',
-            textAlign: 'center',
-            minWidth: 0,
-            width: '100%',
-            padding: '0 8px'
-          }}
-          aria-live="polite"
-        >
+      <div className="view-header prendas-view-header">
+        <h2>👔 Asignación de Prendas</h2>
+        <div className="prendas-view-header-nombre" aria-live="polite">
           {showForm && nombreTrabajadorTitulo ? (
             <span
               style={{
@@ -1344,7 +1387,7 @@ const AsignacionPrendasView: React.FC = () => {
             </span>
           ) : null}
         </div>
-        <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+        <div className="view-header-actions" style={{ justifyContent: 'flex-end' }}>
           {!modoReporte && (
             <>
               <button
@@ -1517,37 +1560,30 @@ const AsignacionPrendasView: React.FC = () => {
             </div>
             <div className="form-group">
               <label htmlFor="trabajador-reporte">Trabajador (opcional)</label>
-              <select
+              <SearchableSelect
                 id="trabajador-reporte"
                 value={idTrabajadorReporte}
-                onChange={(e) => setIdTrabajadorReporte(e.target.value)}
-                style={{ width: '100%', padding: '8px 12px', borderRadius: '4px', border: '1px solid #ced4da', fontSize: '14px' }}
-                aria-describedby="trabajador-reporte-desc"
-              >
-                <option value="">Todos los trabajadores</option>
-                {trabajadores.map(t => (
-                  <option key={t.idtrabajador_06} value={t.idtrabajador_06}>
-                    {t.apaterno_06} {t.amaterno_06} {t.nombre_06}
-                  </option>
-                ))}
-              </select>
+                onChange={setIdTrabajadorReporte}
+                options={[{ value: '', label: 'Todos los trabajadores' }, ...trabajadorOptions]}
+                placeholder="Todos los trabajadores..."
+                uppercase={false}
+                aria-label="Filtrar reporte por trabajador"
+                emptyMessage="Sin trabajadores"
+              />
               <span id="trabajador-reporte-desc" className="sr-only">Filtrar por trabajador específico</span>
             </div>
             <div className="form-group">
               <label htmlFor="prenda-reporte">Prenda (opcional)</label>
-              <select
+              <SearchableSelect
                 id="prenda-reporte"
                 value={idPrendaReporte}
-                onChange={(e) => setIdPrendaReporte(e.target.value)}
-                style={{ width: '100%', padding: '8px 12px', borderRadius: '4px', border: '1px solid #ced4da', fontSize: '14px' }}
-                aria-describedby="prenda-reporte-desc"
+                onChange={setIdPrendaReporte}
+                options={[{ value: '', label: 'Todas las prendas' }, ...prendaOptions]}
+                placeholder="Todas las prendas..."
                 disabled={tipoReporte === 'maestro'}
-              >
-                <option value="">Todas las prendas</option>
-                {prendas.map(p => (
-                  <option key={p.idprenda_07} value={p.idprenda_07}>{p.prenda_07}</option>
-                ))}
-              </select>
+                aria-label="Filtrar reporte por prenda"
+                emptyMessage="Sin prendas"
+              />
               <span id="prenda-reporte-desc" className="sr-only">Filtrar por prenda específica</span>
             </div>
             <div className="form-group">
@@ -1721,7 +1757,7 @@ const AsignacionPrendasView: React.FC = () => {
             <div ref={reportePreviewRef} className="reporte-preview-container" style={{ marginTop: '24px' }}>
               <div className="no-print" style={{ marginBottom: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
                 <h4 style={{ margin: 0 }}>Vista previa del reporte</h4>
-                <div style={{ display: 'flex', gap: '8px' }}>
+                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                   <button
                     className="btn-primary"
                     onClick={() => {
@@ -2047,147 +2083,80 @@ const AsignacionPrendasView: React.FC = () => {
       {showForm && !modoReporte && (
         <div className="form-container">
           <h3>Datos de la Asignación</h3>
-          
-          {/* Primera fila: Buscar Trabajador | Seleccionar Trabajador */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', marginBottom: '20px' }}>
+
+          <div className="form-fila-tres">
             <div className="form-group">
-              <label>Buscar Trabajador Por Apellido</label>
-              <div style={{ display: 'flex', gap: '10px' }}>
-                <input
-                  type="text"
-                  value={buscarApellido}
-                  onChange={(e) => changeKeepingCaret(e, setBuscarApellido)}
-                  placeholder="Ej: GONZALEZ o GONZALEZ PEREZ"
-                  style={{ flex: 1, padding: '8px 12px', borderRadius: '4px', border: '1px solid #ced4da', textTransform: 'uppercase', fontSize: '14px' }}
-                  onKeyPress={(e) => {
-                    if (e.key === 'Enter') {
-                      e.preventDefault();
-                    }
-                  }}
-                />
-                <button
-                  type="button"
-                  className="btn-primary"
-                  onClick={() => setBuscarApellido('')}
-                  style={{ padding: '8px 16px' }}
-                >
-                  🔍
-                </button>
-              </div>
-              <small style={{ color: '#6c757d', fontSize: '0.85em', display: 'block', marginTop: '5px' }}>
-                💡 Tip: Un apellido = búsqueda amplia. Varios = paterno compuesto + materno (ej. SAN MARTIN OBANDO).
-              </small>
+              <label htmlFor="prendas-trabajador">Trabajador *</label>
+              <SearchableSelect
+                id="prendas-trabajador"
+                value={idTrabajador}
+                onChange={handleCambioTrabajador}
+                options={trabajadorOptions}
+                placeholder="Apellido, nombre o RUT..."
+                required
+                uppercase={false}
+                aria-label="Buscar o seleccionar trabajador"
+                emptyMessage={
+                  trabajadores.length === 0
+                    ? 'Cargando trabajadores...'
+                    : 'No se encontraron trabajadores'
+                }
+              />
             </div>
 
             <div className="form-group">
-              <label>Seleccionar Trabajador *</label>
-              <div style={{ 
-                maxHeight: '150px', 
-                overflowY: 'auto', 
-                border: '1px solid #ced4da', 
-                borderRadius: '4px',
-                padding: '10px'
-              }}>
-                {trabajadoresFiltrados.length > 0 ? (
-                  trabajadoresFiltrados.map(trab => (
-                    <div
-                      key={trab.idtrabajador_06}
-                      onClick={() => {
-                        setTrabajadorSeleccionado(trab);
-                        if (
-                          idAsignacionSeleccionada &&
-                          !String(idEmpresa).trim() &&
-                          trab.idempresa_06 != null
-                        ) {
-                          setIdEmpresa(String(trab.idempresa_06));
-                        }
-                      }}
-                      style={{
-                        padding: '8px',
-                        cursor: 'pointer',
-                        backgroundColor: trabajadorSeleccionado?.idtrabajador_06 === trab.idtrabajador_06 ? '#007bff' : 'transparent',
-                        color: trabajadorSeleccionado?.idtrabajador_06 === trab.idtrabajador_06 ? 'white' : 'black',
-                        marginBottom: '5px',
-                        borderRadius: '4px',
-                        border: trabajadorSeleccionado?.idtrabajador_06 === trab.idtrabajador_06 ? '2px solid #0056b3' : '1px solid #ced4da'
-                      }}
-                    >
-                      <strong>{trab.apaterno_06 || ''} {trab.amaterno_06 || ''}</strong> {trab.nombre_06 || ''} - <span style={{ fontSize: '0.9em', opacity: 0.8 }}>{trab.ruttrabajador_06 || ''}</span>
-                    </div>
-                  ))
-                ) : (
-                  <div style={{ 
-                    textAlign: 'center', 
-                    color: '#6c757d', 
-                    padding: '10px' 
-                  }}>
-                    {trabajadores.length === 0 ? 'Cargando trabajadores...' : 'No se encontraron trabajadores con ese criterio'}
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* Segunda fila: Responsable | Empresa | Fecha | Hora | Estado de Entrega */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr 1fr', gap: '15px', marginBottom: '20px' }}>
-            <div className="form-group">
-              <label>Responsable *</label>
-              <select
+              <label htmlFor="prendas-responsable">Responsable *</label>
+              <SearchableSelect
+                id="prendas-responsable"
                 value={idResponsable}
-                onChange={(e) => setIdResponsable(e.target.value)}
+                onChange={setIdResponsable}
+                options={responsableOptions}
+                placeholder="Buscar responsable..."
                 required
-                style={{ width: '100%', padding: '8px 12px', borderRadius: '4px', border: '1px solid #ced4da', fontSize: '14px' }}
-              >
-                <option value="">Seleccione un responsable</option>
-                {responsables.map(resp => (
-                  <option key={resp.idresponsableentrega_08} value={resp.idresponsableentrega_08}>
-                    {resp.nombreresponsableentrega_08} {resp.apaternoresponsableentrega_08 || ''} {resp.amaternoresponsableentrega_08 || ''}
-                  </option>
-                ))}
-              </select>
+                uppercase={false}
+                aria-label="Buscar o seleccionar responsable"
+                emptyMessage={responsables.length === 0 ? 'Cargando responsables...' : 'No se encontraron responsables'}
+              />
             </div>
 
             <div className="form-group">
-              <label>Empresa *</label>
-              <select
+              <label htmlFor="prendas-empresa">Empresa *</label>
+              <SearchableSelect
+                id="prendas-empresa"
                 value={idEmpresa}
-                onChange={(e) => setIdEmpresa(e.target.value)}
+                onChange={setIdEmpresa}
+                options={empresaOptions}
+                placeholder="Buscar empresa..."
                 required
-                style={{ width: '100%', padding: '8px 12px', borderRadius: '4px', border: '1px solid #ced4da', fontSize: '14px' }}
-              >
-                <option value="">Seleccione una empresa</option>
-                {empresas.map(emp => (
-                  <option key={emp.idempresa_15} value={emp.idempresa_15}>
-                    {emp.nombreempresa_15}
-                  </option>
-                ))}
-              </select>
+                aria-label="Buscar o seleccionar empresa"
+                emptyMessage={empresas.length === 0 ? 'Cargando empresas...' : 'No se encontraron empresas'}
+              />
             </div>
 
             <div className="form-group">
-              <label>Fecha *</label>
+              <label htmlFor="prendas-fecha">Fecha *</label>
               <input
+                id="prendas-fecha"
                 type="date"
                 value={fecha}
                 onChange={(e) => setFecha(e.target.value)}
                 required
-                style={{ width: '100%', padding: '8px 12px', borderRadius: '4px', border: '1px solid #ced4da', fontSize: '14px' }}
               />
             </div>
 
             <div className="form-group">
-              <label>Hora *</label>
+              <label htmlFor="prendas-hora">Hora *</label>
               <input
+                id="prendas-hora"
                 type="time"
                 value={hora}
                 onChange={(e) => setHora(e.target.value)}
                 required
-                style={{ width: '100%', padding: '8px 12px', borderRadius: '4px', border: '1px solid #ced4da', fontSize: '14px' }}
               />
             </div>
 
             <div className="form-group">
-              <label id="label-entregado-main">Estado de Entrega (Maestro)</label>
+              <label id="label-entregado-main" htmlFor="entregado-main">Estado de Entrega (Maestro)</label>
               <div
                 style={{
                   display: 'flex',
@@ -2227,7 +2196,7 @@ const AsignacionPrendasView: React.FC = () => {
           {/* Formulario para agregar prendas */}
           <div style={{ marginBottom: '20px', padding: '15px', border: '1px solid #ced4da', borderRadius: '4px', backgroundColor: '#f8f9fa' }}>
             <h4 style={{ marginTop: 0, marginBottom: '15px' }}>Agregar Prenda</h4>
-            <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr auto auto', gap: '10px', alignItems: 'end' }}>
+            <div className="prendas-agregar-fila">
               <div className="form-group" style={{ marginBottom: 0 }}>
                 <label>Prenda *</label>
                 <select
@@ -2571,13 +2540,7 @@ const AsignacionPrendasView: React.FC = () => {
                 {' '}(Total: {processedAsignaciones.length})
               </div>
             </div>
-            <div
-              style={{
-                display: 'grid',
-                gridTemplateColumns: 'minmax(200px, 1fr) minmax(180px, 240px) minmax(130px, 160px) minmax(160px, 220px)',
-                gap: '10px'
-              }}
-            >
+            <div className="prendas-filtro-fila">
               <input
                 type="text"
                 placeholder="🔍 Buscar asignación..."
@@ -2585,7 +2548,7 @@ const AsignacionPrendasView: React.FC = () => {
                 onChange={(e) => changeKeepingCaret(e, setFiltro)}
                 style={{ width: '100%', padding: '10px', fontSize: '14px', borderRadius: '4px', border: '1px solid #ced4da', textTransform: 'uppercase' }}
               />
-              <div style={{ display: 'flex', gap: '8px' }}>
+              <div className="prendas-filtro-fechas">
                 <input
                   type="date"
                   value={filtroFechaDesde}
