@@ -31,15 +31,18 @@ async function leerPedido(id: number) {
     [id]
   );
   if ((cab.rowCount ?? 0) === 0) return null;
+  // 2026-11-07 12:20 El correo reconoce "Tecnicor", la línea trae el id. Sin el nombre no hay cruce.
   const lineas = await pool.query(
     `SELECT d.id_detalle_91,
             d.id_proveedor_91,
+            pl.razon_social_90,
             d.cod_insumo_91,
             d.descripcion_libre_91,
             d.precio_unitario_91,
             e.codigo_89,
             e.descripcion_89
      FROM tbl_91_pedido_detalle d
+     LEFT JOIN tbl_90_proveedor pl ON pl.id_proveedor_90 = d.id_proveedor_91
      LEFT JOIN tbl_89_codigo_etiqueta e ON e.idcodigo_89 = d.cod_insumo_91
      WHERE d.id_pedido_91 = $1
      ORDER BY d.id_detalle_91`,
