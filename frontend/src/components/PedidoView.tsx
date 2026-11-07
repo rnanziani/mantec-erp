@@ -161,6 +161,28 @@ const emptyLinea = {
 };
 
 /** Pedido: cantidad siempre entera (1, 2, 10). Evita 1,000 / 1.000. */
+/** 2026-11-07 13:15 En pantalla 890.000; al guardar el número 890000. Cabe hasta 10.000.000. */
+function parsePrecioChileno(raw: string): number | null {
+  const digits = String(raw ?? '').replace(/\D/g, '');
+  if (!digits) return null;
+  const n = Number(digits);
+  return Number.isFinite(n) && n >= 0 ? n : null;
+}
+
+function formatPrecioVista(value: unknown): string {
+  if (value == null || value === '') return '';
+  const n = typeof value === 'number' ? value : Number(String(value).trim());
+  if (!Number.isFinite(n)) return formatPrecioEscrito(String(value));
+  return Math.round(n).toLocaleString('es-CL', { maximumFractionDigits: 0 });
+}
+
+function formatPrecioEscrito(raw: string): string {
+  if (String(raw).trim() === '') return '';
+  const n = parsePrecioChileno(raw);
+  if (n == null) return '';
+  return n.toLocaleString('es-CL', { maximumFractionDigits: 0 });
+}
+
 function cantidadEntera(value: unknown): string {
   const t = String(value ?? '').trim().replace(',', '.');
   if (t === '') return '';
@@ -481,7 +503,7 @@ const PedidoView: React.FC = () => {
         descripcion: d.cod_insumo_91 ? d.descripcion_89 || '' : d.descripcion_libre_91 || d.descripcion_89 || '',
         idProveedorLinea: d.id_proveedor_91 ? String(d.id_proveedor_91) : matchProveedorId(d.proveedor_89),
         cantidad: cantidadEntera(d.cantidad_solicitada_91) || '1',
-        precio: d.precio_unitario_91 != null ? String(d.precio_unitario_91) : '',
+        precio: formatPrecioVista(d.precio_unitario_91),
         obs: d.observaciones_det_91 || '',
       }))
     );
@@ -518,7 +540,7 @@ const PedidoView: React.FC = () => {
           descripcion_libre_91: sku ? null : l.descripcion.trim().toUpperCase(),
           id_proveedor_91: l.idProveedorLinea ? Number(l.idProveedorLinea) : null,
           cantidad_solicitada_91: Math.round(Number(l.cantidad)),
-          precio_unitario_91: l.precio === '' ? null : Number(l.precio),
+          precio_unitario_91: l.precio.trim() === '' ? null : parsePrecioChileno(l.precio),
           observaciones_det_91: l.obs || null,
         };
       });
@@ -1069,14 +1091,18 @@ const PedidoView: React.FC = () => {
                             aria-label={`Cantidad línea ${idx + 1}`}
                           />
                         </td>
-                        <td style={{ width: 120 }}>
+                        <td className="pedido-precio-cell">
                           <input
-                            type="number"
-                            min="0"
-                            step="0.01"
-                            className="form-input"
+                            type="text"
+                            inputMode="numeric"
+                            autoComplete="off"
+                            className="form-input pedido-precio-input"
                             value={ln.precio}
-                            onChange={(e) => setLinea(idx, { precio: e.target.value })}
+                            onChange={(e) => changeKeepingCaret(
+                              e,
+                              (v) => setLinea(idx, { precio: v }),
+                              formatPrecioEscrito
+                            )}
                             aria-label={`Precio línea ${idx + 1}`}
                           />
                         </td>
