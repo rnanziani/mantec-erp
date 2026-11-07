@@ -1,3 +1,4 @@
+import { timingSafeEqual } from 'crypto';
 import { Request, Response, NextFunction } from 'express';
 import { pool } from '../db.js';
 import { verificarToken } from '../utils/authUtils.js';
@@ -10,6 +11,22 @@ export interface AuthUser {
   email: string;
   idNivel: number | null;
   permissionNames: Set<string>;
+}
+
+function esRutaBotPedido(method: string, path: string): boolean {
+  if (method !== 'GET' && method !== 'PATCH') return false;
+  return /^\/api\/bot\/pedidos\/\d+(\/(precios|pago))?$/.test(path);
+}
+
+function tokenBotValido(authorization: string | string[] | undefined): boolean {
+  const header = Array.isArray(authorization) ? authorization[0] : authorization;
+  const esperado = String(process.env.BOT_API_TOKEN || '').trim();
+  if (!esperado || !header?.startsWith('Bearer ')) return false;
+  const recibido = header.slice(7).trim();
+  const a = Buffer.from(recibido);
+  const b = Buffer.from(esperado);
+  if (a.length === 0 || a.length !== b.length) return false;
+  return timingSafeEqual(a, b);
 }
 
 function extractBearerToken(req: Request): string | null {
@@ -118,6 +135,15 @@ export async function apiPermissionGuard(
   try {
     const path = req.originalUrl.split('?')[0];
     if (!path.startsWith('/api/')) {
+      next();
+      return;
+    }
+
+    if (esRutaBotPedido(req.method.toUpperCase(), path)) {
+      if (!tokenBotValido(req.headers.authorization)) {
+        res.status(401).json({ success: false, error: 'Token del bot inválido' });
+        return;
+      }
       next();
       return;
     }

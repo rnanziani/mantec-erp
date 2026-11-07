@@ -79,6 +79,7 @@ import existenciaRepuestoRoutes from './routes/existenciaRepuestoRoutes.js';
 import codigoEtiquetaRoutes from './routes/codigoEtiquetaRoutes.js';
 import proveedorPedidoRoutes from './routes/proveedorPedidoRoutes.js';
 import pedidoRoutes from './routes/pedidoRoutes.js';
+import pedidoBotRoutes from './routes/pedidoBotRoutes.js';
 import vehiculoRoutes from './routes/vehiculoRoutes.js';
 import bitacoraViajeRoutes from './routes/bitacoraViajeRoutes.js';
 
@@ -268,6 +269,7 @@ app.use('/api/existencias-repuesto', existenciaRepuestoRoutes);
 app.use('/api/codigos-etiqueta', codigoEtiquetaRoutes);
 app.use('/api/proveedores-pedido', proveedorPedidoRoutes);
 app.use('/api/pedidos', pedidoRoutes);
+app.use('/api/bot/pedidos', pedidoBotRoutes);
 app.use('/api/vehiculos', vehiculoRoutes);
 app.use('/api/bitacoras-viaje', bitacoraViajeRoutes);
 
