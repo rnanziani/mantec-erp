@@ -6,7 +6,6 @@ import SearchableSelect from './shared/SearchableSelect';
 import { showDeleteConfirm, showSuccess, showError } from '../utils/swal';
 import { exportToExcel } from '../utils/exportUtils';
 import { apiUrl, openAuthenticatedBlob } from '../lib/apiClient';
-import { filtrarTrabajadoresPorApellido } from '../utils/trabajadorSearch';
 import { filtrarResponsablesActivos } from '../utils/responsablesEntrega';
 import { changeKeepingCaret } from '../hooks/useCaretTransform';
 
@@ -207,10 +206,8 @@ const ConsumoInsumoView: React.FC = () => {
   const [previewActaData, setPreviewActaData] = useState<ActaInsumoPreviewData | null>(null);
   const [loadingActa, setLoadingActa] = useState(false);
 
-  const [buscarApellido, setBuscarApellido] = useState('');
   const [idTrabajador, setIdTrabajador] = useState('');
   const [idResponsable, setIdResponsable] = useState('');
-  const [buscarCcosto, setBuscarCcosto] = useState('');
   const [idCcosto, setIdCcosto] = useState('');
   const [fecha, setFecha] = useState(new Date().toISOString().split('T')[0]);
   const [hora, setHora] = useState(new Date().toTimeString().slice(0, 5));
@@ -301,9 +298,39 @@ const ConsumoInsumoView: React.FC = () => {
   };
 
   const getTrabajadorNombre = (t: Trabajador) =>
-    [t.nombre_06, t.apaterno_06, t.amaterno_06].filter(Boolean).join(' ').trim();
+    `${t.apaterno_06 || ''} ${t.amaterno_06 || ''} ${t.nombre_06 || ''}`.trim();
   const getResponsableNombre = (r: Responsable) =>
     r.nombre_completo || r.nombreresponsableentrega_08 || '';
+
+  const trabajadorOptions = useMemo(
+    () =>
+      [...trabajadores]
+        .map((t) => ({
+          value: String(t.idtrabajador_06),
+          label: [getTrabajadorNombre(t), t.ruttrabajador_06].filter(Boolean).join(' — ')
+        }))
+        .sort((a, b) => a.label.localeCompare(b.label, 'es')),
+    [trabajadores]
+  );
+
+  const ccostoOptions = useMemo(
+    () =>
+      [...ccostos]
+        .map((c) => ({ value: String(c.id_ccosto_45), label: c.ccosto_45 }))
+        .sort((a, b) => a.label.localeCompare(b.label, 'es')),
+    [ccostos]
+  );
+
+  const responsableOptions = useMemo(
+    () =>
+      [...responsables]
+        .map((r) => ({
+          value: String(r.idresponsableentrega_08),
+          label: getResponsableNombre(r)
+        }))
+        .sort((a, b) => a.label.localeCompare(b.label, 'es')),
+    [responsables]
+  );
 
   const processedConsumos = useMemo(() => {
     let data = [...consumos];
@@ -358,17 +385,6 @@ const ConsumoInsumoView: React.FC = () => {
 
     return data;
   }, [consumos, searchTerm, filtroFechaDesde, filtroFechaHasta, sortConfig]);
-
-  const trabajadoresFiltrados = useMemo(
-    () => filtrarTrabajadoresPorApellido(trabajadores, buscarApellido),
-    [trabajadores, buscarApellido]
-  );
-
-  const ccostosFiltrados = useMemo(() => {
-    if (!buscarCcosto || buscarCcosto.trim() === '') return ccostos;
-    const busqueda = buscarCcosto.trim().toLowerCase();
-    return ccostos.filter((c) => c.ccosto_45.toLowerCase().includes(busqueda));
-  }, [ccostos, buscarCcosto]);
 
   const handleSort = (key: keyof MaestroConsumo) => {
     setSortConfig((prev) =>
@@ -439,10 +455,8 @@ const ConsumoInsumoView: React.FC = () => {
   };
 
   const resetForm = () => {
-    setBuscarApellido('');
     setIdTrabajador('');
     setIdResponsable('');
-    setBuscarCcosto('');
     setIdCcosto('');
     setFecha(new Date().toISOString().split('T')[0]);
     setHora(new Date().toTimeString().slice(0, 5));
@@ -870,10 +884,8 @@ const ConsumoInsumoView: React.FC = () => {
         return;
       }
       const { maestro, detalles } = data.data;
-      setBuscarApellido('');
       setIdTrabajador(String(maestro.idtrabajador_46));
       setIdResponsable(String(maestro.id_responsableentrega_46));
-      setBuscarCcosto(maestro.ccosto_nombre || '');
       setIdCcosto(String(maestro.id_ccosto_46));
       setFecha(maestro.fecha_46);
       setHora(maestro.hora_46.slice(0, 5));
@@ -918,7 +930,7 @@ const ConsumoInsumoView: React.FC = () => {
     <div className="bodega-view">
       <div className="view-header">
         <h2>📦 Asignación de Insumos</h2>
-        <div style={{ display: 'flex', gap: '10px' }}>
+        <div className="view-header-actions">
           <button
             className="btn-primary"
             onClick={() => { setSelectedConsumoId(null); setDetalleConsumo(null); resetForm(); setShowForm(true); setEditingId(null); }}
@@ -981,125 +993,47 @@ const ConsumoInsumoView: React.FC = () => {
         <div className="form-container">
           <h3>{editingId ? '✏️ Editar Consumo' : '➕ Nuevo Consumo'}</h3>
           <form ref={formRef} onSubmit={editingId ? handleUpdate : handleCreate}>
-            <div className="form-row consumo-form-row-4">
+            <div className="form-fila-seis">
               <div className="form-group">
-                <label htmlFor="buscar-trabajador">Buscar Trabajador Por Apellido</label>
-                <input
-                  type="text"
-                  id="buscar-trabajador"
-                  className="form-input"
-                  value={buscarApellido}
-                  onChange={(e) => changeKeepingCaret(e, setBuscarApellido)}
-                  placeholder="EJ: GONZALEZ O GONZALEZ PEREZ"
-                  style={{ textTransform: 'uppercase' }}
-                />
-                <small className="form-tip" style={{ color: '#6c757d', fontSize: '0.85em', display: 'block', marginTop: '4px' }}>
-                  💡 Tip: Una palabra busca por apellido paterno primero, luego materno (empieza con). Dos palabras: paterno y materno en ese orden.
-                </small>
-              </div>
-              <div className="form-group">
-                <label>Seleccionar Trabajador *</label>
-                <div
-                  className="trabajador-list"
-                  style={{
-                    maxHeight: '150px',
-                    overflowY: 'auto',
-                    border: '1px solid #ced4da',
-                    borderRadius: '4px',
-                    padding: '10px'
-                  }}
-                >
-                  {trabajadoresFiltrados.length > 0 ? (
-                    trabajadoresFiltrados.map((trab) => (
-                      <div
-                        key={trab.idtrabajador_06}
-                        role="button"
-                        tabIndex={0}
-                        onClick={() => setIdTrabajador(String(trab.idtrabajador_06))}
-                        onKeyDown={(e) => e.key === 'Enter' && setIdTrabajador(String(trab.idtrabajador_06))}
-                        style={{
-                          padding: '8px',
-                          cursor: 'pointer',
-                          backgroundColor: idTrabajador === String(trab.idtrabajador_06) ? '#007bff' : 'transparent',
-                          color: idTrabajador === String(trab.idtrabajador_06) ? 'white' : 'inherit',
-                          marginBottom: '5px',
-                          borderRadius: '4px',
-                          border: idTrabajador === String(trab.idtrabajador_06) ? '2px solid #0056b3' : '1px solid #ced4da'
-                        }}
-                      >
-                        <strong>{trab.apaterno_06 || ''} {trab.amaterno_06 || ''}</strong> {trab.nombre_06 || ''} -{' '}
-                        <span style={{ fontSize: '0.9em', opacity: 0.8 }}>{trab.ruttrabajador_06 || ''}</span>
-                      </div>
-                    ))
-                  ) : (
-                    <div style={{ textAlign: 'center', color: '#6c757d', padding: '10px' }}>
-                      {trabajadores.length === 0 ? 'Cargando trabajadores...' : 'No se encontraron trabajadores con ese criterio'}
-                    </div>
-                  )}
-                </div>
-              </div>
-              <div className="form-group">
-                <label htmlFor="buscar-ccosto">Buscar Centro de Costo</label>
-                <input
-                  type="text"
-                  id="buscar-ccosto"
-                  className="form-input"
-                  value={buscarCcosto}
-                  onChange={(e) => changeKeepingCaret(e, setBuscarCcosto)}
-                  placeholder="EJ: ADMINISTRACION, BODEGA..."
-                  style={{ textTransform: 'uppercase' }}
-                  aria-label="Buscar centro de costo por nombre"
-                />
-                <small className="form-tip">
-                  💡 Tip: Escriba parte del nombre del centro de costo para filtrar la lista.
-                </small>
-              </div>
-              <div className="form-group">
-                <label>Seleccionar Centro de Costo *</label>
-                <div
-                  className="trabajador-list ccosto-list"
-                  role="listbox"
-                  aria-label="Lista de centros de costo"
-                >
-                  {ccostosFiltrados.length > 0 ? (
-                    ccostosFiltrados.map((cc) => (
-                      <div
-                        key={cc.id_ccosto_45}
-                        role="option"
-                        tabIndex={0}
-                        aria-selected={idCcosto === String(cc.id_ccosto_45)}
-                        onClick={() => setIdCcosto(String(cc.id_ccosto_45))}
-                        onKeyDown={(e) => e.key === 'Enter' && setIdCcosto(String(cc.id_ccosto_45))}
-                        className={`ccosto-list-item ${idCcosto === String(cc.id_ccosto_45) ? 'selected' : ''}`}
-                      >
-                        {cc.ccosto_45}
-                      </div>
-                    ))
-                  ) : (
-                    <div className="ccosto-list-empty">
-                      {ccostos.length === 0 ? 'Cargando centros de costo...' : 'No se encontraron centros de costo con ese criterio'}
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-            <div className="form-row consumo-form-row-fecha">
-              <div className="form-group">
-                <label htmlFor="responsable">Responsable Entrega *</label>
-                <select
-                  id="responsable"
-                  className="form-input"
-                  value={idResponsable}
-                  onChange={(e) => setIdResponsable(e.target.value)}
+                <label htmlFor="insumo-trabajador">Trabajador *</label>
+                <SearchableSelect
+                  id="insumo-trabajador"
+                  value={idTrabajador}
+                  onChange={setIdTrabajador}
+                  options={trabajadorOptions}
+                  placeholder="Apellido, nombre o RUT..."
                   required
-                >
-                  <option value="">Seleccione...</option>
-                  {responsables.map((r) => (
-                    <option key={r.idresponsableentrega_08} value={String(r.idresponsableentrega_08)}>
-                      {getResponsableNombre(r)}
-                    </option>
-                  ))}
-                </select>
+                  uppercase={false}
+                  aria-label="Buscar o seleccionar trabajador"
+                  emptyMessage={trabajadores.length === 0 ? 'Cargando trabajadores...' : 'No se encontraron trabajadores'}
+                />
+              </div>
+              <div className="form-group">
+                <label htmlFor="insumo-ccosto">Centro de costo *</label>
+                <SearchableSelect
+                  id="insumo-ccosto"
+                  value={idCcosto}
+                  onChange={setIdCcosto}
+                  options={ccostoOptions}
+                  placeholder="Buscar centro de costo..."
+                  required
+                  aria-label="Buscar o seleccionar centro de costo"
+                  emptyMessage={ccostos.length === 0 ? 'Cargando centros de costo...' : 'No se encontraron centros de costo'}
+                />
+              </div>
+              <div className="form-group">
+                <label htmlFor="insumo-responsable">Responsable entrega *</label>
+                <SearchableSelect
+                  id="insumo-responsable"
+                  value={idResponsable}
+                  onChange={setIdResponsable}
+                  options={responsableOptions}
+                  placeholder="Buscar responsable..."
+                  required
+                  uppercase={false}
+                  aria-label="Buscar o seleccionar responsable"
+                  emptyMessage={responsables.length === 0 ? 'Cargando responsables...' : 'No se encontraron responsables'}
+                />
               </div>
               <div className="form-group">
                 <label htmlFor="fecha">Fecha *</label>
@@ -1123,7 +1057,7 @@ const ConsumoInsumoView: React.FC = () => {
                   required
                 />
               </div>
-              <div className="form-group form-group-flex">
+              <div className="form-group">
                 <label htmlFor="observacion">Observación</label>
                 <input
                   type="text"
