@@ -258,6 +258,16 @@ function fechaPedidoIso(value: unknown): string {
   return Number.isNaN(d.getTime()) ? s.slice(0, 10) : d.toISOString().slice(0, 10);
 }
 
+/** Solo listado: fecha + día de la semana. No cambia lo guardado ni el input date. */
+function fechaGrillaConDia(value: unknown): string {
+  const iso = fechaPedidoIso(value);
+  const [y, m, d] = iso.split('-').map(Number);
+  if (!y || !m || !d) return iso;
+  const dt = new Date(Date.UTC(y, m - 1, d));
+  const dia = new Intl.DateTimeFormat('es-CL', { weekday: 'long', timeZone: 'UTC' }).format(dt);
+  return `${iso} ${dia}`;
+}
+
 function gruposPedidoComoPdf(ped: Pedido) {
   const fallback = String(ped.proveedor_nombre || '').trim().toUpperCase();
   const map = new Map<string, Detalle[]>();
@@ -1791,7 +1801,7 @@ const PedidoView: React.FC = () => {
               pageItems.map((p) => (
                 <tr key={p.id_pedido_92}>
                   <td>{p.numero_orden_92}</td>
-                  <td>{String(p.fecha_pedido_92).slice(0, 10)}</td>
+                  <td style={{ whiteSpace: 'nowrap' }}>{fechaGrillaConDia(p.fecha_pedido_92)}</td>
                   <td>{p.proveedor_nombre}</td>
                   <td>{p.estado_pago_92}</td>
                   <td>{p.estado_recepcion_92}</td>
