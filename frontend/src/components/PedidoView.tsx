@@ -148,6 +148,7 @@ const FILTROS_ESTADO_DETALLE = [
   { value: 'cancelar', label: 'Cancelar' },
   { value: 'recepcionado', label: 'Recepcionado en bodega' },
   { value: 'bodega', label: 'Pagado y en bodega' },
+  { value: 'traslado', label: 'Traslado a fecha futura' },
 ] as const;
 
 const emptyLinea = {
@@ -222,7 +223,13 @@ function resumenCierre(d: {
   if (rec > 0) partes.push(`Llegó ${rec}`);
   if (pas > 0) {
     const n = decision === 'mas_1' ? 1 : decision === 'mas_2' ? 2 : decision === 'mas_3' ? 3 : 0;
-    partes.push(n > 0 ? `+${n} día${n > 1 ? 's' : ''} ${pas}` : `Pasó ${pas}`);
+    partes.push(
+      decision === 'traslado'
+        ? `Traslado ${pas}`
+        : n > 0
+          ? `+${n} día${n > 1 ? 's' : ''} ${pas}`
+          : `Pasó ${pas}`
+    );
   }
   if (baja > 0) partes.push(decision === 'cancelar' ? `Cancelado ${baja}` : `Ya no ${baja}`);
   return partes.join(' · ') || 'Cerrada';
@@ -307,6 +314,20 @@ function pedidoAbierto(p: Pick<Pedido, 'estado_pago_92' | 'estado_recepcion_92'>
   return p.estado_pago_92 !== 'Anulado' && rec !== 'Anulado' && rec !== 'Recibido' && rec !== 'Cerrada';
 }
 
+function hoyChile(): string {
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'America/Santiago',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(new Date());
+}
+
+function fechaClVista(iso: string): string {
+  const [y, m, d] = iso.split('-');
+  return y && m && d ? `${d}-${m}-${y}` : iso;
+}
+
 const PedidoView: React.FC = () => {
   const formRef = React.useRef<HTMLFormElement>(null);
   const [pedidos, setPedidos] = useState<Pedido[]>([]);
@@ -341,6 +362,10 @@ const PedidoView: React.FC = () => {
   const [enviandoWa, setEnviandoWa] = useState(false);
   const [resumenPago, setResumenPago] = useState<string | null>(null);
   const resumenRef = React.useRef<HTMLTextAreaElement>(null);
+  const [showTraslado, setShowTraslado] = useState(false);
+  const [fechaTraslado, setFechaTraslado] = useState(hoyChile);
+  const [idDestinoTraslado, setIdDestinoTraslado] = useState('');
+  const [trasladando, setTrasladando] = useState(false);
 
   const API = apiUrl('/pedidos');
 
@@ -398,6 +423,40 @@ const PedidoView: React.FC = () => {
     skus.forEach((s) => m.set(String(s.idcodigo_89), s));
     return m;
   }, [skus]);
+
+  const destinosTraslado = useMemo(() => {
+    if (!detalleAbierto || !fechaTraslado) return [];
+    return pedidos
+      .filter(
+        (p) =>
+          pedidoAbierto(p) &&
+          p.id_pedido_92 !== detalleAbierto.id_pedido_92 &&
+          fechaPedidoIso(p.fecha_pedido_92) === fechaTraslado
+      )
+      .sort((a, b) => {
+        const ap = a.estado_recepcion_92 === 'Pendiente' ? 0 : 1;
+        const bp = b.estado_recepcion_92 === 'Pendiente' ? 0 : 1;
+        return ap - bp || b.id_pedido_92 - a.id_pedido_92;
+      });
+  }, [pedidos, detalleAbierto, fechaTraslado]);
+
+  const destinoTrasladoOptions = useMemo(
+    () => [
+      { value: '', label: destinosTraslado.length ? 'Crear pedido nuevo ese día' : 'No hay pedido ese día: se creará uno' },
+      ...destinosTraslado.map((p) => ({
+        value: String(p.id_pedido_92),
+        label: `${p.numero_orden_92} — ${p.proveedor_nombre} (${p.estado_recepcion_92})`,
+      })),
+    ],
+    [destinosTraslado]
+  );
+
+  useEffect(() => {
+    if (!showTraslado) return;
+    setIdDestinoTraslado(destinosTraslado[0] ? String(destinosTraslado[0].id_pedido_92) : '');
+    // Solo al abrir o cambiar la fecha: si hay pedido ese día, se elige; si no, se creará.
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- destinosTraslado se recalcula con la fecha
+  }, [showTraslado, fechaTraslado]);
 
   const matchProveedorId = (nombre?: string | null) => {
     const q = String(nombre || '').trim().toUpperCase();
@@ -592,6 +651,72 @@ const PedidoView: React.FC = () => {
     await fetchAll();
     if (data.data) setDetalleAbierto(data.data);
     await showSuccess('Listo', data.message || 'OK');
+  };
+
+  const abrirTraslado = () => {
+    const hoy = hoyChile();
+    setFechaTraslado(hoy);
+    setIdDestinoTraslado('');
+    setShowTraslado(true);
+  };
+
+  const handleCambioFechaTraslado = (iso: string) => {
+    setFechaTraslado(iso);
+    setIdDestinoTraslado('');
+  };
+
+  const handleTrasladarPedido = async () => {
+    if (!detalleAbierto) return;
+    const hoy = hoyChile();
+    if (!fechaTraslado || fechaTraslado < hoy) {
+      await showError('Validación', 'Elija hoy o una fecha futura');
+      return;
+    }
+    if (fechaTraslado === fechaPedidoIso(detalleAbierto.fecha_pedido_92)) {
+      await showError('Validación', 'Elija una fecha distinta a la de este pedido');
+      return;
+    }
+    const pendientes = (detalleAbierto.detalles || []).filter((d) => pendienteLinea(d) > 0);
+    if (pendientes.length === 0) {
+      await showError('Validación', 'No hay cantidades pendientes para trasladar');
+      return;
+    }
+    const dest = destinosTraslado.find((p) => String(p.id_pedido_92) === idDestinoTraslado);
+    const destinoTxt = dest
+      ? dest.numero_orden_92
+      : `un pedido nuevo el ${fechaClVista(fechaTraslado)}`;
+    const ok = await showConfirm(
+      'Mover a fecha futura',
+      `${pendientes.length} línea${pendientes.length === 1 ? '' : 's'} de ${detalleAbierto.numero_orden_92} pasan a ${destinoTxt}. Este pedido queda Cerrado en su fecha original. El PDF de ${fechaClVista(fechaPedidoIso(detalleAbierto.fecha_pedido_92))} no cambia.`,
+      'Trasladar'
+    );
+    if (!ok) return;
+    setTrasladando(true);
+    try {
+      const res = await apiFetch(`${API}/${detalleAbierto.id_pedido_92}/trasladar`, {
+        method: 'POST',
+        body: JSON.stringify({
+          fecha: fechaTraslado,
+          id_pedido_destino: idDestinoTraslado ? Number(idDestinoTraslado) : null,
+        }),
+      });
+      const data: ApiResponse<Pedido> = await res.json();
+      if (!data.success) {
+        await showError('Traslado', data.error || 'No se pudo trasladar');
+        return;
+      }
+      setShowTraslado(false);
+      await fetchAll();
+      if (data.data) {
+        setDetalleAbierto(data.data);
+        setShowForm(false);
+      }
+      await showSuccess('Listo', data.message || 'Pedido trasladado');
+    } catch {
+      await showError('Traslado', 'Error de conexión');
+    } finally {
+      setTrasladando(false);
+    }
   };
 
   const handleCerrarLinea = async (d: Detalle) => {
@@ -1138,6 +1263,68 @@ const PedidoView: React.FC = () => {
         </div>
       )}
 
+      {showTraslado && detalleAbierto && (
+        <div
+          className="pedido-modal-overlay"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="pedido-traslado-title"
+          onClick={() => !trasladando && setShowTraslado(false)}
+        >
+          <div className="pedido-modal" onClick={(e) => e.stopPropagation()}>
+            <h3 id="pedido-traslado-title">Mover a fecha futura</h3>
+            <p className="form-help-text">
+              Las líneas pendientes de {detalleAbierto.numero_orden_92} pasan al pedido de esa fecha.
+              Este queda Cerrado el {fechaClVista(fechaPedidoIso(detalleAbierto.fecha_pedido_92))}. El PDF original no cambia.
+            </p>
+            <div className="form-fila-dos">
+              <div className="form-group">
+                <label htmlFor="fecha-traslado">Fecha destino *</label>
+                <input
+                  id="fecha-traslado"
+                  type="date"
+                  className="form-input"
+                  min={hoyChile()}
+                  value={fechaTraslado}
+                  onChange={(e) => handleCambioFechaTraslado(e.target.value)}
+                  required
+                />
+              </div>
+              <div className="form-group">
+                <label htmlFor="destino-traslado">Pedido de ese día</label>
+                <SearchableSelect
+                  id="destino-traslado"
+                  value={idDestinoTraslado}
+                  onChange={setIdDestinoTraslado}
+                  options={destinoTrasladoOptions}
+                  placeholder="Pedido existente o crear uno..."
+                  aria-label="Elegir pedido destino o crear uno nuevo"
+                  emptyMessage="Sin pedidos ese día"
+                />
+              </div>
+            </div>
+            <div className="form-actions">
+              <button
+                type="button"
+                className="btn-primary"
+                onClick={() => void handleTrasladarPedido()}
+                disabled={trasladando}
+              >
+                {trasladando ? 'Trasladando...' : 'Trasladar'}
+              </button>
+              <button
+                type="button"
+                className="btn-secondary"
+                onClick={() => setShowTraslado(false)}
+                disabled={trasladando}
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {detalleAbierto && !showForm && (
         <div className="form-container">
           <h3>
@@ -1172,6 +1359,11 @@ const PedidoView: React.FC = () => {
                   onClick={() => postAccion(`${API}/${detalleAbierto.id_pedido_92}/no-retirado`)}
                 >
                   No retirado
+                </button>
+              )}
+              {!cerrado && (
+                <button type="button" className="btn-secondary" onClick={abrirTraslado}>
+                  Mover a fecha futura
                 </button>
               )}
               {!cerrado && (

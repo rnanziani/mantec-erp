@@ -14,6 +14,7 @@ import {
   getResumenPago,
   getVerificadorPedidos,
   marcarNoRetirado,
+  trasladarPedido,
   registrarEnvioWhatsApp,
   registrarPago,
   registrarRecepcion,
@@ -38,6 +39,7 @@ router.post('/:id/pago', registrarPago);
 router.post('/:id/anular', anularPedido);
 router.post('/:id/no-retirado', marcarNoRetirado);
 router.post('/:id/cerrar-linea', cerrarLineaPedido);
+router.post('/:id/trasladar', trasladarPedido);
 router.post('/:id/envios-whatsapp', registrarEnvioWhatsApp);
 router.delete('/:id/envios-whatsapp/:idEnvio', deshacerEnvioWhatsApp);
 

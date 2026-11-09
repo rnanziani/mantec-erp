@@ -47,6 +47,7 @@ const DECISION_RECEPCIONADO = 'recepcionado';
 const DECISION_RE_SOLICITAR = 're_solicitar';
 const DECISION_RETIRAR = 'retirar';
 const DECISION_CANCELAR = 'cancelar';
+const DECISION_TRASLADO = 'traslado';
 const DIAS_COMPRA: Record<string, number> = { mas_1: 1, mas_2: 2, mas_3: 3 };
 
 function hoyChile(ahora = new Date()): string {
@@ -970,8 +971,10 @@ async function crearPedidoConsolidado(
   client: PoolClient,
   origen: { id_pedido_92: number; numero_orden_92?: string | null; id_proveedor_92: number; id_responsable_92: number },
   fecha: string,
-  user: string
+  user: string,
+  observacion?: string
 ): Promise<{ id_pedido_92: number; numero_orden_92: string }> {
+  const numeroOrigen = origen.numero_orden_92 || `PED-${String(origen.id_pedido_92).padStart(6, '0')}`;
   const cab = await client.query(
     `INSERT INTO tbl_92_pedido_cabecera (
        id_proveedor_92, id_responsable_92, fecha_pedido_92, observaciones_cab_92, usuario_creacion_92
@@ -981,7 +984,7 @@ async function crearPedidoConsolidado(
       origen.id_proveedor_92,
       origen.id_responsable_92,
       fecha,
-      `PENDIENTES DE ${origen.numero_orden_92 || `PED-${String(origen.id_pedido_92).padStart(6, '0')}`}`,
+      observacion || `PENDIENTES DE ${numeroOrigen}`,
       user,
     ]
   );
@@ -992,6 +995,73 @@ async function crearPedidoConsolidado(
     [id, numero]
   );
   return { id_pedido_92: id, numero_orden_92: numero };
+}
+
+async function cargarDestinoParaMerge(client: PoolClient, idDest: number): Promise<LineaPedido[]> {
+  const destLineas = await client.query(
+    `SELECT id_detalle_91, cod_insumo_91, descripcion_libre_91, id_proveedor_91,
+            cantidad_solicitada_91, cantidad_recibida_91
+     FROM tbl_91_pedido_detalle
+     WHERE id_pedido_91 = $1
+       AND COALESCE(cantidad_recibida_91, 0) = 0
+       AND COALESCE(cantidad_pasada_91, 0) = 0
+       AND COALESCE(cantidad_baja_91, 0) = 0`,
+    [idDest]
+  );
+  return destLineas.rows as LineaPedido[];
+}
+
+async function pasarFaltaADestino(
+  client: PoolClient,
+  args: {
+    destId: number;
+    destCache: LineaPedido[];
+    row: LineaPedido;
+    falta: number;
+    numeroOrigen: string;
+    idProvFallback: number;
+    decision: string;
+  }
+): Promise<void> {
+  const { destId, destCache, row, falta, numeroOrigen, idProvFallback, decision } = args;
+  const clave = claveConsolidar(row);
+  const ya = destCache.find((d) => claveConsolidar(d) === clave);
+  if (ya) {
+    await client.query(
+      `UPDATE tbl_91_pedido_detalle
+       SET cantidad_solicitada_91 = cantidad_solicitada_91 + $2
+       WHERE id_detalle_91 = $1 AND id_pedido_91 = $3`,
+      [ya.id_detalle_91, falta, destId]
+    );
+    ya.cantidad_solicitada_91 = num(ya.cantidad_solicitada_91) + falta;
+  } else {
+    const ins = await client.query(
+      `INSERT INTO tbl_91_pedido_detalle (
+         id_pedido_91, cod_insumo_91, descripcion_libre_91, id_proveedor_91,
+         cantidad_solicitada_91, precio_unitario_91, observaciones_det_91, id_detalle_origen_91
+       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+       RETURNING id_detalle_91, cod_insumo_91, descripcion_libre_91, id_proveedor_91,
+                 cantidad_solicitada_91, cantidad_recibida_91`,
+      [
+        destId,
+        row.cod_insumo_91 || null,
+        row.descripcion_libre_91 || null,
+        row.id_proveedor_91 || idProvFallback,
+        falta,
+        row.precio_unitario_91 ?? null,
+        upper(`DESDE ${numeroOrigen}${row.observaciones_det_91 ? ` — ${row.observaciones_det_91}` : ''}`),
+        row.id_detalle_91,
+      ]
+    );
+    destCache.push(ins.rows[0] as LineaPedido);
+  }
+  await client.query(
+    `UPDATE tbl_91_pedido_detalle
+     SET cantidad_pasada_91 = COALESCE(cantidad_pasada_91, 0) + $2,
+         decision_linea_91 = $3
+     WHERE id_detalle_91 = $1`,
+    [row.id_detalle_91, falta, decision]
+  );
 }
 
 /**
@@ -1110,50 +1180,16 @@ export const cerrarLineaPedido = async (req: Request, res: Response): Promise<vo
         );
       }
       const numeroOrigen = String(data.numero_orden_92 || `PED-${String(idPedido).padStart(6, '0')}`);
-      const destLineas = await client.query(
-        `SELECT id_detalle_91, cod_insumo_91, descripcion_libre_91, id_proveedor_91,
-                cantidad_solicitada_91, cantidad_recibida_91
-         FROM tbl_91_pedido_detalle
-         WHERE id_pedido_91 = $1
-           AND COALESCE(cantidad_recibida_91, 0) = 0
-           AND COALESCE(cantidad_pasada_91, 0) = 0
-           AND COALESCE(cantidad_baja_91, 0) = 0`,
-        [destino.id_pedido_92]
-      );
-      const clave = claveConsolidar(row);
-      const ya = (destLineas.rows as LineaPedido[]).find((d) => claveConsolidar(d) === clave);
-      if (ya) {
-        await client.query(
-          `UPDATE tbl_91_pedido_detalle
-           SET cantidad_solicitada_91 = cantidad_solicitada_91 + $2
-           WHERE id_detalle_91 = $1 AND id_pedido_91 = $3`,
-          [ya.id_detalle_91, falta, destino.id_pedido_92]
-        );
-      } else {
-        await client.query(
-          `INSERT INTO tbl_91_pedido_detalle (
-             id_pedido_91, cod_insumo_91, descripcion_libre_91, id_proveedor_91,
-             cantidad_solicitada_91, precio_unitario_91, observaciones_det_91, id_detalle_origen_91
-           ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
-          [
-            destino.id_pedido_92,
-            row.cod_insumo_91 || null,
-            row.descripcion_libre_91 || null,
-            row.id_proveedor_91 || idProv,
-            falta,
-            row.precio_unitario_91 ?? null,
-            upper(`DESDE ${numeroOrigen}${row.observaciones_det_91 ? ` — ${row.observaciones_det_91}` : ''}`),
-            idDetalle,
-          ]
-        );
-      }
-      await client.query(
-        `UPDATE tbl_91_pedido_detalle
-         SET cantidad_pasada_91 = COALESCE(cantidad_pasada_91, 0) + $2,
-             decision_linea_91 = $3
-         WHERE id_detalle_91 = $1`,
-        [idDetalle, falta, resto]
-      );
+      const destCache = await cargarDestinoParaMerge(client, destino.id_pedido_92);
+      await pasarFaltaADestino(client, {
+        destId: destino.id_pedido_92,
+        destCache,
+        row,
+        falta,
+        numeroOrigen,
+        idProvFallback: idProv,
+        decision: resto,
+      });
     }
     if (falta > 0 && resto === DECISION_CANCELAR) {
       await client.query(
@@ -1196,6 +1232,152 @@ export const cerrarLineaPedido = async (req: Request, res: Response): Promise<vo
     res.status(500).json({
       success: false,
       error: 'Error al cerrar la línea',
+      message: error instanceof Error ? error.message : 'Error desconocido',
+    });
+  } finally {
+    client.release();
+  }
+};
+
+/**
+ * Pasa todas las cantidades pendientes de un pedido atrasado a una fecha futura
+ * (pedido abierto de ese día, o uno nuevo). El origen queda Cerrada; el PDF de esa fecha no cambia.
+ */
+export const trasladarPedido = async (req: Request, res: Response): Promise<void> => {
+  const client = await pool.connect();
+  try {
+    const idPedido = num(req.params.id);
+    const fecha = String(req.body.fecha || '').trim();
+    const idDestinoBody = num(req.body.id_pedido_destino);
+    if (!idPedido) {
+      res.status(400).json({ success: false, error: 'Pedido requerido' });
+      return;
+    }
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(fecha)) {
+      res.status(400).json({ success: false, error: 'Indique la fecha de destino' });
+      return;
+    }
+    const hoy = hoyChile();
+    if (fecha < hoy) {
+      res.status(400).json({ success: false, error: 'La fecha de destino no puede ser anterior a hoy' });
+      return;
+    }
+    const data = await cargarPedido(idPedido);
+    if (!data) {
+      res.status(404).json({ success: false, error: 'Pedido no encontrado' });
+      return;
+    }
+    if (cicloCerrado(data.estado_recepcion_92, data.estado_pago_92)) {
+      res.status(400).json({ success: false, error: 'Este pedido ya está cerrado' });
+      return;
+    }
+    const fechaOrigen =
+      data.fecha_pedido_92 instanceof Date && !Number.isNaN(data.fecha_pedido_92.getTime())
+        ? data.fecha_pedido_92.toISOString().slice(0, 10)
+        : String(data.fecha_pedido_92 || '').match(/^\d{4}-\d{2}-\d{2}/)?.[0] || '';
+    if (fecha === fechaOrigen) {
+      res.status(400).json({ success: false, error: 'Elija una fecha distinta a la de este pedido' });
+      return;
+    }
+
+    await client.query('BEGIN');
+    await client.query(
+      `SELECT id_pedido_92 FROM tbl_92_pedido_cabecera WHERE id_pedido_92 = $1 FOR UPDATE`,
+      [idPedido]
+    );
+    const det = await client.query(
+      `SELECT id_detalle_91, id_pedido_91, cod_insumo_91, descripcion_libre_91, id_proveedor_91,
+              cantidad_solicitada_91, cantidad_recibida_91, cantidad_pasada_91, cantidad_baja_91,
+              precio_unitario_91, observaciones_det_91
+       FROM tbl_91_pedido_detalle
+       WHERE id_pedido_91 = $1
+       ORDER BY id_detalle_91
+       FOR UPDATE`,
+      [idPedido]
+    );
+    const pendientes = (det.rows as LineaPedido[]).filter((row) => pendienteOperativo(row) > 0);
+    if (pendientes.length === 0) {
+      await client.query('ROLLBACK');
+      res.status(400).json({ success: false, error: 'No hay cantidades pendientes para trasladar' });
+      return;
+    }
+
+    let destino: { id_pedido_92: number; numero_orden_92: string } | null = null;
+    if (idDestinoBody) {
+      const destCab = await client.query(
+        `SELECT id_pedido_92, numero_orden_92,
+                to_char(fecha_pedido_92, 'YYYY-MM-DD') AS fecha_pedido_92,
+                estado_pago_92, estado_recepcion_92
+         FROM tbl_92_pedido_cabecera
+         WHERE id_pedido_92 = $1
+         FOR UPDATE`,
+        [idDestinoBody]
+      );
+      if ((destCab.rowCount ?? 0) === 0) {
+        await client.query('ROLLBACK');
+        res.status(404).json({ success: false, error: 'El pedido de destino no existe' });
+        return;
+      }
+      const destRow = destCab.rows[0];
+      if (cicloCerrado(destRow.estado_recepcion_92, destRow.estado_pago_92)) {
+        await client.query('ROLLBACK');
+        res.status(400).json({ success: false, error: 'El pedido de destino ya está cerrado' });
+        return;
+      }
+      const fechaDest = String(destRow.fecha_pedido_92 || '');
+      if (fechaDest !== fecha) {
+        await client.query('ROLLBACK');
+        res.status(400).json({ success: false, error: 'Ese pedido no es de la fecha elegida' });
+        return;
+      }
+      destino = { id_pedido_92: destRow.id_pedido_92, numero_orden_92: destRow.numero_orden_92 };
+    } else {
+      destino = await crearPedidoConsolidado(
+        client,
+        {
+          id_pedido_92: idPedido,
+          numero_orden_92: data.numero_orden_92,
+          id_proveedor_92: num(data.id_proveedor_92),
+          id_responsable_92: num(data.id_responsable_92),
+        },
+        fecha,
+        usuario(req),
+        `TRASLADO DE ${data.numero_orden_92 || `PED-${String(idPedido).padStart(6, '0')}`}`
+      );
+    }
+
+    const numeroOrigen = String(data.numero_orden_92 || `PED-${String(idPedido).padStart(6, '0')}`);
+    const destCache = await cargarDestinoParaMerge(client, destino.id_pedido_92);
+    let unidades = 0;
+    for (const row of pendientes) {
+      const falta = pendienteOperativo(row);
+      unidades += falta;
+      await pasarFaltaADestino(client, {
+        destId: destino.id_pedido_92,
+        destCache,
+        row,
+        falta,
+        numeroOrigen,
+        idProvFallback: num(row.id_proveedor_91) || num(data.id_proveedor_92),
+        decision: DECISION_TRASLADO,
+      });
+    }
+
+    await recalcularRecepcion(client, idPedido);
+    await recalcularRecepcion(client, destino.id_pedido_92);
+    await client.query('COMMIT');
+
+    const destinoCargado = await cargarPedido(destino.id_pedido_92);
+    res.json({
+      success: true,
+      data: destinoCargado,
+      message: `${pendientes.length} línea${pendientes.length === 1 ? '' : 's'} (${unidades} un.) de ${numeroOrigen} pasaron a ${destino.numero_orden_92} (${fechaCl(fecha)}). ${numeroOrigen} quedó Cerrada.`,
+    });
+  } catch (error) {
+    await client.query('ROLLBACK');
+    res.status(500).json({
+      success: false,
+      error: 'Error al trasladar el pedido',
       message: error instanceof Error ? error.message : 'Error desconocido',
     });
   } finally {
@@ -1381,6 +1563,7 @@ const ETIQUETA_DECISION: Record<string, string> = {
   mas_1: '+1 día',
   mas_2: '+2 días',
   mas_3: '+3 días',
+  traslado: 'Traslado a fecha futura',
   re_solicitar: 'Pendiente (volver a solicitar)',
   retirar: 'Pendiente (pagado, solo retirar)',
   cancelar: 'Cancelar',

@@ -67,7 +67,10 @@ CREATE TABLE IF NOT EXISTS public.tbl_91_pedido_detalle (
     ),
     CONSTRAINT chk_91_decision CHECK (
         decision_linea_91 IS NULL
-        OR decision_linea_91 IN ('mas_1', 'mas_2', 'mas_3', 'bodega', 'recepcionado', 're_solicitar', 'retirar', 'cancelar')
+        OR decision_linea_91 IN (
+            'mas_1', 'mas_2', 'mas_3', 'bodega', 'recepcionado',
+            're_solicitar', 'retirar', 'cancelar', 'traslado'
+        )
     ),
     CONSTRAINT chk_91_sku_o_texto CHECK (
         cod_insumo_91 IS NOT NULL
