@@ -533,7 +533,7 @@ export const generarPdfConsultaProveedor = async (req: Request, res: Response): 
       },
       { text: 'Resumen por insumo', fontSize: 11, bold: true, color: '#1e3a5f', margin: [0, 0, 0, 6] },
     ];
-    const bodyResumen = [
+    const bodyResumen: unknown[][] = [
       [headerCell('Código'), headerCell('Descripción'), headerCell('Solic.'), headerCell('Recib.'), headerCell('Pend.'), headerCell('Líneas')],
       ...data.resumen.map((r) => [
         cell(r.codigo),
@@ -546,8 +546,8 @@ export const generarPdfConsultaProveedor = async (req: Request, res: Response): 
     ];
     if (data.resumen.length === 0) {
       bodyResumen.push([
-        { text: 'Sin solicitudes a este proveedor en el rango.', colSpan: 6, fontSize: 8, color: '#64748b', border: [false, false, false, false] },
-        cell(''), cell(''), cell(''), cell(''), cell(''),
+        cell('Sin solicitudes a este proveedor en el rango.', { colSpan: 6, color: '#64748b' }),
+        {}, {}, {}, {}, {},
       ]);
     }
     content.push({
@@ -565,7 +565,7 @@ export const generarPdfConsultaProveedor = async (req: Request, res: Response): 
       margin: [0, 0, 0, 14],
     });
     content.push({ text: 'Detalle por pedido', fontSize: 11, bold: true, color: '#1e3a5f', margin: [0, 0, 0, 6] });
-    const bodyDetalle = [
+    const bodyDetalle: unknown[][] = [
       [headerCell('Fecha'), headerCell('Orden'), headerCell('Código'), headerCell('Descripción'), headerCell('Solic.'), headerCell('Recib.'), headerCell('Pend.')],
       ...data.detalle.map((r) => [
         cell(fechaCl(r.fecha)),
@@ -579,8 +579,8 @@ export const generarPdfConsultaProveedor = async (req: Request, res: Response): 
     ];
     if (data.detalle.length === 0) {
       bodyDetalle.push([
-        { text: 'Sin líneas.', colSpan: 7, fontSize: 8, color: '#64748b', border: [false, false, false, false] },
-        cell(''), cell(''), cell(''), cell(''), cell(''), cell(''),
+        cell('Sin líneas.', { colSpan: 7, color: '#64748b' }),
+        {}, {}, {}, {}, {}, {},
       ]);
     }
     content.push({
