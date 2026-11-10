@@ -93,6 +93,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onNavigate, currentView }) => {
             children: [
                 { id: 'pedidos', label: 'Gestión de pedidos', icon: '📋', path: 'pedidos', permissionRequired: 'MENU_PEDIDOS_GESTION' },
                 { id: 'proveedores-pedido', label: 'Proveedores', icon: '🏭', path: 'proveedores-pedido', permissionRequired: 'MENU_PEDIDOS_PROVEEDORES' },
+                { id: 'consulta-pedido-proveedor', label: 'Consulta proveedor', icon: '📊', path: 'consulta-pedido-proveedor', permissionRequired: 'MENU_PEDIDOS_GESTION' },
                 { id: 'verificador-pedidos', label: 'Verificador', icon: '✅', path: 'verificador-pedidos', permissionRequired: 'MENU_PEDIDOS_VERIFICADOR' },
             ]
         },

@@ -79,6 +79,116 @@ function fechaCl(iso: string): string {
   return `${d}-${m}-${y}`;
 }
 
+function isoDateParam(value: unknown): string | null {
+  const s = String(value || '').trim();
+  return /^\d{4}-\d{2}-\d{2}$/.test(s) ? s : null;
+}
+
+type FilaConsultaProveedor = {
+  fecha: string;
+  numero: string;
+  codigo: string;
+  descripcion: string;
+  solicitado: number;
+  recibido: number;
+  pendiente: number;
+  pago: string;
+  recepcion: string;
+};
+
+type ResumenConsultaProveedor = {
+  codigo: string;
+  descripcion: string;
+  solicitado: number;
+  recibido: number;
+  pendiente: number;
+  lineas: number;
+};
+
+function consolidarConsultaProveedor(detalle: FilaConsultaProveedor[]): ResumenConsultaProveedor[] {
+  const map = new Map<string, ResumenConsultaProveedor>();
+  for (const d of detalle) {
+    const codigo = String(d.codigo || '').trim().toUpperCase() || 'SIN CÓDIGO';
+    const descripcion = String(d.descripcion || '').trim().toUpperCase();
+    const key = codigo !== 'SIN CÓDIGO' ? `s:${codigo}` : `t:${descripcion}`;
+    const cur = map.get(key) || { codigo, descripcion, solicitado: 0, recibido: 0, pendiente: 0, lineas: 0 };
+    cur.solicitado += d.solicitado;
+    cur.recibido += d.recibido;
+    cur.pendiente += d.pendiente;
+    cur.lineas += 1;
+    map.set(key, cur);
+  }
+  return [...map.values()].sort(
+    (a, b) => b.solicitado - a.solicitado || a.descripcion.localeCompare(b.descripcion, 'es')
+  );
+}
+
+async function cargarConsultaProveedor(idProveedor: number, desde: string, hasta: string) {
+  const prov = await pool.query(
+    'SELECT id_proveedor_90, razon_social_90 FROM tbl_90_proveedor WHERE id_proveedor_90 = $1',
+    [idProveedor]
+  );
+  if ((prov.rowCount ?? 0) === 0) return null;
+  const result = await pool.query(
+    `SELECT to_char(c.fecha_pedido_92, 'YYYY-MM-DD') AS fecha,
+            COALESCE(c.numero_orden_92, 'PED-' || LPAD(c.id_pedido_92::text, 6, '0')) AS numero,
+            COALESCE(NULLIF(TRIM(e.codigo_89), ''), 'SIN CÓDIGO') AS codigo,
+            UPPER(TRIM(BOTH FROM COALESCE(e.descripcion_89, d.descripcion_libre_91, ''))) AS descripcion,
+            ROUND(d.cantidad_solicitada_91)::int AS solicitado,
+            ROUND(COALESCE(d.cantidad_recibida_91, 0))::int AS recibido,
+            GREATEST(
+              0::numeric,
+              ROUND(d.cantidad_solicitada_91)
+                - ROUND(COALESCE(d.cantidad_recibida_91, 0))
+                - ROUND(COALESCE(d.cantidad_pasada_91, 0))
+                - ROUND(COALESCE(d.cantidad_baja_91, 0))
+            )::int AS pendiente,
+            c.estado_pago_92 AS pago,
+            c.estado_recepcion_92 AS recepcion
+     FROM tbl_91_pedido_detalle d
+     JOIN tbl_92_pedido_cabecera c ON c.id_pedido_92 = d.id_pedido_91
+     LEFT JOIN tbl_89_codigo_etiqueta e ON e.idcodigo_89 = d.cod_insumo_91
+     WHERE c.estado_pago_92 <> 'Anulado'
+       AND c.estado_recepcion_92 <> 'Anulado'
+       AND COALESCE(d.id_proveedor_91, c.id_proveedor_92) = $1
+       AND c.fecha_pedido_92 >= $2::date
+       AND c.fecha_pedido_92 <= $3::date
+     ORDER BY c.fecha_pedido_92, c.numero_orden_92, d.id_detalle_91`,
+    [idProveedor, desde, hasta]
+  );
+  const detalle = (result.rows as FilaConsultaProveedor[]).map((r) => ({
+    fecha: String(r.fecha || ''),
+    numero: String(r.numero || ''),
+    codigo: String(r.codigo || 'SIN CÓDIGO'),
+    descripcion: String(r.descripcion || ''),
+    solicitado: Math.round(num(r.solicitado)),
+    recibido: Math.round(num(r.recibido)),
+    pendiente: Math.round(num(r.pendiente)),
+    pago: String(r.pago || ''),
+    recepcion: String(r.recepcion || ''),
+  }));
+  const resumen = consolidarConsultaProveedor(detalle);
+  const totales = detalle.reduce(
+    (acc, r) => {
+      acc.solicitado += r.solicitado;
+      acc.recibido += r.recibido;
+      acc.pendiente += r.pendiente;
+      return acc;
+    },
+    { lineas: detalle.length, insumos: resumen.length, solicitado: 0, recibido: 0, pendiente: 0 }
+  );
+  totales.lineas = detalle.length;
+  totales.insumos = resumen.length;
+  return {
+    proveedor: String(prov.rows[0].razon_social_90 || '').toUpperCase(),
+    desde,
+    hasta,
+    resumen,
+    detalle,
+    totales,
+  };
+}
+
 function upper(value: unknown): string | null {
   if (value == null) return null;
   const t = String(value).trim().toUpperCase();
@@ -353,6 +463,173 @@ export const getResumenPago = async (_req: Request, res: Response): Promise<void
     res.status(500).json({
       success: false,
       error: 'Error al armar el resumen de pago',
+      message: error instanceof Error ? error.message : 'Error desconocido',
+    });
+  }
+};
+
+/** Insumos pedidos a un proveedor (línea) entre dos fechas. No usa el combo de cabecera. */
+export const getConsultaProveedor = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const idProveedor = num(req.query.id_proveedor);
+    const desde = isoDateParam(req.query.desde);
+    const hasta = isoDateParam(req.query.hasta);
+    if (!idProveedor) {
+      res.status(400).json({ success: false, error: 'Elija un proveedor del catálogo' });
+      return;
+    }
+    if (!desde || !hasta) {
+      res.status(400).json({ success: false, error: 'Indique fecha desde y hasta' });
+      return;
+    }
+    if (hasta < desde) {
+      res.status(400).json({ success: false, error: 'La fecha hasta no puede ser menor que desde' });
+      return;
+    }
+    const data = await cargarConsultaProveedor(idProveedor, desde, hasta);
+    if (!data) {
+      res.status(404).json({ success: false, error: 'Proveedor no encontrado' });
+      return;
+    }
+    res.json({ success: true, data });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: 'Error al consultar insumos por proveedor',
+      message: error instanceof Error ? error.message : 'Error desconocido',
+    });
+  }
+};
+
+export const generarPdfConsultaProveedor = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const idProveedor = num(req.query.id_proveedor);
+    const desde = isoDateParam(req.query.desde);
+    const hasta = isoDateParam(req.query.hasta);
+    if (!idProveedor || !desde || !hasta || hasta < desde) {
+      res.status(400).json({ success: false, error: 'Proveedor y rango de fechas son requeridos' });
+      return;
+    }
+    const data = await cargarConsultaProveedor(idProveedor, desde, hasta);
+    if (!data) {
+      res.status(404).json({ success: false, error: 'Proveedor no encontrado' });
+      return;
+    }
+    const cell = (text: string | number, extra: Record<string, unknown> = {}) => ({
+      text: String(text ?? ''),
+      fontSize: 8,
+      ...extra,
+    });
+    const headerCell = (text: string) =>
+      cell(text, { bold: true, color: '#1e3a5f', fillColor: '#eef2f6' });
+    const content: unknown[] = [
+      { text: 'MANTEC ERP', fontSize: 9, color: '#64748b', margin: [0, 0, 0, 2] },
+      { text: `Insumos solicitados — ${data.proveedor}`, fontSize: 14, bold: true, color: '#1e3a5f' },
+      {
+        text: `Del ${fechaCl(data.desde)} al ${fechaCl(data.hasta)}  ·  ${data.totales.insumos} insumos  ·  ${data.totales.lineas} líneas  ·  ${data.totales.solicitado} un. pedidas`,
+        fontSize: 8,
+        color: '#64748b',
+        margin: [0, 4, 0, 10],
+      },
+      { text: 'Resumen por insumo', fontSize: 11, bold: true, color: '#1e3a5f', margin: [0, 0, 0, 6] },
+    ];
+    const bodyResumen = [
+      [headerCell('Código'), headerCell('Descripción'), headerCell('Solic.'), headerCell('Recib.'), headerCell('Pend.'), headerCell('Líneas')],
+      ...data.resumen.map((r) => [
+        cell(r.codigo),
+        cell(r.descripcion),
+        cell(r.solicitado, { alignment: 'right', bold: true }),
+        cell(r.recibido, { alignment: 'right' }),
+        cell(r.pendiente, { alignment: 'right' }),
+        cell(r.lineas, { alignment: 'right' }),
+      ]),
+    ];
+    if (data.resumen.length === 0) {
+      bodyResumen.push([
+        { text: 'Sin solicitudes a este proveedor en el rango.', colSpan: 6, fontSize: 8, color: '#64748b', border: [false, false, false, false] },
+        cell(''), cell(''), cell(''), cell(''), cell(''),
+      ]);
+    }
+    content.push({
+      table: { headerRows: 1, widths: [80, '*', 42, 42, 42, 40], body: bodyResumen },
+      layout: {
+        hLineWidth: (i: number) => (i === 0 ? 0 : 0.4),
+        vLineWidth: () => 0.4,
+        hLineColor: () => '#c5cdd6',
+        vLineColor: () => '#c5cdd6',
+        paddingLeft: () => 4,
+        paddingRight: () => 4,
+        paddingTop: () => 3,
+        paddingBottom: () => 3,
+      },
+      margin: [0, 0, 0, 14],
+    });
+    content.push({ text: 'Detalle por pedido', fontSize: 11, bold: true, color: '#1e3a5f', margin: [0, 0, 0, 6] });
+    const bodyDetalle = [
+      [headerCell('Fecha'), headerCell('Orden'), headerCell('Código'), headerCell('Descripción'), headerCell('Solic.'), headerCell('Recib.'), headerCell('Pend.')],
+      ...data.detalle.map((r) => [
+        cell(fechaCl(r.fecha)),
+        cell(r.numero),
+        cell(r.codigo),
+        cell(r.descripcion),
+        cell(r.solicitado, { alignment: 'right', bold: true }),
+        cell(r.recibido, { alignment: 'right' }),
+        cell(r.pendiente, { alignment: 'right' }),
+      ]),
+    ];
+    if (data.detalle.length === 0) {
+      bodyDetalle.push([
+        { text: 'Sin líneas.', colSpan: 7, fontSize: 8, color: '#64748b', border: [false, false, false, false] },
+        cell(''), cell(''), cell(''), cell(''), cell(''), cell(''),
+      ]);
+    }
+    content.push({
+      table: { headerRows: 1, widths: [58, 70, 70, '*', 38, 38, 38], body: bodyDetalle },
+      layout: {
+        hLineWidth: (i: number) => (i === 0 ? 0 : 0.4),
+        vLineWidth: () => 0.4,
+        hLineColor: () => '#c5cdd6',
+        vLineColor: () => '#c5cdd6',
+        paddingLeft: () => 4,
+        paddingRight: () => 4,
+        paddingTop: () => 3,
+        paddingBottom: () => 3,
+      },
+    });
+    const fonts = {
+      Roboto: {
+        normal: 'Helvetica',
+        bold: 'Helvetica-Bold',
+        italics: 'Helvetica-Oblique',
+        bolditalics: 'Helvetica-BoldOblique',
+      },
+    };
+    const printer = new PdfPrinter(fonts);
+    const docDefinition: PdfDocumentDefinition = {
+      pageSize: 'LETTER',
+      pageMargins: [40, 36, 40, 40],
+      content,
+      defaultStyle: { font: 'Roboto', fontSize: 9 },
+      footer: (currentPage: number, pageCount: number) => ({
+        columns: [
+          { text: 'Uso interno · Por proveedor de línea (no cabecera) · Sin pedidos anulados', fontSize: 7, color: '#94a3b8', margin: [40, 0, 0, 0] },
+          { text: `Página ${currentPage} de ${pageCount}`, alignment: 'right', fontSize: 7, color: '#94a3b8', margin: [0, 0, 40, 0] },
+        ],
+      }),
+    };
+    const pdfDoc = printer.createPdfKitDocument(docDefinition);
+    const filename = `${data.proveedor.replace(/[^A-Z0-9]+/g, '_')}_${data.desde}_${data.hasta}.pdf`;
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename="${filename}"; filename*=UTF-8''${encodeURIComponent(filename)}`
+    );
+    pdfDoc.pipe(res);
+    pdfDoc.end();
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: 'Error al generar el PDF de consulta por proveedor',
       message: error instanceof Error ? error.message : 'Error desconocido',
     });
   }

@@ -5,10 +5,12 @@ import {
   createPedido,
   deletePedido,
   deshacerEnvioWhatsApp,
+  generarPdfConsultaProveedor,
   generarPdfDetalle,
   generarPdfPagos,
   generarPdfPedido,
   getAllPedidos,
+  getConsultaProveedor,
   getHistorialPedido,
   getPedidoById,
   getResumenPago,
@@ -25,6 +27,8 @@ const router = Router();
 
 router.get('/', getAllPedidos);
 router.get('/verificador', getVerificadorPedidos);
+router.get('/consulta-proveedor', getConsultaProveedor);
+router.get('/consulta-proveedor/pdf', generarPdfConsultaProveedor);
 router.get('/resumen-pago', getResumenPago);
 router.get('/pdf-pagos', generarPdfPagos);
 router.get('/:id/historial', getHistorialPedido);

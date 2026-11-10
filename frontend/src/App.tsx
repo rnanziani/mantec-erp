@@ -80,6 +80,7 @@ import ExistenciaRepuestoView from './components/ExistenciaRepuestoView';
 import CodigoEtiquetaView from './components/CodigoEtiquetaView';
 import PedidoView from './components/PedidoView';
 import ProveedorPedidoView from './components/ProveedorPedidoView';
+import ConsultaPedidoProveedorView from './components/ConsultaPedidoProveedorView';
 import VerificadorPedidoView from './components/VerificadorPedidoView';
 import VehiculoView from './components/VehiculoView';
 import BitacoraViajeView from './components/BitacoraViajeView';
@@ -175,6 +176,7 @@ function App() {
     'etiquetas': 'MENU_OPERACIONES_ETIQUETAS',
     'pedidos': 'MENU_PEDIDOS_GESTION',
     'proveedores-pedido': 'MENU_PEDIDOS_PROVEEDORES',
+    'consulta-pedido-proveedor': 'MENU_PEDIDOS_GESTION',
     'verificador-pedidos': 'MENU_PEDIDOS_VERIFICADOR',
     'bitacoras-viaje': 'MENU_FLOTA_BITACORA',
     'vehiculos': 'MENU_FLOTA_VEHICULOS',
@@ -549,6 +551,9 @@ function App() {
           {currentView === 'etiquetas' && hasRouteAccess('etiquetas') && <CodigoEtiquetaView />}
           {currentView === 'pedidos' && hasRouteAccess('pedidos') && <PedidoView />}
           {currentView === 'proveedores-pedido' && hasRouteAccess('proveedores-pedido') && <ProveedorPedidoView />}
+          {currentView === 'consulta-pedido-proveedor' && hasRouteAccess('consulta-pedido-proveedor') && (
+            <ConsultaPedidoProveedorView />
+          )}
           {currentView === 'verificador-pedidos' && hasRouteAccess('verificador-pedidos') && (
             <VerificadorPedidoView />
           )}
