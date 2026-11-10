@@ -161,6 +161,10 @@ const emptyLinea = {
   obs: '',
 };
 
+function lineaPedidoLlena(ln: Pick<typeof emptyLinea, 'cod_insumo_91' | 'descripcion'>): boolean {
+  return Boolean(String(ln.cod_insumo_91 || '').trim() || ln.descripcion.trim());
+}
+
 /** Pedido: cantidad siempre entera (1, 2, 10). Evita 1,000 / 1.000. */
 /** 2026-11-07 13:15 En pantalla 890.000; al guardar el número 890000. Cabe hasta 10.000.000. */
 function parsePrecioChileno(raw: string): number | null {
@@ -384,6 +388,7 @@ const PedidoView: React.FC = () => {
   const [numero, setNumero] = useState('');
   const [obs, setObs] = useState('');
   const [lineas, setLineas] = useState<Array<typeof emptyLinea>>([{ ...emptyLinea }]);
+  const [filtroProveedorForm, setFiltroProveedorForm] = useState('');
 
   const [detalleAbierto, setDetalleAbierto] = useState<Pedido | null>(null);
   const [historial, setHistorial] = useState<Historial[]>([]);
@@ -457,6 +462,34 @@ const PedidoView: React.FC = () => {
     skus.forEach((s) => m.set(String(s.idcodigo_89), s));
     return m;
   }, [skus]);
+
+  const proveedoresEnFormulario = useMemo(() => {
+    const ids = new Set<string>();
+    let sinProveedor = false;
+    for (const l of lineas) {
+      if (!lineaPedidoLlena(l)) continue;
+      if (l.idProveedorLinea) ids.add(l.idProveedorLinea);
+      else sinProveedor = true;
+    }
+    const opts = [...ids]
+      .map((id) => ({
+        value: id,
+        label: proveedores.find((p) => String(p.id_proveedor_90) === id)?.razon_social_90 || id,
+      }))
+      .sort((a, b) => a.label.localeCompare(b.label, 'es'));
+    if (sinProveedor) opts.push({ value: '__sin__', label: 'Sin proveedor' });
+    return opts;
+  }, [lineas, proveedores]);
+
+  const lineaVisibleEnForm = (ln: typeof emptyLinea) => {
+    if (!filtroProveedorForm) return true;
+    if (!lineaPedidoLlena(ln)) return true;
+    if (filtroProveedorForm === '__sin__') return !ln.idProveedorLinea;
+    return ln.idProveedorLinea === filtroProveedorForm;
+  };
+
+  const totalItemsForm = lineas.filter(lineaPedidoLlena).length;
+  const itemsVisiblesForm = lineas.filter((l) => lineaPedidoLlena(l) && lineaVisibleEnForm(l)).length;
 
   const destinosTraslado = useMemo(() => {
     if (!detalleAbierto || !fechaTraslado) return [];
@@ -549,6 +582,7 @@ const PedidoView: React.FC = () => {
     setNumero('');
     setObs('');
     setLineas([{ ...emptyLinea }]);
+    setFiltroProveedorForm('');
     setShowForm(false);
   };
 
@@ -583,6 +617,7 @@ const PedidoView: React.FC = () => {
         obs: d.observaciones_det_91 || '',
       }))
     );
+    setFiltroProveedorForm('');
     setShowForm(true);
     setDetalleAbierto(p);
   };
@@ -1162,9 +1197,32 @@ const PedidoView: React.FC = () => {
               </div>
             </div>
 
-            <h4>
-              Detalle ({lineas.filter((l) => l.cod_insumo_91 || l.descripcion.trim()).length} ítems)
-            </h4>
+            <div className="pedido-detalle-toolbar">
+              <h4>
+                Detalle (
+                {filtroProveedorForm && itemsVisiblesForm !== totalItemsForm
+                  ? `${itemsVisiblesForm} de ${totalItemsForm}`
+                  : totalItemsForm}{' '}
+                ítems)
+              </h4>
+              <label className="pedido-pago-filter" htmlFor="filtro_proveedor_form">
+                Proveedor
+                <select
+                  id="filtro_proveedor_form"
+                  className="form-input"
+                  value={filtroProveedorForm}
+                  onChange={(e) => setFiltroProveedorForm(e.target.value)}
+                  aria-label="Filtrar líneas del pedido por proveedor"
+                >
+                  <option value="">Todos</option>
+                  {proveedoresEnFormulario.map((p) => (
+                    <option key={p.value} value={p.value}>
+                      {p.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
             <p className="form-hint" style={{ marginTop: 0 }}>
               Código de catálogo o, si no existe, solo descripción y cantidad (extensión, unión, fabricar). Queda en el mismo pedido.
             </p>
@@ -1183,6 +1241,7 @@ const PedidoView: React.FC = () => {
                 </thead>
                 <tbody>
                   {lineas.map((ln, idx) => {
+                    if (!lineaVisibleEnForm(ln)) return null;
                     const skuLinea = skuPorId.get(String(ln.cod_insumo_91 || ''));
                     const textoEtiquetaProv = String(skuLinea?.proveedor_89 || '').trim();
                     const faltaEnCatalogo =
@@ -1302,7 +1361,16 @@ const PedidoView: React.FC = () => {
               type="button"
               className="btn-secondary"
               style={{ marginTop: 8 }}
-              onClick={() => setLineas((rows) => [...rows, { ...emptyLinea }])}
+              onClick={() =>
+                setLineas((rows) => [
+                  ...rows,
+                  {
+                    ...emptyLinea,
+                    idProveedorLinea:
+                      filtroProveedorForm && filtroProveedorForm !== '__sin__' ? filtroProveedorForm : '',
+                  },
+                ])
+              }
             >
               + Línea
             </button>

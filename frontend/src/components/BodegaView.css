@@ -769,6 +769,29 @@
     background: #7c2d12;
 }
 
+.pedido-detalle-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px 16px;
+    margin-bottom: 4px;
+}
+
+.pedido-detalle-toolbar h4 {
+    margin: 0;
+    min-width: 0;
+}
+
+.pedido-detalle-toolbar .pedido-pago-filter {
+    min-width: 0;
+}
+
+.pedido-detalle-toolbar .form-input {
+    min-width: 0;
+    max-width: 100%;
+}
+
 .pedido-detalle-filters {
     display: flex;
     flex-wrap: wrap;
