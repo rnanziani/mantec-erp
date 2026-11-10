@@ -268,6 +268,30 @@ function fechaGrillaConDia(value: unknown): string {
   return `${iso} ${dia}`;
 }
 
+/** Cruza el texto de la etiqueta (tbl_89) con el catálogo de Pedidos (tbl_90). */
+function claveProveedor(nombre: string): string {
+  return nombre.trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
+}
+
+function cruzarProveedorCatalogo(
+  catalogo: Proveedor[],
+  nombre?: string | null
+): Proveedor | undefined {
+  const q = String(nombre || '').trim().toUpperCase();
+  if (!q) return undefined;
+  const exact = catalogo.find((p) => p.razon_social_90.trim().toUpperCase() === q);
+  if (exact) return exact;
+  const qn = claveProveedor(q);
+  const sameKey = catalogo.filter((p) => claveProveedor(p.razon_social_90) === qn);
+  if (sameKey.length === 1) return sameKey[0];
+  const hits = catalogo.filter((p) => {
+    const n = p.razon_social_90.trim().toUpperCase();
+    const nn = claveProveedor(n);
+    return n.includes(q) || q.includes(n) || (qn.length >= 4 && (nn.includes(qn) || qn.includes(nn)));
+  });
+  return hits.length === 1 ? hits[0] : undefined;
+}
+
 function gruposPedidoComoPdf(ped: Pedido) {
   const fallback = String(ped.proveedor_nombre || '').trim().toUpperCase();
   const map = new Map<string, Detalle[]>();
@@ -469,28 +493,11 @@ const PedidoView: React.FC = () => {
   }, [showTraslado, fechaTraslado]);
 
   const matchProveedorId = (nombre?: string | null) => {
-    const q = String(nombre || '').trim().toUpperCase();
-    if (!q) return '';
-    const exact = proveedores.find((p) => p.razon_social_90.trim().toUpperCase() === q);
-    if (exact) return String(exact.id_proveedor_90);
-    const hits = proveedores.filter((p) => {
-      const n = p.razon_social_90.trim().toUpperCase();
-      return n.includes(q) || q.includes(n);
-    });
-    return hits.length === 1 ? String(hits[0].id_proveedor_90) : '';
+    const found = cruzarProveedorCatalogo(proveedores, nombre);
+    return found ? String(found.id_proveedor_90) : '';
   };
 
-  const matchProveedor = (nombre?: string | null) => {
-    const q = String(nombre || '').trim().toUpperCase();
-    if (!q) return undefined;
-    const exact = proveedores.find((p) => p.razon_social_90.trim().toUpperCase() === q);
-    if (exact) return exact;
-    const hits = proveedores.filter((p) => {
-      const n = p.razon_social_90.trim().toUpperCase();
-      return n.includes(q) || q.includes(n);
-    });
-    return hits.length === 1 ? hits[0] : undefined;
-  };
+  const matchProveedor = (nombre?: string | null) => cruzarProveedorCatalogo(proveedores, nombre);
 
   const setLinea = (idx: number, patch: Partial<typeof emptyLinea>) => {
     setLineas((rows) => {
@@ -1175,7 +1182,12 @@ const PedidoView: React.FC = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {lineas.map((ln, idx) => (
+                  {lineas.map((ln, idx) => {
+                    const skuLinea = skuPorId.get(String(ln.cod_insumo_91 || ''));
+                    const textoEtiquetaProv = String(skuLinea?.proveedor_89 || '').trim();
+                    const faltaEnCatalogo =
+                      Boolean(ln.cod_insumo_91) && Boolean(textoEtiquetaProv) && !ln.idProveedorLinea;
+                    return (
                       <tr key={idx}>
                         <td className="pedido-linea-nro" aria-label={`Línea ${idx + 1}`}>
                           {idx + 1}
@@ -1203,7 +1215,7 @@ const PedidoView: React.FC = () => {
                             aria-label={`Descripción línea ${idx + 1}`}
                           />
                         </td>
-                        <td style={{ minWidth: 160 }}>
+                        <td className="pedido-linea-proveedor">
                           <SearchableSelect
                             id={`prov_linea_${idx}`}
                             value={ln.idProveedorLinea}
@@ -1213,6 +1225,30 @@ const PedidoView: React.FC = () => {
                             emptyMessage="No coincide. Elíjalo del catálogo o créelo en Pedidos → Proveedores"
                             aria-label={`Proveedor línea ${idx + 1}`}
                           />
+                          {faltaEnCatalogo && (
+                            <small className="form-help-text">
+                              En la etiqueta: {textoEtiquetaProv}. No está en el catálogo.{' '}
+                              <button
+                                type="button"
+                                className="btn-link"
+                                style={{
+                                  background: 'none',
+                                  border: 'none',
+                                  color: '#0d6efd',
+                                  cursor: 'pointer',
+                                  padding: 0,
+                                  textDecoration: 'underline',
+                                  fontSize: 12,
+                                }}
+                                onClick={() => {
+                                  window.location.hash = 'proveedores-pedido';
+                                }}
+                              >
+                                Pedidos → Proveedores
+                              </button>
+                              : créelo con el mismo nombre y vuelva a elegir el SKU.
+                            </small>
+                          )}
                         </td>
                         <td style={{ width: 110 }}>
                           <input
@@ -1257,7 +1293,8 @@ const PedidoView: React.FC = () => {
                           </button>
                         </td>
                       </tr>
-                  ))}
+                    );
+                  })}
                 </tbody>
               </table>
             </div>

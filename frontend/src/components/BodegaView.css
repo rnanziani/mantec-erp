@@ -831,6 +831,25 @@
     vertical-align: middle;
 }
 
+.pedido-linea-proveedor {
+    min-width: 160px;
+    max-width: 280px;
+}
+
+.pedido-linea-proveedor .form-help-text {
+    display: block;
+    min-width: 0;
+    white-space: normal;
+    word-break: break-word;
+}
+
+@media (max-width: 767px) {
+    .pedido-linea-proveedor {
+        max-width: none;
+        min-width: 140px;
+    }
+}
+
 .pedido-modal-overlay {
     position: fixed;
     inset: 0;
