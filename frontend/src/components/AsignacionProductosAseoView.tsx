@@ -701,7 +701,6 @@ const AsignacionProductosAseoView: React.FC = () => {
                 options={trabajadorOptions}
                 placeholder="Apellido, nombre o RUT..."
                 required
-                uppercase={false}
                 aria-label="Buscar o seleccionar trabajador"
                 emptyMessage={
                   !trabajadoresLoaded
@@ -722,7 +721,6 @@ const AsignacionProductosAseoView: React.FC = () => {
                 options={responsableOptions}
                 placeholder="Buscar responsable..."
                 required
-                uppercase={false}
                 aria-label="Buscar o seleccionar responsable"
                 emptyMessage={responsables.length === 0 ? 'Cargando responsables...' : 'No se encontraron responsables'}
               />
@@ -936,7 +934,6 @@ const AsignacionProductosAseoView: React.FC = () => {
                     onChange={setReportIdTrabajador}
                     options={[{ value: '', label: 'Todos los trabajadores' }, ...trabajadorOptions]}
                     placeholder="Todos los trabajadores..."
-                    uppercase={false}
                     aria-label="Filtrar reporte por trabajador"
                     emptyMessage="Sin trabajadores"
                   />
