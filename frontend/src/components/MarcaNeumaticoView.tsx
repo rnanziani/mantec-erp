@@ -338,10 +338,10 @@ const MarcaNeumaticoView: React.FC = () => {
           placeholder="🔍 Buscar por marca o diámetro..."
           value={searchTerm}
           onChange={(e) => {
-            setSearchTerm(e.target.value);
+            changeKeepingCaret(e, setSearchTerm);
             setCurrentPage(1);
           }}
-          style={{ width: '100%', padding: '10px', fontSize: '14px', borderRadius: '4px', border: '1px solid #ced4da' }}
+          style={{ width: '100%', padding: '10px', fontSize: '14px', borderRadius: '4px', border: '1px solid #ced4da', textTransform: 'uppercase' }}
           aria-label="Buscar marca de neumático"
         />
       </div>
