@@ -95,9 +95,18 @@ const OPCIONES_RESTO_PENDIENTE = [
 
 const OPCION_RECEPCIONADO = { value: 'recepcionado', label: 'Recepcionado en bodega' } as const;
 const OPCION_BODEGA = { value: 'bodega', label: 'Cerrar (pagado y en bodega)' } as const;
+const OPCIONES_RESTO_MASIVO = [
+  OPCION_RECEPCIONADO,
+  OPCION_BODEGA,
+  ...OPCIONES_RESTO_PENDIENTE,
+] as const;
 
 function opcionesResto(falta: number): Array<{ value: string; label: string }> {
   return falta > 0 ? [...OPCIONES_RESTO_PENDIENTE] : [OPCION_RECEPCIONADO, OPCION_BODEGA];
+}
+
+function etiquetaResto(value: string): string {
+  return OPCIONES_RESTO_MASIVO.find((o) => o.value === value)?.label || value;
 }
 
 function textoDecision(resto: string, falta: number, llegada: number): string {
@@ -398,6 +407,8 @@ const PedidoView: React.FC = () => {
   const [filtroEstadoDetalle, setFiltroEstadoDetalle] = useState('');
   const [llegadaLinea, setLlegadaLinea] = useState<Record<number, string>>({});
   const [restoLinea, setRestoLinea] = useState<Record<number, string>>({});
+  const [restoMasivo, setRestoMasivo] = useState('');
+  const [cerrandoMasivo, setCerrandoMasivo] = useState(false);
   const [enviandoWa, setEnviandoWa] = useState(false);
   const [resumenPago, setResumenPago] = useState<string | null>(null);
   const resumenRef = React.useRef<HTMLTextAreaElement>(null);
@@ -635,6 +646,7 @@ const PedidoView: React.FC = () => {
       setFiltroEstadoDetalle('');
       setLlegadaLinea({});
       setRestoLinea({});
+      setRestoMasivo('');
     }
     if (dHis.success && Array.isArray(dHis.data)) setHistorial(dHis.data);
   };
@@ -825,6 +837,133 @@ const PedidoView: React.FC = () => {
       return next;
     });
     await showSuccess('Listo', data.message || 'Línea cerrada');
+  };
+
+  const candidatosCierreMasivo = useMemo(() => {
+    if (!detalleAbierto) return { ok: [] as Array<{ id: number; llegada: number; resto: string }>, omitidas: [] as string[] };
+    const ok: Array<{ id: number; llegada: number; resto: string }> = [];
+    const omitidas: string[] = [];
+    for (const d of detalleAbierto.detalles || []) {
+      if (!d.id_detalle_91 || pendienteLinea(d) <= 0) continue;
+      if (
+        !lineaPasaFiltro(
+          d,
+          String(detalleAbierto.proveedor_nombre || ''),
+          filtroProveedor,
+          filtroSituacion,
+          filtroEstadoDetalle
+        )
+      ) {
+        continue;
+      }
+      const id = d.id_detalle_91;
+      const nombre = d.codigo_89 || d.descripcion_89 || `Línea ${id}`;
+      const pend = pendienteLinea(d);
+      const llegadaTxt = llegadaLinea[id] ?? '';
+      const llegada = llegadaTxt === '' ? 0 : Math.round(Number(llegadaTxt));
+      if (!Number.isFinite(llegada) || llegada < 0) {
+        omitidas.push(`${nombre}: llegada inválida`);
+        continue;
+      }
+      const falta = Math.max(0, pend - llegada);
+      const opciones = opcionesResto(falta);
+      const resto = restoMasivo || (id in restoLinea ? restoLinea[id] : '');
+      if (!resto) {
+        omitidas.push(`${nombre}: elija Resto`);
+        continue;
+      }
+      if (!opciones.some((o) => o.value === resto)) {
+        omitidas.push(`${nombre}: ${etiquetaResto(resto)} no aplica`);
+        continue;
+      }
+      ok.push({ id, llegada, resto });
+    }
+    return { ok, omitidas };
+  }, [
+    detalleAbierto,
+    filtroProveedor,
+    filtroSituacion,
+    filtroEstadoDetalle,
+    llegadaLinea,
+    restoLinea,
+    restoMasivo,
+  ]);
+
+  const handleCerrarMasivo = async () => {
+    if (!detalleAbierto) return;
+    const { ok, omitidas } = candidatosCierreMasivo;
+    if (ok.length === 0) {
+      await showError(
+        'Cierre masivo',
+        omitidas[0] || 'No hay líneas visibles con Resto listo. Filtre el proveedor, complete Llegaron y elija el estado.'
+      );
+      return;
+    }
+    if (ok.some((l) => l.llegada > 0) && !idRecibe) {
+      await showError('Validación', 'Indique quién recibe lo que llegó');
+      return;
+    }
+    const porEstado = new Map<string, number>();
+    for (const l of ok) porEstado.set(l.resto, (porEstado.get(l.resto) || 0) + 1);
+    const resumenEstados = [...porEstado.entries()]
+      .map(([resto, n]) => `${n} × ${etiquetaResto(resto)}`)
+      .join('; ');
+    const extraOmitidas = omitidas.length
+      ? ` ${omitidas.length} visibles no aplican (${omitidas.slice(0, 2).join('; ')}${omitidas.length > 2 ? '…' : ''}).`
+      : '';
+    const confirmado = await showConfirm(
+      'Cerrar líneas visibles',
+      `Se cerrarán ${ok.length} insumos: ${resumenEstados}. El PDF de este pedido no cambia.${extraOmitidas}`,
+      'Cerrar'
+    );
+    if (!confirmado) return;
+    setCerrandoMasivo(true);
+    try {
+      const res = await apiFetch(`${API}/${detalleAbierto.id_pedido_92}/cerrar-lineas`, {
+        method: 'POST',
+        body: JSON.stringify({
+          lineas: ok.map((l) => ({
+            id_detalle_91: l.id,
+            cantidad_llegada: l.llegada,
+            resto: l.resto,
+          })),
+          id_responsable_recibe_93: ok.some((l) => l.llegada > 0) ? Number(idRecibe) : null,
+        }),
+      });
+      const data: ApiResponse<Pedido> & {
+        cerradas?: number[];
+        errores?: Array<{ id_detalle_91: number; error: string }>;
+      } = await res.json();
+      if (!data.success) {
+        await showError('Error', data.message || data.error || 'No se pudieron cerrar las líneas');
+        return;
+      }
+      await fetchAll();
+      if (data.data) setDetalleAbierto(data.data);
+      const ids = new Set(data.cerradas || ok.map((l) => l.id));
+      setLlegadaLinea((p) => {
+        const next = { ...p };
+        ids.forEach((id) => {
+          delete next[id];
+        });
+        return next;
+      });
+      setRestoLinea((p) => {
+        const next = { ...p };
+        ids.forEach((id) => {
+          delete next[id];
+        });
+        return next;
+      });
+      const extraErr = (data.errores || []).length
+        ? ` ${(data.errores || []).length} no aplicaron.`
+        : '';
+      await showSuccess('Listo', `${data.message || `Cerradas ${ids.size} líneas`}.${extraErr}`);
+    } catch {
+      await showError('Error', 'Error de conexión');
+    } finally {
+      setCerrandoMasivo(false);
+    }
   };
 
   const pedidoConDetalle = async (id: number): Promise<Pedido | null> => {
@@ -1678,6 +1817,39 @@ const PedidoView: React.FC = () => {
             <button type="button" className="btn-export" onClick={() => void exportarPdfDetalle(detalleAbierto.id_pedido_92)}>
               PDF detalle
             </button>
+            {!cerrado && (
+              <div className="pedido-cierre-masivo">
+                <label className="pedido-pago-filter" htmlFor="resto_masivo_visibles">
+                  Resto para visibles
+                  <select
+                    id="resto_masivo_visibles"
+                    className="form-input"
+                    value={restoMasivo}
+                    onChange={(e) => setRestoMasivo(e.target.value)}
+                    aria-label="Estado de resto a aplicar a las líneas visibles"
+                  >
+                    <option value="">El de cada fila</option>
+                    {OPCIONES_RESTO_MASIVO.map((o) => (
+                      <option key={o.value} value={o.value}>
+                        {o.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <button
+                  type="button"
+                  className="btn-primary"
+                  disabled={cerrandoMasivo || candidatosCierreMasivo.ok.length === 0}
+                  title="Cierra las líneas que se ven, con el Resto elegido aquí o el de cada fila"
+                  aria-label={`Cerrar ${candidatosCierreMasivo.ok.length} líneas visibles`}
+                  onClick={() => void handleCerrarMasivo()}
+                >
+                  {cerrandoMasivo
+                    ? 'Cerrando...'
+                    : `Cerrar ${candidatosCierreMasivo.ok.length} visibles`}
+                </button>
+              </div>
+            )}
           </div>
           <div className="table-container">
             <table className="data-table">

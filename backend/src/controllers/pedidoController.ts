@@ -1341,6 +1341,161 @@ async function pasarFaltaADestino(
   );
 }
 
+type PedidoCierre = {
+  id_pedido_92: number;
+  numero_orden_92?: string | null;
+  id_proveedor_92: number;
+  id_responsable_92: number;
+};
+
+type ResultadoCierreLinea = {
+  id_detalle_91: number;
+  ok: boolean;
+  error?: string;
+  partes: string[];
+};
+
+function restoCierreValido(resto: string): boolean {
+  const dias = DIAS_COMPRA[resto] || 0;
+  return Boolean(
+    dias
+    || resto === DECISION_BODEGA
+    || resto === DECISION_RECEPCIONADO
+    || resto === DECISION_RE_SOLICITAR
+    || resto === DECISION_RETIRAR
+    || resto === DECISION_CANCELAR
+  );
+}
+
+/** Una línea, dentro de la transacción ya abierta. No hace COMMIT ni recalcula la cabecera. */
+async function aplicarCierreLinea(
+  client: PoolClient,
+  params: {
+    idPedido: number;
+    data: PedidoCierre;
+    idDetalle: number;
+    llegada: number;
+    resto: string;
+    idResp: number;
+    usuarioNombre: string;
+  }
+): Promise<ResultadoCierreLinea> {
+  const { idPedido, data, idDetalle, llegada, resto, idResp, usuarioNombre } = params;
+  const dias = DIAS_COMPRA[resto] || 0;
+  const det = await client.query(
+    `SELECT id_detalle_91, cod_insumo_91, descripcion_libre_91, id_proveedor_91,
+            cantidad_solicitada_91, cantidad_recibida_91, cantidad_pasada_91, cantidad_baja_91,
+            precio_unitario_91, observaciones_det_91
+     FROM tbl_91_pedido_detalle
+     WHERE id_detalle_91 = $1 AND id_pedido_91 = $2
+     FOR UPDATE`,
+    [idDetalle, idPedido]
+  );
+  if ((det.rowCount ?? 0) === 0) {
+    return { id_detalle_91: idDetalle, ok: false, error: 'Línea no encontrada en este pedido', partes: [] };
+  }
+  const row = det.rows[0] as LineaPedido;
+  const pend = pendienteOperativo(row);
+  if (pend < 1) {
+    return { id_detalle_91: idDetalle, ok: false, error: 'Esta línea ya está cerrada', partes: [] };
+  }
+  const falta = Math.max(0, pend - llegada);
+  if (falta === 0 && resto !== DECISION_BODEGA && resto !== DECISION_RECEPCIONADO) {
+    return {
+      id_detalle_91: idDetalle,
+      ok: false,
+      error: 'Llegó todo: el estado es Recepcionado en bodega o Cerrar (pagado y en bodega)',
+      partes: [],
+    };
+  }
+  if (falta > 0 && (resto === DECISION_BODEGA || resto === DECISION_RECEPCIONADO)) {
+    return {
+      id_detalle_91: idDetalle,
+      ok: false,
+      error: 'Quedan unidades sin llegar. Elija +1, +2, +3 días, volver a solicitar, solo retirar o cancelar',
+      partes: [],
+    };
+  }
+  if (llegada > 0) {
+    if (!idResp || !(await responsableExiste(idResp))) {
+      return { id_detalle_91: idDetalle, ok: false, error: 'Indique quién recibe lo que llegó', partes: [] };
+    }
+    await client.query(
+      `INSERT INTO tbl_93_recepcion_parcial (
+         id_detalle_93, cantidad_recibida_93, id_responsable_recibe_93, observaciones_rec_93
+       ) VALUES ($1, $2, $3, $4)`,
+      [idDetalle, llegada, idResp, 'CIERRE DE LÍNEA']
+    );
+    await client.query(
+      `UPDATE tbl_91_pedido_detalle
+       SET cantidad_recibida_91 = COALESCE(cantidad_recibida_91, 0) + $2
+       WHERE id_detalle_91 = $1`,
+      [idDetalle, llegada]
+    );
+  }
+
+  let destino: { id_pedido_92: number; numero_orden_92: string } | null = null;
+  let fechaDestino = '';
+  if (falta > 0 && dias > 0) {
+    const idProv = num(row.id_proveedor_91) || num(data.id_proveedor_92);
+    fechaDestino = sumarDiasCompra(hoyChile(), dias);
+    destino = await buscarPedidoDelDia(client, idPedido, fechaDestino);
+    if (!destino) {
+      destino = await crearPedidoConsolidado(
+        client,
+        {
+          id_pedido_92: idPedido,
+          numero_orden_92: data.numero_orden_92,
+          id_proveedor_92: idProv,
+          id_responsable_92: num(data.id_responsable_92),
+        },
+        fechaDestino,
+        usuarioNombre
+      );
+    }
+    const numeroOrigen = String(data.numero_orden_92 || `PED-${String(idPedido).padStart(6, '0')}`);
+    const destCache = await cargarDestinoParaMerge(client, destino.id_pedido_92);
+    await pasarFaltaADestino(client, {
+      destId: destino.id_pedido_92,
+      destCache,
+      row,
+      falta,
+      numeroOrigen,
+      idProvFallback: idProv,
+      decision: resto,
+    });
+  }
+  if (falta > 0 && resto === DECISION_CANCELAR) {
+    await client.query(
+      `UPDATE tbl_91_pedido_detalle
+       SET cantidad_baja_91 = COALESCE(cantidad_baja_91, 0) + $2,
+           decision_linea_91 = $3
+       WHERE id_detalle_91 = $1`,
+      [idDetalle, falta, resto]
+    );
+  }
+  if (resto === DECISION_BODEGA || resto === DECISION_RECEPCIONADO || resto === DECISION_RE_SOLICITAR || resto === DECISION_RETIRAR) {
+    await client.query(
+      `UPDATE tbl_91_pedido_detalle
+       SET decision_linea_91 = $2
+       WHERE id_detalle_91 = $1`,
+      [idDetalle, resto]
+    );
+  }
+
+  const partes: string[] = [];
+  if (llegada > 0) partes.push(`${llegada} recibidos`);
+  if (falta > 0 && dias > 0) {
+    partes.push(`${falta} para el ${fechaCl(fechaDestino)} en ${destino?.numero_orden_92 || 'el pedido de ese día'}`);
+  }
+  if (resto === DECISION_BODEGA) partes.push('pagado y en bodega');
+  if (resto === DECISION_RECEPCIONADO) partes.push('recepcionado en bodega');
+  if (resto === DECISION_RE_SOLICITAR) partes.push('sigue pendiente para volver a solicitar');
+  if (resto === DECISION_RETIRAR) partes.push('pagado, solo falta retirar');
+  if (resto === DECISION_CANCELAR) partes.push(`${falta} cancelados, no se vuelven a solicitar`);
+  return { id_detalle_91: idDetalle, ok: true, partes };
+}
+
 /**
  * Cierra una línea según el combo Resto.
  * +N días copia lo que no llegó al pedido de esa fecha de compra.
@@ -1355,12 +1510,11 @@ export const cerrarLineaPedido = async (req: Request, res: Response): Promise<vo
     const llegada = Math.max(0, Math.round(num(req.body.cantidad_llegada)));
     const resto = String(req.body.resto || '').trim().toLowerCase();
     const idResp = num(req.body.id_responsable_recibe_93);
-    const dias = DIAS_COMPRA[resto] || 0;
     if (!idPedido || !idDetalle) {
       res.status(400).json({ success: false, error: 'Pedido y línea requeridos' });
       return;
     }
-    if (!dias && resto !== DECISION_BODEGA && resto !== DECISION_RECEPCIONADO && resto !== DECISION_RE_SOLICITAR && resto !== DECISION_RETIRAR && resto !== DECISION_CANCELAR) {
+    if (!restoCierreValido(resto)) {
       res.status(400).json({ success: false, error: 'Elija el estado del insumo en Resto' });
       return;
     }
@@ -1379,136 +1533,137 @@ export const cerrarLineaPedido = async (req: Request, res: Response): Promise<vo
       `SELECT id_pedido_92 FROM tbl_92_pedido_cabecera WHERE id_pedido_92 = $1 FOR UPDATE`,
       [idPedido]
     );
-    const det = await client.query(
-      `SELECT id_detalle_91, cod_insumo_91, descripcion_libre_91, id_proveedor_91,
-              cantidad_solicitada_91, cantidad_recibida_91, cantidad_pasada_91, cantidad_baja_91,
-              precio_unitario_91, observaciones_det_91
-       FROM tbl_91_pedido_detalle
-       WHERE id_detalle_91 = $1 AND id_pedido_91 = $2
-       FOR UPDATE`,
-      [idDetalle, idPedido]
-    );
-    if ((det.rowCount ?? 0) === 0) {
+    const resultado = await aplicarCierreLinea(client, {
+      idPedido,
+      data,
+      idDetalle,
+      llegada,
+      resto,
+      idResp,
+      usuarioNombre: usuario(req),
+    });
+    if (!resultado.ok) {
       await client.query('ROLLBACK');
-      res.status(404).json({ success: false, error: 'Línea no encontrada en este pedido' });
-      return;
-    }
-    const row = det.rows[0] as LineaPedido;
-    const pend = pendienteOperativo(row);
-    if (pend < 1) {
-      await client.query('ROLLBACK');
-      res.status(400).json({ success: false, error: 'Esta línea ya está cerrada' });
-      return;
-    }
-    const falta = Math.max(0, pend - llegada);
-    if (falta === 0 && resto !== DECISION_BODEGA && resto !== DECISION_RECEPCIONADO) {
-      await client.query('ROLLBACK');
-      res.status(400).json({
+      res.status(resultado.error === 'Línea no encontrada en este pedido' ? 404 : 400).json({
         success: false,
-        error: 'Llegó todo: el estado es Recepcionado en bodega o Cerrar (pagado y en bodega)',
+        error: resultado.error,
       });
       return;
     }
-    if (falta > 0 && (resto === DECISION_BODEGA || resto === DECISION_RECEPCIONADO)) {
-      await client.query('ROLLBACK');
-      res.status(400).json({
-        success: false,
-        error: 'Quedan unidades sin llegar. Elija +1, +2, +3 días, volver a solicitar, solo retirar o cancelar',
-      });
-      return;
-    }
-    if (llegada > 0) {
-      if (!idResp || !(await responsableExiste(idResp))) {
-        await client.query('ROLLBACK');
-        res.status(400).json({ success: false, error: 'Indique quién recibe lo que llegó' });
-        return;
-      }
-      await client.query(
-        `INSERT INTO tbl_93_recepcion_parcial (
-           id_detalle_93, cantidad_recibida_93, id_responsable_recibe_93, observaciones_rec_93
-         ) VALUES ($1, $2, $3, $4)`,
-        [idDetalle, llegada, idResp, 'CIERRE DE LÍNEA']
-      );
-      await client.query(
-        `UPDATE tbl_91_pedido_detalle
-         SET cantidad_recibida_91 = COALESCE(cantidad_recibida_91, 0) + $2
-         WHERE id_detalle_91 = $1`,
-        [idDetalle, llegada]
-      );
-    }
-
-    let destino: { id_pedido_92: number; numero_orden_92: string } | null = null;
-    let fechaDestino = '';
-    if (falta > 0 && dias > 0) {
-      const idProv = num(row.id_proveedor_91) || num(data.id_proveedor_92);
-      fechaDestino = sumarDiasCompra(hoyChile(), dias);
-      destino = await buscarPedidoDelDia(client, idPedido, fechaDestino);
-      if (!destino) {
-        destino = await crearPedidoConsolidado(
-          client,
-          {
-            id_pedido_92: idPedido,
-            numero_orden_92: data.numero_orden_92,
-            id_proveedor_92: idProv,
-            id_responsable_92: num(data.id_responsable_92),
-          },
-          fechaDestino,
-          usuario(req)
-        );
-      }
-      const numeroOrigen = String(data.numero_orden_92 || `PED-${String(idPedido).padStart(6, '0')}`);
-      const destCache = await cargarDestinoParaMerge(client, destino.id_pedido_92);
-      await pasarFaltaADestino(client, {
-        destId: destino.id_pedido_92,
-        destCache,
-        row,
-        falta,
-        numeroOrigen,
-        idProvFallback: idProv,
-        decision: resto,
-      });
-    }
-    if (falta > 0 && resto === DECISION_CANCELAR) {
-      await client.query(
-        `UPDATE tbl_91_pedido_detalle
-         SET cantidad_baja_91 = COALESCE(cantidad_baja_91, 0) + $2,
-             decision_linea_91 = $3
-         WHERE id_detalle_91 = $1`,
-        [idDetalle, falta, resto]
-      );
-    }
-    if (resto === DECISION_BODEGA || resto === DECISION_RECEPCIONADO || resto === DECISION_RE_SOLICITAR || resto === DECISION_RETIRAR) {
-      await client.query(
-        `UPDATE tbl_91_pedido_detalle
-         SET decision_linea_91 = $2
-         WHERE id_detalle_91 = $1`,
-        [idDetalle, resto]
-      );
-    }
-
     await recalcularRecepcion(client, idPedido);
     await client.query('COMMIT');
-    const actualizado = await cargarPedido(idPedido);
-    const partes: string[] = [];
-    if (llegada > 0) partes.push(`${llegada} recibidos`);
-    if (falta > 0 && dias > 0) {
-      partes.push(`${falta} para el ${fechaCl(fechaDestino)} en ${destino?.numero_orden_92 || 'el pedido de ese día'}`);
-    }
-    if (resto === DECISION_BODEGA) partes.push('pagado y en bodega');
-    if (resto === DECISION_RECEPCIONADO) partes.push('recepcionado en bodega');
-    if (resto === DECISION_RE_SOLICITAR) partes.push('sigue pendiente para volver a solicitar');
-    if (resto === DECISION_RETIRAR) partes.push('pagado, solo falta retirar');
-    if (resto === DECISION_CANCELAR) partes.push(`${falta} cancelados, no se vuelven a solicitar`);
     res.json({
       success: true,
-      data: actualizado,
-      message: partes.length > 0 ? partes.join('. ') : 'Línea actualizada',
+      data: await cargarPedido(idPedido),
+      message: resultado.partes.length > 0 ? resultado.partes.join('. ') : 'Línea actualizada',
     });
   } catch (error) {
     await client.query('ROLLBACK');
     res.status(500).json({
       success: false,
       error: 'Error al cerrar la línea',
+      message: error instanceof Error ? error.message : 'Error desconocido',
+    });
+  } finally {
+    client.release();
+  }
+};
+
+/** Cierra varias líneas visibles en una sola transacción. Mismas reglas que el cierre de a una. */
+export const cerrarLineasPedido = async (req: Request, res: Response): Promise<void> => {
+  const client = await pool.connect();
+  try {
+    const idPedido = num(req.params.id);
+    const crudas = Array.isArray(req.body.lineas) ? req.body.lineas : [];
+    const idResp = num(req.body.id_responsable_recibe_93);
+    if (!idPedido) {
+      res.status(400).json({ success: false, error: 'Pedido requerido' });
+      return;
+    }
+    if (crudas.length < 1) {
+      res.status(400).json({ success: false, error: 'Indique al menos una línea para cerrar' });
+      return;
+    }
+    if (crudas.length > 80) {
+      res.status(400).json({ success: false, error: 'Cierre de a 80 líneas como máximo' });
+      return;
+    }
+    const vistos = new Set<number>();
+    const lineas: Array<{ idDetalle: number; llegada: number; resto: string }> = [];
+    for (const raw of crudas) {
+      const idDetalle = num(raw?.id_detalle_91);
+      const resto = String(raw?.resto || '').trim().toLowerCase();
+      const llegada = Math.max(0, Math.round(num(raw?.cantidad_llegada)));
+      if (!idDetalle || !restoCierreValido(resto) || vistos.has(idDetalle)) {
+        res.status(400).json({ success: false, error: 'Hay una línea sin estado de Resto o repetida' });
+        return;
+      }
+      vistos.add(idDetalle);
+      lineas.push({ idDetalle, llegada, resto });
+    }
+    lineas.sort((a, b) => a.idDetalle - b.idDetalle);
+    const data = await cargarPedido(idPedido);
+    if (!data) {
+      res.status(404).json({ success: false, error: 'Pedido no encontrado' });
+      return;
+    }
+    if (cicloCerrado(data.estado_recepcion_92, data.estado_pago_92)) {
+      res.status(400).json({ success: false, error: 'Este pedido ya está cerrado' });
+      return;
+    }
+    if (lineas.some((l) => l.llegada > 0) && (!idResp || !(await responsableExiste(idResp)))) {
+      res.status(400).json({ success: false, error: 'Indique quién recibe lo que llegó' });
+      return;
+    }
+
+    await client.query('BEGIN');
+    await client.query(
+      `SELECT id_pedido_92 FROM tbl_92_pedido_cabecera WHERE id_pedido_92 = $1 FOR UPDATE`,
+      [idPedido]
+    );
+    const cerradas: number[] = [];
+    const errores: Array<{ id_detalle_91: number; error: string }> = [];
+    const usuarioNombre = usuario(req);
+    for (const ln of lineas) {
+      const resultado = await aplicarCierreLinea(client, {
+        idPedido,
+        data,
+        idDetalle: ln.idDetalle,
+        llegada: ln.llegada,
+        resto: ln.resto,
+        idResp,
+        usuarioNombre,
+      });
+      if (resultado.ok) cerradas.push(ln.idDetalle);
+      else errores.push({ id_detalle_91: ln.idDetalle, error: resultado.error || 'No se pudo cerrar' });
+    }
+    if (cerradas.length === 0) {
+      await client.query('ROLLBACK');
+      res.status(400).json({
+        success: false,
+        error: errores[0]?.error || 'No se pudo cerrar ninguna línea',
+        data: { cerradas: [], errores },
+      });
+      return;
+    }
+    await recalcularRecepcion(client, idPedido);
+    await client.query('COMMIT');
+    const msg =
+      errores.length === 0
+        ? `Cerradas ${cerradas.length} líneas`
+        : `Cerradas ${cerradas.length}. ${errores.length} no aplicaron`;
+    res.json({
+      success: true,
+      data: await cargarPedido(idPedido),
+      message: msg,
+      cerradas,
+      errores,
+    });
+  } catch (error) {
+    await client.query('ROLLBACK');
+    res.status(500).json({
+      success: false,
+      error: 'Error al cerrar las líneas',
       message: error instanceof Error ? error.message : 'Error desconocido',
     });
   } finally {

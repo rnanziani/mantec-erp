@@ -836,6 +836,24 @@
     margin-bottom: 12px;
 }
 
+.pedido-cierre-masivo {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: 8px;
+    min-width: 0;
+}
+
+.pedido-cierre-masivo .pedido-pago-filter,
+.pedido-cierre-masivo .form-input {
+    min-width: 0;
+    max-width: 100%;
+}
+
+.pedido-cierre-masivo .btn-primary {
+    white-space: nowrap;
+}
+
 .pedido-pago-filter {
     display: flex;
     align-items: center;
