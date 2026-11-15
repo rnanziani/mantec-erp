@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import PdfPrinter from 'pdfmake';
 import { pool } from '../db.js';
 import type { PdfDocumentDefinition } from '../utils/pdfTypes.js';
+import { CAPACIDAD_TREN_DELANTERO, esTrenDelantero } from '../utils/trenNeumatico.js';
 
 const MAESTRO = 'tbl_76_m_trazabilidad_neumatico';
 
@@ -149,6 +150,15 @@ async function ocupacionMaquina(
   return { neumaticos: [...neumaticos], posiciones: [...posiciones] };
 }
 
+async function idsTrenDelantero(): Promise<Set<number>> {
+  const pos = await pool.query<{ idposicion_73: number; codigo_73: string }>(
+    `SELECT idposicion_73, codigo_73 FROM tbl_73_posicion_neumatico`
+  );
+  return new Set(
+    pos.rows.filter((r) => esTrenDelantero(r.codigo_73)).map((r) => Number(r.idposicion_73))
+  );
+}
+
 async function validarOcupacionMontaje(
   idMaquina: number,
   d: DetallesBody,
@@ -164,6 +174,12 @@ async function validarOcupacionMontaje(
     if (ocupPos.has(Number(x.idposicion_77))) {
       return 'Hay una posición que ya está ocupada en esta máquina';
     }
+  }
+  const idsDel = await idsTrenDelantero();
+  const ocupadasDel = oc.posiciones.filter((id) => idsDel.has(id)).length;
+  const nuevasDel = (d.montajes || []).filter((x) => idsDel.has(Number(x.idposicion_77))).length;
+  if (ocupadasDel + nuevasDel > CAPACIDAD_TREN_DELANTERO) {
+    return 'El tren delantero solo admite 2 neumáticos; no se puede cargar un tercero';
   }
   return null;
 }

@@ -9,6 +9,7 @@ import { formatEnteroKm, parseEnteroKm } from '../utils/formatKm';
 import { showDeleteConfirm, showError, showSuccess } from '../utils/swal';
 import { apiFetch, apiUrl, openAuthenticatedBlob } from '../lib/apiClient';
 import { etiquetaNeumatico } from '../utils/neumaticoEtiqueta';
+import { CAPACIDAD_TREN_DELANTERO, esTrenDelantero } from '../utils/trenNeumatico';
 
 interface Maestro {
   idtrazabilidad_76: number;
@@ -227,6 +228,14 @@ const TrazabilidadNeumaticoView: React.FC = () => {
   const idsPosEnCarga = useMemo(() => new Set(montajes.map((m) => m.idposicion_77)), [montajes]);
   const idsNeuOcupados = useMemo(() => new Set(ocupacion.neumaticos), [ocupacion.neumaticos]);
   const idsPosOcupadas = useMemo(() => new Set(ocupacion.posiciones), [ocupacion.posiciones]);
+  const idsPosDelanteras = useMemo(
+    () => new Set(posiciones.filter((p) => esTrenDelantero(p.codigo_73)).map((p) => p.idposicion_73)),
+    [posiciones]
+  );
+  const countTrenDelantero =
+    [...idsPosOcupadas].filter((id) => idsPosDelanteras.has(id)).length +
+    [...idsPosEnCarga].filter((id) => idsPosDelanteras.has(id)).length;
+  const trenDelanteroCompleto = countTrenDelantero >= CAPACIDAD_TREN_DELANTERO;
 
   const neuOptionsMontaje = useMemo(
     () =>
@@ -245,9 +254,11 @@ const TrazabilidadNeumaticoView: React.FC = () => {
     () =>
       posOptions.filter((o) => {
         const id = Number(o.value);
-        return !idsPosEnCarga.has(id) && !idsPosOcupadas.has(id);
+        if (idsPosEnCarga.has(id) || idsPosOcupadas.has(id)) return false;
+        if (trenDelanteroCompleto && idsPosDelanteras.has(id)) return false;
+        return true;
       }),
-    [posOptions, idsPosEnCarga, idsPosOcupadas]
+    [posOptions, idsPosEnCarga, idsPosOcupadas, trenDelanteroCompleto, idsPosDelanteras]
   );
   const llantaOptions = useMemo(
     () =>
@@ -389,6 +400,15 @@ const TrazabilidadNeumaticoView: React.FC = () => {
       await showError('Validación', 'Cargue al menos una línea en algún detalle');
       return;
     }
+    const montajesDel = montajes.filter((m) => idsPosDelanteras.has(m.idposicion_77)).length;
+    const ocupadasDel = [...idsPosOcupadas].filter((id) => idsPosDelanteras.has(id)).length;
+    if (ocupadasDel + montajesDel > CAPACIDAD_TREN_DELANTERO) {
+      await showError(
+        'Tren delantero',
+        'El tren delantero solo admite 2 neumáticos; no se puede cargar un tercero'
+      );
+      return;
+    }
     try {
       setSaving(true);
       const res = await apiFetch(editingId ? `${API}/${editingId}` : API, {
@@ -464,6 +484,13 @@ const TrazabilidadNeumaticoView: React.FC = () => {
     }
     if (idsPosOcupadas.has(idPos)) {
       await showError('Posición', `${posLabel(idPos)} ya está ocupada en esta máquina.`);
+      return;
+    }
+    if (idsPosDelanteras.has(idPos) && countTrenDelantero >= CAPACIDAD_TREN_DELANTERO) {
+      await showError(
+        'Tren delantero',
+        'El tren delantero ya tiene 2 neumáticos. No se puede cargar un tercero en ese eje.'
+      );
       return;
     }
     setMontajes((p) => [...p, { idneumatico_77: idNeu, idposicion_77: idPos, observacion_77: '' }]);
@@ -774,7 +801,11 @@ const TrazabilidadNeumaticoView: React.FC = () => {
                     onChange={setSelPosM}
                     options={posOptionsMontaje}
                     placeholder="L1, R2i..."
-                    emptyMessage="No hay posiciones libres en esta máquina"
+                    emptyMessage={
+                      trenDelanteroCompleto && posOptionsMontaje.length === 0
+                        ? 'El tren delantero ya tiene 2 cubiertas'
+                        : 'No hay posiciones libres en esta máquina'
+                    }
                     aria-label="Posición de montaje"
                   />
                 </div>
