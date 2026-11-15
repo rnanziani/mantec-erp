@@ -7,8 +7,10 @@ import {
   CreateNeumaticoLoteItemDTO,
   UpdateNeumaticoDTO,
 } from '../types.js';
-
-const FUEGO_RE = /^T[0-9]{2}[0-9]+$/;
+import {
+  esCodigoNeumaticoValido,
+  TSN_SENTINEL,
+} from '../utils/codigoNeumatico.js';
 
 const SELECT_NEU = `SELECT
         n.id_neumatico_31,
@@ -46,9 +48,10 @@ function normalizarFuego(raw?: string | null): string | null {
 }
 
 function errorFuego(fuego: string | null, requerido: boolean): string | null {
-  if (!fuego) return requerido ? 'El N° Fuego es requerido (ej. T261)' : null;
-  if (!FUEGO_RE.test(fuego)) {
-    return 'El N° Fuego debe ser T + año + secuencia (ej. T261, T2612), sin guion ni ceros a la izquierda';
+  if (!fuego) return requerido ? 'El N° Fuego es requerido (ej. T261 o TSNAU1)' : null;
+  if (fuego === TSN_SENTINEL) return null;
+  if (!esCodigoNeumaticoValido(fuego)) {
+    return 'El código debe ser T261 (fábrica) o TSNAU1 / TSNGY1 / TSNMI1 / TSNJI1 (sin N° Fuego)';
   }
   return null;
 }
@@ -59,14 +62,14 @@ function mensajePgNeumatico(error: unknown): { status: number; error: string; me
     return {
       status: 400,
       error: 'N° Fuego duplicado',
-      message: 'Ese N° Fuego ya está registrado. No se puede repetir (ej. T261).',
+      message: 'Ese código ya está registrado. No se puede repetir (ej. T261 o TSNAU1).',
     };
   }
-  if (e.code === 'P0001' || /N° Fuego|Nº Fuego|cod_neumatico/i.test(e.message || '')) {
+  if (e.code === 'P0001' || /N° Fuego|Nº Fuego|cod_neumatico|TSNAU|Sin N° Fuego/i.test(e.message || '')) {
     return {
       status: 400,
       error: 'N° Fuego inválido',
-      message: e.message || 'El N° Fuego no cumple el formato T + año + secuencia',
+      message: e.message || 'El código no cumple T261 ni TSNAU1 / TSNGY1 / TSNMI1 / TSNJI1',
     };
   }
   return null;
@@ -138,6 +141,7 @@ export const createNeumatico = async (req: Request, res: Response): Promise<void
       codigo_proveedor_31,
       modelo_31,
       medida_31,
+      sin_numero,
     }: CreateNeumaticoDTO = req.body;
 
     if (!id_marca_31) {
@@ -145,7 +149,7 @@ export const createNeumatico = async (req: Request, res: Response): Promise<void
       return;
     }
 
-    const fuego = normalizarFuego(cod_neumatico_31);
+    const fuego = sin_numero ? TSN_SENTINEL : normalizarFuego(cod_neumatico_31);
     const errFuego = errorFuego(fuego, false);
     if (errFuego) {
       res.status(400).json({ success: false, error: errFuego });

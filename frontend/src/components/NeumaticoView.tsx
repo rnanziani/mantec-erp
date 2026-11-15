@@ -10,6 +10,11 @@ import { exportToExcel } from '../utils/exportUtils';
 import { apiFetch, apiUrl } from '../lib/apiClient';
 import { changeKeepingCaret } from '../hooks/useCaretTransform';
 import { etiquetaNeumatico } from '../utils/neumaticoEtiqueta';
+import {
+  esCodigoNeumaticoValido,
+  prefijoTsnDeMarca,
+  TSN_LEYENDA,
+} from '../utils/codigoNeumatico';
 
 interface Neumatico {
   id_neumatico_31: number;
@@ -55,8 +60,6 @@ type SortConfig = {
   key: keyof Neumatico;
   direction: 'asc' | 'desc';
 };
-
-const FUEGO_RE = /^T[0-9]{2}[0-9]+$/;
 
 function fechaChileHoy(): string {
   return new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Santiago' }).format(new Date());
@@ -158,6 +161,7 @@ const NeumaticoView: React.FC = () => {
   const [error, setError] = useState<string>('');
   const [selectedMarca, setSelectedMarca] = useState<string>('');
   const [nFuego, setNFuego] = useState<string>('');
+  const [sinNumero, setSinNumero] = useState(false);
   const [codigoProveedor, setCodigoProveedor] = useState<string>('');
   const [modelo, setModelo] = useState<string>('');
   const [medida, setMedida] = useState<string>('');
@@ -273,14 +277,18 @@ const NeumaticoView: React.FC = () => {
     }));
   };
 
+  const marcaElegida = marcas.find((m) => String(m.id_marca_32) === selectedMarca);
+  const prefijoTsn = prefijoTsnDeMarca(marcaElegida?.marca_32);
+
   const payloadUno = () => ({
     id_marca_31: Number(selectedMarca),
     fecha_ingreso_31: fechaIngreso || undefined,
     observaciones_31: observaciones.trim() || undefined,
-    cod_neumatico_31: nFuego.trim() || undefined,
+    cod_neumatico_31: sinNumero ? undefined : nFuego.trim() || undefined,
     codigo_proveedor_31: codigoProveedor.trim() || undefined,
     modelo_31: modelo.trim() || undefined,
     medida_31: medida.trim() || undefined,
+    sin_numero: !editingId && sinNumero ? true : undefined,
   });
 
   const handleCreate = async (e: React.FormEvent) => {
@@ -293,10 +301,18 @@ const NeumaticoView: React.FC = () => {
       await showError('Validación', 'Debe seleccionar una marca del catálogo');
       return;
     }
-    if (nFuego.trim() && !FUEGO_RE.test(nFuego.trim())) {
+    if (sinNumero) {
+      if (!prefijoTsn) {
+        await showError(
+          'Sin N° Fuego',
+          'Solo AUSTONE (TSNAU), GOODYEAR (TSNGY), MICHELIN (TSNMI) o JINYU (TSNJI)'
+        );
+        return;
+      }
+    } else if (nFuego.trim() && !esCodigoNeumaticoValido(nFuego.trim().toUpperCase())) {
       await showError(
         'N° Fuego',
-        'Debe ser T + año + secuencia, sin guion ni ceros. Ejemplos: T261, T2612'
+        'Fábrica: T261, T2612. Sin número: TSNAU1, TSNGY1, TSNMI1, TSNJI1'
       );
       return;
     }
@@ -451,6 +467,7 @@ const NeumaticoView: React.FC = () => {
   const resetForm = () => {
     setSelectedMarca('');
     setNFuego('');
+    setSinNumero(false);
     setCodigoProveedor('');
     setModelo('');
     setMedida('');
@@ -511,8 +528,8 @@ const NeumaticoView: React.FC = () => {
       if (!leido.fuego && !leido.marcaExcel && !leido.codigo) continue;
 
       let errorFila = '';
-      if (!FUEGO_RE.test(leido.fuego)) {
-        errorFila = 'N° Fuego inválido (ej. T261, T2612)';
+      if (!esCodigoNeumaticoValido(leido.fuego)) {
+        errorFila = 'Código inválido (T261 o TSNAU1 / TSNGY1 / TSNMI1 / TSNJI1)';
       } else if (vistos.has(leido.fuego)) {
         errorFila = `N° Fuego ${leido.fuego} repetido en el archivo`;
       }
@@ -744,22 +761,41 @@ const NeumaticoView: React.FC = () => {
               </>
             ) : (
               <div className="neumatico-form-grid">
+                {!editingId && (
+                  <div className="form-group form-group-span checkbox-group">
+                    <label htmlFor="sinNumero">
+                      <input
+                        id="sinNumero"
+                        type="checkbox"
+                        checked={sinNumero}
+                        onChange={(e) => {
+                          setSinNumero(e.target.checked);
+                          if (e.target.checked) setNFuego('');
+                        }}
+                      />
+                      Sin N° Fuego (flota Transantin: TSNAU / TSNGY / TSNMI / TSNJI)
+                    </label>
+                  </div>
+                )}
                 <div className="form-group">
-                  <label htmlFor="nFuego">N° Fuego {editingId ? '' : '(opcional)'}</label>
+                  <label htmlFor="nFuego">N° Fuego {editingId || sinNumero ? '' : '(opcional)'}</label>
                   <input
                     id="nFuego"
                     className="form-input"
-                    value={nFuego}
+                    value={sinNumero ? (prefijoTsn ? `${prefijoTsn}…` : '') : nFuego}
                     onChange={(e) => changeKeepingCaret(e, setNFuego)}
                     placeholder="T261"
                     style={{ textTransform: 'uppercase' }}
-                    disabled={Boolean(editingId)}
+                    disabled={Boolean(editingId) || sinNumero}
                     maxLength={20}
                     aria-describedby="fuego-hint"
                   />
                   <small id="fuego-hint" className="form-hint">
-                    T + año + secuencia, sin ceros. 2026: T261 … T2612. 2027: T271. Si lo deja vacío,
-                    el sistema asigna el siguiente.
+                    {sinNumero
+                      ? prefijoTsn
+                        ? `Se asigna el siguiente ${prefijoTsn} (${TSN_LEYENDA[prefijoTsn]}).`
+                        : 'Elija AUSTONE, GOODYEAR, MICHELIN o JINYU.'
+                      : 'Fábrica: T261 … T2612. Vacío = siguiente T26. Flota sin fuego: marque la casilla.'}
                   </small>
                 </div>
                 <div className="form-group">

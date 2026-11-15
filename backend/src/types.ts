@@ -333,7 +333,7 @@ export interface UpdateMarcaNeumaticoDTO {
 /**
  * Neumático
  * Tabla: tbl_31_neumatico
- * cod_neumatico_31 = N° Fuego T+YY+secuencia (T261). Si viene vacío, el trigger lo asigna.
+ * cod_neumatico_31 = T261 (fábrica) o TSNAU1 (flota sin N° Fuego). Vacío → trigger T26.
  */
 export interface Neumatico {
   id_neumatico_31: number;
@@ -358,6 +358,8 @@ export interface CreateNeumaticoDTO {
   codigo_proveedor_31?: string;
   modelo_31?: string;
   medida_31?: string;
+  /** Flota sin N° Fuego: el trigger asigna TSNAU1, TSNGY1, TSNMI1 o TSNJI1. */
+  sin_numero?: boolean;
 }
 
 /** Una fila del Excel del proveedor (N° Fuego, código, marca, modelo, medida). */
