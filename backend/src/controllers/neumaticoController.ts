@@ -24,7 +24,7 @@ const SELECT_NEU = `SELECT
         m.diametro_32,
         e.estado_33
        FROM tbl_31_neumatico n
-       INNER JOIN tbl_32_marca_neumatico m ON n.id_marca_31 = m.id_marca_32
+       LEFT JOIN tbl_32_marca_neumatico m ON n.id_marca_31 = m.id_marca_32
        LEFT JOIN tbl_33_estado_neumatico e ON n.id_estado_31 = e.id_estado_33`;
 
 const RETURNING_NEU = `id_neumatico_31, cod_neumatico_31, id_marca_31, id_estado_31,
@@ -97,7 +97,9 @@ async function completarMarcaEstado(row: Neumatico): Promise<Neumatico> {
 
 export const getAllNeumaticos = async (_req: Request, res: Response): Promise<void> => {
   try {
-    const result = await pool.query<Neumatico>(`${SELECT_NEU} ORDER BY n.id_neumatico_31 ASC`);
+    const result = await pool.query<Neumatico>(
+      `${SELECT_NEU} ORDER BY n.cod_neumatico_31 ASC, n.id_neumatico_31 ASC`
+    );
     res.json({ success: true, data: result.rows, count: result.rowCount });
   } catch (error) {
     res.status(500).json({

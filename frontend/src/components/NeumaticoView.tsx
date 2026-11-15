@@ -83,11 +83,7 @@ function campoDeClave(k: string): keyof Omit<FilaExcel, 'idMarca' | 'error'> | n
   return null;
 }
 
-function claveMarca(s: string): string {
-  return s.trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
-}
-
-/** Ancho del Excel: 315/80 R22.5 → 315. Cruza con diametro_32 (AUSTONE 295 vs 315). */
+/** Ancho del Excel: 315/80 R22.5 → 315. Distingue AUSTONE 295 de AUSTONE 315. */
 function anchoDesdeMedida(medida: string): number | null {
   const m = String(medida || '')
     .trim()
@@ -102,9 +98,19 @@ function aroDesdeMedida(medida: string): number | null {
   return m ? Number(m[1]) : null;
 }
 
-/** BRIDGESTONE 315 o BRIDGESTONE → BRIDGESTONE. */
+/** BRIDGESTONE / BRIDGESTONE 315 / caracteres raros del Excel → BRIDGESTONE. */
 function marcaBase(s: string): string {
-  return claveMarca(s).replace(/\d+$/g, '');
+  return String(s || '')
+    .normalize('NFKC')
+    .replace(/[\u200B-\u200D\uFEFF\u00A0]/g, '')
+    .replace(/[ıiİ]/g, 'I')
+    .toLocaleUpperCase('en-US')
+    .replace(/[^A-Z0-9]/g, '')
+    .replace(/\d+$/g, '');
+}
+
+function diametroDe(m: MarcaNeumatico): number {
+  return Number(m.diametro_32);
 }
 
 function cruzarMarcaCatalogo(
@@ -112,24 +118,37 @@ function cruzarMarcaCatalogo(
   marcaExcel: string,
   medida: string
 ): MarcaNeumatico | undefined {
-  const q = marcaExcel.trim().toUpperCase();
-  if (!q) return undefined;
-  const baseExcel = marcaBase(q);
+  const baseExcel = marcaBase(marcaExcel);
   if (!baseExcel) return undefined;
   const ancho = anchoDesdeMedida(medida);
   const aro = aroDesdeMedida(medida);
-  const activas = catalogo.filter((m) => m.estado_32 !== false);
+  const q = String(marcaExcel || '').trim().toLocaleUpperCase('en-US');
 
-  const candidatas = activas.filter((m) => marcaBase(m.marca_32) === baseExcel);
+  const exactas = catalogo.filter(
+    (m) => String(m.marca_32 || '').trim().toLocaleUpperCase('en-US') === q
+  );
+  const porBase = catalogo.filter((m) => marcaBase(m.marca_32) === baseExcel);
+  let candidatas = exactas.length ? exactas : porBase;
+  if (candidatas.length === 0) {
+    candidatas = catalogo.filter((m) => {
+      const b = marcaBase(m.marca_32);
+      return b.includes(baseExcel) || baseExcel.includes(b);
+    });
+  }
   if (candidatas.length === 0) return undefined;
-  if (candidatas.length === 1) return candidatas[0];
 
-  const porDiametro = (d: number | null) => {
-    if (d == null) return undefined;
-    const hits = candidatas.filter((m) => Math.abs(Number(m.diametro_32) - d) < 0.001);
-    return hits.length === 1 ? hits[0] : undefined;
+  const elegir = (lista: MarcaNeumatico[]): MarcaNeumatico | undefined => {
+    if (lista.length === 1) return lista[0];
+    const por = (d: number | null) =>
+      d == null ? [] : lista.filter((m) => Math.abs(diametroDe(m) - d) < 0.001);
+    const porAncho = por(ancho);
+    if (porAncho.length === 1) return porAncho[0];
+    const porAro = por(aro);
+    if (porAro.length === 1) return porAro[0];
+    return lista[0];
   };
-  return porDiametro(ancho) || porDiametro(aro);
+
+  return elegir(candidatas);
 }
 
 const NeumaticoView: React.FC = () => {

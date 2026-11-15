@@ -76,7 +76,8 @@ const HistorialNeumaticoView: React.FC = () => {
     () =>
       neumaticos.map((n) => ({
         value: n.cod_neumatico_31,
-        label: etiquetaNeumatico(n),
+        label: etiquetaNeumatico(n) || n.cod_neumatico_31,
+        keywords: n.cod_neumatico_31,
       })),
     [neumaticos]
   );

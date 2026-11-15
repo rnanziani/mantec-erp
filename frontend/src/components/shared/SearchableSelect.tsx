@@ -5,6 +5,8 @@ import { changeKeepingCaret } from '../../hooks/useCaretTransform';
 export interface SearchableSelectOption {
   value: string;
   label: string;
+  /** Texto extra para filtrar (ej. N° Fuego T2610). */
+  keywords?: string;
 }
 
 interface SearchableSelectProps {
@@ -54,7 +56,7 @@ const SearchableSelect: React.FC<SearchableSelectProps> = ({
     const query = normalizeForSearch(search);
     if (!query) return options;
     return options.filter((option) =>
-      normalizeForSearch(option.label).includes(query)
+      normalizeForSearch(`${option.label} ${option.keywords || ''} ${option.value}`).includes(query)
     );
   }, [options, search]);
 

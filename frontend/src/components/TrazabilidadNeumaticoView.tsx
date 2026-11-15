@@ -112,6 +112,7 @@ const TrazabilidadNeumaticoView: React.FC = () => {
       if (tr.success && Array.isArray(tr.data)) setTrabajadores(tr.data as typeof trabajadores);
       if (te.success && Array.isArray(te.data)) setTecnicos(te.data as typeof tecnicos);
       if (ne.success && Array.isArray(ne.data)) setNeumaticos(ne.data as typeof neumaticos);
+      else setNeumaticos([]);
       if (po.success && Array.isArray(po.data)) setPosiciones(po.data as typeof posiciones);
       if (pa.success && Array.isArray(pa.data)) setPatrones(pa.data as typeof patrones);
       if (ll.success && Array.isArray(ll.data)) setLlantas(ll.data as typeof llantas);
@@ -170,10 +171,17 @@ const TrazabilidadNeumaticoView: React.FC = () => {
   );
   const neuOptions = useMemo(
     () =>
-      neumaticos.map((n) => ({
-        value: String(n.id_neumatico_31),
-        label: etiquetaNeumatico(n),
-      })),
+      [...neumaticos]
+        .sort((a, b) =>
+          String(a.cod_neumatico_31 || '').localeCompare(String(b.cod_neumatico_31 || ''), 'es', {
+            numeric: true,
+          })
+        )
+        .map((n) => ({
+          value: String(n.id_neumatico_31),
+          label: etiquetaNeumatico(n) || n.cod_neumatico_31,
+          keywords: n.cod_neumatico_31,
+        })),
     [neumaticos]
   );
   const posOptions = useMemo(
@@ -548,7 +556,25 @@ const TrazabilidadNeumaticoView: React.FC = () => {
       <div className="view-header">
         <h2>📝 Trazabilidad de neumáticos</h2>
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-          <button type="button" className="btn-primary" onClick={() => { resetForm(); setShowForm(true); }}>Nueva intervención</button>
+          <button
+            type="button"
+            className="btn-primary"
+            onClick={() => {
+              resetForm();
+              setShowForm(true);
+              void (async () => {
+                try {
+                  const res = await apiFetch(apiUrl('/neumaticos'));
+                  const ne: ApiResponse<typeof neumaticos> = await res.json();
+                  if (ne.success && Array.isArray(ne.data)) setNeumaticos(ne.data as typeof neumaticos);
+                } catch {
+                  /* el combo queda vacío y el emptyMessage lo explica */
+                }
+              })();
+            }}
+          >
+            Nueva intervención
+          </button>
           <button type="button" className="btn-primary" style={{ backgroundColor: '#28a745' }} disabled={!showForm || saving} onClick={() => formRef.current?.requestSubmit()}>
             {saving ? 'Guardando...' : 'Guardar'}
           </button>
@@ -651,7 +677,19 @@ const TrazabilidadNeumaticoView: React.FC = () => {
               <div className="tz-detalle-add">
                 <div className="form-group">
                   <label htmlFor="tz-nm">Neumático</label>
-                  <SearchableSelect id="tz-nm" value={selNeuM} onChange={setSelNeuM} options={neuOptions} placeholder="Código..." emptyMessage="Sin neumáticos" />
+                  <SearchableSelect
+                    id="tz-nm"
+                    value={selNeuM}
+                    onChange={setSelNeuM}
+                    options={neuOptions}
+                    placeholder="T261..."
+                    emptyMessage={
+                      neumaticos.length === 0
+                        ? 'No hay N° Fuego. Cárguelos en Gestión de Neumáticos'
+                        : 'Ningún N° Fuego coincide'
+                    }
+                    aria-label="N° Fuego para montaje"
+                  />
                 </div>
                 <div className="form-group">
                   <label htmlFor="tz-pm">Posición</label>
@@ -690,7 +728,19 @@ const TrazabilidadNeumaticoView: React.FC = () => {
               <div className="tz-detalle-add tz-detalle-add--5">
                 <div className="form-group">
                   <label htmlFor="tz-nr">Neumático</label>
-                  <SearchableSelect id="tz-nr" value={selNeuR} onChange={setSelNeuR} options={neuOptions} placeholder="Código..." emptyMessage="Sin neumáticos" />
+                  <SearchableSelect
+                    id="tz-nr"
+                    value={selNeuR}
+                    onChange={setSelNeuR}
+                    options={neuOptions}
+                    placeholder="T261..."
+                    emptyMessage={
+                      neumaticos.length === 0
+                        ? 'No hay N° Fuego. Cárguelos en Gestión de Neumáticos'
+                        : 'Ningún N° Fuego coincide'
+                    }
+                    aria-label="N° Fuego para rotación"
+                  />
                 </div>
                 <div className="form-group">
                   <label htmlFor="tz-ori">Origen</label>
@@ -777,7 +827,19 @@ const TrazabilidadNeumaticoView: React.FC = () => {
               <div className="tz-detalle-add">
                 <div className="form-group">
                   <label htmlFor="tz-nb">Neumático</label>
-                  <SearchableSelect id="tz-nb" value={selNeuB} onChange={setSelNeuB} options={neuOptions} placeholder="Código..." emptyMessage="Sin neumáticos" />
+                  <SearchableSelect
+                    id="tz-nb"
+                    value={selNeuB}
+                    onChange={setSelNeuB}
+                    options={neuOptions}
+                    placeholder="T261..."
+                    emptyMessage={
+                      neumaticos.length === 0
+                        ? 'No hay N° Fuego. Cárguelos en Gestión de Neumáticos'
+                        : 'Ningún N° Fuego coincide'
+                    }
+                    aria-label="N° Fuego para baja"
+                  />
                 </div>
                 <div className="form-group">
                   <label htmlFor="tz-dano-n">Tipo de daño *</label>
