@@ -10,6 +10,12 @@
   font-size: 1.8rem;
 }
 
+.neumatico-view .header-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
 .neumatico-btn-new {
   background: var(--mantec-blue) !important;
 }
@@ -95,18 +101,55 @@
   border-left: 4px solid var(--mantec-orange);
 }
 
-/* Fila de 3 columnas: Marca, Fecha, Observaciones */
-.neumatico-form-row-3 {
+.neumatico-form-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
+  grid-template-columns: minmax(0, 1fr);
   gap: 15px;
   margin-bottom: 15px;
 }
 
-@media (max-width: 768px) {
-  .neumatico-form-row-3 {
-    grid-template-columns: 1fr;
+.neumatico-form-grid .form-group,
+.neumatico-form-grid .searchable-select,
+.neumatico-form-grid input,
+.neumatico-form-grid textarea {
+  min-width: 0;
+}
+
+.neumatico-form-grid .form-group-span {
+  grid-column: 1 / -1;
+}
+
+@media (min-width: 768px) {
+  .neumatico-form-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+}
+
+@media (min-width: 1024px) {
+  .neumatico-form-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1200px) {
+  .neumatico-form-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+.neumatico-excel-preview {
+  overflow-x: auto;
+  margin-bottom: 1rem;
+}
+
+.neumatico-preview-error {
+  color: #991b1b;
+  font-weight: 600;
+}
+
+.neumatico-fila-error td {
+  background: #fee2e2;
+  color: #7f1d1d;
 }
 
 .neumatico-form-card .form-hint {
@@ -173,6 +216,6 @@
   }
 
   .neumatico-table {
-    min-width: 600px;
+    min-width: 720px;
   }
 }

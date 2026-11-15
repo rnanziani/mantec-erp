@@ -8,6 +8,7 @@ import { exportToExcel } from '../utils/exportUtils';
 import { formatEnteroKm, parseEnteroKm } from '../utils/formatKm';
 import { showDeleteConfirm, showError, showSuccess } from '../utils/swal';
 import { apiFetch, apiUrl, openAuthenticatedBlob } from '../lib/apiClient';
+import { etiquetaNeumatico } from '../utils/neumaticoEtiqueta';
 
 interface Maestro {
   idtrazabilidad_76: number;
@@ -39,7 +40,13 @@ const TrazabilidadNeumaticoView: React.FC = () => {
   const [maquinas, setMaquinas] = useState<Array<{ idmaquina_11: number; numinterno_11?: string; ppu_11?: string }>>([]);
   const [trabajadores, setTrabajadores] = useState<Array<{ idtrabajador_06: number; nombre_06: string; apaterno_06?: string; amaterno_06?: string; ruttrabajador_06?: string }>>([]);
   const [tecnicos, setTecnicos] = useState<Array<{ id_tecnico_21: number; nombres_21: string; a_paterno_21?: string; a_materno_21?: string }>>([]);
-  const [neumaticos, setNeumaticos] = useState<Array<{ id_neumatico_31: number; cod_neumatico_31: string; marca_32?: string }>>([]);
+  const [neumaticos, setNeumaticos] = useState<Array<{
+    id_neumatico_31: number;
+    cod_neumatico_31: string;
+    marca_32?: string;
+    modelo_31?: string | null;
+    medida_31?: string | null;
+  }>>([]);
   const [posiciones, setPosiciones] = useState<Array<{ idposicion_73: number; codigo_73: string; numero_73?: number | null }>>([]);
   const [patrones, setPatrones] = useState<Array<{ id_patron_35: number; codigo_patron_35: string }>>([]);
   const [llantas, setLlantas] = useState<Array<{ id_llanta_36: number; descripcion_llanta_36: string; codigo_36?: string }>>([]);
@@ -165,7 +172,7 @@ const TrazabilidadNeumaticoView: React.FC = () => {
     () =>
       neumaticos.map((n) => ({
         value: String(n.id_neumatico_31),
-        label: n.marca_32 ? `${n.cod_neumatico_31} - ${n.marca_32}` : n.cod_neumatico_31,
+        label: etiquetaNeumatico(n),
       })),
     [neumaticos]
   );
@@ -349,8 +356,16 @@ const TrazabilidadNeumaticoView: React.FC = () => {
     } else await showError('Error', data.error || 'No se pudo eliminar');
   };
 
-  const neuLabel = (id: number) => neumaticos.find((n) => n.id_neumatico_31 === id)?.cod_neumatico_31 || String(id);
-  const neuMarca = (id: number) => neumaticos.find((n) => n.id_neumatico_31 === id)?.marca_32 || '—';
+  const neuById = (id: number) => neumaticos.find((n) => n.id_neumatico_31 === id);
+  const neuLabel = (id: number) => {
+    const n = neuById(id);
+    return n ? etiquetaNeumatico(n) : String(id);
+  };
+  const neuMarca = (id: number) => {
+    const n = neuById(id);
+    if (!n) return '—';
+    return [n.marca_32, n.modelo_31, n.medida_31].filter(Boolean).join(' ') || '—';
+  };
   const posLabel = (id: number) => posiciones.find((p) => p.idposicion_73 === id)?.codigo_73 || String(id);
   const llantaLabel = (id: number) => {
     const l = llantas.find((x) => x.id_llanta_36 === id);

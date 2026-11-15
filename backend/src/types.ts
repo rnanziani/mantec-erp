@@ -333,7 +333,7 @@ export interface UpdateMarcaNeumaticoDTO {
 /**
  * Neumático
  * Tabla: tbl_31_neumatico
- * cod_neumatico_31 se genera por trigger si es null
+ * cod_neumatico_31 = N° Fuego T+YY+secuencia (T261). Si viene vacío, el trigger lo asigna.
  */
 export interface Neumatico {
   id_neumatico_31: number;
@@ -342,7 +342,11 @@ export interface Neumatico {
   id_estado_31?: number | null;
   fecha_ingreso_31?: string;
   observaciones_31?: string;
+  codigo_proveedor_31?: string | null;
+  modelo_31?: string | null;
+  medida_31?: string | null;
   marca_32?: string;
+  diametro_32?: number;
   estado_33?: string;
 }
 
@@ -350,16 +354,34 @@ export interface CreateNeumaticoDTO {
   id_marca_31: number;
   fecha_ingreso_31?: string;
   observaciones_31?: string;
+  cod_neumatico_31?: string;
+  codigo_proveedor_31?: string;
+  modelo_31?: string;
+  medida_31?: string;
 }
 
-export interface CreateNeumaticoLoteDTO extends CreateNeumaticoDTO {
-  cantidad: number;
+/** Una fila del Excel del proveedor (N° Fuego, código, marca, modelo, medida). */
+export interface CreateNeumaticoLoteItemDTO {
+  id_marca_31: number;
+  cod_neumatico_31: string;
+  codigo_proveedor_31?: string;
+  modelo_31?: string;
+  medida_31?: string;
+  fecha_ingreso_31?: string;
+  observaciones_31?: string;
+}
+
+export interface CreateNeumaticoLoteDTO {
+  items: CreateNeumaticoLoteItemDTO[];
 }
 
 export interface UpdateNeumaticoDTO {
   id_marca_31?: number;
   fecha_ingreso_31?: string;
   observaciones_31?: string;
+  codigo_proveedor_31?: string;
+  modelo_31?: string;
+  medida_31?: string;
 }
 
 /**

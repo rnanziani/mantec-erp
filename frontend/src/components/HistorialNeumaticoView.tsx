@@ -7,6 +7,7 @@ import { exportToExcel } from '../utils/exportUtils';
 import { formatEnteroKm } from '../utils/formatKm';
 import { showError, showSuccess } from '../utils/swal';
 import { apiUrl } from '../lib/apiClient';
+import { etiquetaNeumatico } from '../utils/neumaticoEtiqueta';
 
 interface HistorialNeumatico {
   id_historial_34: number;
@@ -25,6 +26,8 @@ interface Neumatico {
   id_neumatico_31: number;
   cod_neumatico_31: string;
   marca_32?: string;
+  modelo_31?: string | null;
+  medida_31?: string | null;
 }
 
 interface ApiResponse<T = unknown> {
@@ -73,7 +76,7 @@ const HistorialNeumaticoView: React.FC = () => {
     () =>
       neumaticos.map((n) => ({
         value: n.cod_neumatico_31,
-        label: `${n.cod_neumatico_31}${n.marca_32 ? ` - ${n.marca_32}` : ''}`,
+        label: etiquetaNeumatico(n),
       })),
     [neumaticos]
   );
