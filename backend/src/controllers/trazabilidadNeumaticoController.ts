@@ -62,6 +62,18 @@ function validarDetalles(d: DetallesBody): string | null {
     (d.llantas?.length || 0) +
     (d.bajas?.length || 0);
   if (n < 1) return 'Debe cargar al menos una línea en algún detalle';
+  const montajes = d.montajes || [];
+  const neus = montajes.map((x) => Number(x.idneumatico_77));
+  const poss = montajes.map((x) => Number(x.idposicion_77));
+  if (neus.some((id) => !id) || poss.some((id) => !id)) {
+    return 'En montaje debe indicar neumático y posición';
+  }
+  if (new Set(neus).size !== neus.length) {
+    return 'El mismo N° Fuego no puede montarse en dos posiciones';
+  }
+  if (new Set(poss).size !== poss.length) {
+    return 'La misma posición no se puede repetir en el montaje de cubiertas nuevas';
+  }
   for (const r of d.rotaciones || []) {
     if (Number(r.idposicion_origen_78) === Number(r.idposicion_destino_78)) {
       return 'En rotación el origen y el destino deben ser distintos';
@@ -69,6 +81,89 @@ function validarDetalles(d: DetallesBody): string | null {
   }
   for (const b of d.bajas || []) {
     if (!b.iddano_neumatico_80) return 'En baja debe indicar el tipo de daño';
+  }
+  return null;
+}
+
+type Ocupacion = { neumaticos: number[]; posiciones: number[] };
+
+async function ocupacionMaquina(
+  client: { query: typeof pool.query },
+  idMaquina: number,
+  excluirActa?: number | null
+): Promise<Ocupacion> {
+  const excluir = excluirActa && Number(excluirActa) > 0 ? Number(excluirActa) : 0;
+  const ultimo = await client.query<{ idneu: number; idpos: number | null; idmaq: number; tipo: number }>(
+    `WITH ev AS (
+        SELECT d.idneumatico_77 AS idneu,
+               d.idposicion_77 AS idpos,
+               m.idmaquina_76 AS idmaq,
+               (m.fecha_76 + COALESCE(m.hora_76, time '00:00')) AS ts,
+               m.idtrazabilidad_76 AS idacta,
+               1 AS tipo
+          FROM tbl_77_d_montaje_neumatico d
+          JOIN tbl_76_m_trazabilidad_neumatico m ON m.idtrazabilidad_76 = d.idtrazabilidad_77
+        UNION ALL
+        SELECT d.idneumatico_78,
+               d.idposicion_destino_78,
+               m.idmaquina_76,
+               (m.fecha_76 + COALESCE(m.hora_76, time '00:00')),
+               m.idtrazabilidad_76,
+               2
+          FROM tbl_78_d_rotacion_neumatico d
+          JOIN tbl_76_m_trazabilidad_neumatico m ON m.idtrazabilidad_76 = d.idtrazabilidad_78
+        UNION ALL
+        SELECT d.idneumatico_80,
+               NULL,
+               m.idmaquina_76,
+               (m.fecha_76 + COALESCE(m.hora_76, time '00:00')),
+               m.idtrazabilidad_76,
+               3
+          FROM tbl_80_d_baja_neumatico d
+          JOIN tbl_76_m_trazabilidad_neumatico m ON m.idtrazabilidad_76 = d.idtrazabilidad_80
+      ),
+      ult AS (
+        SELECT DISTINCT ON (idneu) idneu, idpos, idmaq, tipo
+          FROM ev
+         WHERE ($2 = 0 OR idacta <> $2)
+         ORDER BY idneu, ts DESC, idacta DESC, tipo DESC
+      )
+      SELECT idneu, idpos, idmaq, tipo FROM ult WHERE tipo <> 3`,
+    [idMaquina, excluir]
+  );
+  const montados = await client.query<{ id_neumatico_31: number }>(
+    `SELECT n.id_neumatico_31
+       FROM tbl_31_neumatico n
+       JOIN tbl_33_estado_neumatico e ON e.id_estado_33 = n.id_estado_31
+      WHERE UPPER(TRIM(e.estado_33)) IN ('MONTADO', 'BAJA')`
+  );
+  const neumaticos = new Set<number>([
+    ...ultimo.rows.map((r) => Number(r.idneu)),
+    ...montados.rows.map((r) => Number(r.id_neumatico_31)),
+  ]);
+  const posiciones = new Set<number>(
+    ultimo.rows
+      .filter((r) => Number(r.idmaq) === Number(idMaquina) && r.idpos != null)
+      .map((r) => Number(r.idpos))
+  );
+  return { neumaticos: [...neumaticos], posiciones: [...posiciones] };
+}
+
+async function validarOcupacionMontaje(
+  idMaquina: number,
+  d: DetallesBody,
+  excluirActa?: number | null
+): Promise<string | null> {
+  const oc = await ocupacionMaquina(pool, idMaquina, excluirActa);
+  const ocupNeu = new Set(oc.neumaticos);
+  const ocupPos = new Set(oc.posiciones);
+  for (const x of d.montajes || []) {
+    if (ocupNeu.has(Number(x.idneumatico_77))) {
+      return 'Hay un N° Fuego que ya está montado o dado de baja; no está disponible';
+    }
+    if (ocupPos.has(Number(x.idposicion_77))) {
+      return 'Hay una posición que ya está ocupada en esta máquina';
+    }
   }
   return null;
 }
@@ -238,6 +333,25 @@ async function cargarDetalles(id: number) {
   };
 }
 
+export const getDisponibilidadMontaje = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const idMaquina = Number(req.query.idmaquina);
+    if (!idMaquina) {
+      res.json({ success: true, data: { neumaticos: [], posiciones: [] } });
+      return;
+    }
+    const excluir = req.query.excluir ? Number(req.query.excluir) : null;
+    const data = await ocupacionMaquina(pool, idMaquina, excluir);
+    res.json({ success: true, data });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: 'Error al consultar disponibilidad de montaje',
+      message: error instanceof Error ? error.message : 'Error desconocido',
+    });
+  }
+};
+
 export const getAllTrazabilidadNeumatico = async (_req: Request, res: Response): Promise<void> => {
   try {
     const result = await pool.query(`${MAESTRO_SELECT} ORDER BY m.fecha_76 DESC, m.idtrazabilidad_76 DESC`);
@@ -292,6 +406,11 @@ export const createTrazabilidadNeumatico = async (req: Request, res: Response): 
       res.status(400).json({ success: false, error: detErr });
       return;
     }
+    const ocErr = await validarOcupacionMontaje(body.idmaquina_76, body, null);
+    if (ocErr) {
+      res.status(400).json({ success: false, error: ocErr });
+      return;
+    }
 
     await client.query('BEGIN');
     const ins = await client.query<{ idtrazabilidad_76: number }>(
@@ -323,6 +442,15 @@ export const createTrazabilidadNeumatico = async (req: Request, res: Response): 
     });
   } catch (error) {
     await client.query('ROLLBACK');
+    const pg = error as { code?: string; constraint?: string };
+    if (pg.code === '23505' && pg.constraint === 'uk_tbl_77_acta_posicion') {
+      res.status(400).json({ success: false, error: 'La misma posición no se puede repetir en el montaje' });
+      return;
+    }
+    if (pg.code === '23505') {
+      res.status(400).json({ success: false, error: 'El mismo N° Fuego no puede montarse dos veces en esta intervención' });
+      return;
+    }
     res.status(500).json({
       success: false,
       error: 'Error al crear la intervención',
@@ -354,6 +482,11 @@ export const updateTrazabilidadNeumatico = async (req: Request, res: Response): 
     const detErr = validarDetalles(body);
     if (detErr) {
       res.status(400).json({ success: false, error: detErr });
+      return;
+    }
+    const ocErr = await validarOcupacionMontaje(body.idmaquina_76, body, Number(req.params.id));
+    if (ocErr) {
+      res.status(400).json({ success: false, error: ocErr });
       return;
     }
 

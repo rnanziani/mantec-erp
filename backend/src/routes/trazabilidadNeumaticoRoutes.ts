@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import {
   getAllTrazabilidadNeumatico,
+  getDisponibilidadMontaje,
   getTrazabilidadNeumaticoById,
   createTrazabilidadNeumatico,
   updateTrazabilidadNeumatico,
@@ -10,6 +11,7 @@ import {
 
 const router = Router();
 router.get('/', getAllTrazabilidadNeumatico);
+router.get('/disponibilidad', getDisponibilidadMontaje);
 router.get('/:id/acta-pdf', generarActaTrazabilidadPDF);
 router.get('/:id', getTrazabilidadNeumaticoById);
 router.post('/', createTrazabilidadNeumatico);

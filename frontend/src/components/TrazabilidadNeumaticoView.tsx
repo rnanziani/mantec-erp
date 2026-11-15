@@ -46,6 +46,7 @@ const TrazabilidadNeumaticoView: React.FC = () => {
     marca_32?: string;
     modelo_31?: string | null;
     medida_31?: string | null;
+    estado_33?: string | null;
   }>>([]);
   const [posiciones, setPosiciones] = useState<Array<{ idposicion_73: number; codigo_73: string; numero_73?: number | null }>>([]);
   const [patrones, setPatrones] = useState<Array<{ id_patron_35: number; codigo_patron_35: string }>>([]);
@@ -76,6 +77,10 @@ const TrazabilidadNeumaticoView: React.FC = () => {
 
   const [selNeuM, setSelNeuM] = useState('');
   const [selPosM, setSelPosM] = useState('');
+  const [ocupacion, setOcupacion] = useState<{ neumaticos: number[]; posiciones: number[] }>({
+    neumaticos: [],
+    posiciones: [],
+  });
   const [selNeuR, setSelNeuR] = useState('');
   const [selOri, setSelOri] = useState('');
   const [selDes, setSelDes] = useState('');
@@ -128,6 +133,32 @@ const TrazabilidadNeumaticoView: React.FC = () => {
   useEffect(() => {
     fetchAll();
   }, []);
+
+  useEffect(() => {
+    const loadOcupacion = async () => {
+      if (!idMaquina) {
+        setOcupacion({ neumaticos: [], posiciones: [] });
+        return;
+      }
+      try {
+        const qs = new URLSearchParams({ idmaquina: idMaquina });
+        if (editingId) qs.set('excluir', String(editingId));
+        const res = await apiFetch(apiUrl(`/trazabilidad-neumatico/disponibilidad?${qs.toString()}`));
+        const data: ApiResponse<{ neumaticos: number[]; posiciones: number[] }> = await res.json();
+        if (data.success && data.data) {
+          setOcupacion({
+            neumaticos: (data.data.neumaticos || []).map(Number),
+            posiciones: (data.data.posiciones || []).map(Number),
+          });
+        } else {
+          setOcupacion({ neumaticos: [], posiciones: [] });
+        }
+      } catch {
+        setOcupacion({ neumaticos: [], posiciones: [] });
+      }
+    };
+    void loadOcupacion();
+  }, [idMaquina, editingId]);
 
   const filtered = useMemo(() => {
     const q = searchTerm.trim().toLowerCase();
@@ -191,6 +222,32 @@ const TrazabilidadNeumaticoView: React.FC = () => {
         label: `${p.numero_73 ? `(${p.numero_73}) ` : ''}${p.codigo_73}`,
       })),
     [posiciones]
+  );
+  const idsNeuEnCarga = useMemo(() => new Set(montajes.map((m) => m.idneumatico_77)), [montajes]);
+  const idsPosEnCarga = useMemo(() => new Set(montajes.map((m) => m.idposicion_77)), [montajes]);
+  const idsNeuOcupados = useMemo(() => new Set(ocupacion.neumaticos), [ocupacion.neumaticos]);
+  const idsPosOcupadas = useMemo(() => new Set(ocupacion.posiciones), [ocupacion.posiciones]);
+
+  const neuOptionsMontaje = useMemo(
+    () =>
+      neuOptions.filter((o) => {
+        const id = Number(o.value);
+        if (idsNeuEnCarga.has(id) || idsNeuOcupados.has(id)) return false;
+        const est = String(neumaticos.find((n) => n.id_neumatico_31 === id)?.estado_33 || '')
+          .trim()
+          .toUpperCase();
+        if (est === 'MONTADO' || est === 'BAJA') return false;
+        return true;
+      }),
+    [neuOptions, idsNeuEnCarga, idsNeuOcupados, neumaticos]
+  );
+  const posOptionsMontaje = useMemo(
+    () =>
+      posOptions.filter((o) => {
+        const id = Number(o.value);
+        return !idsPosEnCarga.has(id) && !idsPosOcupadas.has(id);
+      }),
+    [posOptions, idsPosEnCarga, idsPosOcupadas]
   );
   const llantaOptions = useMemo(
     () =>
@@ -391,7 +448,25 @@ const TrazabilidadNeumaticoView: React.FC = () => {
       await showError('Detalle montaje', 'Seleccione neumático y posición');
       return;
     }
-    setMontajes((p) => [...p, { idneumatico_77: Number(selNeuM), idposicion_77: Number(selPosM), observacion_77: '' }]);
+    const idNeu = Number(selNeuM);
+    const idPos = Number(selPosM);
+    if (idsNeuEnCarga.has(idNeu)) {
+      await showError('N° Fuego', `${neuLabel(idNeu)} ya está en esta carga. Un neumático no puede ir a dos posiciones.`);
+      return;
+    }
+    if (idsPosEnCarga.has(idPos)) {
+      await showError('Posición', `${posLabel(idPos)} ya tiene una cubierta en esta carga. No se puede repetir.`);
+      return;
+    }
+    if (idsNeuOcupados.has(idNeu)) {
+      await showError('N° Fuego', `${neuLabel(idNeu)} ya está montado o dado de baja. No está disponible.`);
+      return;
+    }
+    if (idsPosOcupadas.has(idPos)) {
+      await showError('Posición', `${posLabel(idPos)} ya está ocupada en esta máquina.`);
+      return;
+    }
+    setMontajes((p) => [...p, { idneumatico_77: idNeu, idposicion_77: idPos, observacion_77: '' }]);
     setSelNeuM('');
     setSelPosM('');
   };
@@ -681,19 +756,27 @@ const TrazabilidadNeumaticoView: React.FC = () => {
                     id="tz-nm"
                     value={selNeuM}
                     onChange={setSelNeuM}
-                    options={neuOptions}
+                    options={neuOptionsMontaje}
                     placeholder="T261..."
                     emptyMessage={
                       neumaticos.length === 0
                         ? 'No hay N° Fuego. Cárguelos en Gestión de Neumáticos'
-                        : 'Ningún N° Fuego coincide'
+                        : 'No hay cubiertas disponibles para montaje'
                     }
                     aria-label="N° Fuego para montaje"
                   />
                 </div>
                 <div className="form-group">
                   <label htmlFor="tz-pm">Posición</label>
-                  <SearchableSelect id="tz-pm" value={selPosM} onChange={setSelPosM} options={posOptions} placeholder="L1, R2i..." emptyMessage="Sin posiciones" />
+                  <SearchableSelect
+                    id="tz-pm"
+                    value={selPosM}
+                    onChange={setSelPosM}
+                    options={posOptionsMontaje}
+                    placeholder="L1, R2i..."
+                    emptyMessage="No hay posiciones libres en esta máquina"
+                    aria-label="Posición de montaje"
+                  />
                 </div>
                 <button type="button" className="btn-primary" onClick={addMontaje}>+ Agregar</button>
               </div>
