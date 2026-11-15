@@ -12,6 +12,7 @@ import { changeKeepingCaret } from '../hooks/useCaretTransform';
 import { etiquetaNeumatico } from '../utils/neumaticoEtiqueta';
 import {
   esCodigoNeumaticoValido,
+  keywordsNeumatico,
   prefijoTsnDeMarca,
   TSN_LEYENDA,
 } from '../utils/codigoNeumatico';
@@ -223,10 +224,16 @@ const NeumaticoView: React.FC = () => {
 
   const marcaOptions = useMemo(
     () =>
-      marcas.map((m) => ({
-        value: String(m.id_marca_32),
-        label: `${m.marca_32} (${m.diametro_32}")`,
-      })),
+      marcas.map((m) => {
+        const prefijo = prefijoTsnDeMarca(m.marca_32);
+        return {
+          value: String(m.id_marca_32),
+          label: `${m.marca_32} (${m.diametro_32}")`,
+          keywords: [m.marca_32, prefijo, prefijo ? TSN_LEYENDA[prefijo] : '', prefijo ? 'SIN NUMERO TSN' : '']
+            .filter(Boolean)
+            .join(' '),
+        };
+      }),
     [marcas]
   );
 
@@ -245,7 +252,8 @@ const NeumaticoView: React.FC = () => {
         n.modelo_31?.toLowerCase().includes(q) ||
         n.medida_31?.toLowerCase().includes(q) ||
         n.codigo_proveedor_31?.toLowerCase().includes(q) ||
-        n.observaciones_31?.toLowerCase().includes(q);
+        n.observaciones_31?.toLowerCase().includes(q) ||
+        keywordsNeumatico(n).toLowerCase().includes(q);
       const matchesMarca = !filterMarca || n.id_marca_31 === Number(filterMarca);
       return matchesSearch && matchesMarca;
     });

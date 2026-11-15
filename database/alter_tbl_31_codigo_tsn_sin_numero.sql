@@ -104,3 +104,61 @@ SELECT public.prefijo_tsn_marca_31('AUSTONE')  AS austone,
        public.prefijo_tsn_marca_31('GOOD YEAR') AS goodyear,
        public.prefijo_tsn_marca_31('MICHELIN') AS michelin,
        public.prefijo_tsn_marca_31('JINYU')    AS jinyu;
+
+-- El combo de trazabilidad lista filas de tbl_31. Sin estas cubiertas no aparece TSN.
+WITH marcas_tsn AS (
+  SELECT DISTINCT ON (public.prefijo_tsn_marca_31(m.marca_32))
+         m.id_marca_32,
+         public.prefijo_tsn_marca_31(m.marca_32) AS prefijo,
+         m.marca_32
+    FROM public.tbl_32_marca_neumatico m
+   WHERE m.estado_32 = true
+     AND public.prefijo_tsn_marca_31(m.marca_32) IS NOT NULL
+   ORDER BY public.prefijo_tsn_marca_31(m.marca_32),
+            CASE WHEN m.diametro_32 = 315 THEN 0 ELSE 1 END,
+            m.id_marca_32
+),
+codigos AS (
+  SELECT * FROM (VALUES
+    ('TSNAU', 'TSNAU1', 'TRANSANTIN SIN NUMERO AUSTONE'),
+    ('TSNGY', 'TSNGY1', 'TRANSANTIN SIN NUMERO GOOD YEAR'),
+    ('TSNMI', 'TSNMI1', 'TRANSANTIN SIN NUMERO MICHELIN'),
+    ('TSNJI', 'TSNJI1', 'TRANSANTIN SIN NUMERO JINYU')
+  ) AS x(prefijo, codigo, leyenda)
+)
+INSERT INTO public.tbl_31_neumatico (
+  id_marca_31, cod_neumatico_31, observaciones_31, fecha_ingreso_31
+)
+SELECT m.id_marca_32, c.codigo, c.leyenda, CURRENT_DATE
+  FROM codigos c
+  JOIN marcas_tsn m ON m.prefijo = c.prefijo
+ WHERE NOT EXISTS (
+   SELECT 1
+     FROM public.tbl_31_neumatico n
+    WHERE n.cod_neumatico_31 = c.codigo
+ );
+
+SELECT c.codigo,
+       c.leyenda,
+       CASE WHEN m.prefijo IS NULL THEN 'Falta la marca en el catálogo (Neumáticos → Marcas)'
+            ELSE 'OK'
+       END AS marca_catalogo
+  FROM (VALUES
+    ('TSNAU', 'TSNAU1', 'TRANSANTIN SIN NUMERO AUSTONE'),
+    ('TSNGY', 'TSNGY1', 'TRANSANTIN SIN NUMERO GOOD YEAR'),
+    ('TSNMI', 'TSNMI1', 'TRANSANTIN SIN NUMERO MICHELIN'),
+    ('TSNJI', 'TSNJI1', 'TRANSANTIN SIN NUMERO JINYU')
+  ) AS c(prefijo, codigo, leyenda)
+  LEFT JOIN (
+    SELECT DISTINCT public.prefijo_tsn_marca_31(marca_32) AS prefijo
+      FROM public.tbl_32_marca_neumatico
+     WHERE estado_32 = true
+  ) m ON m.prefijo = c.prefijo
+ ORDER BY c.codigo;
+
+SELECT n.cod_neumatico_31, mk.marca_32, e.estado_33, n.observaciones_31
+  FROM public.tbl_31_neumatico n
+  LEFT JOIN public.tbl_32_marca_neumatico mk ON mk.id_marca_32 = n.id_marca_31
+  LEFT JOIN public.tbl_33_estado_neumatico e ON e.id_estado_33 = n.id_estado_31
+ WHERE n.cod_neumatico_31 ~ '^TSN(AU|GY|MI|JI)[0-9]+$'
+ ORDER BY n.cod_neumatico_31;

@@ -10,6 +10,7 @@ import { showDeleteConfirm, showError, showSuccess } from '../utils/swal';
 import { apiFetch, apiUrl, openAuthenticatedBlob } from '../lib/apiClient';
 import { etiquetaNeumatico } from '../utils/neumaticoEtiqueta';
 import { CAPACIDAD_TREN_DELANTERO, esTrenDelantero } from '../utils/trenNeumatico';
+import { compararCodigoNeumatico, keywordsNeumatico, TSN_LEYENDA, prefijoTsnDeCodigo } from '../utils/codigoNeumatico';
 
 interface Maestro {
   idtrazabilidad_76: number;
@@ -48,6 +49,7 @@ const TrazabilidadNeumaticoView: React.FC = () => {
     modelo_31?: string | null;
     medida_31?: string | null;
     estado_33?: string | null;
+    observaciones_31?: string | null;
   }>>([]);
   const [posiciones, setPosiciones] = useState<Array<{ idposicion_73: number; codigo_73: string; numero_73?: number | null }>>([]);
   const [patrones, setPatrones] = useState<Array<{ id_patron_35: number; codigo_patron_35: string }>>([]);
@@ -204,15 +206,11 @@ const TrazabilidadNeumaticoView: React.FC = () => {
   const neuOptions = useMemo(
     () =>
       [...neumaticos]
-        .sort((a, b) =>
-          String(a.cod_neumatico_31 || '').localeCompare(String(b.cod_neumatico_31 || ''), 'es', {
-            numeric: true,
-          })
-        )
+        .sort((a, b) => compararCodigoNeumatico(a.cod_neumatico_31, b.cod_neumatico_31))
         .map((n) => ({
           value: String(n.id_neumatico_31),
           label: etiquetaNeumatico(n) || n.cod_neumatico_31,
-          keywords: n.cod_neumatico_31,
+          keywords: keywordsNeumatico(n),
         })),
     [neumaticos]
   );
@@ -449,7 +447,10 @@ const TrazabilidadNeumaticoView: React.FC = () => {
   const neuMarca = (id: number) => {
     const n = neuById(id);
     if (!n) return '—';
-    return [n.marca_32, n.modelo_31, n.medida_31].filter(Boolean).join(' ') || '—';
+    const marca = [n.marca_32, n.modelo_31, n.medida_31].filter(Boolean).join(' ');
+    if (marca) return marca;
+    const prefijo = prefijoTsnDeCodigo(n.cod_neumatico_31);
+    return (prefijo && TSN_LEYENDA[prefijo]) || n.observaciones_31 || '—';
   };
   const posLabel = (id: number) => posiciones.find((p) => p.idposicion_73 === id)?.codigo_73 || String(id);
   const llantaLabel = (id: number) => {
@@ -784,11 +785,11 @@ const TrazabilidadNeumaticoView: React.FC = () => {
                     value={selNeuM}
                     onChange={setSelNeuM}
                     options={neuOptionsMontaje}
-                    placeholder="T261..."
+                    placeholder="T261 o TSNAU1..."
                     emptyMessage={
                       neumaticos.length === 0
                         ? 'No hay N° Fuego. Cárguelos en Gestión de Neumáticos'
-                        : 'No hay cubiertas disponibles para montaje'
+                        : 'No hay cubiertas disponibles para montaje. Pruebe TSN o sin número'
                     }
                     aria-label="N° Fuego para montaje"
                   />
@@ -847,11 +848,11 @@ const TrazabilidadNeumaticoView: React.FC = () => {
                     value={selNeuR}
                     onChange={setSelNeuR}
                     options={neuOptions}
-                    placeholder="T261..."
+                    placeholder="T261 o TSNAU1..."
                     emptyMessage={
                       neumaticos.length === 0
-                        ? 'No hay N° Fuego. Cárguelos en Gestión de Neumáticos'
-                        : 'Ningún N° Fuego coincide'
+                        ? 'No hay N° Fuego. Cárguelos en Gestión de Neumáticos (casilla Sin N° Fuego)'
+                        : 'Ningún código coincide. Pruebe TSNAU, TSNGY, TSNMI, TSNJI o sin número'
                     }
                     aria-label="N° Fuego para rotación"
                   />
@@ -946,11 +947,11 @@ const TrazabilidadNeumaticoView: React.FC = () => {
                     value={selNeuB}
                     onChange={setSelNeuB}
                     options={neuOptions}
-                    placeholder="T261..."
+                    placeholder="T261 o TSNAU1..."
                     emptyMessage={
                       neumaticos.length === 0
-                        ? 'No hay N° Fuego. Cárguelos en Gestión de Neumáticos'
-                        : 'Ningún N° Fuego coincide'
+                        ? 'No hay N° Fuego. Cárguelos en Gestión de Neumáticos (casilla Sin N° Fuego)'
+                        : 'Ningún código coincide. Pruebe TSNAU, TSNGY, TSNMI, TSNJI o sin número'
                     }
                     aria-label="N° Fuego para baja"
                   />

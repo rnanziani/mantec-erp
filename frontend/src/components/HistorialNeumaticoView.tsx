@@ -8,6 +8,7 @@ import { formatEnteroKm } from '../utils/formatKm';
 import { showError, showSuccess } from '../utils/swal';
 import { apiUrl } from '../lib/apiClient';
 import { etiquetaNeumatico } from '../utils/neumaticoEtiqueta';
+import { compararCodigoNeumatico, keywordsNeumatico } from '../utils/codigoNeumatico';
 
 interface HistorialNeumatico {
   id_historial_34: number;
@@ -28,6 +29,7 @@ interface Neumatico {
   marca_32?: string;
   modelo_31?: string | null;
   medida_31?: string | null;
+  observaciones_31?: string | null;
 }
 
 interface ApiResponse<T = unknown> {
@@ -74,11 +76,13 @@ const HistorialNeumaticoView: React.FC = () => {
 
   const neumaticoOptions = useMemo(
     () =>
-      neumaticos.map((n) => ({
-        value: n.cod_neumatico_31,
-        label: etiquetaNeumatico(n) || n.cod_neumatico_31,
-        keywords: n.cod_neumatico_31,
-      })),
+      [...neumaticos]
+        .sort((a, b) => compararCodigoNeumatico(a.cod_neumatico_31, b.cod_neumatico_31))
+        .map((n) => ({
+          value: n.cod_neumatico_31,
+          label: etiquetaNeumatico(n) || n.cod_neumatico_31,
+          keywords: keywordsNeumatico(n),
+        })),
     [neumaticos]
   );
 

@@ -36,3 +36,45 @@ export function esCodigoNeumaticoValido(codigo: string | null | undefined): bool
   const c = String(codigo || '').trim().toUpperCase();
   return FUEGO_RE.test(c) || TSN_RE.test(c);
 }
+
+export function esCodigoTsn(codigo: string | null | undefined): boolean {
+  return TSN_RE.test(String(codigo || '').trim().toUpperCase());
+}
+
+export function prefijoTsnDeCodigo(codigo: string | null | undefined): string | null {
+  const c = String(codigo || '').trim().toUpperCase();
+  const m = c.match(/^TSN(AU|GY|MI|JI)/);
+  return m ? `TSN${m[1]}` : null;
+}
+
+/** En combos, la flota TSN va primero: si no, queda bajo todos los T261. */
+export function compararCodigoNeumatico(a: string, b: string): number {
+  const at = esCodigoTsn(a);
+  const bt = esCodigoTsn(b);
+  if (at !== bt) return at ? -1 : 1;
+  return String(a || '').localeCompare(String(b || ''), 'es', { numeric: true });
+}
+
+export function keywordsNeumatico(n: {
+  cod_neumatico_31?: string | null;
+  marca_32?: string | null;
+  modelo_31?: string | null;
+  medida_31?: string | null;
+  observaciones_31?: string | null;
+}): string {
+  const fuego = String(n.cod_neumatico_31 || '').trim().toUpperCase();
+  const prefijo = prefijoTsnDeCodigo(fuego);
+  return [
+    fuego,
+    prefijo,
+    n.marca_32,
+    n.modelo_31,
+    n.medida_31,
+    n.observaciones_31,
+    prefijo ? TSN_LEYENDA[prefijo] : '',
+    prefijo ? 'SIN NUMERO SIN MARCA TSN TRANSANTIN FLOTA' : '',
+  ]
+    .map((x) => String(x || '').trim())
+    .filter(Boolean)
+    .join(' ');
+}
