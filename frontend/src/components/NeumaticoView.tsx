@@ -7,7 +7,7 @@ import SearchBar from './shared/SearchBar';
 import Pagination from './shared/Pagination';
 import SearchableSelect from './shared/SearchableSelect';
 import { exportToExcel } from '../utils/exportUtils';
-import { apiUrl } from '../lib/apiClient';
+import { apiFetch, apiUrl } from '../lib/apiClient';
 import { changeKeepingCaret } from '../hooks/useCaretTransform';
 import { etiquetaNeumatico } from '../utils/neumaticoEtiqueta';
 
@@ -87,7 +87,7 @@ function claveMarca(s: string): string {
   return s.trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
 }
 
-/** Ancho del Excel: 315/80 R22.5 → 315. Así está el catálogo (GOODYEAR 315, BRIDGESTONE 315). */
+/** Ancho del Excel: 315/80 R22.5 → 315. Cruza con diametro_32 (AUSTONE 295 vs 315). */
 function anchoDesdeMedida(medida: string): number | null {
   const m = String(medida || '')
     .trim()
@@ -102,6 +102,11 @@ function aroDesdeMedida(medida: string): number | null {
   return m ? Number(m[1]) : null;
 }
 
+/** BRIDGESTONE 315 o BRIDGESTONE → BRIDGESTONE. */
+function marcaBase(s: string): string {
+  return claveMarca(s).replace(/\d+$/g, '');
+}
+
 function cruzarMarcaCatalogo(
   catalogo: MarcaNeumatico[],
   marcaExcel: string,
@@ -109,19 +114,13 @@ function cruzarMarcaCatalogo(
 ): MarcaNeumatico | undefined {
   const q = marcaExcel.trim().toUpperCase();
   if (!q) return undefined;
-  const qn = claveMarca(q);
+  const baseExcel = marcaBase(q);
+  if (!baseExcel) return undefined;
   const ancho = anchoDesdeMedida(medida);
   const aro = aroDesdeMedida(medida);
   const activas = catalogo.filter((m) => m.estado_32 !== false);
 
-  const candidatas = activas.filter((m) => {
-    const nombre = m.marca_32.trim().toUpperCase();
-    const kn = claveMarca(nombre);
-    if (nombre === q || kn === qn) return true;
-    if (ancho != null && (nombre === `${q} ${ancho}` || kn === `${qn}${ancho}`)) return true;
-    if (kn.startsWith(qn) && (kn.length === qn.length || /^\d/.test(kn.slice(qn.length)))) return true;
-    return false;
-  });
+  const candidatas = activas.filter((m) => marcaBase(m.marca_32) === baseExcel);
   if (candidatas.length === 0) return undefined;
   if (candidatas.length === 1) return candidatas[0];
 
@@ -159,7 +158,7 @@ const NeumaticoView: React.FC = () => {
   const [sortConfig, setSortConfig] = useState<SortConfig>({ key: 'id_neumatico_31', direction: 'asc' });
 
   const API_URL = apiUrl('/neumaticos');
-  const MARCAS_URL = apiUrl('/marcas-neumatico?activo=true');
+  const MARCAS_URL = apiUrl('/marcas-neumatico');
 
   useEffect(() => {
     fetchNeumaticos();
@@ -185,16 +184,18 @@ const NeumaticoView: React.FC = () => {
     }
   };
 
-  const fetchMarcas = async () => {
+  const fetchMarcas = async (): Promise<MarcaNeumatico[]> => {
     try {
-      const response = await fetch(MARCAS_URL);
+      const response = await apiFetch(MARCAS_URL);
       const data: ApiResponse<MarcaNeumatico[]> = await response.json();
       if (data.success && Array.isArray(data.data)) {
         setMarcas(data.data);
+        return data.data;
       }
     } catch (err) {
       console.error('Error al cargar marcas:', err);
     }
+    return [];
   };
 
   const marcaOptions = useMemo(
@@ -452,7 +453,7 @@ const NeumaticoView: React.FC = () => {
 
   const cancelForm = () => resetForm();
 
-  const parseExcel = async (file: File) => {
+  const parseExcel = async (file: File, catalogo: MarcaNeumatico[]) => {
     const buf = await file.arrayBuffer();
     const wb = XLSX.read(buf, { type: 'array' });
     const sheet = wb.Sheets[wb.SheetNames[0]];
@@ -463,12 +464,22 @@ const NeumaticoView: React.FC = () => {
       return;
     }
 
+    if (catalogo.length === 0) {
+      setFilasExcel([]);
+      await showError(
+        'Catálogo',
+        'No se cargó Neumáticos → Marcas. Recargue la página o abra Marcas y vuelva a intentar.'
+      );
+      return;
+    }
+
     const mapCampos = new Map<string, keyof Omit<FilaExcel, 'idMarca' | 'error'>>();
     Object.keys(raw[0]).forEach((h) => {
       const campo = campoDeClave(claveCol(h));
       if (campo) mapCampos.set(h, campo);
     });
 
+    const nombresCatalogo = catalogo.map((m) => m.marca_32).join(', ');
     const vistos = new Set<string>();
     const filas: FilaExcel[] = [];
     for (const row of raw) {
@@ -488,12 +499,9 @@ const NeumaticoView: React.FC = () => {
       }
       vistos.add(leido.fuego);
 
-      const marca = cruzarMarcaCatalogo(marcas, leido.marcaExcel, leido.medida);
+      const marca = cruzarMarcaCatalogo(catalogo, leido.marcaExcel, leido.medida);
       if (!errorFila && !marca) {
-        const ancho = anchoDesdeMedida(leido.medida);
-        errorFila = ancho
-          ? `No coincide con Marcas. El catálogo usa el nombre completo (ej. ${leido.marcaExcel} ${ancho})`
-          : `Falta ${leido.marcaExcel || 'MARCA'} en Neumáticos → Marcas`;
+        errorFila = `Excel: ${leido.marcaExcel}. Catálogo: ${nombresCatalogo}`;
       }
 
       filas.push({
@@ -518,7 +526,8 @@ const NeumaticoView: React.FC = () => {
     e.target.value = '';
     if (!file) return;
     try {
-      await parseExcel(file);
+      const catalogo = await fetchMarcas();
+      await parseExcel(file, catalogo);
     } catch (err) {
       console.error(err);
       await showError('Excel', 'No se pudo leer el archivo');

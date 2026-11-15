@@ -7,6 +7,11 @@ import { showDeleteConfirm, showSuccess, showError } from '../utils/swal';
 import { apiUrl } from '../lib/apiClient';
 import { changeKeepingCaret } from '../hooks/useCaretTransform';
 
+/** BRIDGESTONE 315 → BRIDGESTONE. El 315 va en diametro_32. */
+function nombreMarcaSinDiametro(raw: string): string {
+  return raw.trim().toUpperCase().replace(/\s+\d+(?:\.\d+)?$/, '');
+}
+
 interface MarcaNeumatico {
   id_marca_32: number;
   marca_32: string;
@@ -111,7 +116,8 @@ const MarcaNeumaticoView: React.FC = () => {
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
     const diametroNum = parseInt(diametro, 10);
-    if (!marca.trim()) {
+    const nombre = nombreMarcaSinDiametro(marca);
+    if (!nombre) {
       await showError('Campo requerido', 'El nombre de la marca es requerido');
       return;
     }
@@ -124,7 +130,7 @@ const MarcaNeumaticoView: React.FC = () => {
       const res = await fetch(API_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ marca_32: marca.trim().toUpperCase(), diametro_32: diametroNum, estado_32: estado })
+        body: JSON.stringify({ marca_32: nombre, diametro_32: diametroNum, estado_32: estado })
       });
       const data: ApiResponse<MarcaNeumatico> = await res.json();
       if (data.success) {
@@ -144,7 +150,8 @@ const MarcaNeumaticoView: React.FC = () => {
   const handleUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
     const diametroNum = parseInt(diametro, 10);
-    if (!marca.trim() || editingId === null) {
+    const nombre = nombreMarcaSinDiametro(marca);
+    if (!nombre || editingId === null) {
       await showError('Campo requerido', 'El nombre de la marca es requerido');
       return;
     }
@@ -157,7 +164,7 @@ const MarcaNeumaticoView: React.FC = () => {
       const res = await fetch(`${API_URL}/${editingId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ marca_32: marca.trim().toUpperCase(), diametro_32: diametroNum, estado_32: estado })
+        body: JSON.stringify({ marca_32: nombre, diametro_32: diametroNum, estado_32: estado })
       });
       const data: ApiResponse<MarcaNeumatico> = await res.json();
       if (data.success) {
@@ -284,24 +291,32 @@ const MarcaNeumaticoView: React.FC = () => {
                   className="form-input"
                   value={marca}
                   onChange={(e) => changeKeepingCaret(e, setMarca)}
-                  placeholder="Ej: MICHELIN, BRIDGESTONE..."
+                  placeholder="Ej: BRIDGESTONE"
                   style={{ textTransform: 'uppercase' }}
                   required
                   autoFocus
+                  aria-describedby="marca-hint"
                 />
+                <small id="marca-hint" className="form-hint">
+                  Solo el fabricante. El 315 no va en el nombre.
+                </small>
               </div>
               <div className="form-group">
-                <label htmlFor="diametro">Diámetro (pulgadas): *</label>
+                <label htmlFor="diametro">Ancho / diámetro: *</label>
                 <input
                   type="number"
                   id="diametro"
                   className="form-input"
                   value={diametro}
                   onChange={(e) => setDiametro(e.target.value)}
-                  placeholder="Ej: 17, 18, 19..."
+                  placeholder="Ej: 315"
                   min="0"
                   required
+                  aria-describedby="diametro-hint"
                 />
+                <small id="diametro-hint" className="form-hint">
+                  El 315 de la medida 315/80 R22.5.
+                </small>
               </div>
             </div>
             <div className="form-group checkbox-group">

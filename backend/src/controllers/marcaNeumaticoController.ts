@@ -2,6 +2,11 @@ import { Request, Response } from 'express';
 import { pool } from '../db.js';
 import { MarcaNeumatico, CreateMarcaNeumaticoDTO, UpdateMarcaNeumaticoDTO } from '../types.js';
 
+/** BRIDGESTONE 315 → BRIDGESTONE. El ancho va en diametro_32. */
+function nombreMarcaSinDiametro(raw: string): string {
+  return raw.trim().toUpperCase().replace(/\s+\d+(?:\.\d+)?$/, '');
+}
+
 export const getAllMarcasNeumatico = async (req: Request, res: Response): Promise<void> => {
   try {
     const activoOnly = req.query.activo === 'true';
@@ -43,7 +48,8 @@ export const getMarcaNeumaticoById = async (req: Request, res: Response): Promis
 export const createMarcaNeumatico = async (req: Request, res: Response): Promise<void> => {
   try {
     const { marca_32, diametro_32, estado_32 }: CreateMarcaNeumaticoDTO = req.body;
-    if (!marca_32 || marca_32.trim() === '') {
+    const nombre = nombreMarcaSinDiametro(marca_32 || '');
+    if (!nombre) {
       res.status(400).json({ success: false, error: 'El nombre de la marca es requerido' });
       return;
     }
@@ -54,7 +60,7 @@ export const createMarcaNeumatico = async (req: Request, res: Response): Promise
     const existing = await pool.query(
       `SELECT id_marca_32 FROM tbl_32_marca_neumatico
        WHERE LOWER(marca_32) = LOWER($1) AND diametro_32 = $2`,
-      [marca_32.trim(), diametro_32]
+      [nombre, diametro_32]
     );
     if (existing.rowCount && existing.rowCount > 0) {
       res.status(400).json({
@@ -66,7 +72,7 @@ export const createMarcaNeumatico = async (req: Request, res: Response): Promise
     const estado = estado_32 !== false;
     const result = await pool.query<MarcaNeumatico>(
       'INSERT INTO tbl_32_marca_neumatico (marca_32, diametro_32, estado_32) VALUES ($1, $2, $3) RETURNING *',
-      [marca_32.trim(), diametro_32, estado]
+      [nombre, diametro_32, estado]
     );
     res.status(201).json({ success: true, data: result.rows[0], message: 'Marca de neumático creada exitosamente' });
   } catch (error) {
@@ -82,7 +88,8 @@ export const updateMarcaNeumatico = async (req: Request, res: Response): Promise
   try {
     const { id } = req.params;
     const { marca_32, diametro_32, estado_32 }: UpdateMarcaNeumaticoDTO = req.body;
-    if (!marca_32 || marca_32.trim() === '') {
+    const nombre = nombreMarcaSinDiametro(marca_32 || '');
+    if (!nombre) {
       res.status(400).json({ success: false, error: 'El nombre de la marca es requerido' });
       return;
     }
@@ -93,7 +100,7 @@ export const updateMarcaNeumatico = async (req: Request, res: Response): Promise
     const dup = await pool.query(
       `SELECT id_marca_32 FROM tbl_32_marca_neumatico
        WHERE LOWER(marca_32) = LOWER($1) AND diametro_32 = $2 AND id_marca_32 <> $3`,
-      [marca_32.trim(), diametro_32, id]
+      [nombre, diametro_32, id]
     );
     if (dup.rowCount && dup.rowCount > 0) {
       res.status(400).json({
@@ -105,7 +112,7 @@ export const updateMarcaNeumatico = async (req: Request, res: Response): Promise
     const estado = estado_32 !== false;
     const result = await pool.query<MarcaNeumatico>(
       'UPDATE tbl_32_marca_neumatico SET marca_32 = $1, diametro_32 = $2, estado_32 = $3 WHERE id_marca_32 = $4 RETURNING *',
-      [marca_32.trim(), diametro_32, estado, id]
+      [nombre, diametro_32, estado, id]
     );
     if (result.rowCount === 0) {
       res.status(404).json({ success: false, error: 'Marca de neumático no encontrada' });
