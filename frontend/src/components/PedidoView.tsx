@@ -1334,7 +1334,14 @@ const PedidoView: React.FC = () => {
 
       {showForm && (
         <div className="form-container">
-          <h3>{editingId ? `Editar ${numero || editingId}` : 'Nuevo pedido'}</h3>
+          <h3 className="pedido-form-title">
+            <span>{editingId ? `Editar ${numero || editingId}` : 'Nuevo pedido'}</span>
+            {fecha ? (
+              <span className="pedido-form-fecha" aria-label={`Fecha del pedido ${fechaClVista(fecha)}`}>
+                {fechaClVista(fecha)}
+              </span>
+            ) : null}
+          </h3>
           <form ref={formRef} onSubmit={handleSubmit}>
             <div className="pedido-cabecera">
               <div className="form-group">

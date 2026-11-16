@@ -882,6 +882,20 @@
     border-left: 4px solid var(--mantec-blue, #1e4a76);
 }
 
+.pedido-form-title {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 8px 16px;
+}
+
+.pedido-form-fecha {
+    color: var(--mantec-blue, #1e4a76);
+    font-weight: 700;
+    white-space: nowrap;
+}
+
 .pedido-pago-filter {
     display: flex;
     align-items: center;
