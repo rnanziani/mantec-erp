@@ -854,6 +854,34 @@
     white-space: nowrap;
 }
 
+.pedido-ciclo-bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    align-items: center;
+    margin-bottom: 12px;
+    min-width: 0;
+}
+
+.pedido-ciclo-buscar {
+    flex: 1 1 12rem;
+    min-width: 0;
+    text-transform: uppercase;
+}
+
+.pedido-ciclo-btns {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.pedido-consulta-hint {
+    margin: 0 0 12px;
+    padding: 8px 12px;
+    background: #eef2ff;
+    border-left: 4px solid var(--mantec-blue, #1e4a76);
+}
+
 .pedido-pago-filter {
     display: flex;
     align-items: center;

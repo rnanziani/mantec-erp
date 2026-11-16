@@ -584,6 +584,12 @@ const PedidoView: React.FC = () => {
   useEffect(() => {
     setCurrentPage(1);
   }, [searchTerm, filtroCiclo, filtroPago]);
+  useEffect(() => {
+    if (!detalleAbierto) return;
+    if (!filtered.some((p) => p.id_pedido_92 === detalleAbierto.id_pedido_92)) {
+      setDetalleAbierto(null);
+    }
+  }, [filtered, detalleAbierto]);
 
   const resetForm = () => {
     setEditingId(null);
@@ -1239,6 +1245,67 @@ const PedidoView: React.FC = () => {
         </div>
       )}
 
+      <div className="pedido-ciclo-bar">
+        <input
+          type="search"
+          className="form-input pedido-ciclo-buscar"
+          placeholder="Buscar orden, proveedor, estado..."
+          value={searchTerm}
+          onChange={(e) => changeKeepingCaret(e, setSearchTerm)}
+          aria-label="Buscar pedidos"
+        />
+        <div role="group" className="pedido-ciclo-btns" aria-label="Ver pedidos abiertos o cerrados">
+          {([
+            ['abiertas', 'Abiertas'],
+            ['cerradas', 'Cerradas'],
+            ['todas', 'Todas'],
+          ] as const).map(([id, label]) => (
+            <button
+              key={id}
+              type="button"
+              className={filtroCiclo === id ? 'btn-primary' : 'btn-secondary'}
+              aria-pressed={filtroCiclo === id}
+              title={
+                id === 'cerradas'
+                  ? 'Consulta de pedidos cerrados, recibidos o anulados. No se modifican.'
+                  : undefined
+              }
+              onClick={() => setFiltroCiclo(id)}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+        <label className="pedido-pago-filter" htmlFor="filtro_pago">
+          Pago
+          <select
+            id="filtro_pago"
+            className="form-input"
+            value={filtroPago}
+            onChange={(e) => setFiltroPago(e.target.value)}
+            aria-label="Filtrar pedidos por estado de pago"
+          >
+            <option value="">Todos</option>
+            <option value="Pendiente">Pendiente</option>
+            <option value="Parcial">Parcial</option>
+            <option value="Pagado">Pagado</option>
+            <option value="Anulado">Anulado</option>
+          </select>
+        </label>
+        <button type="button" className="btn-export" onClick={() => void exportarPdfPagos('pendientes')}>
+          PDF pendientes
+        </button>
+        <button type="button" className="btn-export" onClick={() => void exportarPdfPagos('pagados')}>
+          PDF pagados
+        </button>
+      </div>
+      {filtroCiclo === 'cerradas' && (
+        <p className="form-hint pedido-consulta-hint" role="status">
+          Pedidos cerrados, recibidos o anulados: solo consulta. No se edita, no se cierra insumo y no se
+          envía WhatsApp. Excel y PDF sí.
+        </p>
+      )}
+
       {resumenPago !== null && (
         <div className="form-container pedido-resumen-pago">
           <h3>Resumen de pago</h3>
@@ -1585,135 +1652,118 @@ const PedidoView: React.FC = () => {
             {detalleAbierto.numero_orden_92} — {detalleAbierto.proveedor_nombre}{' '}
             <span className="badge">Pago {detalleAbierto.estado_pago_92}</span>{' '}
             <span className="badge">Recepción {detalleAbierto.estado_recepcion_92}</span>
+            {cerrado ? <span className="badge">Consulta</span> : null}
           </h3>
-          {!anulado && (
-            <div className="pedido-button-grid">
-              {detalleAbierto.estado_pago_92 !== 'Pagado' && (
-                <button
-                  type="button"
-                  className="btn-success"
-                  onClick={() => postAccion(`${API}/${detalleAbierto.id_pedido_92}/pago`, { estado_pago_92: 'Pagado' })}
-                >
-                  Marcar pagado
-                </button>
-              )}
-              {detalleAbierto.estado_pago_92 === 'Pendiente' && (
-                <button
-                  type="button"
-                  className="btn-info"
-                  onClick={() => postAccion(`${API}/${detalleAbierto.id_pedido_92}/pago`, { estado_pago_92: 'Parcial' })}
-                >
-                  Pago parcial
-                </button>
-              )}
-              {!cerrado && detalleAbierto.estado_recepcion_92 === 'Pendiente' && (
-                <button
-                  type="button"
-                  className="btn-secondary"
-                  onClick={() => postAccion(`${API}/${detalleAbierto.id_pedido_92}/no-retirado`)}
-                >
-                  No retirado
-                </button>
-              )}
-              {!cerrado && (
-                <button type="button" className="btn-secondary" onClick={abrirTraslado}>
-                  Mover a fecha futura
-                </button>
-              )}
-              {!cerrado && (
-                <button type="button" className="btn-delete" onClick={() => postAccion(`${API}/${detalleAbierto.id_pedido_92}/anular`)}>
-                  Anular
-                </button>
-              )}
-              <button
-                type="button"
-                className="btn-info"
-                onClick={() => void exportarExcelDetalle(detalleAbierto.id_pedido_92)}
-              >
-                Excel detalle
-              </button>
-              <button
-                type="button"
-                className="btn-info"
-                onClick={() => void exportarExcelPorProveedor(detalleAbierto.id_pedido_92)}
-              >
-                Excel por proveedor
-              </button>
-              <button
-                type="button"
-                className="btn-export"
-                onClick={() => void exportarPdfPedido(detalleAbierto.id_pedido_92)}
-              >
-                PDF por proveedor
-              </button>
-            </div>
+          {cerrado && (
+            <p className="form-hint pedido-consulta-hint" role="status">
+              {anulado ? 'Pedido anulado' : 'Pedido cerrado'}: solo consulta. No se modifica.
+            </p>
           )}
-          {anulado && (
-            <div className="pedido-button-grid">
+          <div className="pedido-button-grid">
+            {!cerrado && detalleAbierto.estado_pago_92 !== 'Pagado' && (
+              <button
+                type="button"
+                className="btn-success"
+                onClick={() => postAccion(`${API}/${detalleAbierto.id_pedido_92}/pago`, { estado_pago_92: 'Pagado' })}
+              >
+                Marcar pagado
+              </button>
+            )}
+            {!cerrado && detalleAbierto.estado_pago_92 === 'Pendiente' && (
               <button
                 type="button"
                 className="btn-info"
-                onClick={() => void exportarExcelDetalle(detalleAbierto.id_pedido_92)}
+                onClick={() => postAccion(`${API}/${detalleAbierto.id_pedido_92}/pago`, { estado_pago_92: 'Parcial' })}
               >
-                Excel detalle
+                Pago parcial
               </button>
+            )}
+            {!cerrado && detalleAbierto.estado_recepcion_92 === 'Pendiente' && (
               <button
                 type="button"
-                className="btn-info"
-                onClick={() => void exportarExcelPorProveedor(detalleAbierto.id_pedido_92)}
+                className="btn-secondary"
+                onClick={() => postAccion(`${API}/${detalleAbierto.id_pedido_92}/no-retirado`)}
               >
-                Excel por proveedor
+                No retirado
               </button>
-              <button
-                type="button"
-                className="btn-export"
-                onClick={() => void exportarPdfPedido(detalleAbierto.id_pedido_92)}
-              >
-                PDF por proveedor
+            )}
+            {!cerrado && (
+              <button type="button" className="btn-secondary" onClick={abrirTraslado}>
+                Mover a fecha futura
               </button>
-            </div>
-          )}
-          <h4 style={{ marginTop: 8 }}>WhatsApp por proveedor</h4>
-          <p className="form-hint" style={{ marginTop: 0 }}>
-            Un botón por ferretería. Se registra el lote y luego se abre el chat; tú pulsas Enviar.
-            Si a las 11:30 agregas líneas, el segundo envío lleva solo las nuevas.
-          </p>
-          <div className="pedido-button-grid" aria-label="WhatsApp por proveedor">
-            {gruposPedidoComoPdf(detalleAbierto).map((g) => {
-              const catalogo = matchProveedor(g.proveedor);
-              const e164 = telefonoWhatsApp(catalogo?.telefono_90);
-              const pendientes = pendientesDeGrupo(g);
-              const enviados = g.lineas.length - pendientes.lineas.length;
-              const puedeEnviar = Boolean(e164) && pendientes.lineas.length > 0 && !cerrado;
-              return (
-                <div key={g.proveedor} className="pedido-wa-card">
-                  <strong>{g.proveedor}</strong>
-                  <span className="pedido-wa-meta">
-                    {pendientes.lineas.length > 0
-                      ? `${pendientes.lineas.length} nuevos · ${pendientes.totalQty} un.`
-                      : 'nada pendiente'}
-                    {enviados > 0 ? ` · ${enviados} enviados` : ''}
-                    {e164 ? ` · +${e164}` : ' · sin teléfono'}
-                  </span>
-                  <button
-                    type="button"
-                    className="btn-success"
-                    disabled={!puedeEnviar || enviandoWa}
-                    title={
-                      !e164
-                        ? 'Cargue el teléfono en Pedidos → Proveedores'
-                        : pendientes.lineas.length === 0
-                          ? 'Todo lo de este proveedor ya se envió'
-                          : `Registrar ${pendientes.lineas.length} nuevos y abrir WhatsApp +${e164}`
-                    }
-                    onClick={() => void enviarWhatsAppGrupo(detalleAbierto, g)}
-                  >
-                    {pendientes.lineas.length > 0 ? `WhatsApp (${pendientes.lineas.length} nuevos)` : 'Ya enviado'}
-                  </button>
-                </div>
-              );
-            })}
+            )}
+            {!cerrado && (
+              <button type="button" className="btn-delete" onClick={() => postAccion(`${API}/${detalleAbierto.id_pedido_92}/anular`)}>
+                Anular
+              </button>
+            )}
+            <button
+              type="button"
+              className="btn-info"
+              onClick={() => void exportarExcelDetalle(detalleAbierto.id_pedido_92)}
+            >
+              Excel detalle
+            </button>
+            <button
+              type="button"
+              className="btn-info"
+              onClick={() => void exportarExcelPorProveedor(detalleAbierto.id_pedido_92)}
+            >
+              Excel por proveedor
+            </button>
+            <button
+              type="button"
+              className="btn-export"
+              onClick={() => void exportarPdfPedido(detalleAbierto.id_pedido_92)}
+            >
+              PDF por proveedor
+            </button>
           </div>
+          {!cerrado && (
+            <>
+              <h4 style={{ marginTop: 8 }}>WhatsApp por proveedor</h4>
+              <p className="form-hint" style={{ marginTop: 0 }}>
+                Un botón por ferretería. Se registra el lote y luego se abre el chat; tú pulsas Enviar.
+                Si a las 11:30 agregas líneas, el segundo envío lleva solo las nuevas.
+              </p>
+              <div className="pedido-button-grid" aria-label="WhatsApp por proveedor">
+                {gruposPedidoComoPdf(detalleAbierto).map((g) => {
+                  const catalogo = matchProveedor(g.proveedor);
+                  const e164 = telefonoWhatsApp(catalogo?.telefono_90);
+                  const pendientes = pendientesDeGrupo(g);
+                  const enviados = g.lineas.length - pendientes.lineas.length;
+                  const puedeEnviar = Boolean(e164) && pendientes.lineas.length > 0;
+                  return (
+                    <div key={g.proveedor} className="pedido-wa-card">
+                      <strong>{g.proveedor}</strong>
+                      <span className="pedido-wa-meta">
+                        {pendientes.lineas.length > 0
+                          ? `${pendientes.lineas.length} nuevos · ${pendientes.totalQty} un.`
+                          : 'nada pendiente'}
+                        {enviados > 0 ? ` · ${enviados} enviados` : ''}
+                        {e164 ? ` · +${e164}` : ' · sin teléfono'}
+                      </span>
+                      <button
+                        type="button"
+                        className="btn-success"
+                        disabled={!puedeEnviar || enviandoWa}
+                        title={
+                          !e164
+                            ? 'Cargue el teléfono en Pedidos → Proveedores'
+                            : pendientes.lineas.length === 0
+                              ? 'Todo lo de este proveedor ya se envió'
+                              : `Registrar ${pendientes.lineas.length} nuevos y abrir WhatsApp +${e164}`
+                        }
+                        onClick={() => void enviarWhatsAppGrupo(detalleAbierto, g)}
+                      >
+                        {pendientes.lineas.length > 0 ? `WhatsApp (${pendientes.lineas.length} nuevos)` : 'Ya enviado'}
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            </>
+          )}
           {(detalleAbierto.envios_whatsapp || []).length > 0 && (
             <>
               <h4 style={{ marginTop: 0 }}>Envíos WhatsApp</h4>
@@ -2004,57 +2054,6 @@ const PedidoView: React.FC = () => {
         </div>
       )}
 
-      <div className="filters-row" style={{ display: 'flex', gap: 12, marginBottom: 12, flexWrap: 'wrap', alignItems: 'center' }}>
-        <input
-          type="search"
-          className="form-input"
-          style={{ flex: 1, minWidth: 200, textTransform: 'uppercase' }}
-          placeholder="Buscar orden, proveedor, estado..."
-          value={searchTerm}
-          onChange={(e) => changeKeepingCaret(e, setSearchTerm)}
-          aria-label="Buscar pedidos"
-        />
-        <div role="group" aria-label="Filtro abierta o cerrada" style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-          {([
-            ['abiertas', 'Abiertas'],
-            ['cerradas', 'Cerradas'],
-            ['todas', 'Todas'],
-          ] as const).map(([id, label]) => (
-            <button
-              key={id}
-              type="button"
-              className={filtroCiclo === id ? 'btn-primary' : 'btn-secondary'}
-              aria-pressed={filtroCiclo === id}
-              onClick={() => setFiltroCiclo(id)}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-        <label className="pedido-pago-filter" htmlFor="filtro_pago">
-          Pago
-          <select
-            id="filtro_pago"
-            className="form-input"
-            value={filtroPago}
-            onChange={(e) => setFiltroPago(e.target.value)}
-            aria-label="Filtrar pedidos por estado de pago"
-          >
-            <option value="">Todos</option>
-            <option value="Pendiente">Pendiente</option>
-            <option value="Parcial">Parcial</option>
-            <option value="Pagado">Pagado</option>
-            <option value="Anulado">Anulado</option>
-          </select>
-        </label>
-        <button type="button" className="btn-export" onClick={() => void exportarPdfPagos('pendientes')}>
-          PDF pendientes
-        </button>
-        <button type="button" className="btn-export" onClick={() => void exportarPdfPagos('pagados')}>
-          PDF pagados
-        </button>
-      </div>
-
       <div className="table-container">
         <table className="data-table">
           <thead>
@@ -2071,7 +2070,7 @@ const PedidoView: React.FC = () => {
             {pageItems.length === 0 ? (
               <tr>
                 <td colSpan={6} style={{ textAlign: 'center' }}>
-                  Sin pedidos
+                  {filtroCiclo === 'cerradas' ? 'Sin pedidos cerrados' : 'Sin pedidos'}
                 </td>
               </tr>
             ) : (
@@ -2083,7 +2082,13 @@ const PedidoView: React.FC = () => {
                   <td>{p.estado_pago_92}</td>
                   <td>{p.estado_recepcion_92}</td>
                   <td>
-                    <button type="button" className="btn-edit" onClick={() => abrirDetalle(p.id_pedido_92)} title="Ver / recibir">
+                    <button
+                      type="button"
+                      className="btn-edit"
+                      onClick={() => abrirDetalle(p.id_pedido_92)}
+                      title={pedidoAbierto(p) ? 'Ver / recibir' : 'Consultar (solo lectura)'}
+                      aria-label={pedidoAbierto(p) ? `Abrir ${p.numero_orden_92}` : `Consultar ${p.numero_orden_92}`}
+                    >
                       📋
                     </button>
                     {p.estado_recepcion_92 === 'Pendiente' && p.estado_pago_92 !== 'Anulado' && (
