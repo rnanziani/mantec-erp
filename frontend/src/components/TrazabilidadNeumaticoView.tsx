@@ -10,7 +10,13 @@ import { showDeleteConfirm, showError, showSuccess } from '../utils/swal';
 import { apiFetch, apiUrl, openAuthenticatedBlob } from '../lib/apiClient';
 import { etiquetaNeumatico } from '../utils/neumaticoEtiqueta';
 import { CAPACIDAD_TREN_DELANTERO, esTrenDelantero } from '../utils/trenNeumatico';
-import { compararCodigoNeumatico, keywordsNeumatico, TSN_LEYENDA, prefijoTsnDeCodigo } from '../utils/codigoNeumatico';
+import {
+  compararCodigoNeumatico,
+  keywordsNeumatico,
+  TSN_LEYENDA,
+  prefijoTsnDeCodigo,
+  permiteRepetirPosicion,
+} from '../utils/codigoNeumatico';
 
 interface Maestro {
   idtrazabilidad_76: number;
@@ -50,6 +56,7 @@ const TrazabilidadNeumaticoView: React.FC = () => {
     medida_31?: string | null;
     estado_33?: string | null;
     observaciones_31?: string | null;
+    bloquea_ocupacion_31?: boolean;
   }>>([]);
   const [posiciones, setPosiciones] = useState<Array<{ idposicion_73: number; codigo_73: string; numero_73?: number | null }>>([]);
   const [patrones, setPatrones] = useState<Array<{ id_patron_35: number; codigo_patron_35: string }>>([]);
@@ -239,8 +246,10 @@ const TrazabilidadNeumaticoView: React.FC = () => {
     () =>
       neuOptions.filter((o) => {
         const id = Number(o.value);
+        const neu = neumaticos.find((n) => n.id_neumatico_31 === id);
+        if (permiteRepetirPosicion(neu)) return true;
         if (idsNeuEnCarga.has(id) || idsNeuOcupados.has(id)) return false;
-        const est = String(neumaticos.find((n) => n.id_neumatico_31 === id)?.estado_33 || '')
+        const est = String(neu?.estado_33 || '')
           .trim()
           .toUpperCase();
         if (est === 'MONTADO' || est === 'BAJA') return false;
@@ -471,7 +480,8 @@ const TrazabilidadNeumaticoView: React.FC = () => {
     }
     const idNeu = Number(selNeuM);
     const idPos = Number(selPosM);
-    if (idsNeuEnCarga.has(idNeu)) {
+    const repetible = permiteRepetirPosicion(neuById(idNeu));
+    if (!repetible && idsNeuEnCarga.has(idNeu)) {
       await showError('N° Fuego', `${neuLabel(idNeu)} ya está en esta carga. Un neumático no puede ir a dos posiciones.`);
       return;
     }
@@ -479,7 +489,7 @@ const TrazabilidadNeumaticoView: React.FC = () => {
       await showError('Posición', `${posLabel(idPos)} ya tiene una cubierta en esta carga. No se puede repetir.`);
       return;
     }
-    if (idsNeuOcupados.has(idNeu)) {
+    if (!repetible && idsNeuOcupados.has(idNeu)) {
       await showError('N° Fuego', `${neuLabel(idNeu)} ya está montado o dado de baja. No está disponible.`);
       return;
     }

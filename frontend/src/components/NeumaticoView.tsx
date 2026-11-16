@@ -13,6 +13,7 @@ import { etiquetaNeumatico } from '../utils/neumaticoEtiqueta';
 import {
   esCodigoNeumaticoValido,
   keywordsNeumatico,
+  permiteRepetirPosicion,
   prefijoTsnDeMarca,
   TSN_LEYENDA,
 } from '../utils/codigoNeumatico';
@@ -30,6 +31,7 @@ interface Neumatico {
   marca_32?: string;
   diametro_32?: number;
   estado_33?: string;
+  bloquea_ocupacion_31?: boolean;
 }
 
 interface MarcaNeumatico {
@@ -419,6 +421,7 @@ const NeumaticoView: React.FC = () => {
           codigo_proveedor_31: body.codigo_proveedor_31,
           modelo_31: body.modelo_31,
           medida_31: body.medida_31,
+          bloquea_ocupacion_31: !sinNumero,
         }),
       });
       const data: ApiResponse<Neumatico> = await response.json();
@@ -465,6 +468,7 @@ const NeumaticoView: React.FC = () => {
     setMedida(n.medida_31 || '');
     setFechaIngreso(n.fecha_ingreso_31 ? String(n.fecha_ingreso_31).slice(0, 10) : fechaChileHoy());
     setObservaciones(n.observaciones_31 || '');
+    setSinNumero(permiteRepetirPosicion(n));
     setModoAlta('uno');
     setFilasExcel([]);
     setNombreArchivo('');
@@ -769,28 +773,28 @@ const NeumaticoView: React.FC = () => {
               </>
             ) : (
               <div className="neumatico-form-grid">
-                {!editingId && (
-                  <div className="form-group form-group-span checkbox-group">
-                    <label htmlFor="sinNumero">
-                      <input
-                        id="sinNumero"
-                        type="checkbox"
-                        checked={sinNumero}
-                        onChange={(e) => {
-                          setSinNumero(e.target.checked);
-                          if (e.target.checked) setNFuego('');
-                        }}
-                      />
-                      Sin N° Fuego (flota Transantin: TSNAU / TSNGY / TSNMI / TSNJI)
-                    </label>
-                  </div>
-                )}
+                <div className="form-group form-group-span checkbox-group">
+                  <label htmlFor="sinNumero">
+                    <input
+                      id="sinNumero"
+                      type="checkbox"
+                      checked={sinNumero}
+                      onChange={(e) => {
+                        setSinNumero(e.target.checked);
+                        if (e.target.checked && !editingId) setNFuego('');
+                      }}
+                    />
+                    {editingId
+                      ? 'Sin N° Fuego único (puede ir a IZQ y DER; no se bloquea)'
+                      : 'Sin N° Fuego (flota Transantin: TSNAU / TSNGY / TSNMI / TSNJI)'}
+                  </label>
+                </div>
                 <div className="form-group">
                   <label htmlFor="nFuego">N° Fuego {editingId || sinNumero ? '' : '(opcional)'}</label>
                   <input
                     id="nFuego"
                     className="form-input"
-                    value={sinNumero ? (prefijoTsn ? `${prefijoTsn}…` : '') : nFuego}
+                    value={sinNumero && !editingId ? (prefijoTsn ? `${prefijoTsn}…` : '') : nFuego}
                     onChange={(e) => changeKeepingCaret(e, setNFuego)}
                     placeholder="T261"
                     style={{ textTransform: 'uppercase' }}

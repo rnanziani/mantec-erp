@@ -348,6 +348,8 @@ export interface Neumatico {
   marca_32?: string;
   diametro_32?: number;
   estado_33?: string;
+  /** false = código de flota sin N° Fuego; puede repetirse en IZQ y DER. */
+  bloquea_ocupacion_31?: boolean;
 }
 
 export interface CreateNeumaticoDTO {
@@ -384,6 +386,7 @@ export interface UpdateNeumaticoDTO {
   codigo_proveedor_31?: string;
   modelo_31?: string;
   medida_31?: string;
+  bloquea_ocupacion_31?: boolean;
 }
 
 /**

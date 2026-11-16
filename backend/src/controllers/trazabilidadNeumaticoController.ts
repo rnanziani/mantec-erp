@@ -69,9 +69,6 @@ function validarDetalles(d: DetallesBody): string | null {
   if (neus.some((id) => !id) || poss.some((id) => !id)) {
     return 'En montaje debe indicar neumático y posición';
   }
-  if (new Set(neus).size !== neus.length) {
-    return 'El mismo N° Fuego no puede montarse en dos posiciones';
-  }
   if (new Set(poss).size !== poss.length) {
     return 'La misma posición no se puede repetir en el montaje de cubiertas nuevas';
   }
@@ -88,13 +85,35 @@ function validarDetalles(d: DetallesBody): string | null {
 
 type Ocupacion = { neumaticos: number[]; posiciones: number[] };
 
+async function mapaBloqueo(ids: number[]): Promise<Map<number, boolean>> {
+  const uniq = [...new Set(ids.map(Number).filter((id) => id > 0))];
+  const map = new Map<number, boolean>();
+  if (uniq.length === 0) return map;
+  const r = await pool.query<{ id_neumatico_31: number; bloquea_ocupacion_31: boolean | null }>(
+    `SELECT id_neumatico_31, bloquea_ocupacion_31
+       FROM tbl_31_neumatico
+      WHERE id_neumatico_31 = ANY($1::int[])`,
+    [uniq]
+  );
+  for (const row of r.rows) {
+    map.set(Number(row.id_neumatico_31), row.bloquea_ocupacion_31 !== false);
+  }
+  return map;
+}
+
 async function ocupacionMaquina(
   client: { query: typeof pool.query },
   idMaquina: number,
   excluirActa?: number | null
 ): Promise<Ocupacion> {
   const excluir = excluirActa && Number(excluirActa) > 0 ? Number(excluirActa) : 0;
-  const ultimo = await client.query<{ idneu: number; idpos: number | null; idmaq: number; tipo: number }>(
+  const ultimo = await client.query<{
+    idneu: number;
+    idpos: number | null;
+    idmaq: number;
+    tipo: number;
+    bloquea: boolean | null;
+  }>(
     `WITH ev AS (
         SELECT d.idneumatico_77 AS idneu,
                d.idposicion_77 AS idpos,
@@ -129,17 +148,22 @@ async function ocupacionMaquina(
          WHERE ($2 = 0 OR idacta <> $2)
          ORDER BY idneu, ts DESC, idacta DESC, tipo DESC
       )
-      SELECT idneu, idpos, idmaq, tipo FROM ult WHERE tipo <> 3`,
+      SELECT ult.idneu, ult.idpos, ult.idmaq, ult.tipo,
+             COALESCE(n.bloquea_ocupacion_31, true) AS bloquea
+        FROM ult
+        LEFT JOIN tbl_31_neumatico n ON n.id_neumatico_31 = ult.idneu
+       WHERE ult.tipo <> 3`,
     [idMaquina, excluir]
   );
   const montados = await client.query<{ id_neumatico_31: number }>(
     `SELECT n.id_neumatico_31
        FROM tbl_31_neumatico n
        JOIN tbl_33_estado_neumatico e ON e.id_estado_33 = n.id_estado_31
-      WHERE UPPER(TRIM(e.estado_33)) IN ('MONTADO', 'BAJA')`
+      WHERE UPPER(TRIM(e.estado_33)) IN ('MONTADO', 'BAJA')
+        AND COALESCE(n.bloquea_ocupacion_31, true) = true`
   );
   const neumaticos = new Set<number>([
-    ...ultimo.rows.map((r) => Number(r.idneu)),
+    ...ultimo.rows.filter((r) => r.bloquea !== false).map((r) => Number(r.idneu)),
     ...montados.rows.map((r) => Number(r.id_neumatico_31)),
   ]);
   const posiciones = new Set<number>(
@@ -167,8 +191,16 @@ async function validarOcupacionMontaje(
   const oc = await ocupacionMaquina(pool, idMaquina, excluirActa);
   const ocupNeu = new Set(oc.neumaticos);
   const ocupPos = new Set(oc.posiciones);
+  const idsMontaje = (d.montajes || []).map((x) => Number(x.idneumatico_77));
+  const bloqueo = await mapaBloqueo(idsMontaje);
+  const bloqueadosEnCarga = idsMontaje.filter((id) => bloqueo.get(id) !== false);
+  if (new Set(bloqueadosEnCarga).size !== bloqueadosEnCarga.length) {
+    return 'El mismo N° Fuego no puede montarse en dos posiciones';
+  }
   for (const x of d.montajes || []) {
-    if (ocupNeu.has(Number(x.idneumatico_77))) {
+    const idNeu = Number(x.idneumatico_77);
+    const bloquea = bloqueo.get(idNeu) !== false;
+    if (bloquea && ocupNeu.has(idNeu)) {
       return 'Hay un N° Fuego que ya está montado o dado de baja; no está disponible';
     }
     if (ocupPos.has(Number(x.idposicion_77))) {
@@ -272,7 +304,8 @@ async function aplicarEfectos(
   for (const x of d.montajes || []) {
     if (idMontado) {
       await client.query(
-        `UPDATE tbl_31_neumatico SET id_estado_31 = $1 WHERE id_neumatico_31 = $2`,
+        `UPDATE tbl_31_neumatico SET id_estado_31 = $1
+          WHERE id_neumatico_31 = $2 AND COALESCE(bloquea_ocupacion_31, true) = true`,
         [idMontado, x.idneumatico_77]
       );
     }
@@ -281,7 +314,8 @@ async function aplicarEfectos(
   for (const x of d.rotaciones || []) {
     if (idMontado) {
       await client.query(
-        `UPDATE tbl_31_neumatico SET id_estado_31 = $1 WHERE id_neumatico_31 = $2`,
+        `UPDATE tbl_31_neumatico SET id_estado_31 = $1
+          WHERE id_neumatico_31 = $2 AND COALESCE(bloquea_ocupacion_31, true) = true`,
         [idMontado, x.idneumatico_78]
       );
     }
@@ -290,7 +324,8 @@ async function aplicarEfectos(
   for (const x of d.bajas || []) {
     if (idBaja) {
       await client.query(
-        `UPDATE tbl_31_neumatico SET id_estado_31 = $1 WHERE id_neumatico_31 = $2`,
+        `UPDATE tbl_31_neumatico SET id_estado_31 = $1
+          WHERE id_neumatico_31 = $2 AND COALESCE(bloquea_ocupacion_31, true) = true`,
         [idBaja, x.idneumatico_80]
       );
     }

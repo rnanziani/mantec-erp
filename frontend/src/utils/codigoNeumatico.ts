@@ -1,8 +1,8 @@
 /** N° Fuego de fábrica: T + YY + secuencia (T261, T2612). */
 export const FUEGO_RE = /^T[0-9]{2}[0-9]+$/;
 
-/** Flota sin N° Fuego: TSN + marca + secuencia (TSNAU1, TSNGY2). */
-export const TSN_RE = /^TSN(AU|GY|MI|JI)[0-9]+$/;
+/** Flota sin N° Fuego: TSNAU / TSNAU1 / TSNGY. */
+export const TSN_RE = /^TSN(AU|GY|MI|JI)[0-9]*$/;
 
 export const TSN_SENTINEL = 'TSN';
 
@@ -39,6 +39,20 @@ export function esCodigoNeumaticoValido(codigo: string | null | undefined): bool
 
 export function esCodigoTsn(codigo: string | null | undefined): boolean {
   return TSN_RE.test(String(codigo || '').trim().toUpperCase());
+}
+
+/** Código de flota (TSNAU, TSNGY1…): no es un N° Fuego único. */
+export function esCodigoFlotaSinFuego(codigo: string | null | undefined): boolean {
+  return /^TSN[A-Z]/i.test(String(codigo || '').trim());
+}
+
+export function permiteRepetirPosicion(n: {
+  bloquea_ocupacion_31?: boolean | null;
+  cod_neumatico_31?: string | null;
+} | null | undefined): boolean {
+  if (!n) return false;
+  if (typeof n.bloquea_ocupacion_31 === 'boolean') return n.bloquea_ocupacion_31 === false;
+  return esCodigoFlotaSinFuego(n.cod_neumatico_31);
 }
 
 export function prefijoTsnDeCodigo(codigo: string | null | undefined): string | null {

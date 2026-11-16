@@ -1,8 +1,8 @@
 /** N° Fuego de fábrica: T + YY + secuencia (T261, T2612). */
 export const FUEGO_RE = /^T[0-9]{2}[0-9]+$/;
 
-/** Flota sin N° Fuego: TSN + marca + secuencia (TSNAU1, TSNGY2). */
-export const TSN_RE = /^TSN(AU|GY|MI|JI)[0-9]+$/;
+/** Flota sin N° Fuego: TSNAU / TSNAU1 / TSNGY. */
+export const TSN_RE = /^TSN(AU|GY|MI|JI)[0-9]*$/;
 
 export const TSN_SENTINEL = 'TSN';
 

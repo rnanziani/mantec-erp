@@ -22,6 +22,7 @@ const SELECT_NEU = `SELECT
         n.codigo_proveedor_31,
         n.modelo_31,
         n.medida_31,
+        n.bloquea_ocupacion_31,
         m.marca_32,
         m.diametro_32,
         e.estado_33
@@ -30,7 +31,8 @@ const SELECT_NEU = `SELECT
        LEFT JOIN tbl_33_estado_neumatico e ON n.id_estado_31 = e.id_estado_33`;
 
 const RETURNING_NEU = `id_neumatico_31, cod_neumatico_31, id_marca_31, id_estado_31,
-                 fecha_ingreso_31, observaciones_31, codigo_proveedor_31, modelo_31, medida_31`;
+                 fecha_ingreso_31, observaciones_31, codigo_proveedor_31, modelo_31, medida_31,
+                 bloquea_ocupacion_31`;
 
 function pgErr(error: unknown): { code?: string; message?: string; constraint?: string } {
   return error && typeof error === 'object'
@@ -165,9 +167,10 @@ export const createNeumatico = async (req: Request, res: Response): Promise<void
     const result = await pool.query<Neumatico>(
       `INSERT INTO tbl_31_neumatico (
           id_marca_31, fecha_ingreso_31, observaciones_31,
-          cod_neumatico_31, codigo_proveedor_31, modelo_31, medida_31
+          cod_neumatico_31, codigo_proveedor_31, modelo_31, medida_31,
+          bloquea_ocupacion_31
         )
-        VALUES ($1, COALESCE($2::date, CURRENT_DATE), $3, $4, $5, $6, $7)
+        VALUES ($1, COALESCE($2::date, CURRENT_DATE), $3, $4, $5, $6, $7, $8)
         RETURNING ${RETURNING_NEU}`,
       [
         id_marca_31,
@@ -177,6 +180,7 @@ export const createNeumatico = async (req: Request, res: Response): Promise<void
         textoMayus(codigo_proveedor_31),
         textoMayus(modelo_31),
         textoMayus(medida_31),
+        sin_numero ? false : true,
       ]
     );
 
@@ -323,6 +327,7 @@ export const updateNeumatico = async (req: Request, res: Response): Promise<void
       codigo_proveedor_31,
       modelo_31,
       medida_31,
+      bloquea_ocupacion_31,
     }: UpdateNeumaticoDTO = req.body;
 
     if (id_marca_31 != null) {
@@ -341,8 +346,9 @@ export const updateNeumatico = async (req: Request, res: Response): Promise<void
         observaciones_31 = COALESCE($3, observaciones_31),
         codigo_proveedor_31 = COALESCE($4, codigo_proveedor_31),
         modelo_31 = COALESCE($5, modelo_31),
-        medida_31 = COALESCE($6, medida_31)
-       WHERE id_neumatico_31 = $7
+        medida_31 = COALESCE($6, medida_31),
+        bloquea_ocupacion_31 = COALESCE($7, bloquea_ocupacion_31)
+       WHERE id_neumatico_31 = $8
        RETURNING ${RETURNING_NEU}`,
       [
         id_marca_31 ?? null,
@@ -351,6 +357,7 @@ export const updateNeumatico = async (req: Request, res: Response): Promise<void
         codigo_proveedor_31 !== undefined ? textoMayus(codigo_proveedor_31) : null,
         modelo_31 !== undefined ? textoMayus(modelo_31) : null,
         medida_31 !== undefined ? textoMayus(medida_31) : null,
+        bloquea_ocupacion_31 === undefined ? null : bloquea_ocupacion_31,
         id,
       ]
     );
