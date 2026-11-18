@@ -375,6 +375,17 @@ function fechaClVista(iso: string): string {
   return y && m && d ? `${d}-${m}-${y}` : iso;
 }
 
+function FechasPedidoTitulo({ fechaPedido }: { fechaPedido?: string | null }) {
+  const pedido = fechaPedido ? fechaClVista(fechaPedidoIso(fechaPedido)) : '';
+  const hoy = fechaClVista(hoyChile());
+  return (
+    <span className="pedido-form-fechas" aria-label={`Fecha del pedido ${pedido || '—'}. Hoy ${hoy}`}>
+      {pedido ? <span className="pedido-form-fecha">Pedido {pedido}</span> : null}
+      <span className="pedido-form-fecha">Hoy {hoy}</span>
+    </span>
+  );
+}
+
 const PedidoView: React.FC = () => {
   const formRef = React.useRef<HTMLFormElement>(null);
   const [pedidos, setPedidos] = useState<Pedido[]>([]);
@@ -1336,11 +1347,7 @@ const PedidoView: React.FC = () => {
         <div className="form-container">
           <h3 className="pedido-form-title">
             <span>{editingId ? `Editar ${numero || editingId}` : 'Nuevo pedido'}</span>
-            {fecha ? (
-              <span className="pedido-form-fecha" aria-label={`Fecha del pedido ${fechaClVista(fecha)}`}>
-                {fechaClVista(fecha)}
-              </span>
-            ) : null}
+            <FechasPedidoTitulo fechaPedido={fecha} />
           </h3>
           <form ref={formRef} onSubmit={handleSubmit}>
             <div className="pedido-cabecera">
@@ -1655,11 +1662,14 @@ const PedidoView: React.FC = () => {
 
       {detalleAbierto && !showForm && (
         <div className="form-container">
-          <h3>
-            {detalleAbierto.numero_orden_92} — {detalleAbierto.proveedor_nombre}{' '}
-            <span className="badge">Pago {detalleAbierto.estado_pago_92}</span>{' '}
-            <span className="badge">Recepción {detalleAbierto.estado_recepcion_92}</span>
-            {cerrado ? <span className="badge">Consulta</span> : null}
+          <h3 className="pedido-form-title">
+            <span>
+              {detalleAbierto.numero_orden_92} — {detalleAbierto.proveedor_nombre}{' '}
+              <span className="badge">Pago {detalleAbierto.estado_pago_92}</span>{' '}
+              <span className="badge">Recepción {detalleAbierto.estado_recepcion_92}</span>
+              {cerrado ? <span className="badge">Consulta</span> : null}
+            </span>
+            <FechasPedidoTitulo fechaPedido={String(detalleAbierto.fecha_pedido_92 || '')} />
           </h3>
           {cerrado && (
             <p className="form-hint pedido-consulta-hint" role="status">

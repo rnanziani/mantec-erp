@@ -890,6 +890,14 @@
     gap: 8px 16px;
 }
 
+.pedido-form-fechas {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 16px;
+    align-items: baseline;
+    justify-content: flex-end;
+}
+
 .pedido-form-fecha {
     color: var(--mantec-blue, #1e4a76);
     font-weight: 700;
