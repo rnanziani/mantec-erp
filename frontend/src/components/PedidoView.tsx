@@ -85,9 +85,9 @@ interface ApiResponse<T = unknown> {
 
 /** Combo fijo: cada valor ejecuta una acción distinta. No sale de una tabla. */
 const OPCIONES_RESTO_PENDIENTE = [
-  { value: 'mas_1', label: '+1 día (volver a solicitar en 1 día)' },
-  { value: 'mas_2', label: '+2 días (volver a solicitar en 2 días)' },
-  { value: 'mas_3', label: '+3 días (volver a solicitar en 3 días)' },
+  { value: 'mas_1', label: '+1 día (desde la fecha del pedido)' },
+  { value: 'mas_2', label: '+2 días (desde la fecha del pedido)' },
+  { value: 'mas_3', label: '+3 días (desde la fecha del pedido)' },
   { value: 're_solicitar', label: 'Pendiente (volver a solicitar)' },
   { value: 'retirar', label: 'Pendiente (pagado, solo retirar)' },
   { value: 'cancelar', label: 'Cancelar (no se vuelve a solicitar)' },
@@ -109,7 +109,7 @@ function etiquetaResto(value: string): string {
   return OPCIONES_RESTO_MASIVO.find((o) => o.value === value)?.label || value;
 }
 
-function textoDecision(resto: string, falta: number, llegada: number): string {
+function textoDecision(resto: string, falta: number, llegada: number, fechaPedido?: string | null): string {
   const cabeza = llegada > 0 ? `Llegaron ${llegada}.` : 'No llegó nada.';
   if (resto === 'recepcionado') {
     return `${cabeza} Queda recepcionado en bodega. El pago del pedido no cambia. El PDF de este pedido no cambia.`;
@@ -119,7 +119,8 @@ function textoDecision(resto: string, falta: number, llegada: number): string {
   }
   if (resto === 'mas_1' || resto === 'mas_2' || resto === 'mas_3') {
     const n = Number(resto.slice(4));
-    return `${cabeza} ${falta} se vuelven a solicitar en ${n} día${n > 1 ? 's' : ''} de compra (lunes a viernes). El PDF de este pedido no cambia.`;
+    const destino = fechaDestinoDesdePedido(fechaPedido, n);
+    return `${cabeza} ${falta} pasan al pedido del ${fechaClVista(destino)} (${n} día${n > 1 ? 's' : ''} de compra desde la fecha de este pedido, lunes a viernes; si esa fecha ya pasó, queda hoy). El PDF de este pedido no cambia.`;
   }
   if (resto === 'retirar') return `${cabeza} Lo que falta sigue en este pedido: pagado, solo retirar.`;
   if (resto === 'cancelar') return `${cabeza} ${falta} se cancelan y no se vuelven a solicitar. El PDF de este pedido no cambia.`;
@@ -391,6 +392,29 @@ function hoyChile(): string {
 function fechaClVista(iso: string): string {
   const [y, m, d] = iso.split('-');
   return y && m && d ? `${d}-${m}-${y}` : iso;
+}
+
+/** Suma días de compra (lunes a viernes). El sábado y el domingo no se piden insumos. */
+function sumarDiasCompra(iso: string, dias: number): string {
+  const [y, m, d] = iso.split('-').map(Number);
+  const dt = new Date(Date.UTC(y, m - 1, d));
+  let left = dias;
+  while (left > 0) {
+    dt.setUTCDate(dt.getUTCDate() + 1);
+    const dow = dt.getUTCDay();
+    if (dow !== 0 && dow !== 6) left -= 1;
+  }
+  const mm = String(dt.getUTCMonth() + 1).padStart(2, '0');
+  const dd = String(dt.getUTCDate()).padStart(2, '0');
+  return `${dt.getUTCFullYear()}-${mm}-${dd}`;
+}
+
+/** +N días desde la fecha del pedido. Si esa fecha ya pasó, el destino es hoy. */
+function fechaDestinoDesdePedido(fechaPedido: unknown, dias: number): string {
+  const base = fechaPedidoIso(fechaPedido) || hoyChile();
+  const destino = sumarDiasCompra(base, dias);
+  const hoy = hoyChile();
+  return destino < hoy ? hoy : destino;
 }
 
 function FechasPedidoTitulo({ fechaPedido }: { fechaPedido?: string | null }) {
@@ -850,7 +874,7 @@ const PedidoView: React.FC = () => {
     }
     const ok = await showConfirm(
       'Cerrar insumo',
-      textoDecision(resto, falta, llegada) +
+      textoDecision(resto, falta, llegada, String(detalleAbierto.fecha_pedido_92 || '')) +
         (llegada > pend ? ` Llegaron ${llegada} y quedaban ${pend}. El PDF sigue con lo solicitado.` : ''),
       'Cerrar'
     );
@@ -949,12 +973,20 @@ const PedidoView: React.FC = () => {
     const resumenEstados = [...porEstado.entries()]
       .map(([resto, n]) => `${n} × ${etiquetaResto(resto)}`)
       .join('; ');
+    const destinosMas = [
+      ...new Set(
+        ok
+          .filter((l) => l.resto === 'mas_1' || l.resto === 'mas_2' || l.resto === 'mas_3')
+          .map((l) => fechaClVista(fechaDestinoDesdePedido(detalleAbierto.fecha_pedido_92, Number(l.resto.slice(4)))))
+      ),
+    ];
+    const extraDest = destinosMas.length ? ` Pasan al pedido del ${destinosMas.join(', ')}.` : '';
     const extraOmitidas = omitidas.length
       ? ` ${omitidas.length} visibles no aplican (${omitidas.slice(0, 2).join('; ')}${omitidas.length > 2 ? '…' : ''}).`
       : '';
     const confirmado = await showConfirm(
       'Cerrar líneas visibles',
-      `Se cerrarán ${ok.length} insumos: ${resumenEstados}. El PDF de este pedido no cambia.${extraOmitidas}`,
+      `Se cerrarán ${ok.length} insumos: ${resumenEstados}.${extraDest} El PDF de este pedido no cambia.${extraOmitidas}`,
       'Cerrar'
     );
     if (!confirmado) return;

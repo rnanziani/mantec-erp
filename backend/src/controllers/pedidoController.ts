@@ -74,6 +74,21 @@ function sumarDiasCompra(iso: string, dias: number): string {
   return `${dt.getUTCFullYear()}-${mm}-${dd}`;
 }
 
+function fechaIsoCabecera(value: unknown): string {
+  if (value instanceof Date && !Number.isNaN(value.getTime())) return value.toISOString().slice(0, 10);
+  const s = String(value ?? '');
+  const iso = s.match(/^\d{4}-\d{2}-\d{2}/);
+  return iso ? iso[0] : '';
+}
+
+/** +N días de compra desde la fecha del pedido. Si esa fecha ya pasó, el destino es hoy. */
+function fechaDestinoDesdePedido(fechaPedido: unknown, dias: number): string {
+  const base = fechaIsoCabecera(fechaPedido) || hoyChile();
+  const destino = sumarDiasCompra(base, dias);
+  const hoy = hoyChile();
+  return destino < hoy ? hoy : destino;
+}
+
 function fechaCl(iso: string): string {
   const [y, m, d] = iso.split('-');
   return `${d}-${m}-${y}`;
@@ -1390,6 +1405,7 @@ type PedidoCierre = {
   numero_orden_92?: string | null;
   id_proveedor_92: number;
   id_responsable_92: number;
+  fecha_pedido_92?: unknown;
 };
 
 type ResultadoCierreLinea = {
@@ -1482,7 +1498,7 @@ async function aplicarCierreLinea(
   let fechaDestino = '';
   if (falta > 0 && dias > 0) {
     const idProv = num(row.id_proveedor_91) || num(data.id_proveedor_92);
-    fechaDestino = sumarDiasCompra(hoyChile(), dias);
+    fechaDestino = fechaDestinoDesdePedido(data.fecha_pedido_92, dias);
     destino = await buscarPedidoDelDia(client, idPedido, fechaDestino);
     if (!destino) {
       destino = await crearPedidoConsolidado(
@@ -1542,7 +1558,7 @@ async function aplicarCierreLinea(
 
 /**
  * Cierra una línea según el combo Resto.
- * +N días copia lo que no llegó al pedido de esa fecha de compra.
+ * +N días copia lo que no llegó al pedido de (fecha de este pedido + N días de compra; si ya pasó, hoy).
  * Bodega cierra la línea. Re-solicitar y solo retirar la dejan abierta.
  * El PDF no cambia: cantidad_solicitada_91 sigue siendo lo pedido ese día.
  */
@@ -1747,10 +1763,7 @@ export const trasladarPedido = async (req: Request, res: Response): Promise<void
       res.status(400).json({ success: false, error: 'Este pedido ya está cerrado' });
       return;
     }
-    const fechaOrigen =
-      data.fecha_pedido_92 instanceof Date && !Number.isNaN(data.fecha_pedido_92.getTime())
-        ? data.fecha_pedido_92.toISOString().slice(0, 10)
-        : String(data.fecha_pedido_92 || '').match(/^\d{4}-\d{2}-\d{2}/)?.[0] || '';
+    const fechaOrigen = fechaIsoCabecera(data.fecha_pedido_92);
     if (fecha === fechaOrigen) {
       res.status(400).json({ success: false, error: 'Elija una fecha distinta a la de este pedido' });
       return;
