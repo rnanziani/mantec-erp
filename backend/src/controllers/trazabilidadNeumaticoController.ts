@@ -6,6 +6,80 @@ import { CAPACIDAD_TREN_DELANTERO, esTrenDelantero } from '../utils/trenNeumatic
 
 const MAESTRO = 'tbl_76_m_trazabilidad_neumatico';
 
+function pgErr(error: unknown): { code: string; constraint: string; detail: string; message: string } {
+  const o = error && typeof error === 'object' ? (error as Record<string, unknown>) : {};
+  return {
+    code: o.code != null ? String(o.code) : '',
+    constraint: o.constraint != null ? String(o.constraint) : '',
+    detail: o.detail != null ? String(o.detail) : '',
+    message: error instanceof Error ? error.message : 'Error desconocido',
+  };
+}
+
+function errorAlGrabarIntervencion(
+  error: unknown,
+  accion: 'crear' | 'actualizar'
+): { status: number; error: string; message: string } {
+  const e = pgErr(error);
+  const extra = [e.detail, e.message].filter((x, i, a) => x && a.indexOf(x) === i).join(' — ');
+  if (e.code === '23505' && (e.constraint === 'uk_tbl_77_acta_posicion' || e.constraint === 'uk_tbl_77_pos')) {
+    return { status: 400, error: 'La misma posición no se puede repetir en el montaje', message: extra };
+  }
+  if (e.code === '23505' && e.constraint === 'uk_tbl_77_neu') {
+    return {
+      status: 400,
+      error: 'El mismo N° Fuego no puede montarse dos veces en esta intervención',
+      message: extra,
+    };
+  }
+  if (e.code === '23505' && e.constraint === 'uk_tbl_76_folio') {
+    return { status: 400, error: 'El folio de esta intervención ya existe. Intente grabar de nuevo.', message: extra };
+  }
+  if (e.code === '23505') {
+    return {
+      status: 400,
+      error: 'Ya existe un registro que choca con esta intervención (neumático, posición o folio).',
+      message: extra,
+    };
+  }
+  if (e.code === '23503') {
+    return {
+      status: 400,
+      error: 'Máquina, conductor, técnico, neumático o posición no es válido.',
+      message: extra,
+    };
+  }
+  if (e.code === '23502') {
+    const hist = /id_historial_34/i.test(`${e.message} ${e.detail}`);
+    return {
+      status: 400,
+      error: hist
+        ? 'El historial de neumáticos no tiene correlativo. En DBeaver ejecute database/fix_tbl_34_historial_id_default.sql con Alt+X.'
+        : 'Falta un dato obligatorio para grabar la intervención.',
+      message: extra,
+    };
+  }
+  if (e.code === '22P02') {
+    return {
+      status: 400,
+      error: 'Hay un dato con formato inválido (fecha, hora, odómetro o identificador).',
+      message: extra,
+    };
+  }
+  if (e.code === '42703') {
+    return {
+      status: 500,
+      error: 'Falta una columna en la base. En DBeaver ejecute database/alter_tbl_31_bloquea_ocupacion.sql con Alt+X.',
+      message: extra,
+    };
+  }
+  return {
+    status: 500,
+    error: accion === 'crear' ? 'Error al crear la intervención' : 'Error al actualizar la intervención',
+    message: extra || 'Error desconocido',
+  };
+}
+
 const MAESTRO_SELECT = `
   SELECT
     m.idtrazabilidad_76,
@@ -66,7 +140,7 @@ function validarDetalles(d: DetallesBody): string | null {
   const montajes = d.montajes || [];
   const neus = montajes.map((x) => Number(x.idneumatico_77));
   const poss = montajes.map((x) => Number(x.idposicion_77));
-  if (neus.some((id) => !id) || poss.some((id) => !id)) {
+  if (neus.some((id) => !Number.isFinite(id) || id <= 0) || poss.some((id) => !Number.isFinite(id) || id <= 0)) {
     return 'En montaje debe indicar neumático y posición';
   }
   if (new Set(poss).size !== poss.length) {
@@ -85,18 +159,22 @@ function validarDetalles(d: DetallesBody): string | null {
 
 type Ocupacion = { neumaticos: number[]; posiciones: number[] };
 
+function bloqueaPorCodigo(codigo: string | null | undefined): boolean {
+  return !/^TSN/i.test(String(codigo || '').trim());
+}
+
 async function mapaBloqueo(ids: number[]): Promise<Map<number, boolean>> {
   const uniq = [...new Set(ids.map(Number).filter((id) => id > 0))];
   const map = new Map<number, boolean>();
   if (uniq.length === 0) return map;
-  const r = await pool.query<{ id_neumatico_31: number; bloquea_ocupacion_31: boolean | null }>(
-    `SELECT id_neumatico_31, bloquea_ocupacion_31
+  const r = await pool.query<{ id_neumatico_31: number; cod_neumatico_31: string | null }>(
+    `SELECT id_neumatico_31, cod_neumatico_31
        FROM tbl_31_neumatico
       WHERE id_neumatico_31 = ANY($1::int[])`,
     [uniq]
   );
   for (const row of r.rows) {
-    map.set(Number(row.id_neumatico_31), row.bloquea_ocupacion_31 !== false);
+    map.set(Number(row.id_neumatico_31), bloqueaPorCodigo(row.cod_neumatico_31));
   }
   return map;
 }
@@ -149,7 +227,7 @@ async function ocupacionMaquina(
          ORDER BY idneu, ts DESC, idacta DESC, tipo DESC
       )
       SELECT ult.idneu, ult.idpos, ult.idmaq, ult.tipo,
-             COALESCE(n.bloquea_ocupacion_31, true) AS bloquea
+             (n.cod_neumatico_31 IS NULL OR UPPER(BTRIM(n.cod_neumatico_31)) NOT LIKE 'TSN%') AS bloquea
         FROM ult
         LEFT JOIN tbl_31_neumatico n ON n.id_neumatico_31 = ult.idneu
        WHERE ult.tipo <> 3`,
@@ -160,7 +238,7 @@ async function ocupacionMaquina(
        FROM tbl_31_neumatico n
        JOIN tbl_33_estado_neumatico e ON e.id_estado_33 = n.id_estado_31
       WHERE UPPER(TRIM(e.estado_33)) IN ('MONTADO', 'BAJA')
-        AND COALESCE(n.bloquea_ocupacion_31, true) = true`
+        AND UPPER(BTRIM(n.cod_neumatico_31)) NOT LIKE 'TSN%'`
   );
   const neumaticos = new Set<number>([
     ...ultimo.rows.filter((r) => r.bloquea !== false).map((r) => Number(r.idneu)),
@@ -293,19 +371,43 @@ async function aplicarEfectos(
     );
     const codigo = cod.rows[0]?.cod_neumatico_31;
     if (!codigo) return;
-    await client.query(
-      `INSERT INTO tbl_34_historial_neumatico
-        (cod_neumatico_34, id_conductor_34, id_maquina_34, kilometraje_34, id_tecnico_34, balanceo_34, fecha_movimiento_34, observaciones_34)
-       VALUES ($1, $2, $3, $4, $5, $6, COALESCE($7::timestamptz, NOW()), $8)`,
-      [codigo, cab.idconductor_76, cab.idmaquina_76, cab.km_maquina_76, cab.idtecnico_76, cab.balanceo_76 === true, fechaMov, obs]
-    );
+    const histVals = [
+      codigo,
+      cab.idconductor_76,
+      cab.idmaquina_76,
+      cab.km_maquina_76,
+      cab.idtecnico_76,
+      cab.balanceo_76 === true,
+      fechaMov,
+      obs,
+    ];
+    try {
+      await client.query(
+        `INSERT INTO tbl_34_historial_neumatico
+          (cod_neumatico_34, id_conductor_34, id_maquina_34, kilometraje_34, id_tecnico_34, balanceo_34, fecha_movimiento_34, observaciones_34)
+         VALUES ($1, $2, $3, $4, $5, $6, COALESCE($7::timestamptz, NOW()), $8)`,
+        histVals
+      );
+    } catch (err) {
+      const e = pgErr(err);
+      if (e.code !== '23502' || !/id_historial_34/i.test(`${e.message} ${e.detail}`)) {
+        throw err;
+      }
+      await client.query(
+        `INSERT INTO tbl_34_historial_neumatico
+          (id_historial_34, cod_neumatico_34, id_conductor_34, id_maquina_34, kilometraje_34, id_tecnico_34, balanceo_34, fecha_movimiento_34, observaciones_34)
+         SELECT COALESCE(MAX(id_historial_34), 0) + 1, $1, $2, $3, $4, $5, $6, COALESCE($7::timestamptz, NOW()), $8
+           FROM tbl_34_historial_neumatico`,
+        histVals
+      );
+    }
   };
 
   for (const x of d.montajes || []) {
     if (idMontado) {
       await client.query(
         `UPDATE tbl_31_neumatico SET id_estado_31 = $1
-          WHERE id_neumatico_31 = $2 AND COALESCE(bloquea_ocupacion_31, true) = true`,
+          WHERE id_neumatico_31 = $2 AND UPPER(BTRIM(cod_neumatico_31)) NOT LIKE 'TSN%'`,
         [idMontado, x.idneumatico_77]
       );
     }
@@ -315,7 +417,7 @@ async function aplicarEfectos(
     if (idMontado) {
       await client.query(
         `UPDATE tbl_31_neumatico SET id_estado_31 = $1
-          WHERE id_neumatico_31 = $2 AND COALESCE(bloquea_ocupacion_31, true) = true`,
+          WHERE id_neumatico_31 = $2 AND UPPER(BTRIM(cod_neumatico_31)) NOT LIKE 'TSN%'`,
         [idMontado, x.idneumatico_78]
       );
     }
@@ -325,7 +427,7 @@ async function aplicarEfectos(
     if (idBaja) {
       await client.query(
         `UPDATE tbl_31_neumatico SET id_estado_31 = $1
-          WHERE id_neumatico_31 = $2 AND COALESCE(bloquea_ocupacion_31, true) = true`,
+          WHERE id_neumatico_31 = $2 AND UPPER(BTRIM(cod_neumatico_31)) NOT LIKE 'TSN%'`,
         [idBaja, x.idneumatico_80]
       );
     }
@@ -482,30 +584,34 @@ export const createTrazabilidadNeumatico = async (req: Request, res: Response): 
     );
     const id = ins.rows[0].idtrazabilidad_76;
     await insertarDetalles(client, id, body);
-    await aplicarEfectos(client, body, body);
+    let avisoEfectos = '';
+    try {
+      await client.query('SAVEPOINT efectos');
+      await aplicarEfectos(client, body, body);
+    } catch (efErr) {
+      await client.query('ROLLBACK TO SAVEPOINT efectos');
+      console.error('Historial/estado no aplicado:', pgErr(efErr), efErr);
+      avisoEfectos = errorAlGrabarIntervencion(efErr, 'crear').error;
+    }
     await client.query('COMMIT');
 
     const maestro = await pool.query(`${MAESTRO_SELECT} WHERE m.idtrazabilidad_76 = $1`, [id]);
+    const folio = maestro.rows[0]?.folio_76 || id;
     res.status(201).json({
       success: true,
       data: maestro.rows[0],
-      message: `Intervención ${maestro.rows[0].folio_76} creada`,
+      message: avisoEfectos
+        ? `Intervención ${folio} creada. El historial no se actualizó: ${avisoEfectos}`
+        : `Intervención ${folio} creada`,
     });
   } catch (error) {
     await client.query('ROLLBACK');
-    const pg = error as { code?: string; constraint?: string };
-    if (pg.code === '23505' && pg.constraint === 'uk_tbl_77_acta_posicion') {
-      res.status(400).json({ success: false, error: 'La misma posición no se puede repetir en el montaje' });
-      return;
-    }
-    if (pg.code === '23505') {
-      res.status(400).json({ success: false, error: 'El mismo N° Fuego no puede montarse dos veces en esta intervención' });
-      return;
-    }
-    res.status(500).json({
+    console.error('Error al crear intervención:', pgErr(error), error);
+    const mapped = errorAlGrabarIntervencion(error, 'crear');
+    res.status(mapped.status).json({
       success: false,
-      error: 'Error al crear la intervención',
-      message: error instanceof Error ? error.message : 'Error desconocido',
+      error: mapped.error,
+      message: mapped.message,
     });
   } finally {
     client.release();
@@ -582,10 +688,12 @@ export const updateTrazabilidadNeumatico = async (req: Request, res: Response): 
     res.json({ success: true, data: maestro.rows[0], message: 'Intervención actualizada' });
   } catch (error) {
     await client.query('ROLLBACK');
-    res.status(500).json({
+    console.error('Error al actualizar intervención:', pgErr(error), error);
+    const mapped = errorAlGrabarIntervencion(error, 'actualizar');
+    res.status(mapped.status).json({
       success: false,
-      error: 'Error al actualizar la intervención',
-      message: error instanceof Error ? error.message : 'Error desconocido',
+      error: mapped.error,
+      message: mapped.message,
     });
   } finally {
     client.release();

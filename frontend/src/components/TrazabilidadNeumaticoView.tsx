@@ -42,6 +42,12 @@ interface ApiResponse<T = unknown> {
   message?: string;
 }
 
+const formatApiError = (data: ApiResponse, fallback: string): string => {
+  const parts = [data.error, data.message].filter((p): p is string => Boolean(p && String(p).trim()));
+  const uniq = [...new Set(parts)];
+  return uniq.length ? uniq.join('\n\n') : fallback;
+};
+
 const TrazabilidadNeumaticoView: React.FC = () => {
   const formRef = React.useRef<HTMLFormElement>(null);
   const [registros, setRegistros] = useState<Maestro[]>([]);
@@ -161,9 +167,11 @@ const TrazabilidadNeumaticoView: React.FC = () => {
             posiciones: (data.data.posiciones || []).map(Number),
           });
         } else {
+          console.error('Disponibilidad de montaje:', data.error || data.message);
           setOcupacion({ neumaticos: [], posiciones: [] });
         }
-      } catch {
+      } catch (err) {
+        console.error('Disponibilidad de montaje:', err);
         setOcupacion({ neumaticos: [], posiciones: [] });
       }
     };
@@ -407,6 +415,10 @@ const TrazabilidadNeumaticoView: React.FC = () => {
       await showError('Validación', 'Cargue al menos una línea en algún detalle');
       return;
     }
+    if (montajes.some((m) => !m.idneumatico_77 || !m.idposicion_77)) {
+      await showError('Montaje', 'Cada línea debe tener N° Fuego y posición (ej. T2612 en L1 IZQ y T260 en el otro lado)');
+      return;
+    }
     const montajesDel = montajes.filter((m) => idsPosDelanteras.has(m.idposicion_77)).length;
     const ocupadasDel = [...idsPosOcupadas].filter((id) => idsPosDelanteras.has(id)).length;
     if (ocupadasDel + montajesDel > CAPACIDAD_TREN_DELANTERO) {
@@ -429,7 +441,7 @@ const TrazabilidadNeumaticoView: React.FC = () => {
         resetForm();
         await showSuccess('Listo', data.message || 'Intervención guardada');
       } else {
-        await showError('Error', data.error || data.message || 'No se pudo guardar');
+        await showError('Error', formatApiError(data, 'No se pudo guardar'));
       }
     } catch {
       await showError('Error', 'Error de conexión');
