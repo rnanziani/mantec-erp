@@ -168,6 +168,8 @@ const emptyLinea = {
   cantidad: '1',
   precio: '',
   obs: '',
+  minCantidad: 0,
+  protegida: false,
 };
 
 function lineaPedidoLlena(ln: Pick<typeof emptyLinea, 'cod_insumo_91' | 'descripcion'>): boolean {
@@ -359,6 +361,22 @@ function mostrarFechaHora(value: unknown): string {
 function pedidoAbierto(p: Pick<Pedido, 'estado_pago_92' | 'estado_recepcion_92'>): boolean {
   const rec = p.estado_recepcion_92;
   return p.estado_pago_92 !== 'Anulado' && rec !== 'Anulado' && rec !== 'Recibido' && rec !== 'Cerrada';
+}
+
+function comprometidoLinea(d: Pick<Detalle, 'cantidad_recibida_91' | 'cantidad_pasada_91' | 'cantidad_baja_91'>): number {
+  return (
+    Math.round(Number(d.cantidad_recibida_91 || 0))
+    + Math.round(Number(d.cantidad_pasada_91 || 0))
+    + Math.round(Number(d.cantidad_baja_91 || 0))
+  );
+}
+
+function lineaPedidoProtegida(d: Detalle): boolean {
+  return comprometidoLinea(d) > 0 || Boolean(d.fecha_envio_wa);
+}
+
+function pedidoSeElimina(p: Pick<Pedido, 'estado_pago_92' | 'estado_recepcion_92'>): boolean {
+  return p.estado_recepcion_92 === 'Pendiente' && p.estado_pago_92 !== 'Anulado';
 }
 
 function hoyChile(): string {
@@ -634,17 +652,23 @@ const PedidoView: React.FC = () => {
     setFecha(String(p.fecha_pedido_92).slice(0, 10));
     setNumero(p.numero_orden_92 || '');
     setObs(p.observaciones_cab_92 || '');
-    setLineas(
-      (p.detalles || []).map((d) => ({
-        id_detalle_91: d.id_detalle_91 || null,
-        cod_insumo_91: d.cod_insumo_91 ? String(d.cod_insumo_91) : '',
-        descripcion: d.cod_insumo_91 ? d.descripcion_89 || '' : d.descripcion_libre_91 || d.descripcion_89 || '',
-        idProveedorLinea: d.id_proveedor_91 ? String(d.id_proveedor_91) : matchProveedorId(d.proveedor_89),
-        cantidad: cantidadEntera(d.cantidad_solicitada_91) || '1',
-        precio: formatPrecioVista(d.precio_unitario_91),
-        obs: d.observaciones_det_91 || '',
-      }))
-    );
+    setLineas([
+      ...(p.detalles || []).map((d) => {
+        const minCantidad = comprometidoLinea(d);
+        return {
+          id_detalle_91: d.id_detalle_91 || null,
+          cod_insumo_91: d.cod_insumo_91 ? String(d.cod_insumo_91) : '',
+          descripcion: d.cod_insumo_91 ? d.descripcion_89 || '' : d.descripcion_libre_91 || d.descripcion_89 || '',
+          idProveedorLinea: d.id_proveedor_91 ? String(d.id_proveedor_91) : matchProveedorId(d.proveedor_89),
+          cantidad: cantidadEntera(d.cantidad_solicitada_91) || '1',
+          precio: formatPrecioVista(d.precio_unitario_91),
+          obs: d.observaciones_det_91 || '',
+          minCantidad,
+          protegida: lineaPedidoProtegida(d),
+        };
+      }),
+      { ...emptyLinea },
+    ]);
     setFiltroProveedorForm('');
     setShowForm(true);
     setDetalleAbierto(p);
@@ -679,7 +703,7 @@ const PedidoView: React.FC = () => {
           cod_insumo_91: sku,
           descripcion_libre_91: sku ? null : l.descripcion.trim().toUpperCase(),
           id_proveedor_91: l.idProveedorLinea ? Number(l.idProveedorLinea) : null,
-          cantidad_solicitada_91: Math.round(Number(l.cantidad)),
+          cantidad_solicitada_91: Math.max(l.minCantidad || 0, Math.round(Number(l.cantidad))),
           precio_unitario_91: l.precio.trim() === '' ? null : parsePrecioChileno(l.precio),
           observaciones_det_91: l.obs || null,
         };
@@ -1446,6 +1470,12 @@ const PedidoView: React.FC = () => {
             <p className="form-hint" style={{ marginTop: 0 }}>
               Código de catálogo o, si no existe, solo descripción y cantidad (extensión, unión, fabricar). Queda en el mismo pedido.
             </p>
+            {editingId && lineas.some((l) => l.protegida) ? (
+              <p className="form-hint pedido-consulta-hint" role="status">
+                Este pedido ya tiene recepción o WhatsApp. Puede agregar insumos. Las líneas que ya llegaron o se
+                enviaron no se quitan.
+              </p>
+            ) : null}
             <div className="table-container table-container--combos">
               <table className="data-table">
                 <thead>
@@ -1466,8 +1496,9 @@ const PedidoView: React.FC = () => {
                     const textoEtiquetaProv = String(skuLinea?.proveedor_89 || '').trim();
                     const faltaEnCatalogo =
                       Boolean(ln.cod_insumo_91) && Boolean(textoEtiquetaProv) && !ln.idProveedorLinea;
+                    const minQty = ln.protegida ? Math.max(1, ln.minCantidad) : 1;
                     return (
-                      <tr key={idx}>
+                      <tr key={idx} className={ln.protegida ? 'pedido-linea-protegida' : undefined}>
                         <td className="pedido-linea-nro" aria-label={`Línea ${idx + 1}`}>
                           {idx + 1}
                         </td>
@@ -1478,6 +1509,7 @@ const PedidoView: React.FC = () => {
                             onChange={(v) => setLinea(idx, { cod_insumo_91: v })}
                             options={skuOptions}
                             placeholder="CÓDIGO O VACÍO..."
+                            disabled={ln.protegida}
                             aria-label={`SKU línea ${idx + 1}`}
                           />
                         </td>
@@ -1486,7 +1518,7 @@ const PedidoView: React.FC = () => {
                             id={`desc_linea_${idx}`}
                             className="form-input"
                             value={ln.descripcion}
-                            disabled={Boolean(ln.cod_insumo_91)}
+                            disabled={ln.protegida || Boolean(ln.cod_insumo_91)}
                             maxLength={200}
                             style={{ textTransform: 'uppercase' }}
                             placeholder="EXTENSIÓN CORTA..."
@@ -1501,6 +1533,7 @@ const PedidoView: React.FC = () => {
                             onChange={(v) => setLinea(idx, { idProveedorLinea: v })}
                             options={proveedorOptions}
                             placeholder="PROVEEDOR..."
+                            disabled={ln.protegida}
                             emptyMessage="No coincide. Elíjalo del catálogo o créelo en Pedidos → Proveedores"
                             aria-label={`Proveedor línea ${idx + 1}`}
                           />
@@ -1532,12 +1565,19 @@ const PedidoView: React.FC = () => {
                         <td style={{ width: 110 }}>
                           <input
                             type="number"
-                            min={1}
+                            min={minQty}
                             step={1}
                             inputMode="numeric"
                             className="form-input"
                             value={ln.cantidad}
-                            onChange={(e) => setLinea(idx, { cantidad: cantidadEntera(e.target.value) })}
+                            onChange={(e) => {
+                              const raw = cantidadEntera(e.target.value);
+                              if (!raw) {
+                                setLinea(idx, { cantidad: '' });
+                                return;
+                              }
+                              setLinea(idx, { cantidad: String(Math.max(minQty, Number(raw))) });
+                            }}
                             aria-label={`Cantidad línea ${idx + 1}`}
                           />
                         </td>
@@ -1557,19 +1597,25 @@ const PedidoView: React.FC = () => {
                           />
                         </td>
                         <td className="actions" style={{ width: 56, textAlign: 'center' }}>
-                          <button
-                            type="button"
-                            className="btn-delete"
-                            title="Quitar línea"
-                            aria-label={`Quitar línea ${idx + 1}`}
-                            onClick={() =>
-                              setLineas((rows) =>
-                                rows.length === 1 ? [{ ...emptyLinea }] : rows.filter((_, i) => i !== idx)
-                              )
-                            }
-                          >
-                            🗑️
-                          </button>
+                          {ln.protegida ? (
+                            <span className="pedido-linea-lock" title="Línea con recepción o WhatsApp" aria-label={`Línea ${idx + 1} no se quita`}>
+                              —
+                            </span>
+                          ) : (
+                            <button
+                              type="button"
+                              className="btn-delete"
+                              title="Quitar línea"
+                              aria-label={`Quitar línea ${idx + 1}`}
+                              onClick={() =>
+                                setLineas((rows) =>
+                                  rows.length === 1 ? [{ ...emptyLinea }] : rows.filter((_, i) => i !== idx)
+                                )
+                              }
+                            >
+                              🗑️
+                            </button>
+                          )}
                         </td>
                       </tr>
                     );
@@ -1677,6 +1723,15 @@ const PedidoView: React.FC = () => {
             </p>
           )}
           <div className="pedido-button-grid">
+            {!cerrado && (
+              <button
+                type="button"
+                className="btn-primary"
+                onClick={() => void startEdit(detalleAbierto.id_pedido_92)}
+              >
+                Agregar insumos
+              </button>
+            )}
             {!cerrado && detalleAbierto.estado_pago_92 !== 'Pagado' && (
               <button
                 type="button"
@@ -2108,12 +2163,18 @@ const PedidoView: React.FC = () => {
                     >
                       📋
                     </button>
-                    {p.estado_recepcion_92 === 'Pendiente' && p.estado_pago_92 !== 'Anulado' && (
-                      <button type="button" className="btn-edit" onClick={() => startEdit(p.id_pedido_92)} title="Editar">
+                    {pedidoAbierto(p) && (
+                      <button
+                        type="button"
+                        className="btn-edit"
+                        onClick={() => startEdit(p.id_pedido_92)}
+                        title="Editar / agregar insumos"
+                        aria-label={`Editar ${p.numero_orden_92}`}
+                      >
                         ✏️
                       </button>
                     )}
-                    {pedidoAbierto(p) && (
+                    {pedidoSeElimina(p) && (
                       <button type="button" className="btn-delete" onClick={() => handleDelete(p.id_pedido_92)} title="Eliminar">
                         🗑️
                       </button>

@@ -262,6 +262,23 @@ function cicloCerrado(estadoRecepcion: unknown, estadoPago?: unknown): boolean {
   return pago === 'Anulado' || rec === 'Anulado' || rec === 'Recibido' || rec === 'Cerrada';
 }
 
+function comprometidaLinea(d: {
+  cantidad_recibida_91?: unknown;
+  cantidad_pasada_91?: unknown;
+  cantidad_baja_91?: unknown;
+}): number {
+  return num(d.cantidad_recibida_91) + num(d.cantidad_pasada_91) + num(d.cantidad_baja_91);
+}
+
+function lineaProtegida(d: {
+  cantidad_recibida_91?: unknown;
+  cantidad_pasada_91?: unknown;
+  cantidad_baja_91?: unknown;
+  fecha_envio_wa?: unknown;
+}): boolean {
+  return comprometidaLinea(d) > 0 || Boolean(d.fecha_envio_wa);
+}
+
 function claveConsolidar(d: {
   cod_insumo_91?: number | null;
   descripcion_libre_91?: string | null;
@@ -908,13 +925,6 @@ export const updatePedido = async (req: Request, res: Response): Promise<void> =
       res.status(400).json({ success: false, error: 'No se edita un pedido cerrado, recibido o anulado' });
       return;
     }
-    const recibida = (actual.detalles as Array<{ cantidad_recibida_91: number }>).some(
-      (d) => num(d.cantidad_recibida_91) > 0
-    );
-    if (recibida) {
-      res.status(400).json({ success: false, error: 'Ya hay recepción: no se editan las líneas' });
-      return;
-    }
     const idProveedor = num(req.body.id_proveedor_92);
     const idResponsable = num(req.body.id_responsable_92);
     const lineas = parseLineas(req.body.detalles);
@@ -927,13 +937,44 @@ export const updatePedido = async (req: Request, res: Response): Promise<void> =
       res.status(400).json({ success: false, error: errorLinea });
       return;
     }
-    const idsExistentes = new Set(
-      (actual.detalles as Array<{ id_detalle_91: number }>).map((d) => Number(d.id_detalle_91))
-    );
+    type DetalleActual = {
+      id_detalle_91: number;
+      cod_insumo_91: number | null;
+      descripcion_libre_91: string | null;
+      id_proveedor_91: number | null;
+      cantidad_recibida_91: number;
+      cantidad_pasada_91: number;
+      cantidad_baja_91: number;
+      fecha_envio_wa?: string | null;
+    };
+    const detallesActuales = (actual.detalles || []) as DetalleActual[];
+    const porId = new Map(detallesActuales.map((d) => [Number(d.id_detalle_91), d]));
     const idsConservar: number[] = [];
     for (const ln of lineas) {
-      const idDet = ln.id_detalle_91 && idsExistentes.has(Number(ln.id_detalle_91)) ? Number(ln.id_detalle_91) : 0;
+      const idDet = ln.id_detalle_91 && porId.has(Number(ln.id_detalle_91)) ? Number(ln.id_detalle_91) : 0;
       if (idDet) idsConservar.push(idDet);
+    }
+    const idsEnPayload = new Set(idsConservar);
+    for (const d of detallesActuales) {
+      if (lineaProtegida(d) && !idsEnPayload.has(Number(d.id_detalle_91))) {
+        res.status(400).json({
+          success: false,
+          error: 'No se quitan líneas ya recibidas, cerradas o enviadas por WhatsApp',
+        });
+        return;
+      }
+    }
+    for (const ln of lineas) {
+      const prev = ln.id_detalle_91 ? porId.get(Number(ln.id_detalle_91)) : undefined;
+      if (!prev) continue;
+      const minQty = Math.round(comprometidaLinea(prev));
+      if (ln.cantidad_solicitada_91 < minQty) {
+        res.status(400).json({
+          success: false,
+          error: `La cantidad no puede ser menor a lo ya recibido o cerrado (${minQty})`,
+        });
+        return;
+      }
     }
     await client.query('BEGIN');
     await client.query(
@@ -963,8 +1004,10 @@ export const updatePedido = async (req: Request, res: Response): Promise<void> =
       );
     }
     for (const ln of lineas) {
-      const idDet = ln.id_detalle_91 && idsExistentes.has(Number(ln.id_detalle_91)) ? Number(ln.id_detalle_91) : 0;
-      if (idDet) {
+      const prev = ln.id_detalle_91 ? porId.get(Number(ln.id_detalle_91)) : undefined;
+      const idDet = prev ? Number(prev.id_detalle_91) : 0;
+      if (idDet && prev) {
+        const protegida = lineaProtegida(prev);
         await client.query(
           `UPDATE tbl_91_pedido_detalle
            SET cod_insumo_91 = $2,
@@ -976,9 +1019,9 @@ export const updatePedido = async (req: Request, res: Response): Promise<void> =
            WHERE id_detalle_91 = $1 AND id_pedido_91 = $8`,
           [
             idDet,
-            ln.cod_insumo_91,
-            ln.descripcion_libre_91,
-            ln.id_proveedor_91,
+            protegida ? prev.cod_insumo_91 : ln.cod_insumo_91,
+            protegida ? prev.descripcion_libre_91 : ln.descripcion_libre_91,
+            protegida ? prev.id_proveedor_91 : ln.id_proveedor_91,
             ln.cantidad_solicitada_91,
             ln.precio_unitario_91,
             ln.observaciones_det_91,
@@ -994,6 +1037,7 @@ export const updatePedido = async (req: Request, res: Response): Promise<void> =
         );
       }
     }
+    await recalcularRecepcion(client, id);
     await client.query('COMMIT');
     res.json({ success: true, data: await cargarPedido(id), message: 'Pedido actualizado' });
   } catch (error) {

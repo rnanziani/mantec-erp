@@ -904,6 +904,17 @@
     white-space: nowrap;
 }
 
+.pedido-linea-protegida td {
+    background: #f4f6fa;
+}
+
+.pedido-linea-lock {
+    display: inline-block;
+    min-width: 1.5rem;
+    color: #6b7280;
+    font-weight: 700;
+}
+
 .pedido-pago-filter {
     display: flex;
     align-items: center;
