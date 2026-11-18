@@ -223,7 +223,7 @@ async function ocupacionMaquina(
       ult AS (
         SELECT DISTINCT ON (idneu) idneu, idpos, idmaq, tipo
           FROM ev
-         WHERE ($2 = 0 OR idacta <> $2)
+         WHERE ($1::int = 0 OR idacta <> $1::int)
          ORDER BY idneu, ts DESC, idacta DESC, tipo DESC
       )
       SELECT ult.idneu, ult.idpos, ult.idmaq, ult.tipo,
@@ -231,7 +231,7 @@ async function ocupacionMaquina(
         FROM ult
         LEFT JOIN tbl_31_neumatico n ON n.id_neumatico_31 = ult.idneu
        WHERE ult.tipo <> 3`,
-    [idMaquina, excluir]
+    [excluir]
   );
   const montados = await client.query<{ id_neumatico_31: number }>(
     `SELECT n.id_neumatico_31
@@ -396,7 +396,9 @@ async function aplicarEfectos(
       await client.query(
         `INSERT INTO tbl_34_historial_neumatico
           (id_historial_34, cod_neumatico_34, id_conductor_34, id_maquina_34, kilometraje_34, id_tecnico_34, balanceo_34, fecha_movimiento_34, observaciones_34)
-         SELECT COALESCE(MAX(id_historial_34), 0) + 1, $1, $2, $3, $4, $5, $6, COALESCE($7::timestamptz, NOW()), $8
+         SELECT COALESCE(MAX(id_historial_34), 0) + 1,
+                $1::varchar, $2::int, $3::int, $4::numeric, $5::int, $6::boolean,
+                COALESCE($7::timestamptz, NOW()), $8::text
            FROM tbl_34_historial_neumatico`,
         histVals
       );
