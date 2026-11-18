@@ -1879,8 +1879,20 @@ type DetallePdf = {
   descripcion_89?: string | null;
   proveedor_89?: string | null;
   cantidad_solicitada_91: number;
+  cantidad_baja_91?: number;
   precio_unitario_91?: number | null;
 };
+
+/** Lo pedido menos lo cancelado. 0 = no va al PDF ni a WhatsApp. */
+function cantidadRequeridaPdf(d: Pick<DetallePdf, 'cantidad_solicitada_91' | 'cantidad_baja_91'>): number {
+  return Math.max(0, cantidadEntera(d.cantidad_solicitada_91) - Math.round(num(d.cantidad_baja_91)));
+}
+
+function lineasVigentesPdf(detalles: DetallePdf[]): DetallePdf[] {
+  return detalles
+    .map((d) => ({ ...d, cantidad_solicitada_91: cantidadRequeridaPdf(d) }))
+    .filter((d) => d.cantidad_solicitada_91 > 0);
+}
 
 function proveedorDeLinea(d: DetallePdf, fallback: string): string {
   const n = String(d.proveedor_89 || '').trim().toUpperCase();
@@ -1914,9 +1926,9 @@ export const generarPdfPedido = async (req: Request, res: Response): Promise<voi
       res.status(404).json({ success: false, error: 'Pedido no encontrado' });
       return;
     }
-    const detalles = (data.detalles || []) as DetallePdf[];
+    const detalles = lineasVigentesPdf((data.detalles || []) as DetallePdf[]);
     if (detalles.length === 0) {
-      res.status(400).json({ success: false, error: 'El pedido no tiene líneas para exportar' });
+      res.status(400).json({ success: false, error: 'No hay insumos vigentes: las líneas canceladas no salen en el PDF' });
       return;
     }
     const fallback = String(data.proveedor_nombre || '').trim().toUpperCase();
@@ -2244,7 +2256,9 @@ export const registrarEnvioWhatsApp = async (req: Request, res: Response): Promi
       [idPedido]
     );
     const enviados = new Set(ya.rows.map((r: { id_detalle_99: number }) => Number(r.id_detalle_99)));
-    const pendientes = delGrupo.filter((d) => !enviados.has(Number(d.id_detalle_91)));
+    const pendientes = delGrupo.filter(
+      (d) => !enviados.has(Number(d.id_detalle_91)) && cantidadRequeridaPdf(d) > 0
+    );
     if (pendientes.length === 0) {
       res.status(400).json({ success: false, error: `Nada pendiente para ${proveedor}. Lo de las 09:30 no se vuelve a mandar.` });
       return;
@@ -2264,10 +2278,10 @@ export const registrarEnvioWhatsApp = async (req: Request, res: Response): Promi
         ? data.fecha_pedido_92.toISOString().slice(0, 10)
         : String(data.fecha_pedido_92 || '').match(/^\d{4}-\d{2}-\d{2}/)?.[0]
           || String(data.fecha_pedido_92 || '').slice(0, 10);
-    const totalQty = pendientes.reduce((s, l) => s + cantidadEntera(l.cantidad_solicitada_91), 0);
+    const totalQty = pendientes.reduce((s, l) => s + cantidadRequeridaPdf(l), 0);
     const lineasTxt = pendientes.map(
       (l, i) =>
-        `${i + 1}. ${l.descripcion_89 || ''} (${l.codigo_89 || 'SIN CÓDIGO'}) — ${cantidadEntera(l.cantidad_solicitada_91)} un.`
+        `${i + 1}. ${l.descripcion_89 || ''} (${l.codigo_89 || 'SIN CÓDIGO'}) — ${cantidadRequeridaPdf(l)} un.`
     );
     const texto = [
       'MANTEC ERP',

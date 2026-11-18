@@ -123,7 +123,9 @@ function textoDecision(resto: string, falta: number, llegada: number, fechaPedid
     return `${cabeza} ${falta} pasan al pedido del ${fechaClVista(destino)} (${n} día${n > 1 ? 's' : ''} de compra desde la fecha de este pedido, lunes a viernes; si esa fecha ya pasó, queda hoy). El PDF de este pedido no cambia.`;
   }
   if (resto === 'retirar') return `${cabeza} Lo que falta sigue en este pedido: pagado, solo retirar.`;
-  if (resto === 'cancelar') return `${cabeza} ${falta} se cancelan y no se vuelven a solicitar. El PDF de este pedido no cambia.`;
+  if (resto === 'cancelar') {
+    return `${cabeza} ${falta} se cancelan y no se vuelven a solicitar. No salen en el PDF ni en WhatsApp.`;
+  }
   return `${cabeza} Lo que falta sigue en este pedido, para volver a solicitar sin fecha.`;
 }
 
@@ -223,6 +225,14 @@ function pendienteLinea(d: {
   );
 }
 
+/** Lo pedido menos lo cancelado. 0 = no va al PDF ni a WhatsApp. */
+function cantidadRequeridaLinea(d: Pick<Detalle, 'cantidad_solicitada_91' | 'cantidad_baja_91'>): number {
+  return Math.max(
+    0,
+    Math.round(Number(d.cantidad_solicitada_91)) - Math.round(Number(d.cantidad_baja_91 || 0))
+  );
+}
+
 function resumenCierre(d: {
   cantidad_recibida_91?: number;
   cantidad_pasada_91?: number;
@@ -312,6 +322,7 @@ function gruposPedidoComoPdf(ped: Pedido) {
   const fallback = String(ped.proveedor_nombre || '').trim().toUpperCase();
   const map = new Map<string, Detalle[]>();
   for (const d of ped.detalles || []) {
+    if (cantidadRequeridaLinea(d) <= 0) continue;
     const key = String(d.proveedor_89 || '').trim().toUpperCase() || fallback || 'SIN PROVEEDOR';
     const arr = map.get(key) || [];
     arr.push(d);
@@ -320,9 +331,9 @@ function gruposPedidoComoPdf(ped: Pedido) {
   return [...map.entries()]
     .map(([proveedor, lineas]) => {
       const ordenadas = [...lineas].sort(
-        (a, b) => Math.round(Number(b.cantidad_solicitada_91)) - Math.round(Number(a.cantidad_solicitada_91))
+        (a, b) => cantidadRequeridaLinea(b) - cantidadRequeridaLinea(a)
       );
-      const totalQty = ordenadas.reduce((s, l) => s + (Math.round(Number(l.cantidad_solicitada_91)) || 0), 0);
+      const totalQty = ordenadas.reduce((s, l) => s + cantidadRequeridaLinea(l), 0);
       return {
         proveedor,
         totalQty,
@@ -331,7 +342,7 @@ function gruposPedidoComoPdf(ped: Pedido) {
           enviadoAt: l.fecha_envio_wa || null,
           codigo: l.codigo_89 || 'SIN CÓDIGO',
           descripcion: l.descripcion_89 || '',
-          cantidad: Math.round(Number(l.cantidad_solicitada_91)) || 0,
+          cantidad: cantidadRequeridaLinea(l),
           precio: l.precio_unitario_91 == null ? '—' : Number(l.precio_unitario_91),
         })),
       };
@@ -1097,7 +1108,7 @@ const PedidoView: React.FC = () => {
         recepcion: ped.estado_recepcion_92,
         observaciones: ped.observaciones_cab_92,
         grupos,
-        totalItems: (ped.detalles || []).length,
+        totalItems: grupos.reduce((s, g) => s + g.lineas.length, 0),
         totalUnidades,
       });
     } catch {
@@ -1907,7 +1918,7 @@ const PedidoView: React.FC = () => {
               </div>
               <p className="form-hint" style={{ margin: 0, maxWidth: 520 }}>
                 Cierre cada insumo. Si no llegó todo, el combo dice en cuántos días de compra se vuelve a pedir,
-                o si sigue pendiente. El PDF de este pedido no cambia. El pago del pedido completo sigue en Marcar pagado.
+                o si sigue pendiente. Lo cancelado no sale en el PDF ni en WhatsApp. El pago del pedido completo sigue en Marcar pagado.
               </p>
             </div>
           )}
