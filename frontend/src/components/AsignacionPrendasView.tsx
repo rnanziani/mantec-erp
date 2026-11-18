@@ -193,6 +193,15 @@ const toTimeInputValue = (raw: string | null | undefined): string => {
   return s.length >= 5 ? s.slice(0, 5) : s;
 };
 
+function hoyChile(): string {
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'America/Santiago',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(new Date());
+}
+
 const EstadoEntregaLabel: React.FC<{ entregado: boolean }> = ({ entregado }) => (
   <span
     className={entregado ? 'estado-entrega-entregado' : 'estado-entrega-pendiente'}
@@ -226,7 +235,7 @@ const AsignacionPrendasView: React.FC = () => {
   const [idEmpresa, setIdEmpresa] = useState<string>('');
   const [observaciones, setObservaciones] = useState<string>('');
   const [entregado, setEntregado] = useState<boolean>(false);
-  const [fecha, setFecha] = useState<string>(new Date().toISOString().split('T')[0]);
+  const [fecha, setFecha] = useState<string>(hoyChile);
   const [hora, setHora] = useState<string>(new Date().toTimeString().split(' ')[0].substring(0, 5));
   
   // Detalle de prendas
@@ -773,7 +782,7 @@ const AsignacionPrendasView: React.FC = () => {
     setIdEmpresa('');
     setObservaciones('');
     setEntregado(false);
-    setFecha(new Date().toISOString().split('T')[0]);
+    setFecha(hoyChile());
     setHora(new Date().toTimeString().split(' ')[0].substring(0, 5));
     setDetallePrendas([]);
     setPrendaSeleccionada(null);
@@ -857,7 +866,7 @@ const AsignacionPrendasView: React.FC = () => {
   const handleCambioTrabajador = (id: string) => {
     setIdTrabajador(id);
     const trab = trabajadores.find((t) => String(t.idtrabajador_06) === id);
-    if (idAsignacionSeleccionada && !String(idEmpresa).trim() && trab?.idempresa_06 != null) {
+    if (trab?.idempresa_06 != null && (!idAsignacionSeleccionada || !String(idEmpresa).trim())) {
       setIdEmpresa(String(trab.idempresa_06));
     }
   };

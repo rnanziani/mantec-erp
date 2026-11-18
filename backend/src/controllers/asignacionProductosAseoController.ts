@@ -21,6 +21,38 @@ const TABLA_MAQUINA = 'tbl_11_maquina';
 const TABLA_TRABAJADOR = 'tbl_06_trabajador';
 const TABLA_RESPONSABLE = 'tbl_08_responsable_entrega';
 
+function pgCode(error: unknown): string {
+  return error && typeof error === 'object' && 'code' in error ? String((error as { code?: string }).code || '') : '';
+}
+
+function errorAlGrabarAsignacion(error: unknown): { status: number; error: string; message: string } {
+  const message = error instanceof Error ? error.message : 'Error desconocido';
+  const code = pgCode(error);
+  if (code === '23505') {
+    return {
+      status: 400,
+      error:
+        'Ya existe una asignación de este trabajador y máquina en esta fecha y hora. Ábrala en la lista y agregue los productos ahí, o cambie la hora.',
+      message,
+    };
+  }
+  if (code === '23503') {
+    return {
+      status: 400,
+      error: 'Máquina, trabajador, responsable o producto no es válido.',
+      message,
+    };
+  }
+  if (code === '23502') {
+    return {
+      status: 400,
+      error: 'Falta un dato obligatorio para grabar la asignación.',
+      message,
+    };
+  }
+  return { status: 500, error: 'Error al grabar la asignación', message };
+}
+
 /**
  * Obtener todos los productos de aseo
  */
@@ -509,6 +541,27 @@ export const createAsignacion = async (req: Request, res: Response): Promise<voi
 
     await client.query('BEGIN');
 
+    const duplicada = await client.query<{ idproductomain_12: number }>(
+      `SELECT idproductomain_12
+       FROM ${TABLA_ASIGNACION}
+       WHERE idtrabajador_12 = $1
+         AND idmaquina_12 = $2
+         AND fecha_12 = $3::date
+         AND hora_12 = $4::time
+         AND idresponsableentrega_12 = $5
+       LIMIT 1`,
+      [id_trabajador, id_maquina, fecha, hora, id_responsable]
+    );
+    if ((duplicada.rowCount ?? 0) > 0) {
+      await client.query('ROLLBACK');
+      const idExistente = duplicada.rows[0].idproductomain_12;
+      res.status(400).json({
+        success: false,
+        error: `Ya existe la asignación ${idExistente} de este trabajador y máquina en esa fecha y hora. Ábrala en la lista y agregue los productos ahí.`,
+      });
+      return;
+    }
+
     // Insertar asignación
     const insertAsignacionQuery = `
       INSERT INTO ${TABLA_ASIGNACION} (idmaquina_12, idtrabajador_12, idresponsableentrega_12, fecha_12, hora_12)
@@ -582,12 +635,13 @@ export const createAsignacion = async (req: Request, res: Response): Promise<voi
   } catch (error) {
     await client.query('ROLLBACK');
     console.error('Error al crear asignación:', error);
+    const mapped = errorAlGrabarAsignacion(error);
     const response: ApiResponse<null> = {
       success: false,
-      error: 'Error al crear la asignación',
-      message: error instanceof Error ? error.message : 'Error desconocido'
+      error: mapped.error,
+      message: mapped.message
     };
-    res.status(500).json(response);
+    res.status(mapped.status).json(response);
   } finally {
     client.release();
   }
@@ -706,12 +760,13 @@ export const updateAsignacion = async (req: Request, res: Response): Promise<voi
   } catch (error) {
     await client.query('ROLLBACK');
     console.error('Error al actualizar asignación:', error);
+    const mapped = errorAlGrabarAsignacion(error);
     const response: ApiResponse<null> = {
       success: false,
-      error: 'Error al actualizar la asignación',
-      message: error instanceof Error ? error.message : 'Error desconocido'
+      error: mapped.error,
+      message: mapped.message
     };
-    res.status(500).json(response);
+    res.status(mapped.status).json(response);
   } finally {
     client.release();
   }

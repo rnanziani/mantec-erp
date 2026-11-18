@@ -21,6 +21,38 @@ const TABLA_PRENDA = 'tbl_07_prenda';
 const TABLA_TALLA = 'tbl_16_tallas';
 const TABLA_EMPRESA = 'tbl_15_empresas';
 
+function pgCode(error: unknown): string {
+  return error && typeof error === 'object' && 'code' in error ? String((error as { code?: string }).code || '') : '';
+}
+
+function errorAlGrabarAsignacion(error: unknown): { status: number; error: string; message: string } {
+  const message = error instanceof Error ? error.message : 'Error desconocido';
+  const code = pgCode(error);
+  if (code === '23505') {
+    return {
+      status: 400,
+      error:
+        'Ya existe un acta de este trabajador en esta fecha y hora. Ábrala en la lista y agregue las prendas ahí, o cambie la hora.',
+      message,
+    };
+  }
+  if (code === '23503') {
+    return {
+      status: 400,
+      error: 'Empresa, trabajador, responsable o prenda no es válido.',
+      message,
+    };
+  }
+  if (code === '23502') {
+    return {
+      status: 400,
+      error: 'Falta un dato obligatorio para grabar la asignación.',
+      message,
+    };
+  }
+  return { status: 500, error: 'Error al grabar la asignación', message };
+}
+
 function formatFechaEntregaCorta(date: Date | string): string {
   const d = typeof date === 'string' ? new Date(date) : date;
   const dd = String(d.getDate()).padStart(2, '0');
@@ -250,6 +282,26 @@ export const createAsignacion = async (req: Request, res: Response): Promise<voi
       return;
     }
 
+    const duplicada = await client.query<{ idasignacionmain_09: number }>(
+      `SELECT idasignacionmain_09
+       FROM ${TABLA_ASIGNACION}
+       WHERE idtrabajador_09 = $1
+         AND fecha_09 = $2::date
+         AND hora_09 = $3::time
+         AND idresponsableentrega_09 = $4
+       LIMIT 1`,
+      [idtrabajador_09, fecha_09, hora_09, idresponsableentrega_09]
+    );
+    if ((duplicada.rowCount ?? 0) > 0) {
+      await client.query('ROLLBACK');
+      const idExistente = duplicada.rows[0].idasignacionmain_09;
+      res.status(400).json({
+        success: false,
+        error: `Ya existe el acta ${idExistente} de este trabajador en esa fecha y hora. Ábrala en la lista y agregue las prendas ahí.`,
+      });
+      return;
+    }
+
     // Insertar asignación principal
     const asignacionQuery = `
       INSERT INTO ${TABLA_ASIGNACION} (idtrabajador_09, fecha_09, hora_09, idresponsableentrega_09, idempresa_09, observaciones_09, entregado)
@@ -320,13 +372,13 @@ export const createAsignacion = async (req: Request, res: Response): Promise<voi
   } catch (error) {
     await client.query('ROLLBACK').catch(() => {});
     console.error('Error al crear asignación:', error);
-    const pgMessage = error instanceof Error ? error.message : 'Error desconocido';
+    const mapped = errorAlGrabarAsignacion(error);
     const response: ApiResponse<null> = {
       success: false,
-      error: 'Error al crear la asignación',
-      message: pgMessage
+      error: mapped.error,
+      message: mapped.message
     };
-    res.status(500).json(response);
+    res.status(mapped.status).json(response);
   } finally {
     client.release();
   }
@@ -492,12 +544,13 @@ export const updateAsignacion = async (req: Request, res: Response): Promise<voi
   } catch (error) {
     await client.query('ROLLBACK');
     console.error('Error al actualizar asignación:', error);
+    const mapped = errorAlGrabarAsignacion(error);
     const response: ApiResponse<null> = {
       success: false,
-      error: 'Error al actualizar la asignación',
-      message: error instanceof Error ? error.message : 'Error desconocido'
+      error: mapped.error,
+      message: mapped.message
     };
-    res.status(500).json(response);
+    res.status(mapped.status).json(response);
   } finally {
     client.release();
   }

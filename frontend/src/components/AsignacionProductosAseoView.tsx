@@ -74,6 +74,15 @@ type SortConfig = {
   direction: 'asc' | 'desc';
 };
 
+function hoyChile(): string {
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'America/Santiago',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(new Date());
+}
+
 function nombreTrabajador(t: Trabajador): string {
   return `${t.apaterno_06 || ''} ${t.amaterno_06 || ''} ${t.nombre_06 || ''}`.trim();
 }
@@ -107,7 +116,7 @@ const AsignacionProductosAseoView: React.FC = () => {
   const [idMaquina, setIdMaquina] = useState<string>('');
   const [idTrabajador, setIdTrabajador] = useState<string>('');
   const [idResponsable, setIdResponsable] = useState<string>('');
-  const [fecha, setFecha] = useState<string>(new Date().toISOString().split('T')[0]);
+  const [fecha, setFecha] = useState<string>(hoyChile);
   const [hora, setHora] = useState<string>(new Date().toTimeString().split(' ')[0].substring(0, 5));
   
   // Detalle de productos
@@ -547,7 +556,7 @@ const AsignacionProductosAseoView: React.FC = () => {
     setIdMaquina('');
     setIdTrabajador('');
     setIdResponsable('');
-    setFecha(new Date().toISOString().split('T')[0]);
+    setFecha(hoyChile());
     setHora(new Date().toTimeString().split(' ')[0].substring(0, 5));
     setDetalleProductos([]);
     setIdAsignacionSeleccionada(null);
