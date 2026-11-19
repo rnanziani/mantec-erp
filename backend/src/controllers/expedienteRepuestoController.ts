@@ -44,6 +44,7 @@ const SELECT_ALL = `
     e.creado_en,
     e.actualizado_en,
     ma.numinterno_11::text AS maquina_numinterno,
+    ma.ppu_11 AS maquina_ppu,
     ma.descripcion_11 AS maquina_descripcion,
     CONCAT(t.nombres_21, ' ', COALESCE(t.a_paterno_21, ''), ' ', COALESCE(t.a_materno_21, '')) AS tecnico_nombre,
     CONCAT(
@@ -59,6 +60,7 @@ const SELECT_ALL = `
       ELSE CONCAT(ti.nombres_21, ' ', COALESCE(ti.a_paterno_21, ''), ' ', COALESCE(ti.a_materno_21, ''))
     END AS tecnico_instalacion_nombre,
     mi.numinterno_11::text AS maquina_instalacion_numinterno,
+    mi.ppu_11 AS maquina_instalacion_ppu,
     CASE
       WHEN e.fecha_entrega_proveedor_86 IS NULL THEN NULL
       WHEN e.fecha_vuelta_86 IS NOT NULL THEN (e.fecha_vuelta_86 - e.fecha_entrega_proveedor_86)

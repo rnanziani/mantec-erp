@@ -2347,6 +2347,7 @@ export interface ExpedienteRepuesto {
   creado_en: string;
   actualizado_en: string;
   maquina_numinterno?: string;
+  maquina_ppu?: string;
   maquina_descripcion?: string;
   tecnico_nombre?: string;
   responsable_nombre?: string;
@@ -2355,6 +2356,7 @@ export interface ExpedienteRepuesto {
   proveedor_nombre?: string;
   tecnico_instalacion_nombre?: string;
   maquina_instalacion_numinterno?: string;
+  maquina_instalacion_ppu?: string;
   dias_en_proveedor?: number | null;
 }
 

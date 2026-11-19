@@ -54,6 +54,7 @@ interface Expediente {
   observacion_instalacion_86?: string | null;
   origen_alta_86?: 'CICLO' | 'STOCK_PREVIO';
   maquina_numinterno?: string;
+  maquina_ppu?: string;
   tecnico_nombre?: string;
   responsable_nombre?: string;
   repuesto_codigo?: string;
@@ -96,6 +97,14 @@ const formatMiles = (value: string | number | null | undefined) => {
   if (n == null) return '';
   return n.toLocaleString('es-CL', { maximumFractionDigits: 0 });
 };
+
+/** En grilla: 366 TDT41. Si no hay patente, solo el interno. */
+function etiquetaMaquinaGrilla(numinterno?: string | null, ppu?: string | null): string {
+  const n = String(numinterno || '').trim();
+  const p = String(ppu || '').trim();
+  if (n && p) return `${n} ${p}`;
+  return n || p || '—';
+}
 
 const ExpedienteRepuestoView: React.FC = () => {
   const formRef = React.useRef<HTMLFormElement>(null);
@@ -257,6 +266,7 @@ const ExpedienteRepuestoView: React.FC = () => {
       return (
         String(r.folio_86 || '').toLowerCase().includes(q) ||
         (r.maquina_numinterno || '').toLowerCase().includes(q) ||
+        (r.maquina_ppu || '').toLowerCase().includes(q) ||
         (r.tecnico_nombre || '').toLowerCase().includes(q) ||
         (r.responsable_nombre || '').toLowerCase().includes(q) ||
         (r.repuesto_nombre || '').toLowerCase().includes(q) ||
@@ -821,7 +831,7 @@ const ExpedienteRepuestoView: React.FC = () => {
                       <div style={{ fontSize: 12, color: '#6b7280' }}>Stock previo</div>
                     )}
                   </td>
-                  <td>{r.maquina_numinterno}</td>
+                  <td>{etiquetaMaquinaGrilla(r.maquina_numinterno, r.maquina_ppu)}</td>
                   <td>{r.repuesto_codigo ? `${r.repuesto_codigo} — ` : ''}{r.repuesto_nombre}</td>
                   <td>{r.cantidad_86 ?? 1}</td>
                   <td>{r.responsable_nombre}</td>
