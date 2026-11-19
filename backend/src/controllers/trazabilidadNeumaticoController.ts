@@ -212,7 +212,7 @@ async function ocupacionMaquina(
           JOIN tbl_76_m_trazabilidad_neumatico m ON m.idtrazabilidad_76 = d.idtrazabilidad_78
         UNION ALL
         SELECT d.idneumatico_80,
-               NULL,
+               NULL::int4,
                m.idmaquina_76,
                (m.fecha_76 + COALESCE(m.hora_76, time '00:00')),
                m.idtrazabilidad_76,
@@ -310,7 +310,7 @@ async function insertarDetalles(
   for (const x of d.montajes || []) {
     await client.query(
       `INSERT INTO tbl_77_d_montaje_neumatico (idtrazabilidad_77, idneumatico_77, idposicion_77, observacion_77)
-       VALUES ($1, $2, $3, $4)`,
+       VALUES ($1::int, $2::int, $3::int, $4::text)`,
       [idMaestro, x.idneumatico_77, x.idposicion_77, x.observacion_77?.trim() || null]
     );
   }
@@ -385,7 +385,7 @@ async function aplicarEfectos(
       await client.query(
         `INSERT INTO tbl_34_historial_neumatico
           (cod_neumatico_34, id_conductor_34, id_maquina_34, kilometraje_34, id_tecnico_34, balanceo_34, fecha_movimiento_34, observaciones_34)
-         VALUES ($1, $2, $3, $4, $5, $6, COALESCE($7::timestamptz, NOW()), $8)`,
+         VALUES ($1::varchar, $2::int, $3::int, $4::numeric, $5::int, $6::boolean, COALESCE($7::timestamptz, NOW()), $8::text)`,
         histVals
       );
     } catch (err) {
@@ -561,17 +561,21 @@ export const createTrazabilidadNeumatico = async (req: Request, res: Response): 
       res.status(400).json({ success: false, error: detErr });
       return;
     }
-    const ocErr = await validarOcupacionMontaje(body.idmaquina_76, body, null);
-    if (ocErr) {
-      res.status(400).json({ success: false, error: ocErr });
-      return;
+    try {
+      const ocErr = await validarOcupacionMontaje(body.idmaquina_76, body, null);
+      if (ocErr) {
+        res.status(400).json({ success: false, error: ocErr });
+        return;
+      }
+    } catch (ocEx) {
+      console.error('Ocupación no consultada (se continúa el grabado):', pgErr(ocEx), ocEx);
     }
 
     await client.query('BEGIN');
     const ins = await client.query<{ idtrazabilidad_76: number }>(
       `INSERT INTO ${MAESTRO} (
          idmaquina_76, idconductor_76, idtecnico_76, km_maquina_76, fecha_76, hora_76, observacion_76, balanceo_76
-       ) VALUES ($1, $2, $3, $4, COALESCE($5::date, CURRENT_DATE), COALESCE($6::time, CURRENT_TIME), $7, $8)
+       ) VALUES ($1::int, $2::int, $3::int, $4::numeric, COALESCE($5::date, CURRENT_DATE), COALESCE($6::time, CURRENT_TIME), $7::text, $8::boolean)
        RETURNING idtrazabilidad_76`,
       [
         body.idmaquina_76,
@@ -643,10 +647,14 @@ export const updateTrazabilidadNeumatico = async (req: Request, res: Response): 
       res.status(400).json({ success: false, error: detErr });
       return;
     }
-    const ocErr = await validarOcupacionMontaje(body.idmaquina_76, body, Number(req.params.id));
-    if (ocErr) {
-      res.status(400).json({ success: false, error: ocErr });
-      return;
+    try {
+      const ocErr = await validarOcupacionMontaje(body.idmaquina_76, body, Number(req.params.id));
+      if (ocErr) {
+        res.status(400).json({ success: false, error: ocErr });
+        return;
+      }
+    } catch (ocEx) {
+      console.error('Ocupación no consultada (se continúa la actualización):', pgErr(ocEx), ocEx);
     }
 
     await client.query('BEGIN');
